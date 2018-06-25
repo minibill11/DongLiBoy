@@ -1,0 +1,911 @@
+﻿@model IEnumerable<JianHeMES.Models.Assemble>
+
+@{
+    ViewBag.Title = "组装信息查询";
+}
+<script src="~/Scripts/highcharts.js"></script>
+<script src="~/Scripts/highcharts-3d.js"></script>
+<script src="~/Scripts/modules/exporting.js"></script>
+@*引入EasyUI框架*@
+<script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
+<link rel="stylesheet" type="text/css" href="~/Content/easyui.css">
+<link rel="stylesheet" type="text/css" href="~/Content/icon.css">
+<script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
+<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
+
+@*引入Vue.js框架*@
+<script src="~/Scripts/vue.js"></script>
+
+@*引入Bootstrap框架*@
+<link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
+<script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
+
+<style type="text/css">
+    /*手型指针*/
+    .progress {
+        cursor: pointer;
+    }
+    td,th{
+        width:10%;
+    }
+</style>
+
+<h2>@ViewBag.Title</h2>
+
+<div class="text-center">
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("组装工位", "AssembleStationB")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("防水测试工位", "WaterproofTestB")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("电源、转接卡工位", "AssembleAdapterCardB")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("视检工位", "ViewCheckB")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("电检工位", "ElectricityCheckB")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("IPQC工位", "IPQCCheckB")
+    </p>
+</div>
+<br />
+<br />
+@using (Html.BeginForm("AssembleIndex", "Assembles", FormMethod.Post, new { id = "searchForm", @class = "text-center" }))
+{
+    @Html.AntiForgeryToken()
+    <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
+        <p>
+            订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")
+            @*订单号：<input type="text" name="orderNum"/>
+                描述:<input type="text" name="SearchString" />*@
+            <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
+            <input type="submit" id="searchButton" value="查找" />
+        </p>
+    </form>
+    <br />
+}
+
+<div class="container">
+    <div class="row">
+        <div id="details" style="@ViewBag.Display">
+            <div class="col-md-4">
+                <h4>订单<span id="title" v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组校正基本情况 </h4>
+                订单的模组总量：@ViewBag.Quantity，经过校正数量：@ViewBag.RecordCount<br />
+                正常数量：@ViewBag.NormalCount，异常数量：@ViewBag.AbnormalCount，完成率：<span id="Rate">{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
+                校正总时长：@ViewBag.TotalTimeSpan<br />
+                平均校正时长：@ViewBag.AvgTimeSpan<br />
+                查询时间：<span id="Querytime">{{message}}</span>   @*输出查询时间*@
+            </div>
+            @*<div id="main_pie" class="col-md-3" style="width: 375px;height:250px;"></div>*@
+            <div id="container2" class="col-md-4" style="width: auto;height:300px;"></div>
+        </div>
+    </div>
+</div>
+ 
+<script type="text/javascript">
+    var app = new Vue({
+        el: '#Querytime',    //与div中的id名对应
+        data: {
+            message: new Date().toLocaleString()  //输出查询时间
+        }
+    })
+    var app2 = new Vue({     //悬停显示内容<span v-bind:title="floatmessage">内容</span>
+        el: '#title',
+        data: {
+            floatmessage: '订单号'+'@ViewBag.orderNum',
+        }
+    })
+
+    var app3 = new Vue ({
+        el:'#Rate',
+        data:{
+            Quantity:@ViewBag.Quantity,
+            NormalCount:@ViewBag.NormalCount,
+        },
+        computed:{
+            FinishRate: function (){
+                return (this.NormalCount/this.Quantity*100).toFixed(1)
+            }}
+    })
+
+
+    var CalibrationRecordsViewModel = {
+        orderNum:'',
+        Quantity: 0,
+        Count: 0,
+        NeverFinish: 0,
+        OrderList:[]
+    }
+
+    CalibrationRecordsViewModel.orderNum = '@ViewBag.orderNum';
+    CalibrationRecordsViewModel.Quantity=@ViewBag.Quantity;
+    CalibrationRecordsViewModel.Count=@ViewBag.NormalCount;
+
+
+    Highcharts.chart('container2', {
+        chart: {
+            type: 'pie',
+            options3d: {
+                enabled: true,
+                alpha: 30,
+                beta: 0
+            }
+        },
+        title: {
+            text: '订单 @ViewBag.orderNum 基本情况'
+        },
+        tooltip: {
+            pointFormat: '<b>{point.percentage:.1f}%</b>'//'{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                depth: 35,
+                dataLabels: {
+                    enabled: true,
+                    formatter:function(){           // '{point.name}'
+                        if(this.percentage >0 )
+                        { return this.point.name;}
+                        else if (this.percentage >=100 )
+                        { return '已全部完成';}
+                    }
+                }
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: '',
+            data: [
+                ['已完成 @ViewBag.NormalCount 块',@ViewBag.NormalCount],
+                ['未完成 @ViewBag.NeverFinish 块',@ViewBag.NeverFinish]
+            ]
+        }]
+    });
+</script>
+
+<hr style="@ViewBag.Display" />
+
+<br />
+
+<div style="@ViewBag.Display">
+    <h4> 订单 @ViewBag.orderNum 详细组装记录：</h4>
+</div>
+
+<table class="table">
+    @*表头*@
+    <tr>
+        @*组装表头*@
+        <th>
+            @Html.DisplayNameFor(model => model.OrderNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.BoxBarCode)
+        </th>
+        @*<th>
+            @Html.DisplayNameFor(model => model.ModelCollections)
+        </th>*@
+        <th>
+            @Html.DisplayNameFor(model => model.ModelList)
+        </th>
+
+        <th>组装工位</th>
+        <th>防水测试工位</th>
+        <th>电源、转接卡工位</th>
+        <th>视检工位</th>
+        <th>电检工位</th>
+        <th>IPQC工位</th>
+        <th>编辑</th>
+
+
+        @*<th>
+            @Html.DisplayNameFor(model => model.AssembleBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssemblePrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleFT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleTime)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleFinish)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofTestBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofTestPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofTestFT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofTestTime)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofAbnormal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofMaintaince)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.WaterproofTestFinish)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleAdapterCardBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleAdapterCardPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleAdapterCardFT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleAdapterTime)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleAdapterFinish)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ViewCheckBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleViewCheckPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ViewCheckFT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ViewCheckTime)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ViewCheckAbnormal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ViewCheckFinish)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ElectricityCheckBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleElectricityCheckPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ElectricityCheckFT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ElectricityCheckTime)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ElectricityCheckAbnormal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ElectricityCheckFinish)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IPQCCheckBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleIPQCPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AssembleLineId)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IPQCCheckFT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IPQCCheckTime)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IPQCCheckAbnormal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IPQCCheckFinish)
+        </th>
+        <th></th>*@
+    </tr>
+
+    @if (Model != null)
+    {
+        foreach (var item in Model)
+        {
+            //获取开始时间
+            @Html.TextBoxFor(modelItem => item.AssembleBT, new { @id = item.BoxBarCode + "-AssembleB", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.WaterproofTestBT, new { @id = item.BoxBarCode + "-WaterproofTestB", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.AssembleAdapterCardBT, new { @id = item.BoxBarCode + "-AssembleAdapterCardB", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.ViewCheckBT, new { @id = item.BoxBarCode + "-ViewCheckB", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.ElectricityCheckBT, new { @id = item.BoxBarCode + "-ElectricityCheckB", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.IPQCCheckBT, new { @id = item.BoxBarCode + "-IPQCCheckB", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            //获取完成状态
+           @Html.TextBoxFor(modelItem => item.AssembleFinish,new {@id = item.BoxBarCode + "-Assemble",@class = "form-control", @style = "display:none", @readonly = "readonly"})
+           @Html.TextBoxFor(modelItem => item.WaterproofTestFinish,new {@id = item.BoxBarCode + "-WaterproofTest",@class = "form-control", @style = "display:none", @readonly = "readonly"})
+           @Html.TextBoxFor(modelItem => item.AssembleAdapterFinish,new {@id = item.BoxBarCode + "-AssembleAdapterCard",@class = "form-control", @style = "display:none", @readonly = "readonly"})
+           @Html.TextBoxFor(modelItem => item.ViewCheckFinish, new {@id = item.BoxBarCode + "-ViewCheck",@class = "form-control", @style = "display:none", @readonly = "readonly"})
+           @Html.TextBoxFor(modelItem => item.ElectricityCheckFinish, new {@id = item.BoxBarCode + "-ElectricityCheck",@class = "form-control", @style = "display:none", @readonly = "readonly"})
+           @Html.TextBoxFor(modelItem => item.IPQCCheckFinish, new {@id = item.BoxBarCode + "-IPQCCheck",@class = "form-control", @style = "display:none", @readonly = "readonly"})
+            //获取异常代码
+            @Html.TextBoxFor(modelItem => item.WaterproofAbnormal, new { @id = item.BoxBarCode + "-WaterproofTestA", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.ViewCheckAbnormal, new { @id = item.BoxBarCode + "-ViewCheckA", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.ElectricityCheckAbnormal, new { @id = item.BoxBarCode + "-ElectricityCheckA", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+            @Html.TextBoxFor(modelItem => item.IPQCCheckAbnormal, new { @id = item.BoxBarCode + "-IPQCCheckA", @class = "form-control", @style = "display:none", @readonly = "readonly" })
+    <tr id = "@item.BoxBarCode">
+        <td>
+            @Html.DisplayFor(modelItem => item.OrderNum)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.BoxBarCode)
+            @*@Html.EditorFor(modelItem => item.BoxBarCode)*@
+        </td>
+        @*<td>
+            @Html.DisplayFor(modelItem => item.ModelCollections)
+        </td>*@
+        <td>
+            @Html.EditorFor(modelItem => item.ModelList, new { htmlAttributes = new { @id = item.BoxBarCode+"-list", @class = "form-control", @style = "display:none", @readonly = "readonly"} })
+            @Html.DisplayFor(modelItem => item.ModelList, new { htmlAttributes = new {@class = "form-control",@readonly = "readonly"} })
+        </td>
+        <td>
+            <div class="progress" data-toggle="modal" data-target="#@item.BoxBarCode-modalAssemble" title="点击查看组装情况">
+                <div id="@item.BoxBarCode-Assemblepro" class="" role="progressbar"
+                         style="width: 100%;">
+                </div>
+                <script>
+                    var AssembleB = $("#@item.BoxBarCode-AssembleB").val();
+                    var Assemblepro = $("#@item.BoxBarCode-Assemble").val();
+                    if(AssembleB != ""){
+                        if(Assemblepro == "True"){
+                            $("#@item.BoxBarCode-Assemblepro").attr("class","progress-bar progress-bar-success")
+                        }else if(Assemblepro == "False"){
+                            $("#@item.BoxBarCode-Assemblepro").attr({class:"progress-bar progress-bar-success progress-bar-striped active",style:"width:30%"})
+                        }@*else if(异常){
+                            $("#@item.BoxBarCode-Assemblepro").attr("class","progress-bar progress-bar-warning")
+                        }*@
+                    }else{
+                        $("#@item.BoxBarCode-Assemblepro").attr("class","")
+                    }
+                </script>
+            </div>
+        </td>
+        <td>
+            <div class="progress" data-toggle="modal" data-target="#@item.BoxBarCode-modalWaterproofTest" title="点击查看防水情况">
+                <div id="@item.BoxBarCode-WaterproofTestpro" class="" role="progressbar"
+                     style="width: 100%;">
+                </div>
+                <script>
+                    var WaterproofTestA= $("#@item.BoxBarCode-WaterproofTestA").val();
+                    var WaterproofTestB= $("#@item.BoxBarCode-WaterproofTestB").val();
+                    var WaterproofTestpro= $("#@item.BoxBarCode-WaterproofTest").val();
+                    if(WaterproofTestB != ""){
+                        if(WaterproofTestpro == "True"){
+                            if(WaterproofTestA == 1){
+                                $("#@item.BoxBarCode-WaterproofTestpro").attr("class","progress-bar progress-bar-success")
+                            }else{
+                                $("#@item.BoxBarCode-WaterproofTestpro").attr("class","progress-bar progress-bar-warning")
+                            }
+                        }else{
+                            $("#@item.BoxBarCode-WaterproofTestpro").attr({class:"progress-bar progress-bar-success progress-bar-striped active",style:"width:30%"})
+                        }
+                    }else{
+                        $("#@item.BoxBarCode-WaterproofTestpro").attr("class","")
+                    }
+                </script>
+            </div>
+        </td>
+        <td>
+            <div class="progress"  data-toggle="modal" data-target="#@item.BoxBarCode-modalAssembleAdapterCard" title="点击查看安装情况">
+                    <div id="@item.BoxBarCode-AssembleAdapterCardpro" class="" role="progressbar"
+                         style="width: 100%;">
+                    </div>
+                <script>
+                    var AssembleAdapterCardB= $("#@item.BoxBarCode-AssembleAdapterCardB").val();
+                    var AssembleAdapterCardpro= $("#@item.BoxBarCode-AssembleAdapterCard").val();
+                    if(AssembleAdapterCardB != ""){
+                        if(AssembleAdapterCardpro == "True"){
+                            $("#@item.BoxBarCode-AssembleAdapterCardpro").attr("class","progress-bar progress-bar-success")
+                        }else if(AssembleAdapterCardpro == "False"){
+                            $("#@item.BoxBarCode-AssembleAdapterCardpro").attr({class:"progress-bar progress-bar-success progress-bar-striped active",style:"width:30%"})
+                        }@*else if(异常){
+                            $("#@item.BoxBarCode-Assemblepro").attr("class","progress-bar progress-bar-warning")
+                        }*@
+                    }else{
+                        $("#@item.BoxBarCode-AssembleAdapterCardpro").attr("class","")
+                    }
+                </script>
+                </div>
+        </td>
+        <td>
+            <div class="progress" data-toggle="modal" data-target="#@item.BoxBarCode-modalViewCheck" title="点击查看视检情况">
+                <div id="@item.BoxBarCode-ViewCheckpro" class="" role="progressbar"
+                     style="width: 100%;">
+                </div>
+                <script>
+                    var ViewCheckA=$("#@item.BoxBarCode-ViewCheckA").val();
+                    var ViewCheckB= $("#@item.BoxBarCode-ViewCheckB").val();
+                    var ViewCheckpro= $("#@item.BoxBarCode-ViewCheck").val();
+                    if(ViewCheckB != ""){
+                        if(ViewCheckpro == "True"){
+                            if(ViewCheckA == 1){
+                                $("#@item.BoxBarCode-ViewCheckpro").attr("class","progress-bar progress-bar-success")
+                            }else{
+                                $("#@item.BoxBarCode-ViewCheckpro").attr("class","progress-bar progress-bar-warning")
+                            }
+                        }else{
+                            $("#@item.BoxBarCode-ViewCheckpro").attr({class:"progress-bar progress-bar-success progress-bar-striped active",style:"width:30%"})
+                        }
+                    }else{
+                        $("#@item.BoxBarCode-ViewCheckpro").attr("class","")
+                    }
+                </script>
+            </div>
+        </td>
+        <td>
+            <div class="progress" data-toggle="modal" data-target="#@item.BoxBarCode-modalElectricityCheck" title="点击查看电检情况">
+                <div id="@item.BoxBarCode-ElectricityCheckpro" class="" role="progressbar"
+                     style="width: 100%;">
+                </div>
+                <script>
+                    var ElectricityCheckA= $("#@item.BoxBarCode-ElectricityCheckA").val();
+                    var ElectricityCheckB= $("#@item.BoxBarCode-ElectricityCheckB").val();
+                    var ElectricityCheckpro= $("#@item.BoxBarCode-ElectricityCheck").val();
+                    if(ElectricityCheckB != ""){
+                        if(ElectricityCheckpro == "True"){
+                            if(ElectricityCheckA == 1){
+                                $("#@item.BoxBarCode-ElectricityCheckpro").attr("class","progress-bar progress-bar-success")
+                            }else{
+                                $("#@item.BoxBarCode-ElectricityCheckpro").attr("class","progress-bar progress-bar-warning")
+                            }
+                        }else{
+                            $("#@item.BoxBarCode-ElectricityCheckpro").attr({class:"progress-bar progress-bar-success progress-bar-striped active",style:"width:30%"})
+                        }
+                    }else{
+                        $("#@item.BoxBarCode-ElectricityCheckpro").attr("class","")
+                    }
+                </script>
+            </div>
+        </td>
+        <td>
+            <div class="progress" data-toggle="modal" data-target="#@item.BoxBarCode-modalIPQCCheck" title="点击查看IPQC情况">
+                <div id="@item.BoxBarCode-IPQCCheckpro" class="" role="progressbar"
+                     style="width: 100%;">
+                </div>
+                <script>
+                    var IPQCCheckA= $("#@item.BoxBarCode-IPQCCheckA").val();
+                    var IPQCCheckB= $("#@item.BoxBarCode-IPQCCheckB").val();
+                    var IPQCCheckpro= $("#@item.BoxBarCode-IPQCCheck").val();
+                    if(IPQCCheckB != ""){
+                        if(IPQCCheckpro == "True"){
+                            if(IPQCCheckA == 1){
+                                $("#@item.BoxBarCode-IPQCCheckpro").attr("class","progress-bar progress-bar-success")
+                            }else{
+                                $("#@item.BoxBarCode-IPQCCheckpro").attr("class","progress-bar progress-bar-warning")
+                            }
+                        }else{
+                            $("#@item.BoxBarCode-IPQCCheckpro").attr({class:"progress-bar progress-bar-success progress-bar-striped active",style:"width:30%"})
+                        }
+                    }else{
+                        $("#@item.BoxBarCode-IPQCCheckpro").attr("class","")
+                    }
+                </script>
+            </div>
+        </td>
+
+        <td>
+            @Html.ActionLink("修改", "Edit", new { id = item.Id }) |
+            @Html.ActionLink("详细", "Details", new { id = item.Id }) |
+            @Html.ActionLink("删除", "Delete", new { id = item.Id })
+        </td>
+    </tr>
+    
+
+            <!-- 模态框（Modal）组装 -->
+            <div class="modal fade" id="@item.BoxBarCode-modalAssemble" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                &times;
+                            </button>
+                            <h4 class="modal-title">订单号:@item.BoxBarCode</h4>
+                        </div>
+                            <div class="modal-body">
+                                <div class="container">
+                                    <div class="row">
+                                        <div class="col-md-2">
+                                           开始时间
+                                        </div>
+                                        <div class="col-md-1">
+                                            模块组装负责人
+                                        </div>
+                                        <div class="col-md-2">
+                                            完成时间
+                                        </div>
+                                        <div class="col-md-2">
+                                          组装时长
+                                        </div>
+                                        <div class="col-md-1">
+                                           是否已经完成组装
+                                        </div>
+                                    </div>
+                                    <hr />
+                                    <div class="row">
+                                        <div class="col-md-2">
+                                           @Html.DisplayFor(modelItem => item.AssembleBT)
+                                        </div>
+                                        <div class="col-md-1">
+                                           @Html.DisplayFor(modelItem => item.AssemblePrincipal)
+                                        </div>
+                                        <div class="col-md-2">
+                                            @Html.DisplayFor(modelItem => item.AssembleFT)
+                                        </div>
+                                        <div class="col-md-2">
+                                            @Html.DisplayFor(modelItem => item.AssembleTime)
+                                        </div>
+                                        <div class="col-md-1">
+                                            @Html.DisplayFor(modelItem => item.AssembleFinish)
+                                        </div>
+                                    </div>
+                                    <hr />
+                                </div>
+                            </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 模态框（Modal）防水 -->
+            <div class="modal fade" id="@item.BoxBarCode-modalWaterproofTest" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                &times;
+                            </button>
+                            <h4 class="modal-title">订单号:@item.BoxBarCode</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        开始时间
+                                    </div>
+                                    <div class="col-md-1">
+                                        防水测试负责人
+                                    </div>
+                                    <div class="col-md-1">
+                                        完成时间
+                                    </div>
+                                    <div class="col-md-2">
+                                        防水测试时长
+                                    </div>
+                                    <div class="col-md-1">
+                                        异常代码
+                                    </div>
+                                    <div class="col-md-1">
+                                        防水维修情况
+                                    </div>
+                                    <div class="col-md-1">
+                                        防水是否完成组装
+                                    </div>
+                                </div>
+                                <hr />
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.WaterproofTestBT)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.WaterproofTestPrincipal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.WaterproofTestFT)
+                                    </div>
+                                    <div class="col-md-2">
+                                       @Html.DisplayFor(modelItem => item.WaterproofTestTime)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.WaterproofAbnormal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.WaterproofMaintaince)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.WaterproofTestFinish)
+                                    </div>
+                                </div>
+                                <hr />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 模态框（Modal）转接卡 -->
+            <div class="modal fade" id="@item.BoxBarCode-modalAssembleAdapterCard" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                &times;
+                            </button>
+                            <h4 class="modal-title">订单号:@item.BoxBarCode</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        开始时间
+                                    </div>
+                                    <div class="col-md-1">
+                                        安装转接卡负责人
+                                    </div>
+                                    <div class="col-md-1">
+                                        完成时间
+                                    </div>
+                                    <div class="col-md-2">
+                                        转接卡、电源清单
+                                    </div>
+                                    <div class="col-md-2">
+                                        安装时长
+                                    </div>
+                                    <div class="col-md-1">
+                                        转接卡是否安装完成
+                                    </div>
+                                </div>
+                                <hr />
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleAdapterCardBT)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleAdapterCardPrincipal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleAdapterCardFT)
+                                    </div>
+                                    <div class="col-md-2">
+                                        @Html.DisplayFor(modelItem => item.AdapterCard_Power_List)
+                                    </div>
+                                    <div class="col-md-2">
+                                        @Html.DisplayFor(modelItem => item.AssembleAdapterTime)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleAdapterFinish)
+                                    </div>
+                                   
+                                </div>
+                                <hr />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 模态框（Modal）视检 -->
+            <div class="modal fade" id="@item.BoxBarCode-modalViewCheck" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                &times;
+                            </button>
+                            <h4 class="modal-title">订单号:@item.BoxBarCode</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        开始时间
+                                    </div>
+                                    <div class="col-md-1">
+                                        视检负责人
+                                    </div>
+                                    <div class="col-md-1">
+                                        完成时间
+                                    </div>
+                                    <div class="col-md-2">
+                                        视检时长
+                                    </div>
+                                    <div class="col-md-2">
+                                        视检异常
+                                    </div>
+                                    <div class="col-md-1">
+                                        视检是否完成
+                                    </div>
+                                </div>
+                                <hr />
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.ViewCheckBT)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleViewCheckPrincipal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.ViewCheckFT)
+                                    </div>
+                                    <div class="col-md-2">
+                                       @Html.DisplayFor(modelItem => item.ViewCheckTime)
+                                    </div>
+                                    <div class="col-md-2">
+                                        @Html.DisplayFor(modelItem => item.ViewCheckAbnormal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.ViewCheckFinish)
+                                    </div>
+                                </div>
+                                <hr />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 模态框（Modal）电检 -->
+            <div class="modal fade" id="@item.BoxBarCode-modalElectricityCheck" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                &times;
+                            </button>
+                            <h4 class="modal-title">订单号:@item.BoxBarCode</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        开始时间
+                                    </div>
+                                    <div class="col-md-1">
+                                        电检负责人
+                                    </div>
+                                    <div class="col-md-1">
+                                        完成时间
+                                    </div>
+                                    <div class="col-md-2">
+                                        电检时长
+                                    </div>
+                                    <div class="col-md-2">
+                                        电检异常
+                                    </div>
+                                    <div class="col-md-1">
+                                        电检是否完成
+                                    </div>
+                                </div>
+                                <hr />
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.ElectricityCheckBT)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleElectricityCheckPrincipal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.ElectricityCheckFT)
+                                    </div>
+                                    <div class="col-md-2">
+                                        @Html.DisplayFor(modelItem => item.ElectricityCheckTime)
+                                    </div>
+                                    <div class="col-md-2">
+                                        @Html.DisplayFor(modelItem => item.ElectricityCheckAbnormal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.ElectricityCheckFinish)
+                                    </div>
+                                </div>
+                                <hr />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 模态框（Modal）IPQC -->
+            <div class="modal fade" id="@item.BoxBarCode-modalIPQCCheck" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                &times;
+                            </button>
+                            <h4 class="modal-title">订单号:@item.BoxBarCode</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        开始时间
+                                    </div>
+                                    <div class="col-md-1">
+                                        IPQC负责人 
+                                    </div>
+                                    <div class="col-md-1">
+                                        产线
+                                    </div>
+                                    <div class="col-md-1">
+                                        完成时间
+                                    </div>
+                                    <div class="col-md-2">
+                                        IPQC时长 
+                                    </div>
+                                    <div class="col-md-1">
+                                        IPQC异常
+                                    </div>
+                                    <div class="col-md-1">
+                                        IPQC是否完成 
+                                    </div>
+                                </div>
+                                <hr />
+                                <div class="row">
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.IPQCCheckBT)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleIPQCPrincipal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.AssembleLineId)
+                                    </div>
+                                    <div class="col-md-1">
+                                       @Html.DisplayFor(modelItem => item.IPQCCheckFT)
+                                    </div>
+                                    <div class="col-md-2">
+                                        @Html.DisplayFor(modelItem => item.IPQCCheckTime)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.IPQCCheckAbnormal)
+                                    </div>
+                                    <div class="col-md-1">
+                                        @Html.DisplayFor(modelItem => item.IPQCCheckFinish)
+                                    </div>
+                                </div>
+                                <hr />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</table>
+
+
+@*-----------------------分页功能----------------------------------------------------------------------------------------*@
+<div class="text-center">
+    <div id="pagebar">
+        @for (var i = 0; i < ViewBag.PageCount; i++)
+        {
+            if (i == ViewBag.PageIndex)
+            {
+                <span class="currentpagenumber">@(i + 1)</span>
+            }
+            else
+            {
+                <a class="pagenumber" href="javascript:;">@(i + 1)</a>
+            }
+        }
+    </div>
+</div>
+           
+@section scripts {
+    <script>
+        function submitForm(pagenumber) {
+            pagenumber = parseInt(pagenumber, 10);
+            $('#PageIndex').val(pagenumber - 1);
+            $('#searchForm').submit();
+        }
+        $(function () {
+
+            $('#searchButton').click(function () {
+                submitForm($('#pagebar .currentpagenumber').text());
+            });
+
+            $('#pagebar .pagenumber').click(function () {
+                submitForm($(this).text());
+            });
+
+        });
+    </script>
+}
+
