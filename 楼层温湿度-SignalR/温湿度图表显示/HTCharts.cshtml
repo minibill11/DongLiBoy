@@ -1,0 +1,261 @@
+﻿@{
+    ViewBag.Title = "HTCharts";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script src="~/Scripts/echarts.js"></script>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<h2 style="text-align:center">@ViewBag.Station</h2>
+
+<input type="text" id="txt" name="txt" placeholder="输入txt数据" />
+<input type="text" id="txt2" name="txt2" />
+<input type="button" id="btnSub" name="btnSub" value="加载图表数据" />
+<input type="button" id="btnSub2" name="btnSub2" value="获取txt数据" />
+@* 第一种HTCharts(string point, DateTime left)  第二种HTCharts(string point, DateTime begin, DateTime end)*@
+<input type="button" id="btnSub3" name="btnSub3" value="尝试对HTCharts进行post" />
+
+    <!-- 为ECharts准备一个具备大小（宽高）的Dom -->
+<div id="main" style="width: 100%;min-height:300px"></div>
+<div id="main2" style="width: 100%;height:400px;"></div>
+
+<script type="text/javascript">
+    //加载首次图表大小
+    var autoAdapt = $("#main");
+    autoAdapt.height(autoAdapt.width()/2);
+    // 基于准备好的dom，初始化echarts实例
+    var myChart = echarts.init(document.getElementById('main'));
+    var myChart2 = echarts.init(document.getElementById('main2'));
+    myChart.showLoading();
+    myChart2.showLoading();
+    myChart.hideLoading();
+    myChart2.hideLoading();
+    //获取初始数据
+    @using Newtonsoft.Json;
+    var ResultJsonObj =@Html.Raw(JsonConvert.SerializeObject(ViewData["ResultJsonObj"]));
+    TimeValue = ResultJsonObj.RecordTime.substr(1,ResultJsonObj.RecordTime.length-2).split(",");
+    TemValue = ResultJsonObj.Tem.substr(1,ResultJsonObj.RecordTime.length-2).split(",");
+    HumValue = ResultJsonObj.Hum.substr(1,ResultJsonObj.RecordTime.length-2).split(",");
+    console.log(ResultJsonObj);
+
+    //测试新POST
+    $(document).ready(function(){
+        $("#btnSub3").click(function(){
+            var myDate = new Date();
+            $.ajax({
+                url:'/KongYaHT/KongYa/HTCharts',  //请求的某个action的地址
+                datatype:"json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data:"point=三楼插件&left=嘿+",
+                //data:{
+                //    left:"111",
+                //    point:"三楼插件",
+                    
+                //},
+                type:'post',
+                success:function (data) {
+                    console.log(data);  //该函数中处理json格式的数据data;
+                }
+            })
+        })
+    })
+    //post获取文本
+    $(document).ready(function(){
+        $("#btnSub2").click(function(){
+            var tvalue=$("#txt").val();
+            $.ajax({
+                type:"post",
+                //datatype:"json",
+                url:"/KongYaHT/KongYa/test1",
+                //data:"id="+tvalue+"&xx=嘿+",//
+                data:{
+                    id:tvalue,
+                    xx:"嘿+",
+                },
+                success:function(sesponseTest){
+                    $("#txt2").val(sesponseTest);
+                }
+            })
+        })
+    })
+
+    //开始加载myChart
+        option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow',
+                    label: {
+                        show: true
+                    }
+                }
+            },
+            toolbox: {
+                show: true,
+                feature: {
+                    mark: { show: true },
+                    dataView: { show: true, readOnly: false },
+                    magicType: { show: true, type: ['line', 'bar'] },
+                    restore: { show: true },
+                    saveAsImage: { show: true }
+                }
+            },
+            calculable: true,
+            legend: {
+                data: ['温度', '湿度'],
+                itemGap: 5
+            },
+            grid: {
+                top: '12%',
+                left: '1%',
+                right: '10%',
+                containLabel: true
+            },
+            xAxis: [
+                {
+                    type: 'category',
+                    data: TimeValue
+                }
+            ],
+            yAxis:
+                {
+                    type: 'value',
+                    max: 100,
+                    min: 0,
+                    interval:5
+                }
+            ,
+            dataZoom: [
+                {
+                    show: true,
+                    start: 94,
+                    end: 100
+                },
+                {
+                    type: 'inside',
+                    start: 94,
+                    end: 100
+                },
+                {
+                    show: true,
+                    yAxisIndex: 0,
+                    filterMode: 'empty',
+                    width: 30,
+                    height: '80%',
+                    showDataShadow: false,
+                    left: '93%'
+                }
+            ],
+            series: [
+                {
+                    name: '温度',
+                    type: 'line',
+                    data: TemValue
+                },
+                {
+                    name: '湿度',
+                    type: 'line',
+                    data: HumValue
+                }
+            ]
+        };
+        // 使用刚指定的配置项和数据显示图表。
+        myChart.setOption(option);
+
+        //post
+        $(document).ready(function () {
+            $("#btnSub").click(function () {
+                $.ajax({
+                    type: "POST",
+                    dataType:"text",
+                    url: "/KongYaHT/KongYa/Test",
+                    data: "point=三楼插件",
+                    success: function (comejson) {
+                        console.log("AJAX-POST成功")
+                        console.log("接受到数据为："+comejson)
+                        option2 = {
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: {
+                                    type: 'shadow',
+                                    label: {
+                                        show: true
+                                    }
+                                }
+                            },
+                            toolbox: {
+                                show: true,
+                                feature: {
+                                    mark: { show: true },
+                                    dataView: { show: true, readOnly: false },
+                                    magicType: { show: true, type: ['line', 'bar'] },
+                                    restore: { show: true },
+                                    saveAsImage: { show: true }
+                                }
+                            },
+                            calculable: true,
+                            legend: {
+                                data: [ '温度', '湿度'],
+                                itemGap: 5
+                            },
+                            grid: {
+                                top: '12%',
+                                left: '1%',
+                                right: '10%',
+                                containLabel: true
+                            },
+                            xAxis: [
+                                {
+                                    type: 'category',
+                                    data: TimeValue
+                                }
+                            ],
+                            yAxis:{
+                                type: 'value',
+                                max: 100,
+                                min: 0,
+                                interval:5
+                            },
+                            dataZoom: [
+                                {
+                                    show: true,
+                                    start: 94,
+                                    end: 100
+                                },
+                                {
+                                    type: 'inside',
+                                    start: 94,
+                                    end: 100
+                                },
+                                {
+                                    show: true,
+                                    yAxisIndex: 0,
+                                    filterMode: 'empty',
+                                    width: 30,
+                                    height: '80%',
+                                    showDataShadow: false,
+                                    left: '93%'
+                                }
+                            ],
+                            series: [
+                                {
+                                    name: '温度',
+                                    type: 'bar',
+                                    data: TemValue
+                                },
+                                {
+                                    name: '湿度',
+                                    type: 'bar',
+                                    data: HumValue
+                                }
+                            ]
+                        };
+                        console.log("Chart2-POST结束")
+                        myChart2.setOption(option2);
+                    }
+                })
+            })
+        });
+    //窗口自适应，关键代码,用于使chartdiv自适应高度和宽度
+        window.onresize = function () {
+            autoAdapt.height(autoAdapt.width()/2);
+            myChart.resize();
+        };
+</script>
