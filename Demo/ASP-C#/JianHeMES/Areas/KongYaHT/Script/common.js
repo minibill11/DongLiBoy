@@ -1,0 +1,4 @@
+
+var path = $("#path").val();
+
+
