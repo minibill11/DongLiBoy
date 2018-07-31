@@ -70,6 +70,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
+            users.Creator = ((Users)Session["User"]).UserName; 
             users.CreateDate = DateTime.Now;
             if (ModelState.IsValid)
             {

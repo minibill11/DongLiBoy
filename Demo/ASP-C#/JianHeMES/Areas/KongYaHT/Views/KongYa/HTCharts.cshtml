@@ -1,5 +1,5 @@
 ﻿@{
-    ViewBag.Title = "HTCharts";
+    ViewBag.Title = "THCharts";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 @*引用js、加载数据*@
@@ -11,6 +11,33 @@
 <script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.zh-CN.js"></script>
 @*@Scripts.Render("~/bundles/jquery", "~/Scripts/echarts", "~/bundles/jqueryval")*@
 
+<style>
+    .datarow {
+        position: relative;
+        margin: 0;
+        height: 40px;
+    }
+
+    .datarowleft {
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin-left: 2%;
+    }
+
+    .datarowcenter {
+        margin: 0 auto;
+        height: 34px;
+        width: 140px
+    }
+
+    .datarowright {
+        margin-right: 2%;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+</style>
 
 @*此处是居中标题*@
 <div align="center" style="width:100%;height:20px;">
@@ -23,11 +50,19 @@
     <div class="row">
         <div id="main" style="width:100%;min-height:300px;"></div>
     </div>
-    <div class="row">
-        <div style="float:left ;margin-left:2%">
+    <div class="row datarow">
+        <div class="datarowleft">
             <input class="form-control" type="button" id="leftBtn" name="leftBtn" value="加载更早数据" />
         </div>
-        <div style="float:right ;margin-right:8%">
+        <form action="THExportToExcel" method='POST' class="datarowcenter">
+            <div style="display:none">
+                <input id="point" name="point" value="@ViewBag.Station" />
+                <input id="begin" name="begin" value="" />
+                <input id="end" name="end" value="" />
+            </div>
+            <input class="form-control" type="submit" value="数据保存为Excel表" />
+        </form>
+        <div class="datarowright">
             <input class="form-control" type="button" id="rightBtn" name="rightBtn" value="加载后面数据" />
         </div>
     </div>
@@ -58,29 +93,11 @@
             <input class="form-control" type="button" id="btnSub" name="btnSub" value="加载时间段数据" />
         </div>
     </div>
+    <br />
 </div>
 
-@*@using (Ajax.BeginForm(
-        "HTChartsLeft", "KongYa", new AjaxOptions
-        {
-            HttpMethod = "post",
-            OnSuccess = "HTChartsLeftSuccess",
-            OnFailure = "HTChartsLeftFailure",
-            UpdateTargetId = "myChart",
-            LoadingElementId = "ImgLoad"
-        }))
-    {
-        <input type="text" name="point" />
-        <input type="datetime" name="left" value="2018-07-16 14:00:00" />
-        <input type="submit" />
-        <div id="ImgLoad">加载中。。。</div>
-    }
 
-    <style type="text/css" id="Load">
-        #ImgLoad {
-            display: none
-        }
-    </style>*@
+
 
 <script type="text/javascript">
     //启动窗口时自适应宽高
@@ -111,6 +128,8 @@
 
     //文档加载时设置点击事件
     $(document).ready(function () {
+        $("#begin").val(JsonObj.RecordTime[0]);
+        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
         //向左进行POST
         $("#leftBtn").click(function () {
             $.ajax({
@@ -136,6 +155,7 @@
                         refreshLeftData(returnJson);//更新图表数据
                         console.log(JsonObj);
                         console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " TemValue的长度：" + JsonObj.Tem.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#begin").val(JsonObj.RecordTime[0]);
                     }
                 }
             })
@@ -163,6 +183,7 @@
                         refreshRightData(returnJson);//更新图表数据
                         console.log(JsonObj);
                         console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " TemValue的长度：" + JsonObj.Tem.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
                     }
                 }
             })
@@ -172,7 +193,7 @@
             $.ajax({
                 type: 'post',
                 url: '/KongYaHT/KongYa/HTChartsDuring',  //请求的某个action的地址
-                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                //datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
                 data: {
                     point: "@ViewBag.Station",
                     begin: $("#start_input").val(),
@@ -194,6 +215,8 @@
                         refreshDuringData(returnJson);//更新图表数据
                         console.log(JsonObj);
                         console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " TemValue的长度：" + JsonObj.Tem.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#begin").val(JsonObj.RecordTime[0]);
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
                     }
                 }
             })

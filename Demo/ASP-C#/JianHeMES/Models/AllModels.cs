@@ -24,6 +24,8 @@ namespace JianHeMES.Models
         public IEnumerable<Packaging> Packaging { get; set; }
         public IEnumerable<Packaging_OQCCheckAbnormal> Packaging_OQCCheckAbnormal { get; set; }
         public IEnumerable<Users> Users { get; set; }
+        public IEnumerable<IQCReport> IQCReports { get; set; }
+
         public AllModels()
         {
             ApplicationDbContext db = new ApplicationDbContext();
@@ -44,6 +46,7 @@ namespace JianHeMES.Models
             this.Packaging = db.Packaging.ToList();
             this.Packaging_OQCCheckAbnormal = db.Packaging_OQCCheckAbnormal.ToList();
             this.Users = db.Users.ToList();
+            this.IQCReports = db.IQCReports.ToList();
         }
 
 

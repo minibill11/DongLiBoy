@@ -38,12 +38,11 @@ namespace JianHeMES.Models
         public DbSet<AssembleLineId> AssembleLineId { get; set; }
         public DbSet<Burn_in> Burn_in { get; set; }
         public DbSet<Burn_in_OQCCheckAbnormal> Burn_in_OQCCheckAbnormal { get; set; }
-
         public DbSet<Appearance> Appearance { get; set; }
         public DbSet<Appearance_OQCCheckAbnormal> Appearance_OQCCheckAbnormal { get; set; }
         public DbSet<Packaging> Packaging{ get; set; }
         public DbSet<Packaging_OQCCheckAbnormal> Packaging_OQCCheckAbnormal { get; set; }
-
+        public DbSet<IQCReport> IQCReports { get; set; }
 
         public object BarCode { get; internal set; }
         public Task TNews { get; internal set; }

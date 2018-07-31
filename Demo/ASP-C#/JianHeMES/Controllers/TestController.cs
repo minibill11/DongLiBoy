@@ -18,6 +18,20 @@ namespace JianHeMES.Controllers
             return View();
         }
 
+        public ActionResult CSVtest()
+        {
+
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult CSVtest(Array file)
+        {
+
+            return View();
+        }
+
+
         [HttpPost]
         public ActionResult Index(string jsondata)   //接收jsondata
         {

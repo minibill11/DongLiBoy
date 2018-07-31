@@ -11,6 +11,9 @@ using Newtonsoft.Json;
 using JianHeMES.Areas.KongYaHT.Models;
 using Newtonsoft.Json.Linq;
 using System.Xml.Linq;
+using System.ComponentModel;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 
 namespace JianHeMES.Areas.kongya.Controllers
 {
@@ -1377,7 +1380,7 @@ namespace JianHeMES.Areas.kongya.Controllers
         #endregion
 
 
-        #region    ---------------------空压房气体状态Charts图表--(修改)-------------------------------------------
+        #region    ---------------------空压房气体状态Charts图表---------------------------------------------
 
         //首次打开空压机页面
         [HttpGet]
@@ -1571,81 +1574,113 @@ namespace JianHeMES.Areas.kongya.Controllers
         public ActionResult KY_ChartsLeft(string point, DateTime left)
         {
             kongyadbEntities db = new kongyadbEntities();
-            IQueryable<airbottle1> firstRecords1 = null;
-            IQueryable<airbottle2> firstRecords2 = null;
-            IQueryable<airbottle3> firstRecords3 = null;
-            IQueryable<dryer1> firstRecords4 = null;
-            IQueryable<dryer2> firstRecords5 = null;
-            IQueryable<headerpipe3inch> firstRecords6 = null;
-            IQueryable<headerpipe4inch> firstRecords7 = null;
-            IQueryable<room> firstRecords8 = null;
+            IQueryable<airbottle1> queryRecords1 = null;
+            IQueryable<airbottle2> queryRecords2 = null;
+            IQueryable<airbottle3> queryRecords3 = null;
+            IQueryable<dryer1> queryRecords4 = null;
+            IQueryable<dryer2> queryRecords5 = null;
+            IQueryable<headerpipe3inch> queryRecords6 = null;
+            IQueryable<headerpipe4inch> queryRecords7 = null;
+            IQueryable<room> queryRecords8 = null;
 
             #region   ---------------选择器------------------
             switch (point)
             {
                 case "气罐1":
-                    firstRecords1 = (from m in db.airbottle1
+                    queryRecords1 = (from m in db.airbottle1
                                      where (m.recordingTime.Second == 0 && m.recordingTime <left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords1.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐1";
-                    firstRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "气罐2":
-                    firstRecords2 = (from m in db.airbottle2
+                    queryRecords2 = (from m in db.airbottle2
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords2.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐2";
-                    firstRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "气罐3":
-                    firstRecords3 = (from m in db.airbottle3
+                    queryRecords3 = (from m in db.airbottle3
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords3.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐3";
-                    firstRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "冷干机1":
-                    firstRecords4 = (from m in db.dryer1
+                    queryRecords4 = (from m in db.dryer1
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords4.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "冷干机1";
-                    firstRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "冷干机2":
-                    firstRecords5 = (from m in db.dryer2
+                    queryRecords5 = (from m in db.dryer2
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords5.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "冷干机2";
-                    firstRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "3寸气管出口":
-                    firstRecords6 = (from m in db.headerpipe3inch
+                    queryRecords6 = (from m in db.headerpipe3inch
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords6.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "3寸气管出口";
-                    firstRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "4寸气管出口":
-                    firstRecords7 = (from m in db.headerpipe4inch
+                    queryRecords7 = (from m in db.headerpipe4inch
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords7.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "4寸气管出口";
-                    firstRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "空压房内温湿度":
-                    firstRecords8 = (from m in db.room
+                    queryRecords8 = (from m in db.room
                                      where (m.recordingTime.Second == 0 && m.recordingTime < left)
                                      orderby m.id descending
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords8.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "空压房内温湿度";
-                    firstRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
+                    queryRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
                     break;
 
             }
@@ -1656,9 +1691,9 @@ namespace JianHeMES.Areas.kongya.Controllers
             List<Double> TemList = new List<double>();
             List<Double> HumList = new List<double>();
             List<DateTime> RecordTimeList = new List<DateTime>();
-            if (firstRecords1 != null)
+            if (queryRecords1 != null)
             {
-                foreach (var firstRecord in firstRecords1)
+                foreach (var firstRecord in queryRecords1)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1666,9 +1701,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords2 != null)
+            if (queryRecords2 != null)
             {
-                foreach (var firstRecord in firstRecords2)
+                foreach (var firstRecord in queryRecords2)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1676,9 +1711,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords3 != null)
+            if (queryRecords3 != null)
             {
-                foreach (var firstRecord in firstRecords3)
+                foreach (var firstRecord in queryRecords3)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1686,9 +1721,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords4 != null)
+            if (queryRecords4 != null)
             {
-                foreach (var firstRecord in firstRecords4)
+                foreach (var firstRecord in queryRecords4)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1696,9 +1731,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords5 != null)
+            if (queryRecords5 != null)
             {
-                foreach (var firstRecord in firstRecords5)
+                foreach (var firstRecord in queryRecords5)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1706,9 +1741,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords6 != null)
+            if (queryRecords6 != null)
             {
-                foreach (var firstRecord in firstRecords6)
+                foreach (var firstRecord in queryRecords6)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1716,9 +1751,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords7 != null)
+            if (queryRecords7 != null)
             {
-                foreach (var firstRecord in firstRecords7)
+                foreach (var firstRecord in queryRecords7)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1726,9 +1761,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords8 != null)
+            if (queryRecords8 != null)
             {
-                foreach (var firstRecord in firstRecords8)
+                foreach (var firstRecord in queryRecords8)
                 {
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
                     HumList.Add(Convert.ToDouble(firstRecord.humidity));
@@ -1758,73 +1793,105 @@ namespace JianHeMES.Areas.kongya.Controllers
         public ActionResult KY_ChartsRight(string point, DateTime right)
         {
             kongyadbEntities db = new kongyadbEntities();
-            IQueryable<airbottle1> firstRecords1 = null;
-            IQueryable<airbottle2> firstRecords2 = null;
-            IQueryable<airbottle3> firstRecords3 = null;
-            IQueryable<dryer1> firstRecords4 = null;
-            IQueryable<dryer2> firstRecords5 = null;
-            IQueryable<headerpipe3inch> firstRecords6 = null;
-            IQueryable<headerpipe4inch> firstRecords7 = null;
-            IQueryable<room> firstRecords8 = null;
+            IQueryable<airbottle1> queryRecords1 = null;
+            IQueryable<airbottle2> queryRecords2 = null;
+            IQueryable<airbottle3> queryRecords3 = null;
+            IQueryable<dryer1> queryRecords4 = null;
+            IQueryable<dryer2> queryRecords5 = null;
+            IQueryable<headerpipe3inch> queryRecords6 = null;
+            IQueryable<headerpipe4inch> queryRecords7 = null;
+            IQueryable<room> queryRecords8 = null;
 
             #region   ---------------选择器------------------
             switch (point)
             {
                 case "气罐1":
-                    firstRecords1 = (from m in db.airbottle1
+                    queryRecords1 = (from m in db.airbottle1
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords1.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐1";
-                    firstRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "气罐2":
-                    firstRecords2 = (from m in db.airbottle2
+                    queryRecords2 = (from m in db.airbottle2
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords2.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐2";
-                    firstRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "气罐3":
-                    firstRecords3 = (from m in db.airbottle3
+                    queryRecords3 = (from m in db.airbottle3
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords3.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐3";
-                    firstRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "冷干机1":
-                    firstRecords4 = (from m in db.dryer1
+                    queryRecords4 = (from m in db.dryer1
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords4.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "冷干机1";
-                    firstRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "冷干机2":
-                    firstRecords5 = (from m in db.dryer2
+                    queryRecords5 = (from m in db.dryer2
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords5.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "冷干机2";
-                    firstRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "3寸气管出口":
-                    firstRecords6 = (from m in db.headerpipe3inch
+                    queryRecords6 = (from m in db.headerpipe3inch
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords6.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "3寸气管出口";
-                    firstRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "4寸气管出口":
-                    firstRecords7 = (from m in db.headerpipe4inch
+                    queryRecords7 = (from m in db.headerpipe4inch
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords7.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "4寸气管出口";
-                    firstRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "空压房内温湿度":
-                    firstRecords8 = (from m in db.room
+                    queryRecords8 = (from m in db.room
                                      where (m.recordingTime.Second == 0 && m.recordingTime > right)
                                      select m).Take(1500).OrderBy(m => m.recordingTime);
+                    if (queryRecords8.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "空压房内温湿度";
-                    firstRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
+                    queryRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
                     break;
 
             }
@@ -1835,9 +1902,9 @@ namespace JianHeMES.Areas.kongya.Controllers
             List<Double> TemList = new List<double>();
             List<Double> HumList = new List<double>();
             List<DateTime> RecordTimeList = new List<DateTime>();
-            if (firstRecords1 != null)
+            if (queryRecords1 != null)
             {
-                foreach (var firstRecord in firstRecords1)
+                foreach (var firstRecord in queryRecords1)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1845,9 +1912,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords2 != null)
+            if (queryRecords2 != null)
             {
-                foreach (var firstRecord in firstRecords2)
+                foreach (var firstRecord in queryRecords2)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1855,9 +1922,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords3 != null)
+            if (queryRecords3 != null)
             {
-                foreach (var firstRecord in firstRecords3)
+                foreach (var firstRecord in queryRecords3)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1865,9 +1932,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords4 != null)
+            if (queryRecords4 != null)
             {
-                foreach (var firstRecord in firstRecords4)
+                foreach (var firstRecord in queryRecords4)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1875,9 +1942,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords5 != null)
+            if (queryRecords5 != null)
             {
-                foreach (var firstRecord in firstRecords5)
+                foreach (var firstRecord in queryRecords5)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1885,9 +1952,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords6 != null)
+            if (queryRecords6 != null)
             {
-                foreach (var firstRecord in firstRecords6)
+                foreach (var firstRecord in queryRecords6)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1895,9 +1962,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords7 != null)
+            if (queryRecords7 != null)
             {
-                foreach (var firstRecord in firstRecords7)
+                foreach (var firstRecord in queryRecords7)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -1905,9 +1972,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords8 != null)
+            if (queryRecords8 != null)
             {
-                foreach (var firstRecord in firstRecords8)
+                foreach (var firstRecord in queryRecords8)
                 {
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
                     HumList.Add(Convert.ToDouble(firstRecord.humidity));
@@ -1937,83 +2004,114 @@ namespace JianHeMES.Areas.kongya.Controllers
         public ActionResult KY_ChartsDuring(string point, DateTime begin, DateTime end)
         {
             kongyadbEntities db = new kongyadbEntities();
-            IQueryable<airbottle1> firstRecords1 = null;
-            IQueryable<airbottle2> firstRecords2 = null;
-            IQueryable<airbottle3> firstRecords3 = null;
-            IQueryable<dryer1> firstRecords4 = null;
-            IQueryable<dryer2> firstRecords5 = null;
-            IQueryable<headerpipe3inch> firstRecords6 = null;
-            IQueryable<headerpipe4inch> firstRecords7 = null;
-            IQueryable<room> firstRecords8 = null;
+            IQueryable<airbottle1> queryRecords1 = null;
+            IQueryable<airbottle2> queryRecords2 = null;
+            IQueryable<airbottle3> queryRecords3 = null;
+            IQueryable<dryer1> queryRecords4 = null;
+            IQueryable<dryer2> queryRecords5 = null;
+            IQueryable<headerpipe3inch> queryRecords6 = null;
+            IQueryable<headerpipe4inch> queryRecords7 = null;
+            IQueryable<room> queryRecords8 = null;
 
             #region   ---------------选择器------------------
             switch (point)
             {
                 case "气罐1":
-                    firstRecords1 = from m in db.airbottle1
+                    queryRecords1 = from m in db.airbottle1
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m;
+                    if (queryRecords1.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐1";
-                    firstRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "气罐2":
-                    firstRecords2 = (from m in db.airbottle2
+                    queryRecords2 = (from m in db.airbottle2
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords2.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐2";
-                    firstRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "气罐3":
-                    firstRecords3 = (from m in db.airbottle3
+                    queryRecords3 = (from m in db.airbottle3
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords3.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "气罐3";
-                    firstRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "冷干机1":
-                    firstRecords4 = (from m in db.dryer1
+                    queryRecords4 = (from m in db.dryer1
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords4.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "冷干机1";
-                    firstRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "冷干机2":
-                    firstRecords5 = (from m in db.dryer2
+                    queryRecords5 = (from m in db.dryer2
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords5.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "冷干机2";
-                    firstRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "3寸气管出口":
-                    firstRecords6 = (from m in db.headerpipe3inch
+                    queryRecords6 = (from m in db.headerpipe3inch
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords6.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "3寸气管出口";
-                    firstRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "4寸气管出口":
-                    firstRecords7 = (from m in db.headerpipe4inch
+                    queryRecords7 = (from m in db.headerpipe4inch
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords7.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "4寸气管出口";
-                    firstRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    queryRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
                     break;
                 case "空压房内温湿度":
-                    firstRecords8 = (from m in db.room
+                    queryRecords8 = (from m in db.room
                                      where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
                                      orderby m.id
                                      select m).OrderBy(m => m.recordingTime);
+                    if (queryRecords8.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
                     ViewBag.Station = "空压房内温湿度";
-                    firstRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
+                    queryRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
                     break;
-
             }
             #endregion
 
@@ -2022,9 +2120,9 @@ namespace JianHeMES.Areas.kongya.Controllers
             List<Double> TemList = new List<double>();
             List<Double> HumList = new List<double>();
             List<DateTime> RecordTimeList = new List<DateTime>();
-            if (firstRecords1 != null)
+            if (queryRecords1 != null)
             {
-                foreach (var firstRecord in firstRecords1)
+                foreach (var firstRecord in queryRecords1)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2032,9 +2130,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords2 != null)
+            if (queryRecords2 != null)
             {
-                foreach (var firstRecord in firstRecords2)
+                foreach (var firstRecord in queryRecords2)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2042,9 +2140,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords3 != null)
+            if (queryRecords3 != null)
             {
-                foreach (var firstRecord in firstRecords3)
+                foreach (var firstRecord in queryRecords3)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2052,9 +2150,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords4 != null)
+            if (queryRecords4 != null)
             {
-                foreach (var firstRecord in firstRecords4)
+                foreach (var firstRecord in queryRecords4)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2062,9 +2160,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords5 != null)
+            if (queryRecords5 != null)
             {
-                foreach (var firstRecord in firstRecords5)
+                foreach (var firstRecord in queryRecords5)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2072,9 +2170,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords6 != null)
+            if (queryRecords6 != null)
             {
-                foreach (var firstRecord in firstRecords6)
+                foreach (var firstRecord in queryRecords6)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2082,9 +2180,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords7 != null)
+            if (queryRecords7 != null)
             {
-                foreach (var firstRecord in firstRecords7)
+                foreach (var firstRecord in queryRecords7)
                 {
                     PreList.Add(Convert.ToDouble(firstRecord.pressure));
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
@@ -2092,9 +2190,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     RecordTimeList.Add(Convert.ToDateTime(firstRecord.recordingTime));
                 }
             }
-            if (firstRecords8 != null)
+            if (queryRecords8 != null)
             {
-                foreach (var firstRecord in firstRecords8)
+                foreach (var firstRecord in queryRecords8)
                 {
                     TemList.Add(Convert.ToDouble(firstRecord.temperature));
                     HumList.Add(Convert.ToDouble(firstRecord.humidity));
@@ -2118,7 +2216,580 @@ namespace JianHeMES.Areas.kongya.Controllers
             return Content(JsonConvert.SerializeObject(ResultJsonObj));
         }
 
-        #endregion 
+        #endregion
+
+
+
+        #region  -------------ExportToExcel将记录输出Excel表格方法------------------
+        public class ResultTH
+        {
+            public double Tem { get; set; }
+            public double Hum { get; set; }
+            public DateTime RecordTime { get; set; }
+        }
+
+        public class ResultKY
+        {
+            public double Pre { get; set; }
+            public double Tem { get; set; }
+            public double Hum { get; set; }
+            public DateTime RecordTime { get; set; }
+        }
+
+        public class ResultKY_COM
+        {
+            public double Pre { get; set; }
+            public double Tem { get; set; }
+            public double Current_u { get; set; }
+            public DateTime RecordTime { get; set; }
+        }
+
+
+        [HttpPost]
+        public FileContentResult THExportToExcel(string point, DateTime begin, DateTime end)
+        {
+
+            kongyadbEntities db = new kongyadbEntities();
+            IQueryable<THhistory> queryRecords = null;
+            List<ResultTH> Resultlist = new List<ResultTH>();
+            #region   ---------------选择器------------------
+            switch (point)
+            {
+                case "三楼烤箱房40001676#6":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "6" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "三楼插件40001676#9":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "9" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "三楼面罩40001676#10":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "10" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼烤箱房40001676#1":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼老化40001676#2":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼组装40001676#3":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "3" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼线材40001676#4":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼老化调试40001676#5":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼SMT物料暂存40000938#6":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "6" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼电子仓40000938#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "7" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼电子仓40000938#8":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "8" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼电子仓40000938#9":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "9" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼电子仓40000938#10":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "10" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼电子仓40000938#11":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "11" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼电子仓40000938#12":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40000938" && m.NodeID == "12" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+            }
+
+            foreach (var item in queryRecords)
+            {
+                ResultTH at = new ResultTH();
+                at.Tem = Convert.ToDouble(item.Tem);
+                at.Hum = Convert.ToDouble(item.Hum);
+                at.RecordTime = Convert.ToDateTime(item.RecordTime);
+                Resultlist.Add(at);
+            }
+
+            #endregion
+
+            string[] columns = { "温度(℃)", "湿度(RH%)", "记录时间" };
+            //byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "", false, columns);
+            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, point, false, columns);
+            return File(filecontent, ExcelExportHelper.ExcelContentType, point + ".xlsx");
+        }
+
+        [HttpPost]
+        public FileContentResult KYExportToExcel(string point, DateTime begin, DateTime end)
+        {
+
+            kongyadbEntities db = new kongyadbEntities();
+            IQueryable<airbottle1> queryRecords1 = null;
+            IQueryable<airbottle2> queryRecords2 = null;
+            IQueryable<airbottle3> queryRecords3 = null;
+            IQueryable<dryer1> queryRecords4 = null;
+            IQueryable<dryer2> queryRecords5 = null;
+            IQueryable<headerpipe3inch> queryRecords6 = null;
+            IQueryable<headerpipe4inch> queryRecords7 = null;
+            IQueryable<room> queryRecords8 = null;
+            List<ResultKY> Resultlist = new List<ResultKY>();
+            #region   ---------------选择器------------------
+            switch (point)
+            {
+                case "气罐1":
+                    queryRecords1 = from m in db.airbottle1
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐1";
+                    queryRecords1.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords1)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "气罐2":
+                    queryRecords2 = from m in db.airbottle2
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐2";
+                    queryRecords2.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords2)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "气罐3":
+                    queryRecords3 = from m in db.airbottle3
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐3";
+                    queryRecords3.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords3)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "冷干机1":
+                    queryRecords4 = from m in db.dryer1
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐3";
+                    queryRecords4.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords4)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "冷干机2":
+                    queryRecords5 = from m in db.dryer2
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐3";
+                    queryRecords5.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords5)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "3寸气管出口":
+                    queryRecords6 = from m in db.headerpipe3inch
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐3";
+                    queryRecords6.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords6)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "4寸气管出口":
+                    queryRecords7 = from m in db.headerpipe4inch
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐3";
+                    queryRecords7.Select(m => new { m.temperature, m.humidity, m.pressure, m.recordingTime });
+                    foreach (var item in queryRecords7)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "空压房内温湿度":
+                    queryRecords8 = from m in db.room
+                                    where (m.recordingTime.Second == 0 && m.recordingTime > begin && m.recordingTime < end)
+                                    orderby m.id
+                                    select m;
+                    ViewBag.Station = "气罐3";
+                    queryRecords8.Select(m => new { m.temperature, m.humidity, m.recordingTime });
+                    foreach (var item in queryRecords8)
+                    {
+                        ResultKY pat = new ResultKY();
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Hum = Convert.ToDouble(item.humidity);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+            }
+            #endregion
+
+            string[] columns = { "压力(Mpa)", "温度(℃)", "湿度(RH%)", "记录时间" };
+            //byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "", false, columns);
+            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, point, false, columns);
+            return File(filecontent, ExcelExportHelper.ExcelContentType, point + ".xlsx");
+        }
+
+        [HttpPost]
+        public FileContentResult KY_COM_ExportToExcel(string point, DateTime begin, DateTime end)
+        {
+            kongyadbEntities db = new kongyadbEntities();
+            IQueryable<aircomp1> queryRecords1 = null;
+            IQueryable<aircomp2> queryRecords2 = null;
+            IQueryable<aircomp3> queryRecords3 = null;
+            List<ResultKY_COM> Resultlist = new List<ResultKY_COM>();
+
+            #region  ----------选择器-------------
+            switch (point)
+            {
+                case "空压机1":
+                    queryRecords1 = (from m in db.aircomp1
+                                     where (m.recordingTime > begin && m.recordingTime < end && m.recordingTime.Second == 0)
+                                     orderby m.id descending
+                                     select m).OrderBy(m => m.recordingTime);
+                    ViewBag.Station = "空压机1";
+                    queryRecords1.Select(m => new { m.pressure, m.temperature, m.current_u, m.recordingTime });
+                    foreach (var item in queryRecords1)
+                    {
+                        ResultKY_COM pat = new ResultKY_COM();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Current_u = Convert.ToDouble(item.current_u);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "空压机2":
+                    queryRecords2 = (from m in db.aircomp2
+                                     where (m.recordingTime > begin && m.recordingTime < end && m.recordingTime.Second == 0)
+                                     orderby m.id descending
+                                     select m).OrderBy(m => m.recordingTime);
+                    ViewBag.Station = "空压机2";
+                    queryRecords2.Select(m => new { m.pressure, m.temperature, m.current_u, m.recordingTime });
+                    foreach (var item in queryRecords2)
+                    {
+                        ResultKY_COM pat = new ResultKY_COM();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Current_u = Convert.ToDouble(item.current_u);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+                case "空压机3":
+                    queryRecords3 = (from m in db.aircomp3
+                                     where (m.recordingTime > begin && m.recordingTime < end && m.recordingTime.Second == 0)
+                                     orderby m.id descending
+                                     select m).OrderBy(m => m.recordingTime);
+                    ViewBag.Station = "空压机3";
+                    queryRecords3.Select(m => new { m.pressure, m.temperature, m.current_u, m.recordingTime });
+                    foreach (var item in queryRecords3)
+                    {
+                        ResultKY_COM pat = new ResultKY_COM();
+                        pat.Pre = Convert.ToDouble(item.pressure);
+                        pat.Tem = Convert.ToDouble(item.temperature);
+                        pat.Current_u = Convert.ToDouble(item.current_u);
+                        pat.RecordTime = Convert.ToDateTime(item.recordingTime);
+                        Resultlist.Add(pat);
+                    }
+                    break;
+            }
+            #endregion
+            string[] columns = { "压力(Mpa)", "温度(℃)", "电流(A)", "记录时间" };
+            //byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "", false, columns);
+            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, point, false, columns);
+            return File(filecontent, ExcelExportHelper.ExcelContentType, point+".xlsx");
+        }
+
+
+        /// <summary>
+        /// Excel导出帮助类
+        /// </summary>
+        public class ExcelExportHelper
+        {
+            public static string ExcelContentType
+            {
+                get
+                {
+                    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                }
+            }
+            /// <summary>
+            /// List转DataTable
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            /// <param name="data"></param>
+            /// <returns></returns>
+            public static DataTable ListToDataTable<T>(List<T> data)
+            {
+                PropertyDescriptorCollection properties = TypeDescriptor.GetProperties(typeof(T));
+                DataTable dataTable = new DataTable();
+                for (int i = 0; i < properties.Count; i++)
+                {
+                    PropertyDescriptor property = properties[i];
+                    dataTable.Columns.Add(property.Name, Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType);
+                }
+                object[] values = new object[properties.Count];
+                foreach (T item in data)
+                {
+                    for (int i = 0; i < values.Length; i++)
+                    {
+                        values[i] = properties[i].GetValue(item);
+                    }
+                    dataTable.Rows.Add(values);
+                }
+                return dataTable;
+            }
+            /// <summary>
+            /// 导出Excel
+            /// </summary>
+            /// <param name="dataTable">数据源</param>
+            /// <param name="heading">工作簿Worksheet</param>
+            /// <param name="showSrNo">//是否显示行编号</param>
+            /// <param name="columnsToTake">要导出的列</param>
+            /// <returns></returns>
+            public static byte[] ExportExcel(DataTable dataTable, string heading = "", bool showSrNo = false, params string[] columnsToTake)
+            {
+                byte[] result = null;
+                using (ExcelPackage package = new ExcelPackage())
+                {
+                    ExcelWorksheet workSheet = package.Workbook.Worksheets.Add(string.Format("{0}Data", heading));
+                    int startRowFrom = string.IsNullOrEmpty(heading) ? 1 : 3; //开始的行
+                                                                              //是否显示行编号
+                    if (showSrNo)
+                    {
+                        DataColumn dataColumn = dataTable.Columns.Add("序号", typeof(int));
+                        dataColumn.SetOrdinal(0);
+                        int index = 1;
+                        foreach (DataRow item in dataTable.Rows)
+                        {
+                            item[0] = index;
+                            index++;
+                        }
+                    }
+                    //Add Content Into the Excel File
+                    workSheet.Cells["A" + startRowFrom].LoadFromDataTable(dataTable, true);
+                    // autofit width of cells with small content 
+                    int columnIndex = 1;
+                    foreach (DataColumn item in dataTable.Columns)
+                    {
+                        ExcelRange columnCells = workSheet.Cells[workSheet.Dimension.Start.Row, columnIndex, workSheet.Dimension.End.Row, columnIndex];
+                        int maxLength = columnCells.Max(cell => cell.Value.ToString().Count());
+                        if (maxLength < 150)
+                        {
+                            workSheet.Column(columnIndex).AutoFit();
+                        }
+                        columnIndex++;
+                    }
+                    // format header - bold, yellow on black 
+                    using (ExcelRange r = workSheet.Cells[startRowFrom, 1, startRowFrom, dataTable.Columns.Count])
+                    {
+                        r.Style.Font.Color.SetColor(System.Drawing.Color.White);
+                        r.Style.Font.Bold = true;
+                        r.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        r.Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#1fb5ad"));
+                    }
+                    // format cells - add borders 
+                    using (ExcelRange r = workSheet.Cells[startRowFrom + 1, 1, startRowFrom + dataTable.Rows.Count, dataTable.Columns.Count])
+                    {
+                        r.Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                        r.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                        r.Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                        r.Style.Border.Right.Style = ExcelBorderStyle.Thin;
+
+                        r.Style.Border.Top.Color.SetColor(System.Drawing.Color.Black);
+                        r.Style.Border.Bottom.Color.SetColor(System.Drawing.Color.Black);
+                        r.Style.Border.Left.Color.SetColor(System.Drawing.Color.Black);
+                        r.Style.Border.Right.Color.SetColor(System.Drawing.Color.Black);
+                    }
+                    //// removed ignored columns 
+                    //for (int i = dataTable.Columns.Count - 1; i >= 0; i--)
+                    //{
+                    //    if (i == 0 && showSrNo)
+                    //    {
+                    //        continue;
+                    //    }
+                    //    if (!columnsToTake.Contains(dataTable.Columns[i].ColumnName))
+                    //    {
+                    //        workSheet.DeleteColumn(i + 1);
+                    //    }
+                    //}
+                    if (!String.IsNullOrEmpty(heading))
+                    {
+                        workSheet.Cells["A1"].Value = heading;
+
+                        int c = 1;
+                        foreach (var a in columnsToTake)
+                        {
+                            workSheet.Cells[3, c].Value = a;
+                            workSheet.Cells[3, c].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;//水平居中
+                            workSheet.Cells[3, c].Style.VerticalAlignment = ExcelVerticalAlignment.Center;//垂直居中
+                            c++;
+                        }
+
+                        workSheet.Column(dataTable.Columns.Count).Style.Numberformat.Format = "yyyy-MM-dd hh:mm";
+                        //workSheet.Column(dataTable.Columns.Count).Style.ShrinkToFit = true;  //字体自适应大小
+                        workSheet.Column(dataTable.Columns.Count).Width = 20;//设置列宽
+                        for (int i = dataTable.Columns.Count-1; i>0;i--)  //设置前几列的列宽
+                        {
+                        workSheet.Column(i).Width = 12;//设置列宽
+                        }
+
+                        workSheet.InsertColumn(1, 1);
+                        workSheet.InsertRow(1, 1);
+                        workSheet.Column(1).Width = 5;
+
+                        workSheet.Cells["B2"].Style.Font.Size = 18;
+                    }
+                    result = package.GetAsByteArray();
+                }
+                return result;
+            }
+            /// <summary>
+            /// 导出Excel
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            /// <param name="data"></param>
+            /// <param name="heading"></param>
+            /// <param name="isShowSlNo"></param>
+            /// <param name="ColumnsToTake"></param>
+            /// <returns></returns>
+            public static byte[] ExportExcel<T>(List<T> data, string heading = "", bool isShowSlNo = false, params string[] ColumnsToTake)
+            {
+                return ExportExcel(ListToDataTable<T>(data), heading, isShowSlNo, ColumnsToTake);
+            }
+        }
+
+            #endregion
 
     }
 }
