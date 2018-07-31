@@ -98,6 +98,7 @@ namespace JianHeMES.Controllers
         // GET: IQCReports/Edit/5
         public async Task<ActionResult> IQCReportEdit(int? id)
         {
+            ViewBag.Material = Material();
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
