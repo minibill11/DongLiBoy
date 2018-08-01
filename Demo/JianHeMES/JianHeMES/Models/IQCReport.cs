@@ -229,6 +229,19 @@ namespace JianHeMES.Models
 
         [Display(Name = "规格要求SR1-SR5和检验结果描述SR101-SR510")]
         public string SRJson { get; set; }
+
+        [Display(Name = "不良项目(检测项目)SR")]
+        public string SG { get; set; }
+
+        [Display(Name = "规格要求SR1-SR5和检验结果描述SR101-SR510")]
+        public string SGJson { get; set; }
+
+        [Display(Name = "不良项目(检测项目)SR")]
+        public string SB { get; set; }
+
+        [Display(Name = "规格要求SR1-SR5和检验结果描述SR101-SR510")]
+        public string SBJson { get; set; }
+
         //[Display(Name = "规格要求SR1")]
         //public string SR1 { get; set; }
         //[Display(Name = "检验结果描述SR101")]
@@ -343,7 +356,7 @@ namespace JianHeMES.Models
         //public float SR509 { get; set; }
         //[Display(Name = "检验结果描述SR510")]
         //public float SR510 { get; set; }
-        
+
 
         [Display(Name = "不良项目(检测项目)R0")]
         public string R0 { get; set; }
