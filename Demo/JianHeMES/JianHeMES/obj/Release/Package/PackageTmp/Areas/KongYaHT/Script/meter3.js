@@ -7,6 +7,8 @@ $(function set() {
     vc2 = parseFloat($("#f4").val());
     ma = parseFloat($("#f5").val());
     mb = parseFloat($("#f6").val());
+    ma2 = parseFloat($("#f7").val());
+    mb2 = parseFloat($("#f8").val());
 
 
     $("#container").highcharts({
@@ -735,6 +737,243 @@ $(function set() {
         }
     });
 
+    $('#container7').highcharts({
+        chart: {
+            type: 'gauge',
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+            plotBackgroundColor: null,
+            plotBackgroundImage: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            plotBorderColor: null
+        },
+        title: {
+            text: ''
+        },
+        pane: {
+            startAngle: -120,
+            endAngle: 120,
+            background: [{
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#FFF'],
+                        [1, '#333']
+                    ]
+                },
+                borderWidth: 0,
+                outerRadius: '109%'
+            }, {
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#333'],
+                        [1, '#FFF']
+                    ]
+                },
+                borderWidth: 1,
+                outerRadius: '107%'
+            }, {
+                // default background
+            }, {
+                backgroundColor: '#DDD',
+                borderWidth: 0,
+                outerRadius: '105%',
+                innerRadius: '103%'
+            }]
+        },
+        // the value axis
+        yAxis: {
+            min: 0,
+            max: 45,
+            minorTickInterval: 'auto',
+            minorTickWidth: 1,
+            minorTickLength: 5,
+            minorTickPosition: 'inside',
+            minorTickColor: '#666',
+            tickPixelInterval: 30,
+            tickWidth: 2,
+            tickPosition: 'inside',
+            tickLength: 10,
+            tickColor: '#666',
+
+            labels: {
+                step: 2,
+                rotation: 'auto',
+                style: {
+                    color: '#19a0f5',//颜色
+                    fontSize: '8px'  //字体
+                }
+            },
+            title: {
+                text: '℃'
+            },
+            plotBands: [
+                {
+                    from: 0,
+                    to: 16,
+                    color: '#DF5353', // red
+
+                }, {
+                    from: 16,
+                    to: 28,
+                    color: '#55BF3B',// green
+
+                }, {
+                    from: 28,
+                    to: 45,
+                    color: '#DF5353', // red
+
+
+                }]
+        },
+        series: [{
+            name: '温度',
+            data: [ma2],
+            tooltip: {
+                valueSuffix: ' ℃'
+            },
+            dataLabels: {
+                /* enabled: true, */
+                color: '#19a0f5',
+                style: {
+                    fontSize: '8px'  //字体
+                }
+
+            }
+
+        }]
+
+    },
+    function (chart) {
+        if (!chart.renderer.forExport) {
+            setInterval(function () {
+                var point = chart.series[0].points[0],
+                newVab,
+                newVab = ma2;
+                point.update(newVab);
+            }, 60000);
+        }
+    });
+
+    $('#container8').highcharts({
+        chart: {
+            type: 'gauge',
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+            plotBackgroundColor: null,
+            plotBackgroundImage: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            plotBorderColor: null
+        },
+        title: {
+            text: ''
+        },
+        pane: {
+            startAngle: -120,
+            endAngle: 120,
+            background: [{
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#FFF'],
+                        [1, '#333']
+                    ]
+                },
+                borderWidth: 0,
+                outerRadius: '109%'
+            }, {
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#333'],
+                        [1, '#FFF']
+                    ]
+                },
+                borderWidth: 1,
+                outerRadius: '107%'
+            }, {
+                // default background
+            }, {
+                backgroundColor: '#DDD',
+                borderWidth: 0,
+                outerRadius: '105%',
+                innerRadius: '103%'
+            }]
+        },
+        // the value axis
+        yAxis: {
+            min: 0,
+            max: 100,
+            minorTickInterval: 'auto',
+            minorTickWidth: 1,
+            minorTickLength: 5,
+            minorTickPosition: 'inside',
+            minorTickColor: '#666',
+            tickPixelInterval: 30,
+            tickWidth: 2,
+            tickPosition: 'inside',
+            tickLength: 10,
+            tickColor: '#666',
+
+            labels: {
+                step: 1,
+                rotation: 'auto',
+                style: {
+                    color: '#19a0f5',//颜色
+                    fontSize: '8px'  //字体
+                }
+            },
+            title: {
+                text: '%RH'
+            },
+            plotBands: [
+                {
+                    from: 0,
+                    to: 45,
+                    color: '#DF5353', // red
+
+                }, {
+                    from: 45,
+                    to: 70,
+                    color: '#55BF3B',// green
+
+                }, {
+                    from: 70,
+                    to: 100,
+                    color: '#DF5353', // red
+
+
+                }]
+        },
+        series: [{
+            name: '湿度',
+            data: [mb2],
+            tooltip: {
+                valueSuffix: ' %RH'
+            },
+            dataLabels: {
+                /* enabled: true, */
+                color: '#19a0f5',
+                style: {
+                    fontSize: '8px'  //字体
+                }
+
+            }
+
+        }]
+
+    },
+    function (chart) {
+        if (!chart.renderer.forExport) {
+            setInterval(function () {
+                var point = chart.series[0].points[0],
+                newVab,
+                newVab = mb2;
+                point.update(newVab);
+            }, 60000);
+        }
+    });
 
     $("#hider").highcharts({
         chart: {
@@ -1527,6 +1766,268 @@ $(function set() {
         $("#container6").show("1000");
 
         $("#hider6").hide("slow");
+    });
+
+    $("#hider7").highcharts({
+        chart: {
+            type: 'gauge',
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+            plotBackgroundColor: null,
+            plotBackgroundImage: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            plotBorderColor: null
+        },
+        title: {
+            text: ''
+        },
+        pane: {
+            startAngle: -120,
+            endAngle: 120,
+            background: [{
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#FFF'],
+                        [1, '#333']
+                    ]
+                },
+                borderWidth: 0,
+                outerRadius: '109%'
+            }, {
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#333'],
+                        [1, '#FFF']
+                    ]
+                },
+                borderWidth: 1,
+                outerRadius: '107%'
+            }, {
+                // default background
+            }, {
+                backgroundColor: '#DDD',
+                borderWidth: 0,
+                outerRadius: '105%',
+                innerRadius: '103%'
+            }]
+        },
+
+        yAxis: {
+            min: 0,
+            max: 45,
+            minorTickInterval: 'auto',
+            minorTickWidth: 1,
+            minorTickLength: 5,
+            minorTickPosition: 'inside',
+            minorTickColor: '#666',
+            tickPixelInterval: 30,
+            tickWidth: 2,
+            tickPosition: 'inside',
+            tickLength: 10,
+            tickColor: '#666',
+
+            labels: {
+                step: 2,
+                rotation: 'auto',
+                style: {
+                    color: '#19a0f5',//颜色
+                    fontSize: '8px'  //字体
+                }
+            },
+            title: {
+                text: '℃'
+            },
+            plotBands: [
+                {
+                    from: 0,
+                    to: 16,
+                    color: '#DF5353', // red
+
+                }, {
+                    from: 16,
+                    to: 28,
+                    color: '#55BF3B',// green
+
+                }, {
+                    from: 28,
+                    to: 45,
+                    color: '#DF5353', // red
+
+
+                }]
+        },
+        series: [{
+            name: '温度',
+            data: [ma2],
+            tooltip: {
+                valueSuffix: ' ℃'
+            },
+            dataLabels: {
+                /* enabled: true, */
+                color: '#19a0f5',
+                style: {
+                    fontSize: '11px'  //字体
+                }
+            }
+
+        }]
+
+    },
+    function (chart) {
+        if (!chart.renderer.forExport) {
+            setInterval(function () {
+                var point = chart.series[0].points[0],
+                newVzc,
+                newVzc = ma2;
+                point.update(newVzc);
+            }, 60000);
+        }
+    });
+
+    $("#hider7").hide();
+    $("#container7").click(function () {
+        $("#container7").hide("1000");
+        $("#container8").hide("1000");
+        $("#hider7").show("slow");
+    });
+    $("#hider7").click(function () {
+        $("#container7").show("1000");
+        $("#container8").show("1000");
+        $("#hider7").hide("slow");
+    });
+
+    $('#hider8').highcharts({
+        chart: {
+            type: 'gauge',
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+            plotBackgroundColor: null,
+            plotBackgroundImage: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            plotBorderColor: null
+        },
+        title: {
+            text: ''
+        },
+        pane: {
+            startAngle: -120,
+            endAngle: 120,
+            background: [{
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#FFF'],
+                        [1, '#333']
+                    ]
+                },
+                borderWidth: 0,
+                outerRadius: '109%'
+            }, {
+                backgroundColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                    stops: [
+                        [0, '#333'],
+                        [1, '#FFF']
+                    ]
+                },
+                borderWidth: 1,
+                outerRadius: '107%'
+            }, {
+                // default background
+            }, {
+                backgroundColor: '#DDD',
+                borderWidth: 0,
+                outerRadius: '105%',
+                innerRadius: '103%'
+            }]
+        },
+        // the value axis
+        yAxis: {
+            min: 0,
+            max: 100,
+            minorTickInterval: 'auto',
+            minorTickWidth: 1,
+            minorTickLength: 5,
+            minorTickPosition: 'inside',
+            minorTickColor: '#666',
+            tickPixelInterval: 30,
+            tickWidth: 2,
+            tickPosition: 'inside',
+            tickLength: 10,
+            tickColor: '#666',
+
+            labels: {
+                step: 1,
+                rotation: 'auto',
+                style: {
+                    color: '#19a0f5',//颜色
+                    fontSize: '8px'  //字体
+                }
+            },
+            title: {
+                text: '%RH'
+            },
+            plotBands: [
+                {
+                    from: 0,
+                    to: 45,
+                    color: '#DF5353', // red
+
+                }, {
+                    from: 45,
+                    to: 70,
+                    color: '#55BF3B',// green
+
+                }, {
+                    from: 70,
+                    to: 100,
+                    color: '#DF5353', // red
+
+
+                }]
+        },
+        series: [{
+            name: '湿度',
+            data: [mb2],
+            tooltip: {
+                valueSuffix: ' %RH'
+            },
+            dataLabels: {
+                /* enabled: true, */
+                color: '#19a0f5',
+                style: {
+                    fontSize: '11px'  //字体
+                }
+            }
+
+        }]
+
+    },
+    function (chart) {
+        if (!chart.renderer.forExport) {
+            setInterval(function () {
+                var point = chart.series[0].points[0],
+                newVxc,
+                newVxc = mb2;
+                point.update(newVxc);
+            }, 60000);
+        }
+    });
+
+
+    $("#hider8").hide();
+    $("#container8").click(function () {
+        $("#container7").hide("1000");
+        $("#container8").hide("1000");
+        $("#hider8").show("slow");
+    });
+    $("#hider8").click(function () {
+        $("#container7").show("1000");
+        $("#container8").show("1000");
+
+        $("#hider8").hide("slow");
     });
 
     if (timeout == 0) {
