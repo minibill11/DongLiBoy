@@ -66,9 +66,20 @@ namespace JianHeMES.Hubs
             using (var db = new kongyadbEntities())
             {
                 var TH_40004493_1 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "1") select m).FirstOrDefault();
+                var TH_40004518_1 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004518" && m.NodeID == "1") select m).FirstOrDefault();
+                var TH_40004518_2 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004518" && m.NodeID == "2") select m).FirstOrDefault();
+                var TH_40004518_6 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004518" && m.NodeID == "6") select m).FirstOrDefault();
+                var TH_40004518_4 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004518" && m.NodeID == "4") select m).FirstOrDefault();
+                var TH_40004518_5 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004518" && m.NodeID == "5") select m).FirstOrDefault();
 
                 //存入JSON对象
                 TH1_json.Add("TH_40004493_1", JsonConvert.SerializeObject(TH_40004493_1));
+                TH1_json.Add("TH_40004518_1", JsonConvert.SerializeObject(TH_40004518_1));
+                TH1_json.Add("TH_40004518_2", JsonConvert.SerializeObject(TH_40004518_2));
+                TH1_json.Add("TH_40004518_6", JsonConvert.SerializeObject(TH_40004518_6));
+                TH1_json.Add("TH_40004518_4", JsonConvert.SerializeObject(TH_40004518_4));
+                TH1_json.Add("TH_40004518_5", JsonConvert.SerializeObject(TH_40004518_5));
+
             }
             //广播发送JSON数据
             _hubContext1.Clients.All.sendTH1(TH1_json);

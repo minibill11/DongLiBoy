@@ -164,7 +164,7 @@ namespace JianHeMES.Controllers
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
             //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
             {
-                ModelState.AddModelError("", "框体条码不存在，请检查条码输入是否正确！");
+                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                 return View(assemble);
             }
             //if(db.Assemble.Count(u=>u.BoxBarCode==assemble.BoxBarCode)>0)
@@ -282,7 +282,7 @@ namespace JianHeMES.Controllers
 
             if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
             {
-                ModelState.AddModelError("", "框体条码在组装记录中找不到，请检查条码输入是否正确，或检查组装工作是否已经完成！");
+                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查组装工作是否已经完成！");
                 return View(assemble);
             }
             assemble = db.Assemble.FirstOrDefault(u=>u.BoxBarCode == assemble.BoxBarCode);
@@ -395,7 +395,7 @@ namespace JianHeMES.Controllers
 
             if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
             {
-                ModelState.AddModelError("", "框体条码在组装记录中找不到，请检查条码输入是否正确，或检查防水测试工作是否已经完成！");
+                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查防水测试工作是否已经完成！");
                 return View(assemble);
             }
             assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
@@ -504,7 +504,7 @@ namespace JianHeMES.Controllers
 
             if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
             {
-                ModelState.AddModelError("", "框体条码在组装记录中找不到，请检查条码输入是否正确，或检查转接卡、电源组装工作是否已经完成！");
+                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查转接卡、电源组装工作是否已经完成！");
                 return View(assemble);
             }
             assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
@@ -604,7 +604,7 @@ namespace JianHeMES.Controllers
 
             if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
             {
-                ModelState.AddModelError("", "框体条码在组装记录中找不到，请检查条码输入是否正确，或检查视检工作是否已经完成！");
+                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查视检工作是否已经完成！");
                 return View(assemble);
             }
             assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
@@ -712,7 +712,7 @@ namespace JianHeMES.Controllers
             //在BarCodes条码表中找不到此条码号
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)   
             {
-                ModelState.AddModelError("", "框体条码不存在，请检查条码输入是否正确！");
+                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                 return View(assemble);
             }
             //在BarCodes条码表中找到此条码号
@@ -980,6 +980,21 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+        #region  ---------------检查条码是否存在------------------
+        [HttpPost]
+        public Boolean CheckBarCode(string barcode)
+        {
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == barcode)==null)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        #endregion
+
         #region    -------------其他方法----------
 
         // GET: Assembles/Details/5
@@ -1137,9 +1152,6 @@ namespace JianHeMES.Controllers
             return assemble;
          }
         #endregion
-
-
-
 
     }
 }

@@ -99,7 +99,7 @@ namespace JianHeMES.Controllers
                                                  select m.OQCCheckTime;
             //计算校正总时长
             TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
-            if (AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal == "1").Count() != 0)    //Burn_in_OQCCheckAbnormal的值是1为正常
+            if (AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal == "正常").Count() != 0)    //Burn_in_OQCCheckAbnormal的值是1为正常
             {
                 foreach (var m in TimeSpanList)
                 {
@@ -135,8 +135,8 @@ namespace JianHeMES.Controllers
             //列出记录
             AllBurn_inRecordsList = AllBurn_inRecords.ToList();
             //统计老化结果正常的模组数量
-            var Order_CR_Normal_Count = AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal == "1").Count();
-            var Abnormal_Count = AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal != "1").Count();
+            var Order_CR_Normal_Count = AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal == "正常").Count();
+            var Abnormal_Count = AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal != "正常").Count();
             //读出订单中模组总数量
             var Order_MG_Quantity = (from m in db.OrderMgm
                                      where (m.OrderNum == OrderNum)
@@ -302,7 +302,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ----------老化开始-----------------
+        #region -------------单个模组老化开始-----------------
 
 
         // GET: Burn_in/Burn_in_B
@@ -336,7 +336,7 @@ namespace JianHeMES.Controllers
 
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum) == null)
             {
-                ModelState.AddModelError("", "框体条码不存在，请检查条码输入是否正确！");
+                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                 return View(burn_in);
             }
             //在BarCodesNum条码表中找到此条码号
@@ -367,7 +367,9 @@ namespace JianHeMES.Controllers
                 }
                 else
                 {
-                    return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Burn_in';</script>");
+                    //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Burn_in';</script>");
+                    ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
+                    return View(burn_in);
                 }
             }
             else
@@ -379,7 +381,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region -------------老化完成------------
+        #region -------------单个模组老化完成------------
         // GET: Burn_in/Burn_in_F
         public ActionResult Burn_in_F(int? id)
         {
@@ -436,7 +438,153 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+
+        #region -------------批量模组老化开始（修改中）-----------------
+
+
+        // GET: Burn_in/Burn_in_B
+        public ActionResult Burn_in_Batch_B()
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                return View();
+            }
+            return RedirectToAction("Index");
+
+        }
+
+        // POST: Burn_in/Create
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Burn_in_Batch_B([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum) == null)
+            {
+                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
+                return View(burn_in);
+            }
+            //在BarCodesNum条码表中找到此条码号
+            //Burn_in，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
+            if (db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum) == null)
+            {
+                //var burn_inRecord = db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum);
+                burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
+                burn_in.OQCCheckBT = DateTime.Now;
+                burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                db.Burn_in.Add(burn_in);
+                db.SaveChanges();
+                return RedirectToAction("Burn_in_F", new { burn_in.Id });
+            }
+            //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
+            else if (db.Burn_in.Count(u => u.BarCodesNum == burn_in.BarCodesNum) >= 1)
+            {
+                var burn_in_list = db.Burn_in.Where(m => m.BarCodesNum == burn_in.BarCodesNum).ToList();
+                int normalCount = burn_in_list.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();
+                if (normalCount == 0)
+                {
+                    burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
+                    burn_in.OQCCheckBT = DateTime.Now;
+                    burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                    db.Burn_in.Add(burn_in);
+                    db.SaveChanges();
+                    return RedirectToAction("Burn_in_F", new { burn_in.Id });
+                }
+                else
+                {
+                    return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Burn_in';</script>");
+                }
+            }
+            else
+            {
+                //return RedirectToAction("Burn_in_F", new { burn_in.Id });
+                return RedirectToAction("Index");
+            }
+        }
         
+        public ActionResult CheckBarCodesList_B(string barcodeslist)
+        {
+            string returnjson = null;
+            return Content(returnjson);
+        }
+
+        #endregion
+
+        #region -------------批量模组老化完成（修改中）------------
+        // GET: Burn_in/Burn_in_F
+        public ActionResult Burn_in_Batch_F(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Burn_in burn_in = db.Burn_in.Find(id);
+            if (burn_in == null)
+            {
+                return HttpNotFound();
+            }
+            ViewBag.RepairList = SetRepairList();
+            return View(burn_in);
+        }
+
+        // POST: Burn_in/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Burn_in_Batch_F([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (burn_in.OQCCheckFT == null)
+            {
+                burn_in.OQCCheckFT = DateTime.Now;
+                burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                var BT = burn_in.OQCCheckBT.Value;
+                var FT = burn_in.OQCCheckFT.Value;
+                var CT = FT - BT;
+                burn_in.OQCCheckTime = CT;
+                burn_in.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                burn_in.OQCCheckFinish = true;
+            }
+
+            if (ModelState.IsValid)
+            {
+                db.Entry(burn_in).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Burn_in_B");
+            }
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            return View(burn_in);
+        }
+
+        public ActionResult CheckBarCodesList_F(string barcodeslist)
+        {
+            string returnjson = null;
+            return Content(returnjson);
+        }
+
+        #endregion
+
 
         #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
         private List<SelectListItem> GetOrderList()

@@ -8,7 +8,7 @@ using System.Net;
 using System.Web;
 using System.Web.Mvc;
 using JianHeMES.Models;
-
+using System.Web.Routing;
 
 namespace JianHeMES.Controllers
 {
@@ -49,7 +49,6 @@ namespace JianHeMES.Controllers
 
 
         #region -------外观首页---------
-
         // GET: Appearances
         public async Task<ActionResult> Index()
         {
@@ -176,7 +175,6 @@ namespace JianHeMES.Controllers
             //return View(AllAppearanceRecordsList);
         }
         #endregion
-
 
 
         // GET: Appearances/Details/5
@@ -344,7 +342,7 @@ namespace JianHeMES.Controllers
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
             //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
             {
-                ModelState.AddModelError("", "框体条码不存在，请检查条码输入是否正确！");
+                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                 return View(appearance);
             }
             //在BarCodesNum条码表中找到此条码号
@@ -495,6 +493,7 @@ namespace JianHeMES.Controllers
             return pageCount;
         }
         #endregion
+
 
     }
 }

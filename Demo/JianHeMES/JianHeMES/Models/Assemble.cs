@@ -23,7 +23,7 @@ namespace JianHeMES.Models
 
         [Display(Name = "箱体模组条码")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "条码能为空")]
-        public string BoxBarCode { get; set; }       //框体条码
+        public string BoxBarCode { get; set; }       //模组条码
 
         //[Key, Column(Order = 1)]
         [Display(Name = "模块条码清单")]
@@ -221,8 +221,8 @@ namespace JianHeMES.Models
         public string OrderNum { get; set; }      //订单号
 
         //[ForeignKey(BoxBarCode)]
-        [Display(Name = "框体条码")]
-        public string BoxBarCode { get; set; }       //框体条码
+        [Display(Name = "模组条码")]
+        public string BoxBarCode { get; set; }       //模组条码
 
         [Display(Name = "模块条码")]
         public string BarCodesNum { get; set; }
@@ -251,8 +251,8 @@ namespace JianHeMES.Models
         public string OrderNum { get; set; }      //订单号
 
         //[ForeignKey(BoxBarCode)]
-        [Display(Name = "框体条码")]
-        public string BoxBarCode { get; set; }       //框体条码
+        [Display(Name = "模组条码")]
+        public string BoxBarCode { get; set; }       //模组条码
 
         [Display(Name = "电源、转接卡条码")]
         public string BarCodesNum { get; set; }

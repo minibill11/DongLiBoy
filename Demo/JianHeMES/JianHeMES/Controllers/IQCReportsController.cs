@@ -41,6 +41,32 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+        #region  -----//检验水平等级-----------
+
+        private List<SelectListItem> level()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "请选择",
+                    Value = ""
+                },
+                new SelectListItem
+                {
+                    Text = "一般Ⅱ级",
+                    Value = "一般Ⅱ级"
+                },
+                new SelectListItem
+                {
+                    Text = "一般Ⅲ级",
+                    Value = "一般Ⅲ级"
+                }
+            };
+        }
+
+        #endregion
+
         // GET: IQCReports
         public async Task<ActionResult> Index()
         {
@@ -66,6 +92,7 @@ namespace JianHeMES.Controllers
         public ActionResult IQCReportCreate()
         {
             ViewBag.Material = Material();
+            ViewBag.Level = level();
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -85,6 +112,7 @@ namespace JianHeMES.Controllers
         public async Task<ActionResult> IQCReportCreate([Bind(Include = "Id,Material_SN,RoHS_REACH,OrderNumber,EquipmentNum,Provider,MaterialName,ModelNumber,Specification,MaterialQuantity,IncomingDate,ApplyPurchaseOrderNum,BatchNum,InspectionDate,SamplingPlan,MaterialVersion,C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,D2,D3,D4,D5,D6,D7,D8,D9,E1,E2,E3,E4,E5,E6,E7,E8,E9,F1,F2,F3,F4,F5,F6,F7,F8,F9,S0,S1,S11,S12,S13,S14,S15,S2,S21,S22,S23,S24,S25,S3,S31,S32,S33,S34,S35,SR,SRJson,SG,SGJson,SB,SBJson,R0,R1,R11,R12,R13,R2,R21,R22,R23,R3,R31,R32,R33,P0,P1,P11,P12,P13,P2,P21,P22,P23,P3,P31,P32,P33,AM,AM0,AM1,AM11,AM12,AM13,AM2,AM21,AM22,AM23,AM3,AM31,AM32,AM33,AM4,AM41,AM42,AM43,NG1,NG2,NG3,NGD,NGHandle,ReportRemark,Inspector,Creator,CreatedDate,Assessor,AssessedDate,AssessorRemark,AssessorPass,Approve,ApprovedDate,ApproveRemark,ApprovePass")] IQCReport iQCReport)
         {
             ViewBag.Material = Material();
+            ViewBag.Level = level();
             iQCReport.Creator = ((Users)Session["User"]).UserName;
             iQCReport.CreatedDate = DateTime.Now;
             if (ModelState.IsValid)
@@ -100,6 +128,7 @@ namespace JianHeMES.Controllers
         public async Task<ActionResult> IQCReportEdit(int? id)
         {
             ViewBag.Material = Material();
+            ViewBag.Level = level();
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -128,6 +157,7 @@ namespace JianHeMES.Controllers
         public async Task<ActionResult> IQCReportEdit([Bind(Include = "Id,Material_SN,RoHS_REACH,OrderNumber,EquipmentNum,Provider,MaterialName,ModelNumber,Specification,MaterialQuantity,IncomingDate,ApplyPurchaseOrderNum,BatchNum,InspectionDate,SamplingPlan,MaterialVersion,C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,D2,D3,D4,D5,D6,D7,D8,D9,E1,E2,E3,E4,E5,E6,E7,E8,E9,F1,F2,F3,F4,F5,F6,F7,F8,F9,S0,S1,S11,S12,S13,S14,S15,S2,S21,S22,S23,S24,S25,S3,S31,S32,S33,S34,S35,SR,SRJson,SG,SGJson,SB,SBJson,R0,R1,R11,R12,R13,R2,R21,R22,R23,R3,R31,R32,R33,P0,P1,P11,P12,P13,P2,P21,P22,P23,P3,P31,P32,P33,AM,AM0,AM1,AM11,AM12,AM13,AM2,AM21,AM22,AM23,AM3,AM31,AM32,AM33,AM4,AM41,AM42,AM43,NG1,NG2,NG3,NGD,NGHandle,ReportRemark,Inspector,Creator,CreatedDate,Assessor,AssessedDate,AssessorRemark,AssessorPass,Approve,ApprovedDate,ApproveRemark,ApprovePass")] IQCReport iQCReport)
         {
             ViewBag.Material = Material();
+            ViewBag.Level = level();
             if (ModelState.IsValid)
             {
                 db.Entry(iQCReport).State = EntityState.Modified;

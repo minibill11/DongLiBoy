@@ -14,7 +14,6 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-
         #region  -----//类型列表-----------
         
         private List<SelectListItem> SetTypeList()
@@ -216,17 +215,17 @@ namespace JianHeMES.Controllers
             {
                     if (orderMgm.BarCodeCreated==1)
                 {
-                    return Content("<script>alert('此订单已经创建过条码，不能重复创建！');window.location.href='..';</script>");
+                    return Content("<script>alert('此订单已经创建过条码，不能重复创建！！');window.location.href='..';</script>");
                 }
             
                 BarCodes aBarCode= new BarCodes() ;
                 aBarCode.OrderNum = orderMgm.OrderNum;
-                //生成箱体条码
+                //生成模组条码
                 for (int i=1;i<=orderMgm.Boxes; i++)
                 {
                     aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
                     aBarCode.BarCodesNum= orderMgm.BarCode_Prefix + "A"+ i.ToString("00000");
-                    aBarCode.BarCodeType = "箱体";
+                    aBarCode.BarCodeType = "模组";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
@@ -348,17 +347,25 @@ namespace JianHeMES.Controllers
         // GET: BarCodes/Edit/5
         public ActionResult Edit(int? id)
         {
-            if (id == null)
+            if (Session["User"] == null)
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                return RedirectToAction("Login", "Users");
             }
-            BarCodes barCodes = db.BarCodes.Find(id);
-            if (barCodes == null)
+            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员")
             {
-                return HttpNotFound();
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                BarCodes barCodes = db.BarCodes.Find(id);
+                if (barCodes == null)
+                {
+                    return HttpNotFound();
+                }
+                ViewBag.TypeList = SetTypeList();
+                return View(barCodes);
             }
-            ViewBag.TypeList = SetTypeList();
-            return View(barCodes);
+            return RedirectToAction("Index", "BarCodes");
         }
 
         // POST: BarCodes/Edit/5
