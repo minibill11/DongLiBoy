@@ -688,6 +688,7 @@ namespace JianHeMES.Controllers
         // TODO : 增加电源和转接卡条码号存储功能
         public ActionResult PQCCheckB()
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -704,6 +705,7 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal")] Assemble assemble)
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -719,14 +721,22 @@ namespace JianHeMES.Controllers
             //在Assembles组装记录表中找不到对应BoxBarCode的记录，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
             if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
             {
-                //var assembleRecord = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
-                assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
-                assemble.BarCode_Prefix = db.BarCodes.Where(u=>u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().BarCode_Prefix;
-                assemble.PQCCheckBT = DateTime.Now;
-                assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
-                db.Assemble.Add(assemble);
-                db.SaveChanges();
-                return RedirectToAction("PQCCheckF", new { assemble.Id });
+                if (assemble.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum)
+                {
+                    //var assembleRecord = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                    assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
+                    assemble.BarCode_Prefix = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().BarCode_Prefix;
+                    assemble.PQCCheckBT = DateTime.Now;
+                    assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
+                    db.Assemble.Add(assemble);
+                    db.SaveChanges();
+                    return RedirectToAction("PQCCheckF", new { assemble.Id });
+                }else
+                {
+                    ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                    return View(assemble);
+                }
+
             }
             //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
             else if (db.Assemble.Count(u => u.BoxBarCode == assemble.BoxBarCode) >= 1)
@@ -735,16 +745,27 @@ namespace JianHeMES.Controllers
                 int normalCount = assemblelist.Where(m => m.PQCCheckAbnormal == "正常").Count();
                 if (normalCount==0)
                 {
-                    assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
-                    assemble.PQCCheckBT = DateTime.Now;
-                    assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
-                    db.Assemble.Add(assemble);
-                    db.SaveChanges();
-                    return RedirectToAction("PQCCheckF", new { assemble.Id });
+                    if (assemble.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum)
+                    {
+                        assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
+                        assemble.PQCCheckBT = DateTime.Now;
+                        assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
+                        db.Assemble.Add(assemble);
+                        db.SaveChanges();
+                        return RedirectToAction("PQCCheckF", new { assemble.Id });
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                        return View(assemble);
+                    }
+                    
                 }
                 else
                 {
-                    return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Assembles/AssembleIndex';</script>");
+                    //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Assembles/AssembleIndex';</script>");
+                    ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
+                    return View(assemble);
                 }
             }
             else

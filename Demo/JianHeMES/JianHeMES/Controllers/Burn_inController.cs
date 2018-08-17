@@ -329,6 +329,7 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Burn_in_B([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -343,13 +344,22 @@ namespace JianHeMES.Controllers
             //Burn_in，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
             if (db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum) == null)
             {
-                //var burn_inRecord = db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum);
-                burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
-                burn_in.OQCCheckBT = DateTime.Now;
-                burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
-                db.Burn_in.Add(burn_in);
-                db.SaveChanges();
-                return RedirectToAction("Burn_in_F", new { burn_in.Id });
+                if (burn_in.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum)
+                {
+                    //var burn_inRecord = db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum);
+                    burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
+                    burn_in.OQCCheckBT = DateTime.Now;
+                    burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                    db.Burn_in.Add(burn_in);
+                    db.SaveChanges();
+                    return RedirectToAction("Burn_in_F", new { burn_in.Id });
+                }
+                else
+                {
+                    ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                    return View(burn_in);
+                }
+                
             }
             //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
             else if (db.Burn_in.Count(u => u.BarCodesNum == burn_in.BarCodesNum) >= 1)
@@ -358,12 +368,21 @@ namespace JianHeMES.Controllers
                 int normalCount = burn_in_list.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();
                 if (normalCount == 0)
                 {
-                    burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
-                    burn_in.OQCCheckBT = DateTime.Now;
-                    burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
-                    db.Burn_in.Add(burn_in);
-                    db.SaveChanges();
-                    return RedirectToAction("Burn_in_F", new { burn_in.Id });
+                    if (burn_in.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum)
+                    {
+                        burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
+                        burn_in.OQCCheckBT = DateTime.Now;
+                        burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                        db.Burn_in.Add(burn_in);
+                        db.SaveChanges();
+                        return RedirectToAction("Burn_in_F", new { burn_in.Id });
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                        return View(burn_in);
+                    }
+                    
                 }
                 else
                 {
