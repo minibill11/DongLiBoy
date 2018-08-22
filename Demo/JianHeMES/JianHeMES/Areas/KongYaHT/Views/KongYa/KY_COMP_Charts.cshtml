@@ -248,13 +248,13 @@
             dataZoom: [
                 {
                     show: true,
-                    start: 94,
-                    end: 100
+                    start: 93,
+                    end: 99
                 },
                 {
                     type: 'inside',
-                    start: 94,
-                    end: 100
+                    start: 93,
+                    end: 99
                 },
                 {
                     show: true,
@@ -420,6 +420,104 @@
         });
     }
 
+
+    myChart.on("datazoom", function (params) {
+        //var option = myChart.getOption();
+        //var dataZoomX = option.dataZoom[0];
+        //console.log(option.xAxis[0].data[dataZoomX.startValue]);
+        //console.log(option.xAxis[0].data[dataZoomX.endValue]);
+
+        //获得图表数据数组下标
+        //var startValue = myChart.getModel().option.dataZoom[0].startValue;
+        //var endValue = myChart.getModel().option.dataZoom[0].endValue;
+        //获得起止位置百分比
+        var startPercent = myChart.getModel().option.dataZoom[0].start;
+        var endPercent = myChart.getModel().option.dataZoom[0].end;
+        //console.log(startPercent);
+        //console.log(endPercent);
+        if (startPercent == 0) {
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/KY_COMP_ChartsLeft',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    left: JsonObj.RecordTime[0],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: 1,
+                                    end: endPercent + 0.9
+                                }
+                            ]
+                        });
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshLeftData(returnJson);//更新图表数据
+                        $("#begin").val(JsonObj.RecordTime[0]);
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: 1,
+                                    end: endPercent + 0.9
+                                }
+                            ]
+                        });
+                    }
+                }
+            })
+        }
+        if (endPercent == 100) {
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/KY_COMP_ChartsRight',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    right: JsonObj.RecordTime[JsonObj.RecordTime.length-1],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: startPercent - 0.9,
+                                    end: 99
+                                }
+                            ]
+                        });
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshRightData(returnJson);//更新图表数据
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: startPercent - 0.9,
+                                    end: 99
+                                }
+                            ]
+                        });
+                    }
+                }
+            })
+        }
+    });
 
     //重置容器高宽
     window.onresize = function () {

@@ -145,8 +145,6 @@
                     alert("数据加载失败！");
                 },
                 success: function (data) {
-                    console.log(data);
-                    console.log("这里");
                     if (data == "无数据") {
                         alert("已无更新的数据可加载！");
                     }
@@ -275,13 +273,13 @@
             dataZoom: [
                 {
                     show: true,
-                    start: 94,
-                    end: 100
+                    start: 93,
+                    end: 99
                 },
                 {
                     type: 'inside',
-                    start: 94,
-                    end: 100
+                    start: 93,
+                    end: 99
                 },
                 {
                     show: true,
@@ -360,6 +358,12 @@
             xAxis: {
                 data: JsonObj.RecordTime
             },
+            dataZoom: [
+                {
+                    start: 1,
+                    end: 7
+                }
+            ],
             series: [
                 {
                     name: '温度',
@@ -387,6 +391,12 @@
             xAxis: {
                 data: JsonObj.RecordTime
             },
+            dataZoom: [
+                {
+                    start: 93,
+                    end: 99
+                }
+            ],
             series: [
                 {
                     name: '温度',
@@ -422,6 +432,100 @@
         });
     }
 
+    myChart.on("datazoom", function (params) {
+        console.log("--------------------");
+        var option = myChart.getOption();
+        var dataZoomX = option.dataZoom[0];
+        console.log(dataZoomX.startValue);
+        console.log(dataZoomX.endValue);
+        console.log(option.xAxis[0].data[dataZoomX.startValue]);
+        console.log(option.xAxis[0].data[dataZoomX.endValue]);
+        //params里面有什么，可以打印出来看一下就明白
+        //console.log(params);
+        //可以通过params获取缩放的起止百分比，但是鼠标滚轮和伸缩条拖动触发的params格式不同，所以用另一种方法
+        //获得图表数据数组下标
+        var startValue = myChart.getModel().option.dataZoom[0].startValue;
+        var endValue = myChart.getModel().option.dataZoom[0].endValue;
+        //获得起止位置百分比
+        var startPercent = myChart.getModel().option.dataZoom[0].start;
+        var endPercent = myChart.getModel().option.dataZoom[0].end;
+
+        console.log(startValue);
+        console.log(endValue);
+        console.log(startPercent);
+        console.log(endPercent);
+        //console.log(JsonObj.RecordTime[JsonObj.RecordTime.length-1]);
+        if (JsonObj.RecordTime[0] == option.xAxis[0].data[dataZoomX.startValue]) {
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsLeft',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    left: JsonObj.RecordTime[0],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: 1,
+                                    end:7
+                                }
+                            ]
+                        });
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshLeftData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " TemValue的长度：" + JsonObj.Tem.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#begin").val(JsonObj.RecordTime[0]);
+                    }
+                }
+            })
+        }
+        if (JsonObj.RecordTime[JsonObj.RecordTime.length - 1] == option.xAxis[0].data[dataZoomX.endValue]) {
+            $.ajax({
+            type: 'post',
+            url: '/KongYaHT/KongYa/HTChartsRight',  //请求的某个action的地址
+            datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+            data: {
+            point: "@ViewBag.Station",
+            right: JsonObj.RecordTime[JsonObj.RecordTime.length-1],
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                //如果返回错误，根据错误信息进行相应的处理
+                alert("数据加载失败！");
+            },
+            success: function (data) {
+                if (data == "无数据") {
+                    myChart.setOption({
+                        dataZoom: [
+                            {
+                                start:93,
+                                end: 99
+                            }
+                        ]
+                    });
+                    alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshRightData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " TemValue的长度：" + JsonObj.Tem.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
+                    }
+            }
+            })
+        }
+    });
 
     //重置容器高宽
     window.onresize = function () {

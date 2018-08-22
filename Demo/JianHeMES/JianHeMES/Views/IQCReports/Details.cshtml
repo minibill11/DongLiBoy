@@ -4,6 +4,10 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/jsPdf.debug.js"></script>
+<script src="~/Scripts/html2canvas_0.5.0-beta4.js"></script>
+@*<script src="https://cdn.bootcss.com/html2canvas/0.5.0-beta4/html2canvas.js"></script>
+    <script src="https://cdn.bootcss.com/jspdf/1.3.4/jspdf.debug.js"></script>*@
 <style>
     tr {
         height: 22px;
@@ -64,7 +68,7 @@
         font-size:13px;
         color:#555;
     }
-    #ModelNumber{
+    #ModelNumber,#BatchNum{
         padding:0;
         font-size:13px;
     }
@@ -72,6 +76,7 @@
 
 <h3>@ViewBag.Title</h3>
     <div class="form-horizontal">
+        <button class="btn btn-default" id="printpdf"style="margin-left:200px;margin-bottom:5px" >保存为PDF</button>
         <table id="tableApp" style="margin:0 auto;border-collapse:collapse;">
             <colgroup>
                 <col width="100 ">
@@ -946,45 +951,37 @@
                 <tr>
                     <td colspan="8" style="text-align: right;border: none">表单编号：QD-007-B</td>
                 </tr>
-
-
-                <tr>
-                    <td colspan="8" style="border: none;text-align:left">
-                        @*@Html.ActionLink("编辑", "IQCReportEdit", new { id = Model.Id })
-                        @Html.ActionLink("审核", "IQCReportAssessor", new { id = Model.Id })
-                        @Html.ActionLink("批准", "IQCReportApprove", new { id = Model.Id })
-                        @Html.ActionLink("返回IQC首页", "Index")*@
-
-
-                        <p>
-                            @{var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role; }
-
-                            @if (UserRole == "IQC检验员" || UserRole == "系统管理员" && Model.AssessorPass == null)
-                            {
-                                <span class="text-success text-center btn btn-default">
-                                    @Html.ActionLink("编辑", "IQCReportEdit", new { id = Model.Id })
-                                </span>
-                            }
-                            @if (UserRole == "IQC组长" || UserRole == "系统管理员" && Model.AssessorPass == null)
-                            {
-                                <span class="text-success text-center btn btn-default">
-                                    @Html.ActionLink("审核", "IQCReportAssessor", new { id = Model.Id })
-                                </span>
-                            }
-                            @if (UserRole == "品质部经理" || UserRole == "系统管理员" && Model.AssessorPass != null && Model.ApprovePass == null)
-                            {
-                                <span class="text-success text-center btn btn-default">
-                                    @Html.ActionLink("批准", "IQCReportApprove", new { id = Model.Id })
-                                </span>
-                            }
-                            <span class="text-success text-center btn btn-default">
-                                @Html.ActionLink("返回IQC首页", "Index")
-                            </span>
-                        </p>
-                    </td>
-                </tr>
             </tfoot>
         </table>
+        <div style="margin-left:200px">
+            @*@Html.ActionLink("编辑", "IQCReportEdit", new { id = Model.Id })
+            @Html.ActionLink("审核", "IQCReportAssessor", new { id = Model.Id })
+            @Html.ActionLink("批准", "IQCReportApprove", new { id = Model.Id })
+            @Html.ActionLink("返回IQC首页", "Index")*@
+                @{var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role; }
+
+                @if (UserRole == "IQC检验员" || UserRole == "系统管理员" && Model.AssessorPass == null)
+                {
+                    <span class="text-success text-center btn btn-default">
+                        @Html.ActionLink("编辑", "IQCReportEdit", new { id = Model.Id })
+                    </span>
+                }
+                @if (UserRole == "IQC组长" || UserRole == "系统管理员" && Model.AssessorPass == null)
+                {
+                    <span class="text-success text-center btn btn-default">
+                        @Html.ActionLink("审核", "IQCReportAssessor", new { id = Model.Id })
+                    </span>
+                }
+                @if (UserRole == "品质部经理" || UserRole == "系统管理员" && Model.AssessorPass != null && Model.ApprovePass == null)
+                {
+                    <span class="text-success text-center btn btn-default">
+                        @Html.ActionLink("批准", "IQCReportApprove", new { id = Model.Id })
+                    </span>
+                }
+                <span class="text-success text-center btn btn-default">
+                    @Html.ActionLink("返回IQC首页", "Index")
+                </span>
+        </div>
     </div>
 
 <script>
@@ -1005,7 +1002,7 @@
         }
         if (isJsonFormat($("#S11").val())) {
             var s1JSON = JSON.parse($("#S11").val())
-            console.log(s1JSON)
+            //console.log(s1JSON)
             s1.each(function (i) {
                 try {
                     $(this).text(s1JSON.S1[i]);
@@ -1018,7 +1015,7 @@
         }
         if (isJsonFormat($("#S21").val())) {
             var s2JSON = JSON.parse($("#S21").val())
-            console.log(s2JSON)
+            //console.log(s2JSON)
             s2.each(function (i) {
                 try {
                     $(this).text(s2JSON.S2[i]);
@@ -1031,7 +1028,7 @@
         }
         if (isJsonFormat($("#S31").val())) {
             var s3JSON = JSON.parse($("#S31").val())
-            console.log(s3JSON)
+            //console.log(s3JSON)
             s3.each(function (i) {
                 try {
                     $(this).text(s3JSON.S3[i]);
@@ -1118,6 +1115,11 @@
 
         $("#EquipmentNumShow").html($("#EquipmentNumShow").text().replace(/,/g, "<br>"))
 
+
+        if ($("#ApprovePass").val() == "" || $("#AssessorPass").val() == "") {
+            $("#printpdf").hide();
+        }
+
         if ($("#ApprovePass").val() == "true") {
             $("#ApprovePassSelect").val($("#ApprovePass").val());
         } else if ($("#ApprovePass").val() == "false") {
@@ -1167,4 +1169,87 @@
         });
         $(':checkbox,label').css('cursor', "not-allowed");
     });
+</script>
+@*保存为pdf*@
+<script>
+    $("#printpdf").click(function () {
+        var Table = document.getElementById("tableApp");//需要截图的包裹的DOM 元素
+        Table.style.background = "#FFFFFF";   
+        var width = Table.offsetWidth; //获取dom 宽度
+        var height = Table.offsetHeight; //获取dom 高度
+        var canvas2 = document.createElement("canvas"); //创建一个canvas节点
+        var scale = 2; //定义任意放大倍数 支持小数
+        canvas2.width = width * scale; //定义canvas 宽度 * 缩放
+        canvas2.height = height * scale; //定义canvas高度 *缩放
+        canvas2.style.width = width + "px";
+        canvas2.style.height = height + "px";
+        canvas2.getContext("2d").scale(scale, scale); //获取context,设置scale
+        var opts = {
+            scale: scale, // 添加的scale 参数
+            canvas: canvas2, //自定义 canvas
+            logging: false, //日志开关
+            width: width, //dom 原始宽度
+            height: height //dom 原始高度
+        };
+        //两个参数：所需要截图的元素id，截图后要执行的函数， canvas为截图后返回的最后一个canvas
+        html2canvas(Table, { opts}).then(function (canvas) {
+            //document.querySelector("#printpdf").appendChild(canvas);
+
+            //返回图片URL，参数：图片格式和清晰度(0-1)
+            var pageData = canvas.toDataURL('image/jpeg', 1.0);
+            //方向默认竖直，尺寸ponits，格式a4【595.28,841.89]
+            var pdf = new jsPDF('', 'pt', [595.28, 555.28 / canvas.width * canvas.height]);
+
+            //需要dataUrl格式
+            pdf.addImage(pageData, 'JPEG', 20, 0, 555.28, 555.28 / canvas.width * canvas.height);
+
+            pdf.save('进料检验报告.pdf');
+        });
+    })
+
+    //window.onload = function () {
+    //    var Table = document.getElementById("tableApp");
+    //    Table.style.background = "#FFFFFF";
+    //        html2canvas(Table, {
+    //            onrendered: function (canvas) {
+    //                //document.getElementById("show").appendChild(canvas)
+    //                var contentWidth = canvas.width;
+    //                var contentHeight = canvas.height;
+    //                //一页pdf显示html页面生成的canvas高度;
+    //                var pageHeight = contentWidth / 592.28 * 841.89;
+    //                //未生成pdf的html页面高度
+    //                var leftHeight = contentHeight;
+    //                //页面偏移
+    //                var position = 0;
+    //                //a4纸的尺寸[595.28,841.89]，html页面生成的canvas在pdf中图片的宽高
+    //                //var imgWidth = 595.28;
+    //                //var imgHeight = 592.28 / contentWidth * contentHeight;
+    //                var imgWidth = 555.28;
+    //                var imgHeight = 555.28 / contentWidth * contentHeight;
+    //                var pageData = canvas.toDataURL('image/jpeg', 1.0);
+    //                var pdf = new jsPDF('', 'pt', 'a4');
+
+    //                //有两个高度需要区分，一个是html页面的实际高度，和生成pdf的页面高度(841.89)
+    //                //当内容未超过pdf一页显示的范围，无需分页
+    //                if (leftHeight < pageHeight) {
+    //                    //pdf.addImage(pageData, 'JPEG', 0, 0, imgWidth, imgHeight);
+    //                    pdf.addImage(pageData, 'JPEG', 20, 0, imgWidth, imgHeight);
+    //                } else {
+    //                    while (leftHeight > 0) {
+    //                        //pdf.addImage(pageData, 'JPEG', 0, position, imgWidth, imgHeight)
+    //                        pdf.addImage(pageData, 'JPEG', 20, position, imgWidth, imgHeight);
+    //                        leftHeight -= pageHeight;
+    //                        position -= 841.89;
+    //                        //避免添加空白页
+    //                        if (leftHeight > 0) {
+    //                            pdf.addPage();
+    //                        }
+    //                    }
+    //                }
+    //                $("#printpdf").click(function () {
+    //                    pdf.save('content.pdf');
+    //                })
+    //            }
+    //        });
+    //}
 </script>
