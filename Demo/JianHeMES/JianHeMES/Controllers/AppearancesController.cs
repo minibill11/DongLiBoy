@@ -9,12 +9,33 @@ using System.Web;
 using System.Web.Mvc;
 using JianHeMES.Models;
 using System.Web.Routing;
+using System.Collections;
 
 namespace JianHeMES.Controllers
 {
     public class AppearancesController : Controller
     {
         private ApplicationDbContext db = new ApplicationDbContext();
+
+        #region --------------------OQCNormal列表--------------------
+        private List<SelectListItem> AppearancesNormalList()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "正常",
+                    Value = "正常"
+                },
+                new SelectListItem
+                {
+                    Text = "异常",
+                    Value = "异常"
+                }
+            };
+        }
+        #endregion
+
 
         #region  -----//维修列表-----------
 
@@ -59,13 +80,15 @@ namespace JianHeMES.Controllers
 
             ViewBag.Display = "display:none";//隐藏View基本情况信息
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.AppearancesNormal = AppearancesNormalList();
+            ViewBag.NotDo = null;
             //return View(await db.Appearance.ToListAsync());
             return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string AppearancesNormal, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -87,6 +110,40 @@ namespace JianHeMES.Controllers
                                        where (m.OrderNum == OrderNum)
                                        select m;
             }
+
+            //统计外观包装结果正常的模组数量
+            var Order_CR_Normal_Count = AllAppearanceRecords.Where(x => x.Appearance_OQCCheckAbnormal == "正常").Count();
+            var Abnormal_Count = AllAppearanceRecords.Where(x => x.Appearance_OQCCheckAbnormal != "正常").Count();
+
+            #region   ---------筛选正常、异常-------------
+            //正常、异常记录筛选
+            if (AppearancesNormal == "异常")
+            {
+                AllAppearanceRecords = from m in AllAppearanceRecords where (m.Appearance_OQCCheckAbnormal != "正常") select m;
+            }
+            else if (AppearancesNormal == "正常")
+            {
+                AllAppearanceRecords = from m in AllAppearanceRecords where (m.Appearance_OQCCheckAbnormal == "正常") select m;
+            }
+
+            #endregion
+
+            #region   ----------筛选从未开始做的条码清单------------
+            //取出订单的全部条码
+            List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == OrderNum select m).ToList();
+            ArrayList NotDoOQCList = new ArrayList();
+            foreach (var barcode in BarCodesList)
+            {
+                if ((from m in db.Appearance where m.BarCodesNum == barcode.BarCodesNum select m).Count() == 0)
+                {
+                    NotDoOQCList.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.NotDo = NotDoOQCList;//输出从未做的条码清单
+            int barcodeslistcount = NotDoOQCList.Count;
+            ViewBag.NotDoCount = barcodeslistcount;//从未开始做的数量
+            #endregion
+
             //检查orderNum和searchString是否为空
             if (!String.IsNullOrEmpty(searchString))
             {   //从调出的记录中筛选含searchString内容的记录
@@ -135,9 +192,7 @@ namespace JianHeMES.Controllers
 
             //列出记录
             AllAppearanceRecordsList = AllAppearanceRecords.ToList();
-            //统计外观包装结果正常的模组数量
-            var Order_CR_Normal_Count = AllAppearanceRecords.Where(x => x.Appearance_OQCCheckAbnormal == "正常").Count();
-            var Abnormal_Count = AllAppearanceRecords.Where(x => x.Appearance_OQCCheckAbnormal != "正常").Count();
+
             //读出订单中模组总数量
             var Order_MG_Quantity = (from m in db.OrderMgm
                                      where (m.OrderNum == OrderNum)
@@ -170,6 +225,7 @@ namespace JianHeMES.Controllers
             ViewBag.PageIndex = PageIndex;
             ViewBag.PageCount = pageCount;
             ViewBag.OrderNumList = GetOrderNumList();
+            ViewBag.AppearancesNormal = AppearancesNormalList();
 
             return View(AllAppearanceRecords);
             //return View(AllAppearanceRecordsList);

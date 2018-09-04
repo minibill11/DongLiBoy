@@ -8,7 +8,7 @@ using System.Web;
 using System.Web.Mvc;
 using JianHeMES.Models;
 
-namespace JianHeMES.Controllers
+namespace JianHeMESEntities.Controllers
 {
     public class OrderMgmsController : Controller
     {
@@ -62,7 +62,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string searchString, string PlatformType, int PageIndex = 0)
         {
             var ordernums = db.OrderMgm as IQueryable<OrderMgm>;
             if (!String.IsNullOrEmpty(OrderNum))
@@ -74,6 +74,12 @@ namespace JianHeMES.Controllers
             {
                 ordernums = ordernums.Where(m => m.OrderNum.Contains(searchString));
             }
+
+            if (!String.IsNullOrEmpty(PlatformType))
+            {
+                ordernums = ordernums.Where(m => m.PlatformType.Contains(PlatformType));
+            }
+
             var recordCount = ordernums.Count();
             var pageCount = GetPageCount(recordCount);
             if (PageIndex >= pageCount && pageCount >= 1)
@@ -126,7 +132,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {
@@ -153,17 +159,20 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            if (id == null)
+            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE")
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                OrderMgm orderMgm = db.OrderMgm.Find(id);
+                if (orderMgm == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(orderMgm);
             }
-            OrderMgm orderMgm = db.OrderMgm.Find(id);
-            if (orderMgm == null)
-            {
-                return HttpNotFound();
-            }
-            return View(orderMgm);
+            return RedirectToAction("Index", "OrderMgms");
         }
 
         // POST: OrderMgms/Edit/5
@@ -171,7 +180,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {

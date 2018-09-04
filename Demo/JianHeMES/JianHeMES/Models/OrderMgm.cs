@@ -32,10 +32,25 @@ namespace JianHeMES.Models
         public DateTime ContractDate { get; set; }
 
         [Required]
-        [Display(Name = "交货日期")]
+        [Display(Name = "出货日期")]
         [DataType(DataType.Date)]
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
         public DateTime DeliveryDate { get; set; }
+
+        [Required]
+        [Display(Name = "计划投入时间")]
+        [DataType(DataType.Date)]
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
+        public DateTime PlanInputTime { get; set; }
+
+        [Required]
+        [Display(Name = "计划完成时间")]
+        [DataType(DataType.Date)]
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
+        public DateTime PlanCompleteTime { get; set; }
+
+        [Display(Name = "平台型号")]
+        public string PlatformType { get; set; }
 
         [Required]
         [Display(Name = "地区")]

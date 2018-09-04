@@ -72,6 +72,24 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+        #region --------------------PQCNormal列表--------------------
+        private List<SelectListItem> PQCNormalList()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "正常",
+                    Value = "正常"
+                },
+                new SelectListItem
+                {
+                    Text = "异常",
+                    Value = "异常"
+                }
+            };
+        }
+        #endregion
 
         #region  -----维修列表-----------
 
@@ -849,6 +867,8 @@ namespace JianHeMES.Controllers
             ViewBag.Display = "display:none";//隐藏View基本情况信息
             ViewBag.Legend = "display:none";//隐藏图例
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.PQCNormal = PQCNormalList();
+            ViewBag.NotDo = null;
 
             return View();
 
@@ -856,7 +876,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult AssembleIndex(string orderNum, /*string searchString,*/ int PageIndex = 0)
+        public ActionResult AssembleIndex(string orderNum,string PQCNormal, /*string searchString,*/ int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -878,6 +898,41 @@ namespace JianHeMES.Controllers
                                where (m.OrderNum == orderNum)
                                select m;
             }
+            //ViewData["Finished"] = from m in Allassembles where (m.PQCCheckAbnormal == "正常") select m;
+            //ViewData["CheckedNotFinished"] = null;
+            //ViewData["CheckedNotFinished"] = null;
+
+            //统计校正结果正常的模组数量
+            var assemble_Normal_Count = Allassembles.Where(m => m.PQCCheckAbnormal == "正常").Count();
+            var assemble_Abnormal_Count = Allassembles.Where(m => m.PQCCheckAbnormal != "正常").Count();
+
+            #region   ---------筛选正常、异常-------------
+            //正常、异常记录筛选
+            if (PQCNormal == "异常")
+            {
+                Allassembles = from m in Allassembles where (m.PQCCheckAbnormal !="正常") select m;
+            }
+            else if (PQCNormal == "正常")
+            {
+                Allassembles = from m in Allassembles where (m.PQCCheckAbnormal == "正常") select m;
+            }
+            #endregion
+
+            #region   ----------筛选从未开始做的条码清单------------
+            List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == orderNum select m).ToList();
+            //List<string> NotPQCList = new List<string>();
+            ArrayList NotPQCList = new ArrayList();
+            foreach (var barcode in BarCodesList)
+            {
+                if ((from m in db.Assemble where m.BoxBarCode == barcode.BarCodesNum select m).Count() == 0)
+                {
+                    NotPQCList.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.NotDo = NotPQCList;//输出未完成的条码清单
+            int barcodeslistcount = NotPQCList.Count;
+            ViewBag.NotDoCount = barcodeslistcount;//未完成数量
+            #endregion
 
             //检查orderNum和searchString是否为空
             //if (!String.IsNullOrEmpty(searchString))
@@ -957,9 +1012,6 @@ namespace JianHeMES.Controllers
                 //modifya.ModelCollections.Add(modelCollectionsString);
             }
 
-            //统计校正结果正常的模组数量
-            var assemble_Normal_Count = Allassembles.Where(m=>m.PQCCheckAbnormal =="正常").Count();
-            var assemble_Abnormal_Count = Allassembles.Where(m => m.PQCCheckAbnormal != "正常").Count();
             //读出订单中模组总数量
             var assemble_Quantity = (from m in db.OrderMgm
                                      where (m.OrderNum == orderNum)
@@ -979,6 +1031,7 @@ namespace JianHeMES.Controllers
             ViewBag.Legend = "display:normal";//显示图例
 
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.PQCNormal = PQCNormalList();
 
             //分页计算功能
             var recordCount = Allassembles.Count();
@@ -1120,6 +1173,8 @@ namespace JianHeMES.Controllers
         }
 
         #endregion
+
+
 
         #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
         private List<SelectListItem> GetOrderList()

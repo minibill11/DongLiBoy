@@ -14,6 +14,9 @@ using System.Web;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using JianHeMES.Areas.KongYaHT.Models;
+using JianHeMES.Controllers;
+using System.Net.Mail;
+using System.Text;
 
 namespace JianHeMES.Hubs
 {
@@ -86,7 +89,6 @@ namespace JianHeMES.Hubs
             KY_json.Add("room", JsonConvert.SerializeObject(KY_room));
             }
             _hubContext.Clients.All.sendKY(KY_json);
-
 
             #region ---------其他广播数据-----------
             ////三楼温湿度数据
