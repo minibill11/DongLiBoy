@@ -29,7 +29,7 @@ namespace JianHeMES.Models
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public DateTime? OQCCheckFT { get; set; } 
 
-        [Display(Name = "OQC时长")]
+        [Display(Name = "OQC时长"),DataType(DataType.DateTime)]//时长超过24小时溢出
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public TimeSpan? OQCCheckTime { get; set; }
 

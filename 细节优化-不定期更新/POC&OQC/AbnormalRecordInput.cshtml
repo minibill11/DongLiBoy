@@ -1,0 +1,362 @@
+﻿@model JianHeMES.Models.Burn_in
+@{
+    ViewBag.Title = "模组老化过程记录";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<style>
+    #AbnormalTable .table > tbody > tr > th, #AbnormalTable .table > tbody > tr > td {
+        padding: 2px;
+        line-height: 1.2;
+    }
+
+    #AbnormalTable .table {
+        margin-bottom: 5px;
+    }
+
+    #AbnormalTable .panel-title {
+        text-align: center;
+    }
+
+    #AbnormalTable label {
+        font-weight: normal;
+    }
+
+    #BarCodesNum {
+        display: inline;
+    }
+
+    .abnormalFrame {
+        width: 300px;
+        height: 200px;
+        border: 1px solid #000000;
+        overflow: auto;
+    }
+
+    .labeltop {
+        padding-top: 7px;
+    }
+</style>
+
+<h2>@ViewBag.Title</h2>
+<form action="/Burn_in/AbnormalRecordInput" method='post'>
+    <div id="app" class="form-horizontal">
+        <h4>老化异常</h4>
+        <hr />
+        <div class="form-group">
+            @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.DropDownListFor(model => model.OrderNum,
+                ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "form-control" })
+                @*@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, new { @class = "form-control" })*@
+                @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+            </div>
+        </div>
+        <div class="form-group">
+            @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus" } })
+                <button class="btn btn-default" v-on:click="postBarCode">打开模组记录</button>
+                @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        @*//防位移*@
+        <div class="form-group"><div class="col-md-12"></div></div>
+        <div id="showNORecord" class="form-group" style="display:none;border-top:1px solid #808080;">
+            <div class="form-group">
+                <div class="text-center" style="font-size:20px;padding-top:20px">
+                    <p>在订单 <span class="text-danger" id="ONum"></span> 中找不到正在进行老化的 <span class="text-danger" id="BNum"></span>，请检查条码是否正确！"</p>
+                </div>
+            </div>
+        </div>
+        <div id="showOKRecord" class="form-group" style="display:none;border-top:1px solid #808080;">
+            <div class="col-md-4">
+                <hr />
+                <div class="form-group" style="display:none">
+                    <input id="OQCID" name="id" />
+                </div>
+                <div class="form-group">
+                    <label class="control-label col-md-4">订单号</label>
+                    <div class="col-md-8 labeltop" id="OQCorderNum">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="control-label col-md-4">条码号</label>
+                    <div class="col-md-8 labeltop" id="OQCbarcodeNum">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="control-label col-md-4">开始时间</label>
+                    <div class="col-md-8 labeltop" id="OQCBT">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="" class="control-label col-md-4">历史异常记录</label>
+                    <div class="col-md-8 labeltop" id="OQColdAbnormal">
+                    </div>
+                </div>
+                <div class="form-group">
+                    @Html.LabelFor(model => model.Burn_in_OQCCheckAbnormal, htmlAttributes: new { @class = "control-label col-md-4" })
+                    <div class="col-md-8">
+                        @Html.EditorFor(model => model.Burn_in_OQCCheckAbnormal, new { htmlAttributes = new { @class = "form-control", @style = "display:none" } })
+                        @*@Html.EditorFor(model => model.Burn_in_OQCCheckAbnormal, new { @class = "form-control", @style = "display:none" })*@
+                        <div class="abnormalFrame">
+                            <ol>
+                                <li v-for="abnormal in abnormalarea">
+                                    {{abnormal}}
+                                </li>
+                            </ol>
+                        </div>
+                        @Html.ValidationMessageFor(model => model.Burn_in_OQCCheckAbnormal, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="col-md-offset-4 col-md-8">
+                        <input type="submit" value="老化异常录入" class="btn btn-default" />
+                    </div>
+                </div>
+                <div>
+                    @Html.ActionLink("返回", "Index")
+                </div>
+            </div>
+
+            <div id="AbnormalTable" class="col-md-offset-1 col-md-7">
+                <br /><br />
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h6 class="panel-title">异常列表</h6>
+                    </div>
+                    <div class="panel-body">
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr><th colspan="4">样屏效果</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="2" value="（样屏效果）-显示不一致" v-model="abnormalarea">
+                                        <label for="2">显示不一致</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="3" value="（样屏效果）-花屏" v-model="abnormalarea">
+                                        <label for="3">花屏</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="4" value="（样屏效果）-亮点" v-model="abnormalarea">
+                                        <label for="4">亮点</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="5" value="（样屏效果）-暗点" v-model="abnormalarea">
+                                        <label for="5">暗点</label>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table class="table">
+                                <tr><th colspan="3">灰度确认</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="6" value="（灰度确认）-颜色跳变" v-model="abnormalarea">
+                                        <label for="6">颜色跳变</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="7" value="（灰度确认）-亮度跳变" v-model="abnormalarea">
+                                        <label for="7">亮度跳变</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="8" value="（灰度确认）-色块" v-model="abnormalarea">
+                                        <label for="8">色块</label>
+                                    </td>
+                                </tr>
+                                <tr><th colspan="3">死点确认</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="9" value="（死点确认）-瞎灯" v-model="abnormalarea">
+                                        <label for="9">瞎灯</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="10" value="（死点确认）-高亮" v-model="abnormalarea">
+                                        <label for="10">高亮</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="11" value="（死点确认）-暗灯" v-model="abnormalarea">
+                                        <label for="11">暗灯</label>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table class="table">
+                                <tr><th colspan="2">其他</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="20" value="（老化时间）" v-model="abnormalarea">
+                                        <label for="20">老化时间</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="21" value="（参数）" v-model="abnormalarea">
+                                        <label for="21">参数</label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="22" value="（黑屏检验）" v-model="abnormalarea">
+                                        <label for="22">黑屏检验</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="23" value="（扫描检验）" v-model="abnormalarea">
+                                        <label for="23">扫描检验</label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="24" value="（均匀性）" v-model="abnormalarea">
+                                        <label for="24">均匀性</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="50" value="（温控）" v-model="abnormalarea">
+                                        <label for="50">温控</label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="18" value="（系统确认）-控制版本" v-model="abnormalarea">
+                                        <label for="18">系统确认-控制版本</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="19" value="（系统确认）-软件版本" v-model="abnormalarea">
+                                        <label for="19">系统确认-软件版本</label>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table">
+                                <tr><th colspan="2">灯管外观</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="27" value="（灯管外观）-外观破损" v-model="abnormalarea">
+                                        <label for="27">外观破损</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="28" value="（灯管外观）-错灯" v-model="abnormalarea">
+                                        <label for="28">错灯</label>
+                                    </td>
+                                </tr>
+                                <tr><th colspan="2">视频效果</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="29" value="（视频效果）-闪烁" v-model="abnormalarea">
+                                        <label for="29">闪烁</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="30" value="（视频效果）-消隐" v-model="abnormalarea">
+                                        <label for="30">消隐</label>
+                                    </td>
+                                </tr>
+                                <tr><th colspan="2">断电测试</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="31" value="（断电测试）-电源不良" v-model="abnormalarea">
+                                        <label for="31">电源不良</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="32" value="（断电测试）-预存画面" v-model="abnormalarea">
+                                        <label for="32">预存画面</label>
+                                    </td>
+                                </tr>
+                                <tr><th colspan="2">光盘确认系数上传</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="33" value="（光盘确认系数上传）-显示异常" v-model="abnormalarea">
+                                        <label for="33">显示异常</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="34" value="（光盘确认系数上传）-系数错误" v-model="abnormalarea">
+                                        <label for="34">系数错误</label>
+                                    </td>
+                                </tr>
+                                <tr><th colspan="2">光盘确认软件参数加载</th></tr>
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" id="35" value="（光盘确认软件参数加载）-显示异常" v-model="abnormalarea">
+                                        <label for="35">显示异常</label>
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="36" value="（光盘确认软件参数加载）-系数错误" v-model="abnormalarea">
+                                        <label for="36">系数错误</label>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @*//防位移*@
+        <div class="form-group"><div class="col-md-12"></div></div>
+    </div>
+</form>
+
+@section Scripts {
+    @Scripts.Render("~/bundles/jqueryval")
+    <script>
+        var app = new Vue({
+            el: "#app",
+            data: {
+                abnormalarea: [],
+                oldabnormal: ''
+            },
+            methods: {
+                postBarCode: function (event) {
+                    event.preventDefault();
+                    $.ajax({
+                        type: 'post',
+                        url: '/Burn_in/Get_Burn_in_Record',
+                        data: {
+                            OrderNum: $("#OrderNum").val(),
+                            BarCodeNum: $("#BarCodesNum").val()
+                        },
+                        success: function (data) {
+                            //console.log(data);
+                            if (data == "不存在正在进行老化的此模组") {
+                                $("#showNORecord").show();
+                                $("#showOKRecord").hide();
+                                $("#ONum").html($("#OrderNum").val());
+                                $("#BNum").html($("#BarCodesNum").val());
+                            } else {
+                                $("#showOKRecord").show();
+                                $("#showNORecord").hide();
+                                $("#OQCID").val(data[0].RecordId);
+                                $("#OQCorderNum").html(data[0].RecordOrderNum);
+                                $("#OQCbarcodeNum").html(data[0].RecordBarCodesNum);
+                                $("#OQCBT").html(data[0].RecordOQCCheckBT);
+                                $("#OQColdAbnormal").html(data[0].RecordBurn_in_OQCCheckAbnormal_old);
+                                app.oldabnormal = data[0].RecordBurn_in_OQCCheckAbnormal_old;
+                            }
+                        },
+                        error: function (XMLHttpRequest, textStatus, errorThrown) {
+                            alert("不存在正在进行老化的此模组");
+                            $("#content").focus();
+                        }
+                    });
+                },
+            },
+            watch: {
+                abnormalarea: function (val) {
+                    var date = new Date();
+                    var newdate = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+                    $('#Burn_in_OQCCheckAbnormal').val(" [" + val + "] " + " [" + newdate + "] ")
+                }
+            }
+        });
+    </script>
+    <script>
+        var localOrder = localStorage.getItem('BurnInBarchB');
+        if (localOrder != null) {
+            $("#OrderNum").val(localOrder);
+        }
+        $("#OrderNum").change(function (val) {
+            localStorage.setItem('BurnInBarchB', val.target.value);
+            $("#BarCodesNum").select();
+        })
+        $("#BarCodesNum").select();
+    </script>
+}

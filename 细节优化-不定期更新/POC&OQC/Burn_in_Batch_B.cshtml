@@ -29,7 +29,6 @@
 @using (Html.BeginForm())
 {
     @Html.AntiForgeryToken()
-
     <div id="app" class="form-horizontal">
         <h4>老化工作</h4>
         <hr />
@@ -58,8 +57,9 @@
                 <div class="form-group"><div class="col-md-12"></div></div>
                 <div class="form-group">
                     <div class="col-md-8 col-md-offset-4">
-                        <input type="submit" value="开始老化" class="btn btn-default" v-on:click="clearTask" />
                         <button class="btn btn-default" style="color:dodgerblue" v-on:click="inspect">检查条码</button>
+                        @*<input type="submit" value="开始老化" class="btn btn-default" v-on:click="clearTask" />*@
+                        <input type="button" value="开始老化" class="btn btn-default" v-on:click="submitANDclearTask" v-show="beginShow" />
                     </div>
                 </div>
                 <label class="control-label col-md-4">模块条码清单:</label>
@@ -68,7 +68,7 @@
                         <template v-for="(task,index) in tasks">
                             <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control">
                                 <span>{{task}}</span>
-                                <span class="pull-right"  v-on:click="removeTask(task)" title="移除条码" style="cursor:pointer;">✗</span>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;">✗</button>
                             </li>
                         </template>
                     </div>
@@ -102,8 +102,8 @@
             <span class="badge pull-right">✓</span>
             <span class="badge pull-right">✗</span>*@
         <div class="col-md-4" style="display:none">
-                <textarea autofocus="autofocus" cols="5" id="BarCodesNum" name="BarCodesNum" rows="15" class="form-control" v-model="okNum"></textarea>
-                @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+            <textarea autofocus="autofocus" cols="5" id="BarCodesNum" name="BarCodesNum" rows="15" class="form-control" v-model="tasks"></textarea>
+            @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
         </div>
         <div class="form-group"><div class="col-md-12"></div></div>
     </div>
@@ -120,23 +120,16 @@
             newTask: "", //input默认值
             same: true,
             prompt: false,
+            beginShow: false,
             returnList: [],
-            okNum:[]
-            /*{
-                    BarcodeList:"",
-                    BarcodeInOrder:"",
-                    BarcodeInOtherOrder:"",
-                    BarcodeComfirm:"",
-                    BarcodeBeginTime:"",
-                    BarcodeFinishTime:"",
-                    BarcodeStatus:""
-            }*/
+            okList: []
         },
         methods: {
             addTask: function (event) {
                 event.preventDefault();
+                this.beginShow = false;
+                this.prompt = false;
                 sames = app.same;
-                app.prompt = false;
                 if (app.newTask != "") {
                     app.tasks.forEach(function (item, index) {
                         if (app.newTask == item) {
@@ -155,6 +148,8 @@
                 }
             },
             removeTask: function (task) { //删除条码，重新排序数组，焦点回到input，保存删除后的数据
+                this.beginShow = false;
+                this.prompt = false;
                 //指向Vue实例中的tasks
                 removetasks = this.tasks;
                 //remove
@@ -166,12 +161,33 @@
                 console.log(app.tasks); //数组
                 $("#content").focus();
             },
-            clearTask: function () { //清空本地存储表单
-                //event.preventDefault();
-                this.tasks = [];
+            submitANDclearTask: function (event) { //提交post内容，清空本地存储表单
+                event.preventDefault();
+                $.ajax({
+                    type: 'post',
+                    url: '/Burn_in/Burn_in_Batch_Begin',
+                    data: {
+                        OrderNum: $("#OrderNum").val(),
+                        BarCodesNumList: app.tasks
+                    },
+                    success: function (data) {
+                        //console.log(data);
+                        app.beginShow = false;
+                        app.tasks = [];
+                        app.returnList = [];
+                        app.okList = [];
+                        alert(data);
+                        $("#content").focus();
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert("批量老化失败");
+                        $("#content").focus();
+                    }
+                });
             },
             inspect: function (event) {
                 event.preventDefault();
+                this.prompt = false;
                 //var cut = this.NumList.substr(0, this.NumList.length - 1).split("\n");
                 //console.log(JSON.stringify(app.tasks));
                 $.ajax({
@@ -182,10 +198,13 @@
                         BarCodesNumList: app.tasks
                     },
                     success: function (data) {
-                        console.log(data);
+                        //console.log(data);
                         app.returnList = [];
-                        app.okNum = [];
+                        app.okList = [];
                         for (var i = 0; i < data[0].BarcodeList.length; i++) {
+                            if (data[0].BarcodeComfirm[i] == "Yes") {
+                                app.okList.push(data[0].BarcodeList[i])
+                            };
                             app.returnList.push({
                                 BarcodeList: data[0].BarcodeList[i],
                                 BarcodeInOrder: data[0].BarcodeInOrder[i],
@@ -195,22 +214,16 @@
                                 BarcodeFinishTime: data[0].BarcodeFinishTime[i],
                                 BarcodeStatus: data[0].BarcodeStatus[i]
                             });
-                            if(data[0].BarcodeComfirm[i]=="Yes"){
-                                app.okNum.push(data[0].BarcodeList[i])
-                            }
                         };
-
-
-
+                        if (app.returnList.length == app.okList.length) {
+                            app.beginShow = true;
+                        };
                     },
                     error: function (XMLHttpRequest, textStatus, errorThrown) {
                         alert("请输入条码");
                         $("#content").focus();
                     }
                 });
-
-
-
             }
         },
         computed: {

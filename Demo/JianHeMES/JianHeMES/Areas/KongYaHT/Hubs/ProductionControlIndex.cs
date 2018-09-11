@@ -17,7 +17,6 @@ using JianHeMES.Models;
 
 namespace JianHeMESEntities.Hubs
 {
-
     //ProductionControlIndex生产监控首页
     #region --------------------------------ProductionControlIndex生产监控首页-------------------------------------
 
@@ -94,7 +93,7 @@ namespace JianHeMESEntities.Hubs
                         }
                         else
                         {
-                            OrderNum.Add("ActualProductionTime", AssembleRecord.OrderBy(c => c.PQCCheckBT).FirstOrDefault().PQCCheckBT.ToString());//按PQCCheckBT顺序排序，选择第一个记录的PQCCheckBT值
+                            OrderNum.Add("ActualProductionTime", AssembleRecord.Min(c => c.PQCCheckBT).ToString()); //取出最早记录的PQCCheckBT值
                         }
                         Decimal Assemble_Normal = AssembleRecord.Where(m => m.PQCCheckAbnormal == "正常").Count();//组装PQC正常个数
                         //计算组装完成率、合格率
@@ -121,16 +120,18 @@ namespace JianHeMESEntities.Hubs
                     if(Burn_in_Record!=null)
                     {
                         Decimal Burn_in_Normal = Burn_in_Record.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化正常个数
+                        Decimal Burn_in_FirstPass = Burn_in_Record.Where(m => m.OQCCheckFinish == true && m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化工序直通个数
+                        Decimal Burn_in_Finish = Burn_in_Record.Where(m => m.OQCCheckFinish == true).Count();//完成老化工序的个数
                         //计算老化完成率、合格率
-                        if (Burn_in_Normal == 0)
+                        if (Burn_in_Finish == 0)
                         {
                             OrderNum.Add("Burn_in_Finish_Rate", "--%");
                             OrderNum.Add("Burn_in_Pass_Rate", "--%");
                         }
                         else
                         {
-                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Normal / item.Boxes*100).ToString("F2"));
-                            OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Normal / Burn_in_Record.Count()*100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes*100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count()*100).ToString("F2") + "%");
                         }
                     }
                     else
@@ -152,7 +153,7 @@ namespace JianHeMESEntities.Hubs
                         }
                         else
                         {
-                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes*100).ToString("F2") );
+                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes*100).ToString("F2") + "%");
                             OrderNum.Add("Calibration_Pass_Rate", (Calibration_Normal / Calibration_Record.Count()*100).ToString("F2") + "%");
                         }
                     }

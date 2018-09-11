@@ -10,6 +10,8 @@ using System.Web.Mvc;
 using JianHeMES.Models;
 using System.Web.Routing;
 using System.Collections;
+using Newtonsoft.Json.Linq;
+using System.Web.Helpers;
 
 namespace JianHeMES.Controllers
 {
@@ -35,6 +37,28 @@ namespace JianHeMES.Controllers
             };
         }
         #endregion
+
+        #region --------------------FinishStatus列表--------------------
+        private List<SelectListItem> FinishStatusList()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "完成",
+                    Value = "完成"
+                },
+                new SelectListItem
+                {
+                    Text = "未完成",
+                    Value = "未完成"
+                }
+            };
+        }
+        #endregion
+
+        
+
 
         #region  -----维修列表-----------
 
@@ -74,6 +98,8 @@ namespace JianHeMES.Controllers
             ViewBag.Display = "display:none";//隐藏View基本情况信息
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.OQCNormal = OQCNormalList();
+            ViewBag.FinishStatus = FinishStatusList();
+
             ViewBag.NotDo = null;
             return View();
 
@@ -81,7 +107,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string OQCNormal, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal,string FinishStatus, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -94,7 +120,7 @@ namespace JianHeMES.Controllers
             {
                 //调出全部记录      
                 AllBurn_inRecords = from m in db.Burn_in
-                                        select m;
+                                    select m;
             }
             else
             {
@@ -105,20 +131,41 @@ namespace JianHeMES.Controllers
             }
 
             //统计老化结果正常的模组数量
-            var Order_CR_Normal_Count = AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal == "正常").Count();
-            var Abnormal_Count = AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal != "正常").Count();
+            var Order_CR_Normal_Count = AllBurn_inRecords.Where(x => x.RepairCondition == "正常").Count();
+            var Abnormal_Count = AllBurn_inRecords.Where(x => x.RepairCondition != "正常" && x.RepairCondition != null).Count();
+
+            #region  ---------按条码筛选--------------
+            if (BoxBarCode != "")
+            {
+                AllBurn_inRecords = AllBurn_inRecords.Where(x => x.BarCodesNum == BoxBarCode);
+                //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
+            }
+            #endregion
 
             #region   ---------筛选正常、异常-------------
             //正常、异常记录筛选
             if (OQCNormal == "异常")
             {
-                AllBurn_inRecords = from m in AllBurn_inRecords where (m.Burn_in_OQCCheckAbnormal != "正常") select m;
+                AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition != "正常") select m;
             }
             else if (OQCNormal == "正常")
             {
-                AllBurn_inRecords = from m in AllBurn_inRecords where (m.Burn_in_OQCCheckAbnormal == "正常") select m;
+                AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition == "正常") select m;
             }
             #endregion
+
+            #region   ---------筛选完成、未完成-------------
+            //完成、未完成记录筛选
+            if (FinishStatus == "完成")
+            {
+                AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT != null) select m;
+            }
+            else if (FinishStatus == "未完成")
+            {
+                AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT == null) select m;
+            }
+            #endregion
+
 
             #region   ----------筛选从未开始做的条码清单------------
             //取出订单的全部条码
@@ -149,7 +196,7 @@ namespace JianHeMES.Controllers
                                                  select m.OQCCheckTime;
             //计算老化总时长
             TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
-            if (AllBurn_inRecords.Where(x => x.Burn_in_OQCCheckAbnormal == "正常").Count() != 0)    //Burn_in_OQCCheckAbnormal的值是1为正常
+            if (AllBurn_inRecords.Where(x => x.RepairCondition == "正常").Count() != 0)    //Burn_in_OQCCheckAbnormal的值是1为正常
             {
                 foreach (var m in TimeSpanList)
                 {
@@ -204,6 +251,7 @@ namespace JianHeMES.Controllers
 
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.OQCNormal = OQCNormalList();
+            ViewBag.FinishStatus = FinishStatusList();
 
             //分页计算功能
             var recordCount = AllBurn_inRecords.Count();
@@ -269,6 +317,9 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
+
+
+            
 
             if (ModelState.IsValid)
             {
@@ -413,12 +464,12 @@ namespace JianHeMES.Controllers
             else if (db.Burn_in.Count(u => u.BarCodesNum == burn_in.BarCodesNum) >= 1)
             {
                 var burn_in_list = db.Burn_in.Where(m => m.BarCodesNum == burn_in.BarCodesNum).ToList();
-                int normalCount = burn_in_list.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();
+                int normalCount = burn_in_list.Where(m => m.OQCCheckFinish == true).Count();
                 if (normalCount == 0)
                 {
                     foreach (var item in burn_in_list)
                     {
-                        if(item.OQCCheckBT!=null && item.OQCCheckFT==null)  //如果只有开始时间，没有结束时间，把此记录调出来
+                        if (item.OQCCheckBT != null && item.OQCCheckFT == null)  //如果只有开始时间，没有结束时间，把此记录调出来
                         {
                             burn_in = item;
                             return RedirectToAction("Burn_in_F", new { burn_in.Id });
@@ -455,6 +506,91 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+        #region -----------------------老化异常录入--------------------------------
+
+        public ActionResult AbnormalRecordInput()
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
+            ViewBag.RepairList = SetRepairList();
+            ViewBag.record = null;
+
+            return View();
+        }
+
+        //[HttpPost]
+        public ActionResult Get_Burn_in_Record(string OrderNum, string BarCodeNum)
+        {
+            ApplicationDbContext db = new ApplicationDbContext();
+            Burn_in record = db.Burn_in.Where(m => m.OrderNum == OrderNum && m.BarCodesNum == BarCodeNum && m.OQCCheckBT != null && m.OQCCheckFT == null).FirstOrDefault();
+            if (record != null)
+            {
+                List<Object> recordData = new List<object>();
+                recordData.Add(new
+                {
+                    RecordId = record.Id,
+                    RecordOrderNum = record.OrderNum,
+                    RecordBarCodesNum = record.BarCodesNum,
+                    RecordOQCCheckBT = record.OQCCheckBT.ToString(),
+                    recordOQCPrincipal = record.OQCPrincipal,
+                    RecordBurn_in_OQCCheckAbnormal_old = record.Burn_in_OQCCheckAbnormal
+                });
+                return Json(recordData, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                return Content("不存在正在进行老化的此模组");
+            }
+        }
+
+        [HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> AbnormalRecordInput(string Id, string OrderNum, string BarCodeNum, string RepairCondition,string OQCPrincipal,string Burn_in_OQCCheckAbnormal)
+        public async Task<ActionResult> AbnormalRecordInput(string Id, string Burn_in_OQCCheckAbnormal)
+        //public async Task<ActionResult> AbnormalRecordInput([Bind(Include = "Id,Burn_in_OQCCheckAbnormal")] Burn_in burn_in)
+        {
+            ApplicationDbContext db = new ApplicationDbContext();
+            if (Id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Burn_in burn_in = await db.Burn_in.FindAsync(Convert.ToInt32(Id));
+
+            if (burn_in == null)
+            {
+                return HttpNotFound();
+            }
+            else
+            {
+                burn_in.Burn_in_OQCCheckAbnormal = burn_in.Burn_in_OQCCheckAbnormal + Burn_in_OQCCheckAbnormal;
+                burn_in.RepairCondition = "现场维修";
+
+                if (ModelState.IsValid)
+                {
+                    db.Entry(burn_in).State = EntityState.Modified;
+                    await db.SaveChangesAsync();
+                    return RedirectToAction("Index");
+                }
+            }
+            ViewBag.RepairList = SetRepairList();
+            return View(burn_in);
+        }
+
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> AbnormalRecordInput([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Entry(burn_in).State = EntityState.Modified;
+        //        await db.SaveChangesAsync();
+        //        return RedirectToAction("Index");
+        //    }
+        //    ViewBag.RepairList = SetRepairList();
+
+        //    return View(burn_in);
+        //}
+        #endregion
 
         #region -------------单个模组老化完成------------
         // GET: Burn_in/Burn_in_F
@@ -492,17 +628,24 @@ namespace JianHeMES.Controllers
             if (burn_in.OQCCheckFT == null)
             {
                 burn_in.OQCCheckFT = DateTime.Now;
-                var BT = burn_in.OQCCheckBT.Value;
-                var FT = burn_in.OQCCheckFT.Value;
-                var CT = FT - BT;
-                burn_in.OQCCheckTime = CT;
-                //burn_in.OQCCheckTime = DateTime.Now-burn_in.OQCCheckBT;
+                //var BT = burn_in.OQCCheckBT.Value;
+                //var FT = burn_in.OQCCheckFT.Value;
+                //var CT = FT - BT;
+                var CT = burn_in.OQCCheckFT.Value - burn_in.OQCCheckBT.Value;
+                //burn_in.OQCCheckTime = CT;
+                //burn_in.OQCCheckTime = new TimeSpan(CT.Days,CT.Hours,CT.Minutes,CT.Seconds);
+                //burn_in.OQCCheckTime = (DateTime.Now-burn_in.OQCCheckBT).Value;
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
-                burn_in.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-                if (burn_in.RepairCondition == "正常")
+                burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                if(burn_in.Burn_in_OQCCheckAbnormal==null)
                 {
-                    burn_in.OQCCheckFinish = true;
+                    burn_in.Burn_in_OQCCheckAbnormal = "正常";
                 }
+                if (burn_in.RepairCondition == null)
+                {
+                    burn_in.RepairCondition= "正常";
+                }
+                burn_in.OQCCheckFinish = true;
             }
 
             if (ModelState.IsValid)
@@ -518,7 +661,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region -------------批量模组老化开始（修改中）-----------------
+        #region ---------------------------------------批量模组老化开始--------------------------------------------
 
 
         // GET: Burn_in/Burn_in_B
@@ -554,12 +697,32 @@ namespace JianHeMES.Controllers
             return RedirectToAction("Index");
         }
 
+        #region ---------------批量模组开始老化功能------------
+        [HttpPost]
+        public ActionResult Burn_in_Batch_Begin(string OrderNum, List<string> BarCodesNumList)
+        {
+            var newRecord = new Burn_in();
+            newRecord.OrderNum = OrderNum;
+            foreach (var item in BarCodesNumList)
+            {
+                newRecord.BarCodesNum = item;
+                newRecord.OQCCheckBT = DateTime.Now;
+                newRecord.OQCPrincipal = ((Users)Session["User"]).UserName;
+                db.Burn_in.Add(newRecord);
+                db.SaveChanges();
+            }
+            return Content("完成录入");
+            //return Json(data,JsonRequestBehavior.AllowGet);
+        }
+        #endregion
+
+        #region --------------批量模组查验功能--------------
         public ActionResult CheckBarCodesList_B(string OrderNum, List<string> BarCodesNumList)
         {
             var barcodelist = new List<Object>();  //1.条码
             var barcodeinorder = new List<Object>(); //2.是否在订单中
             var barcodeinotherorder = new List<Object>();//3.在其他订单号中
-            var barcodebegintime =new List<string>();//4.开始时间
+            var barcodebegintime = new List<string>();//4.开始时间
             var barcodefinishtime = new List<string>();//5.完成时间
             var barcodestatus = new List<Object>();//6.老化状态
             var barcodecomfirm = new List<Object>();//7.可以进行老化
@@ -580,7 +743,7 @@ namespace JianHeMES.Controllers
                 var barcodelistinOrderNum = from m in db.BarCodes where m.OrderNum == OrderNum select m.BarCodesNum;//取出订单的所有条码号
                 var barcodeCountin = (from m in barcodelistinOrderNum where m == barcode select m).Count();//查询条码在订单中和条目数
                 //订单中有此条码
-                if (barcodeCountin==1)
+                if (barcodeCountin == 1)
                 {
                     //二、检查此条码是否已经正在老化（已经开始老化，但还没有老化完成时间,返回在何时已经开始了老化）
                     //三、检查此条码是否已经通过了老化（已经完成了老化工作），如果完成了，返回在何时已经开始、完成了老化
@@ -592,9 +755,9 @@ namespace JianHeMES.Controllers
 
                     //取出所有此条码的老化记录列表(包括已经开始老化未完成的、已经老化完成的)
                     var burninrecords = from m in db.Burn_in where m.BarCodesNum == barcode select m;
-                   
+
                     //无记录
-                    if(burninrecords.Count()==0)
+                    if (burninrecords.Count() == 0)
                     {
                         //此条码在OrderNum订单中
                         barcodebegintime.Add("");//4.开始时间
@@ -606,53 +769,67 @@ namespace JianHeMES.Controllers
                     if (burninrecords.Count() == 1)
                     {
                         barcodebegintime.Add(Convert.ToString(burninrecords.FirstOrDefault().OQCCheckBT));//4.开始时间
-                        if(burninrecords.FirstOrDefault().OQCCheckFT!=null &&burninrecords.FirstOrDefault().OQCCheckFinish==true)
+                        if (burninrecords.FirstOrDefault().OQCCheckFT != null && burninrecords.FirstOrDefault().OQCCheckFinish == true)
                         {
                             //有一个记录，并且已经完成的
                             barcodefinishtime.Add(Convert.ToString(burninrecords.FirstOrDefault().OQCCheckFT));//5.完成时间
                             barcodestatus.Add("已经完成老化"); //6.老化状态
-                            barcodecomfirm.Add("NO");//7.可以进行老化
+                            barcodecomfirm.Add("No");//7.可以进行老化
                         }
-                        else if(burninrecords.FirstOrDefault().OQCCheckFT == null && burninrecords.FirstOrDefault().OQCCheckFinish == false)
+                        else if (burninrecords.FirstOrDefault().OQCCheckFT == null && burninrecords.FirstOrDefault().OQCCheckFinish == false)
                         {
                             //有一个记录，没有完成时间的
                             barcodefinishtime.Add("");//5.完成时间
                             barcodestatus.Add("正在老化"); //6.老化状态
-                            barcodecomfirm.Add("NO");//7.可以进行老化
+                            barcodecomfirm.Add("No");//7.可以进行老化
                         }
-                        else if(burninrecords.FirstOrDefault().OQCCheckFT != null && burninrecords.FirstOrDefault().OQCCheckFinish == false)
+                        else if (burninrecords.FirstOrDefault().OQCCheckFT != null && burninrecords.FirstOrDefault().OQCCheckFinish == false && burninrecords.FirstOrDefault().Burn_in_OQCCheckAbnormal != "正常")
                         {
-                            //有一个记录，没有通过OQC
+                            //有一个记录，已经完成老化，有异常，没有通过OQC
                             barcodefinishtime.Add(Convert.ToString(burninrecords.FirstOrDefault().OQCCheckFT));//5.完成时间
                             barcodestatus.Add("未通过老化"); //6.老化状态
                             barcodecomfirm.Add("Yes");//7.可以进行老化
                         }
                     }
                     //超过一个记录
-                    if(burninrecords.Count()>1)
+                    if (burninrecords.Count() > 1)
                     {
-                        int finisttrue = (from m in burninrecords where m.OQCCheckFinish==true select m).Count();
+                        int finisttrue = (from m in burninrecords where m.OQCCheckFinish == true select m).Count();
+                        //有一个完成记录
                         if (finisttrue == 1)
                         {
                             var record = (from m in burninrecords where m.OQCCheckFinish == true select m).ToList();
                             barcodebegintime.Add(Convert.ToString(record.FirstOrDefault().OQCCheckBT));//4.开始时间
                             barcodefinishtime.Add(Convert.ToString(record.FirstOrDefault().OQCCheckFT));//5.完成时间
                             barcodestatus.Add("经过" + burninrecords.Count() + "次老化，已经完成老化"); //6.老化状态
-                            barcodecomfirm.Add("NO");//7.可以进行老化
+                            barcodecomfirm.Add("No");//7.可以进行老化
                         }
+                        //没有完成记录
                         else if (finisttrue == 0)
                         {
-                            barcodebegintime.Add("");//4.开始时间
-                            barcodefinishtime.Add("");//5.完成时间
-                            barcodestatus.Add("经过" + burninrecords.Count() + "次老化，但未通过老化"); //6.老化状态
-                            barcodecomfirm.Add("Yes");//7.可以进行老化
+                            //检查是否有正在进行老化的记录，有、无
+                            if (burninrecords.Where(m => m.OQCCheckFT == null).ToList().Count() == 1)
+                            {
+                                var record = burninrecords.Where(m => m.OQCCheckFT == null).ToList().FirstOrDefault();
+                                barcodebegintime.Add(Convert.ToString(record.OQCCheckBT));//4.开始时间
+                                barcodefinishtime.Add("");//5.完成时间
+                                barcodestatus.Add("第" + burninrecords.Count() + "次老化，正在老化"); //6.老化状态
+                                barcodecomfirm.Add("No");//7.可以进行老化
+                            }
+                            else
+                            {
+                                barcodebegintime.Add("");//4.开始时间
+                                barcodefinishtime.Add("");//5.完成时间
+                                barcodestatus.Add("经过" + burninrecords.Count() + "次老化，但未通过老化"); //6.老化状态
+                                barcodecomfirm.Add("Yes");//7.可以进行老化
+                            }
                         }
                     }
                 }
                 //订单中没有此条码
-                else if (barcodeCountin==0)
+                else if (barcodeCountin == 0)
                 {
-                    var record = from m in db.Burn_in where m.BarCodesNum==barcode select m;
+                    var record = from m in db.Burn_in where m.BarCodesNum == barcode select m;
                     var AnotherOrderNum = from m in db.BarCodes where m.BarCodesNum == barcode select m.OrderNum;
                     barcodelist.Add(barcode);//1.条码
                     barcodeinorder.Add("No"); //2.是否在订单中
@@ -686,37 +863,45 @@ namespace JianHeMES.Controllers
             {
                 BarcodeList = barcodelist,
                 BarcodeInOrder = barcodeinorder,
-                BarcodeInOtherOrder =barcodeinotherorder,
+                BarcodeInOtherOrder = barcodeinotherorder,
                 BarcodeBeginTime = barcodebegintime,
                 BarcodeFinishTime = barcodefinishtime,
                 BarcodeStatus = barcodestatus,
-                BarcodeComfirm =barcodecomfirm
-            });   
+                BarcodeComfirm = barcodecomfirm
+            });
             return Json(data, JsonRequestBehavior.AllowGet);
         }
+        #endregion
 
         #endregion
 
-        #region -------------批量模组老化完成（修改中）------------
+        #region ------------------------------------批量模组老化完成（修改中）---------------------------------------------
+
         // GET: Burn_in/Burn_in_F
-        public ActionResult Burn_in_Batch_F(int? id)
+        public ActionResult Burn_in_Batch_F()
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
+            if (((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                return View();
+            }
 
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Burn_in burn_in = db.Burn_in.Find(id);
-            if (burn_in == null)
-            {
-                return HttpNotFound();
-            }
-            ViewBag.RepairList = SetRepairList();
-            return View(burn_in);
+            //if (id == null)
+            //{
+            //    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            //}
+            //Burn_in burn_in = db.Burn_in.Find(id);
+            //if (burn_in == null)
+            //{
+            //    return HttpNotFound();
+            //}
+            //ViewBag.RepairList = SetRepairList();
+            return RedirectToAction("Index");
         }
 
         // POST: Burn_in/Edit/5
@@ -724,39 +909,254 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Burn_in_Batch_F([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
+        public async Task<ActionResult> Burn_in_Batch_F(string OrderNum, List<string> BarCodesNumList)
         {
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (burn_in.OQCCheckFT == null)
-            {
-                burn_in.OQCCheckFT = DateTime.Now;
-                burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
-                var BT = burn_in.OQCCheckBT.Value;
-                var FT = burn_in.OQCCheckFT.Value;
-                var CT = FT - BT;
-                burn_in.OQCCheckTime = CT;
-                burn_in.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-                burn_in.OQCCheckFinish = true;
-            }
 
-            if (ModelState.IsValid)
-            {
-                db.Entry(burn_in).State = EntityState.Modified;
-                await db.SaveChangesAsync();
-                return RedirectToAction("Burn_in_B");
-            }
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            return View(burn_in);
+
+            return RedirectToAction("Index");
         }
 
-        public ActionResult CheckBarCodesList_F(string barcodeslist)
+        #region --------------批量模组查验功能--------------
+        public ActionResult CheckBarCodesList_F(string OrderNum, List<string> BarCodesNumList)
         {
-            string returnjson = null;
-            return Content(returnjson);
+            var barcodelist = new List<Object>();  //1.条码
+            var barcodeinorder = new List<Object>(); //2.是否在订单中
+            var barcodeinotherorder = new List<Object>();//3.在其他订单号中
+            var barcodebegintime = new List<string>();//4.开始时间
+            var barcodefinishtime = new List<string>();//5.完成时间
+            var barcodestatus = new List<Object>();//6.老化状态
+            var barcodecomfirm = new List<Object>();//7.可以进行老化完成
+            var data = new List<Object>();
+
+
+            foreach (var barcode in BarCodesNumList)
+            {
+                //一、检查此条码是否在此订单中（如果不存在，则返回条码所属的订单号，返回条码老化工序的状态，并跳出foreach循环）
+                var barcodelistinOrderNum = from m in db.BarCodes where m.OrderNum == OrderNum select m.BarCodesNum;//取出订单的所有条码号
+                var barcodeCountin = (from m in barcodelistinOrderNum where m == barcode select m).Count();//查询条码在订单中和条目数
+                //订单中有此条码
+                if (barcodeCountin == 1)
+                {
+                    //二、检查此条码是否已经正在老化（已经开始老化，但还没有老化完成时间,返回在何时已经开始了老化）
+                    //三、检查此条码是否已经通过了老化（已经完成了老化工作），如果完成了，返回在何时已经开始、完成了老化
+
+                    //此条码在OrderNum订单中
+                    barcodelist.Add(barcode);//1.条码
+                    barcodeinorder.Add("Yes");//2.是否在订单中
+                    barcodeinotherorder.Add("");//3.在其他订单号中
+
+                    //取出所有此条码的老化记录列表(包括已经开始老化未完成的、已经老化完成的)
+                    var burninrecords = from m in db.Burn_in where m.BarCodesNum == barcode select m;
+
+                    //无记录
+                    if (burninrecords.Count() == 0)
+                    {
+                        //此条码在OrderNum订单中
+                        barcodebegintime.Add("");//4.开始时间
+                        barcodefinishtime.Add("");//5.完成时间
+                        barcodestatus.Add("未开始老化");//6.老化状态
+                        barcodecomfirm.Add("No");//7.可以进行老化完成
+                    }
+                    //一个记录
+                    if (burninrecords.Count() == 1)
+                    {
+                        barcodebegintime.Add(Convert.ToString(burninrecords.FirstOrDefault().OQCCheckBT));//4.开始时间
+                        if (burninrecords.FirstOrDefault().OQCCheckFT != null && burninrecords.FirstOrDefault().OQCCheckFinish == true)
+                        {
+                            //有一个记录，并且已经完成的
+                            barcodefinishtime.Add(Convert.ToString(burninrecords.FirstOrDefault().OQCCheckFT));//5.完成时间
+                            barcodestatus.Add("已经完成老化"); //6.老化状态
+                            barcodecomfirm.Add("No");//7.可以进行老化完成
+                        }
+                        else if (burninrecords.FirstOrDefault().OQCCheckFT == null && burninrecords.FirstOrDefault().OQCCheckFinish == false)
+                        {
+                            //有一个记录，没有完成时间的
+                            barcodefinishtime.Add("");//5.完成时间
+                            barcodestatus.Add("正在老化"); //6.老化状态
+                            barcodecomfirm.Add("Yes");//7.可以进行老化完成
+                        }
+                        else if (burninrecords.FirstOrDefault().OQCCheckFT != null && burninrecords.FirstOrDefault().OQCCheckFinish == false && burninrecords.FirstOrDefault().Burn_in_OQCCheckAbnormal != "正常")
+                        {
+                            //有一个记录，已经完成老化，有异常，没有通过OQC
+                            barcodefinishtime.Add(Convert.ToString(burninrecords.FirstOrDefault().OQCCheckFT));//5.完成时间
+                            barcodestatus.Add("未通过老化"); //6.老化状态
+                            barcodecomfirm.Add("No");//7.可以进行老化完成
+                        }
+                    }
+                    //超过一个记录
+                    if (burninrecords.Count() > 1)
+                    {
+                        int finisttrue = (from m in burninrecords where m.OQCCheckFinish == true select m).Count();
+                        //有一个完成记录
+                        if (finisttrue == 1)
+                        {
+                            var record = (from m in burninrecords where m.OQCCheckFinish == true select m).ToList();
+                            barcodebegintime.Add(Convert.ToString(record.FirstOrDefault().OQCCheckBT));//4.开始时间
+                            barcodefinishtime.Add(Convert.ToString(record.FirstOrDefault().OQCCheckFT));//5.完成时间
+                            barcodestatus.Add("经过" + burninrecords.Count() + "次老化，已经完成老化"); //6.老化状态
+                            barcodecomfirm.Add("No");//7.可以进行老化
+                        }
+                        //没有完成记录
+                        else if (finisttrue == 0)
+                        {
+                            //检查是否有正在进行老化的记录，有、无
+                            if (burninrecords.Where(m => m.OQCCheckFT == null).ToList().Count() == 1)
+                            {
+                                var record = burninrecords.Where(m => m.OQCCheckFT == null).ToList().FirstOrDefault();
+                                barcodebegintime.Add(Convert.ToString(record.OQCCheckBT));//4.开始时间
+                                barcodefinishtime.Add("");//5.完成时间
+                                barcodestatus.Add("第" + burninrecords.Count() + "次老化，正在老化"); //6.老化状态
+                                barcodecomfirm.Add("Yes");//7.可以进行老化
+                            }
+                            else
+                            {
+                                barcodebegintime.Add("");//4.开始时间
+                                barcodefinishtime.Add("");//5.完成时间
+                                barcodestatus.Add("经过" + burninrecords.Count() + "次老化，但未通过老化"); //6.老化状态
+                                barcodecomfirm.Add("No");//7.可以进行老化
+                            }
+                        }
+                    }
+                }
+                //订单中没有此条码
+                else if (barcodeCountin == 0)
+                {
+                    var record = from m in db.Burn_in where m.BarCodesNum == barcode select m;
+                    var AnotherOrderNum = from m in db.BarCodes where m.BarCodesNum == barcode select m.OrderNum;
+                    barcodelist.Add(barcode);//1.条码
+                    barcodeinorder.Add("No"); //2.是否在订单中
+                    barcodeinotherorder.Add(AnotherOrderNum);//3.在其他订单号中
+                    barcodebegintime.Add("");//4.开始时间
+                    barcodefinishtime.Add("");//5.完成时间
+                    barcodestatus.Add(""); //6.老化状态
+                    barcodecomfirm.Add("");//7.可以进行老化
+                    //if (record.Count()>0)
+                    //{
+                    //    var finishtrue = (from m in record where m.OQCCheckFinish == true select m).Count();
+                    //    if(finishtrue==1)
+                    //    {
+                    //       barcodestatus.Add("老化完成"); //6.老化状态
+                    //       barcodecomfirm.Add("NO");//7.可以进行老化
+                    //    }
+                    //    else if (finishtrue==0)
+                    //    {
+                    //        barcodestatus.Add("经过"+record.Count()+"次老化，但未完成老化"); //6.老化状态
+                    //        barcodecomfirm.Add("Yes");//7.可以进行老化
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    barcodestatus.Add("未开始老化");//6.老化状态
+                    //    barcodecomfirm.Add("Yes");//7.可以进行老化
+                    //}
+                }
+            }
+            data.Add(new
+            {
+                BarcodeList = barcodelist,
+                BarcodeInOrder = barcodeinorder,
+                BarcodeInOtherOrder = barcodeinotherorder,
+                BarcodeBeginTime = barcodebegintime,
+                BarcodeFinishTime = barcodefinishtime,
+                BarcodeStatus = barcodestatus,
+                BarcodeComfirm = barcodecomfirm
+            });
+            return Json(data, JsonRequestBehavior.AllowGet);
         }
+        #endregion
+
+        #region ---------------批量模组完成老化功能------------
+        [HttpPost]
+        public ActionResult Burn_in_Batch_Finish(string OrderNum, List<string> BarCodesNumList)
+        {
+            var burn_in_List = from m in db.Burn_in where m.OrderNum == OrderNum select m;
+            foreach (var item in BarCodesNumList)
+            {
+                var burn_in = (from x in burn_in_List where (x.BarCodesNum == item && x.OQCCheckFT == null) select x).FirstOrDefault();
+                burn_in.OQCCheckFT =DateTime.Now;
+                var CT = burn_in.OQCCheckFT.Value - burn_in.OQCCheckBT.Value;
+                burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                if (burn_in.Burn_in_OQCCheckAbnormal == null)
+                {
+                    burn_in.Burn_in_OQCCheckAbnormal = "正常";
+                }
+                if (burn_in.RepairCondition == null)
+                {
+                    burn_in.RepairCondition = "正常";
+                }
+                burn_in.OQCCheckFinish = true;
+                db.SaveChanges();
+            }
+            return Content("老化完成");
+        }
+        #endregion
+
+        #region  ------------------以前的代码------------
+        //// GET: Burn_in/Burn_in_F
+        //public ActionResult Burn_in_Batch_F(int? id)
+        //{
+        //    if (Session["User"] == null)
+        //    {
+        //        return RedirectToAction("Login", "Users");
+        //    }
+
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Burn_in burn_in = db.Burn_in.Find(id);
+        //    if (burn_in == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    ViewBag.RepairList = SetRepairList();
+        //    return View(burn_in);
+        //}
+
+        //// POST: Burn_in/Edit/5
+        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        //// 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> Burn_in_Batch_F([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
+        //{
+        //    if (Session["User"] == null)
+        //    {
+        //        return RedirectToAction("Login", "Users");
+        //    }
+        //    if (burn_in.OQCCheckFT == null)
+        //    {
+        //        burn_in.OQCCheckFT = DateTime.Now;
+        //        burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+        //        var BT = burn_in.OQCCheckBT.Value;
+        //        var FT = burn_in.OQCCheckFT.Value;
+        //        var CT = FT - BT;
+        //        burn_in.OQCCheckTime = CT;
+        //        burn_in.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+        //        burn_in.OQCCheckFinish = true;
+        //    }
+
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Entry(burn_in).State = EntityState.Modified;
+        //        await db.SaveChangesAsync();
+        //        return RedirectToAction("Burn_in_B");
+        //    }
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+        //    return View(burn_in);
+        //}
+
+        //public ActionResult CheckBarCodesList_F(string barcodeslist)
+        //{
+        //    string returnjson = null;
+        //    return Content(returnjson);
+        //}
+        #endregion
 
         #endregion
 

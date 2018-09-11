@@ -876,7 +876,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult AssembleIndex(string orderNum,string PQCNormal, /*string searchString,*/ int PageIndex = 0)
+        public ActionResult AssembleIndex(string orderNum, string BoxBarCode, string PQCNormal,/*string searchString,*/ int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -905,6 +905,14 @@ namespace JianHeMES.Controllers
             //统计校正结果正常的模组数量
             var assemble_Normal_Count = Allassembles.Where(m => m.PQCCheckAbnormal == "正常").Count();
             var assemble_Abnormal_Count = Allassembles.Where(m => m.PQCCheckAbnormal != "正常").Count();
+
+            #region  ---------按条码筛选--------------
+            if (BoxBarCode != "")
+            {
+                Allassembles = Allassembles.Where(x => x.BoxBarCode == BoxBarCode);
+                //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
+            }
+            #endregion
 
             #region   ---------筛选正常、异常-------------
             //正常、异常记录筛选
@@ -1048,8 +1056,6 @@ namespace JianHeMES.Controllers
             ViewBag.PageCount = pageCount;
 
             return View(AllassemblesList);
-
-
         }
 
         #endregion

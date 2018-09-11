@@ -45,11 +45,6 @@ namespace JianHeMES.Controllers
             {
                 new SelectListItem
                 {
-                    Text = "请选择维修情况",
-                    Value = ""
-                },
-                new SelectListItem
-                {
                     Text = "正常",
                     Value = "正常"
                 },
@@ -88,7 +83,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string AppearancesNormal, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum,string BoxBarCode, string AppearancesNormal, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -112,8 +107,16 @@ namespace JianHeMES.Controllers
             }
 
             //统计外观包装结果正常的模组数量
-            var Order_CR_Normal_Count = AllAppearanceRecords.Where(x => x.Appearance_OQCCheckAbnormal == "正常").Count();
+            var Order_CR_Normal_Count = AllAppearanceRecords.Where(x => x.RepairCondition == "正常").Count();
             var Abnormal_Count = AllAppearanceRecords.Where(x => x.Appearance_OQCCheckAbnormal != "正常").Count();
+
+            #region  ---------按条码筛选--------------
+            if (BoxBarCode != "")
+            {
+                AllAppearanceRecords = AllAppearanceRecords.Where(x => x.BarCodesNum == BoxBarCode);
+                //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
+            }
+            #endregion
 
             #region   ---------筛选正常、异常-------------
             //正常、异常记录筛选
@@ -427,7 +430,7 @@ namespace JianHeMES.Controllers
             else if (db.Appearance.Count(u => u.BarCodesNum == appearance.BarCodesNum) >= 1)
             {
                 var appearance_list = db.Appearance.Where(m => m.BarCodesNum == appearance.BarCodesNum).ToList();
-                int normalCount = appearance_list.Where(m => m.Appearance_OQCCheckAbnormal == "正常").Count();
+                int normalCount = appearance_list.Where(m => m.RepairCondition == "正常" && m.OQCCheckFinish==true).Count();
                 if (normalCount == 0)
                 {
                     if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
@@ -444,7 +447,6 @@ namespace JianHeMES.Controllers
                         ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                         return View(appearance);
                     }
-                    
                 }
                 else
                 {
@@ -504,6 +506,10 @@ namespace JianHeMES.Controllers
                 var CT = FT - BT;
                 appearance.OQCCheckTime = CT;
                 appearance.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                if (appearance.Appearance_OQCCheckAbnormal == null)
+                {
+                    appearance.Appearance_OQCCheckAbnormal = "正常";
+                }
                 appearance.OQCCheckFinish = true;
             }
 
