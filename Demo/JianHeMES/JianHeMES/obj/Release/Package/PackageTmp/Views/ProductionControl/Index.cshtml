@@ -1,6 +1,6 @@
 ﻿
 @{
-    ViewBag.Title = "Index";
+    ViewBag.Title = "生产管控";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <style>
@@ -20,8 +20,7 @@
         .rowTitle1 > th:nth-child(4), .rowTitle2 > th:nth-child(2), .table > tbody > tr > td:nth-child(5) {
             border-right: 1px solid blue;
         }
-        /*.table > tbody > tr > td:nth-child(n+7)*/
-        .table > tbody > tr > td:nth-child(7), .table > tbody > tr > td:nth-child(8) {
+        .table > tbody > tr > td:nth-child(n+7),.table > tbody > tr > td:nth-child(1){
             cursor: pointer;
         }
 
@@ -74,26 +73,20 @@
             <th>合格率</th>
         </tr>
         <tr v-for="(item, index) in marqueeList">
-            <td>{{item.OrderNum}}</td>
+            <td v-on:click="orderDetail(item.OrderNum,item.Id)">{{item.OrderNum}}</td>
             <td>{{item.Quantity}}</td>
             <td>{{item.PlatformType}}</td>
-            <td>{{item.PlanInputTime}}</td>
-            <td>{{item.PlanCompleteTime}}</td>
+            <td>{{item.PlanInputTime.split(" ")[0]}}</td>
+            <td>{{item.PlanCompleteTime.split(" ")[0]}}</td>
             <td>{{item.ActualProductionTime}}</td>
             <td v-on:click="Detail(item.OrderNum,'Assemble')">{{item.Assemble_Finish_Rate}}</td>
             <td v-on:click="Detail(item.OrderNum,'Assemble')">{{item.Assemble_Pass_Rate}}</td>
-                @*<td v-on:click="Detail(item.OrderNum,'Burn_in')">{{item.Burn_in_Finish_Rate}}</td>
-                <td v-on:click="Detail(item.OrderNum,'Burn_in')">{{item.Burn_in_Pass_Rate}}</td>
-                <td v-on:click="Detail(item.OrderNum,'Calibration')">{{item.Calibration_Finish_Rate}}</td>
-                <td v-on:click="Detail(item.OrderNum,'Calibration')">{{item.Calibration_Pass_Rate}}</td>
-                <td v-on:click="Detail(item.OrderNum,'Appearances')">{{item.Appearances_Finish_Rate}}</td>
-                <td v-on:click="Detail(item.OrderNum,'Appearances')">{{item.Appearances_Pass_Rate}}</td>*@
-            <td>{{item.Burn_in_Finish_Rate}}</td>
-            <td>{{item.Burn_in_Pass_Rate}}</td>
-            <td>{{item.Calibration_Finish_Rate}}</td>
-            <td>{{item.Calibration_Pass_Rate}}</td>
-            <td>{{item.Appearances_Finish_Rate}}</td>
-            <td>{{item.Appearances_Pass_Rate}}</td>
+            <td v-on:click="Detail(item.OrderNum,'Burn_in')">{{item.Burn_in_Finish_Rate}}</td>
+            <td v-on:click="Detail(item.OrderNum,'Burn_in')">{{item.Burn_in_Pass_Rate}}</td>
+            <td v-on:click="Detail(item.OrderNum,'Calibration')">{{item.Calibration_Finish_Rate}}</td>
+            <td v-on:click="Detail(item.OrderNum,'Calibration')">{{item.Calibration_Pass_Rate}}</td>
+            <td v-on:click="Detail(item.OrderNum,'Appearance')">{{item.Appearances_Finish_Rate}}</td>
+            <td v-on:click="Detail(item.OrderNum,'Appearance')">{{item.Appearances_Pass_Rate}}</td>
         </tr>
     </table>
 </div>
@@ -126,6 +119,9 @@
                 //    }
                 //});
             },
+            orderDetail: function (val, station) {
+                this.$options.methods.postForm("/OrderMgms/Details/" + station, val);
+            },
             postForm: function (url, params) {
                 var newForm = $("<form action=" + url + " target='_blank' method='post' style='display:none' ><input name='OrderNum' value=" + params + " ></form>");
                 $("#setForm").append(newForm);
@@ -152,11 +148,12 @@
         $(function () {
             var mypush = $.connection.ProductionControlIndex;
             mypush.client.sendProductionControlIndex = function (ProductionControlIndex) {
-                //console.log(ProductionControlIndex)
+                console.log(ProductionControlIndex)
                 app.marqueeList = [];
                 //console.log(Object.keys(ProductionControlIndex).length)
                 for (index in ProductionControlIndex) {
                     app.marqueeList.push({
+                        Id: ProductionControlIndex[index].Id,
                         OrderNum: ProductionControlIndex[index].OrderNum,
                         Quantity: ProductionControlIndex[index].Quantity,
                         PlatformType: ProductionControlIndex[index].PlatformType,

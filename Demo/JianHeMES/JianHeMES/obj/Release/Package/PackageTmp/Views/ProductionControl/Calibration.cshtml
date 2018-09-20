@@ -1,0 +1,214 @@
+﻿@model IEnumerable<JianHeMES.Models.CalibrationRecord>
+
+@{
+    ViewBag.Title = "校正详情";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+
+<style>
+    .barcodeFrame {
+        width: 250px;
+        height: 100px;
+        border: 1px solid #000000;
+        overflow: auto;
+    }
+
+    .abnormalFrame {
+        width: 350px;
+        height: 400px;
+        border: 1px solid #000000;
+        overflow: auto;
+    }
+
+    .titlerow div {
+        font-size: 15px;
+        font-weight: bold;
+    }
+</style>
+<h2>@ViewBag.OrderNum 校正工序详细情况</h2>
+@{
+    var JsonObj = ViewBag.JsonObj;
+}
+<hr />
+
+<div class="row titlerow">
+    <div class="col-md-3">
+        订单号：<a href="#" class="aOrderNum" myAttr="">@JsonObj.OrderNum</a>
+    </div>
+    <div class="col-md-2">
+        平台类型：@ViewBag.PlatformType
+    </div>
+    <div class="col-md-3">
+        出货日期：<span id="deliveryDate"></span>
+    </div>
+    <div class="col-md-2">
+        模组数：@JsonObj.modelGroupQuantity
+    </div>
+    <div class="col-md-2">
+        直通个数：@JsonObj.firstPassYieldCount
+    </div>
+</div>
+<br />
+<div class="row titlerow">
+    <div class="col-md-3">
+        总校正次数：<a href="#" class="aOrderNum" myAttr="">@JsonObj.Calibration_Count</a>
+    </div>
+    <div class="col-md-2">
+        已完成校正数：<a href="#" class="aOrderNum" myAttr="完成">@JsonObj.finished</a>
+    </div>
+    <div class="col-md-3">
+        完成率：@JsonObj.finisthRate %
+    </div>
+    <div class="col-md-2">
+        合格率：@JsonObj.passRate %
+    </div>
+    <div class="col-md-2">
+        直通率：@JsonObj.firstPassYield_Rate %
+    </div>
+</div>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <div>
+            未开始校正条码清单：（@JsonObj.unbeginRecordNum 个）
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.unbeginRecord_temp as List<string>)
+                    {
+                        <li>@item</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <br />
+        <div>
+            已完成校正条码清单：（@JsonObj.passedNum 个）
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.passed_temp as List<JianHeMES.Models.CalibrationRecord>)
+                    {
+                        <li>@Html.RouteLink(item.ModuleGroupNum, "Default", new { Controller = "CalibrationRecords", Action = "Details", id = item.ID }, new { target = "_blank" })</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div>
+            正在进行校正条码清单：（@JsonObj.goingNum 个）
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.going_temp as List<JianHeMES.Models.CalibrationRecord>)
+                    {
+                        <li>@Html.RouteLink(item.ModuleGroupNum, "Default", new { Controller = "CalibrationRecords", Action = "Details", id = item.ID }, new { target = "_blank" })</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <br />
+    </div>
+    <div class="col-md-4">
+        <div>
+            异常记录清单与异常信息：（@JsonObj.abnormalListNum 个）
+            <div class="abnormalFrame">
+                <ol>
+                    @foreach (var item in ViewBag.abnormalList_temp as List<JianHeMES.Models.CalibrationRecord>)
+                    {
+                        <li>@Html.RouteLink(item.ModuleGroupNum, "Default", new { Controller = "CalibrationRecords", Action = "Details", id = item.ID }, new { target = "_blank" })<br />@item.AbnormalDescription</li>
+                    }
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+<form action="/CalibrationRecords/Index" method="post" target="_blank" style="display:none">
+    <input type="text" name="orderNum" value="@JsonObj.OrderNum" id="formOrderNum" />
+    <input type="text" name="BoxBarCode" value="" />
+    <input type="text" name="PQCNormal" value="" id="formNormal" />
+</form>
+
+<script>
+    $(function () {
+        $(".aOrderNum").click(function (event) {
+            event.preventDefault();
+            $("#formNormal").val($(this).attr("myAttr"));
+            $("form").submit();
+        });
+        $("#deliveryDate").text('@ViewBag.DeliveryDate'.split(" ")[0]);
+    });
+</script>
+
+@*<p>
+        @Html.ActionLink("Create New", "Create")
+    </p>
+    <table class="table">
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.OrderNum)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ModuleGroupNum)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.BeginCalibration)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.FinishCalibration)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Normal)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.AbnormalDescription)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.CalibrationTime)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.CalibrationTimeSpan)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Operator)
+            </th>
+            <th></th>
+        </tr>
+
+    @foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.OrderNum)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ModuleGroupNum)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.BeginCalibration)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.FinishCalibration)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Normal)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.AbnormalDescription)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.CalibrationTime)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.CalibrationTimeSpan)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Operator)
+            </td>
+            <td>
+                @Html.ActionLink("Edit", "Edit", new { id=item.ID }) |
+                @Html.ActionLink("Details", "Details", new { id=item.ID }) |
+                @Html.ActionLink("Delete", "Delete", new { id=item.ID })
+            </td>
+        </tr>
+    }
+
+    </table>*@

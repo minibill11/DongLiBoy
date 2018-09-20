@@ -1,0 +1,311 @@
+﻿@model IEnumerable<JianHeMES.Models.Burn_in>
+
+@{
+    ViewBag.Title = "老化信息查询";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script src="~/Scripts/highcharts.js"></script>
+<script src="~/Scripts/highcharts-3d.js"></script>
+<script src="~/Scripts/modules/exporting.js"></script>
+
+@*引入EasyUI框架*@
+<script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
+<link rel="stylesheet" type="text/css" href="~/Content/easyui.css">
+<link rel="stylesheet" type="text/css" href="~/Content/icon.css">
+<script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
+<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
+
+@*引入Vue.js框架*@
+<script src="~/Scripts/vue.js"></script>
+
+@*引入Bootstrap框架*@
+<link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
+<script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
+
+<h3>@ViewBag.Title</h3>
+<style>
+    #notdo {
+        width: 200px;
+        height: 100px;
+        overflow: auto;
+        padding: 0px 15px;
+        margin: 0px 50px;
+        border: none;
+    }
+</style>
+<br />
+<div class="text-center">
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("单个模组老化", "Burn_in_B")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("模组老化过程异常输入", "AbnormalRecordInput")
+    </p>
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("批量模组开始老化", "Burn_in_Batch_B")
+    </p>
+    <p class="text-success text-center btn btn-default">
+            @Html.ActionLink("批量完成老化", "Burn_in_Batch_F")
+        </p>
+
+</div>
+<br />
+
+@*<p>
+        @Html.ActionLink("Create New", "Create")
+    </p>*@
+
+@using (Html.BeginForm("Index", "Burn_in", FormMethod.Post, new { id = "searchForm", @class = "text-center" }))
+{
+    @Html.AntiForgeryToken()
+    <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
+        <p>
+            订单号：@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")
+            老化状态：@Html.DropDownList("OQCNormal", (List<SelectListItem>)ViewBag.OQCNormal, "全部")
+            完成状态：@Html.DropDownList("FinishStatus", (List<SelectListItem>)ViewBag.FinishStatus, "全部")
+            模组条码号：<input type="text" name="BoxBarCode" />
+            描述:<input type="text" name="SearchString" />
+            <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
+            <input type="submit" id="searchButton" value="查找" />
+        </p>
+    </form>
+    <br />
+}
+
+<div class="container">
+    <div class="row">
+        <div id="details" style="@ViewBag.Display">
+            <div class="col-md-4">
+                <h4>订单<span id="title" v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组老化基本情况 </h4>
+                订单的模组总量：@ViewBag.Quantity，经过老化数量：@ViewBag.RecordCount<br />
+                正常数量：@ViewBag.NormalCount，异常数量：@ViewBag.AbnormalCount，完成率：<span id="Rate">{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
+                老化总时长：@ViewBag.TotalTimeSpan<br />
+                平均老化时长：@ViewBag.AvgTimeSpan<br />
+                查询时间：<span id="Querytime">{{message}}</span>   @*输出查询时间*@
+                <hr />
+                @if (ViewBag.NotDo != null && ViewBag.NotDo.Count != 0)
+                {
+                <p>未进行老化模组 @ViewBag.NotDoCount 个：</p>
+                        <div id="notdo" class="form-control">
+                            @foreach (var item in ViewBag.NotDo)
+                            {
+                                @item.ToString()<br />
+                            }
+                        </div>
+                }
+            </div>
+            @*<div id="main_pie" class="col-md-3" style="width: 375px;height:250px;"></div>*@
+            <div id="container2" class="col-md-4" style="width: auto;height:300px;"></div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var app = new Vue({
+        el: '#Querytime',    //与div中的id名对应
+        data: {
+            message: new Date().toLocaleString()  //输出查询时间
+        }
+    })
+    var app2 = new Vue({     //悬停显示内容<span v-bind:title="floatmessage">内容</span>
+        el: '#title',
+        data: {
+            floatmessage: '订单号'+'@ViewBag.orderNum',
+        }
+    })
+
+    var app3 = new Vue ({
+        el:'#Rate',
+        data:{
+            Quantity:@ViewBag.Quantity,
+            NormalCount:@ViewBag.NormalCount,
+        },
+        computed:{
+            FinishRate: function (){
+                return (this.NormalCount/this.Quantity*100).toFixed(1)
+            }}
+    })
+
+
+    var CalibrationRecordsViewModel = {
+        orderNum:'',
+        Quantity: 0,
+        Count: 0,
+        NeverFinish: 0,
+        OrderList:[]
+    }
+
+    CalibrationRecordsViewModel.orderNum = '@ViewBag.orderNum';
+    CalibrationRecordsViewModel.Quantity=@ViewBag.Quantity;
+    CalibrationRecordsViewModel.Count=@ViewBag.NormalCount;
+
+
+    Highcharts.chart('container2', {
+        chart: {
+            type: 'pie',
+            options3d: {
+                enabled: true,
+                alpha: 30,
+                beta: 0
+            }
+        },
+        title: {
+            text: '订单 @ViewBag.orderNum 基本情况'
+        },
+        tooltip: {
+            pointFormat: '<b>{point.percentage:.1f}%</b>'//'{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                depth: 35,
+                dataLabels: {
+                    enabled: true,
+                    formatter:function(){           // '{point.name}'
+                        if(this.percentage >0 )
+                        { return this.point.name;}
+                        else if (this.percentage >=100 )
+                        { return '已全部完成';}
+                    }
+                }
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: '',
+            data: [
+                ['已完成 @ViewBag.NormalCount 块',@ViewBag.NormalCount],
+                ['未完成 @ViewBag.NeverFinish 块',@ViewBag.NeverFinish]
+            ]
+        }]
+    });
+</script>
+
+<hr style="@ViewBag.Display" />
+
+<br />
+
+<div style="@ViewBag.Display">
+    <h4> 订单 @ViewBag.orderNum 详细老化记录：</h4>
+</div>
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.OrderNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.BarCodesNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckFT)
+        </th>
+        @*<th>
+            @Html.DisplayNameFor(model => model.OQCCheckTime)
+        </th>*@
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckTimeSpan)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Burn_in_OQCCheckAbnormal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.RepairCondition)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckFinish)
+        </th>
+        <th></th>
+    </tr>
+    @if (Model != null)
+    {
+        foreach (var item in Model)
+        {
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.OrderNum)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.BarCodesNum)
+        </td>
+
+        <td>
+            @Html.DisplayFor(modelItem => item.OQCCheckBT)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.OQCPrincipal)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.OQCCheckFT)
+        </td>
+        @*<td>
+            @Html.DisplayFor(modelItem => item.OQCCheckTime)
+        </td>*@
+        <td>
+            @Html.DisplayFor(modelItem => item.OQCCheckTimeSpan)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Burn_in_OQCCheckAbnormal)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.RepairCondition)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.OQCCheckFinish)
+        </td>
+        <td>
+            @*@Html.ActionLink("修改", "Edit", new { id = item.Id }) |*@
+            @Html.ActionLink("详细", "Details", new { id = item.Id }) @*|
+        @Html.ActionLink("Delete", "Delete", new { id = item.Id })*@
+        </td>
+    </tr>
+        }
+    }
+</table>
+
+@*-----------------------分页功能----------------------------------------------------------------------------------------*@
+<div class="text-center">
+    <div id="pagebar">
+        @for (var i = 0; i < ViewBag.PageCount; i++)
+        {
+            if (i == ViewBag.PageIndex)
+            {
+                <span class="currentpagenumber">@(i + 1)</span>
+            }
+            else
+            {
+                <a class="pagenumber" href="javascript:;">@(i + 1)</a>
+            }
+        }
+    </div>
+</div>
+@section scripts {
+    <script>
+        function submitForm(pagenumber) {
+            pagenumber = parseInt(pagenumber, 10);
+            $('#PageIndex').val(pagenumber - 1);
+            $('#searchForm').submit();
+        }
+
+        $(function () {
+
+            $('#searchButton').click(function () {
+                submitForm($('#pagebar .currentpagenumber').text());
+            });
+
+            $('#pagebar .pagenumber').click(function () {
+                submitForm($(this).text());
+            });
+
+        });
+    </script>
+}
+
+

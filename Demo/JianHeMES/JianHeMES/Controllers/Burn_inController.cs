@@ -57,7 +57,6 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        
 
 
         #region  -----维修列表-----------
@@ -99,7 +98,7 @@ namespace JianHeMES.Controllers
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.OQCNormal = OQCNormalList();
             ViewBag.FinishStatus = FinishStatusList();
-
+            ViewBag.Finish = null;
             ViewBag.NotDo = null;
             return View();
 
@@ -231,6 +230,8 @@ namespace JianHeMES.Controllers
 
             //列出记录
             AllBurn_inRecordsList = AllBurn_inRecords.ToList();
+            //计算已经完成OQC的数量
+            var Finish_Count = AllBurn_inRecords.Count(c => c.OQCCheckFinish == true);
 
             //读出订单中模组总数量
             var Order_MG_Quantity = (from m in db.OrderMgm
@@ -241,7 +242,8 @@ namespace JianHeMES.Controllers
             ViewBag.NormalCount = Order_CR_Normal_Count;
             ViewBag.AbnormalCount = Abnormal_Count;
             ViewBag.RecordCount = AllBurn_inRecords.Count();
-            ViewBag.NeverFinish = Order_MG_Quantity - Order_CR_Normal_Count;
+            ViewBag.Finish = AllBurn_inRecordsList.Count(c=>c.OQCCheckFinish==true);
+            ViewBag.NeverFinish = Order_MG_Quantity - Finish_Count;
             ViewBag.orderNum = OrderNum;
 
             //未选择订单时隐藏基本信息设置
@@ -875,7 +877,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ------------------------------------批量模组老化完成（修改中）---------------------------------------------
+        #region ------------------------------------批量模组老化完成---------------------------------------------
 
         // GET: Burn_in/Burn_in_F
         public ActionResult Burn_in_Batch_F()

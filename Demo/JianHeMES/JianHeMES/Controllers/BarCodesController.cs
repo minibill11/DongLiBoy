@@ -141,7 +141,7 @@ namespace JianHeMES.Controllers
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string BarCodeType, int PageIndex=0)
+        public ActionResult Index(string OrderNum, string BarCodeNum,string BarCodeType, int PageIndex=0)
         {
             var barcodes = db.BarCodes as IQueryable<BarCodes>;
             if (!String.IsNullOrEmpty(OrderNum))
@@ -153,6 +153,12 @@ namespace JianHeMES.Controllers
             {
                 barcodes = barcodes.Where(m => m.BarCodeType == BarCodeType);
             }
+
+            if (!String.IsNullOrEmpty(BarCodeNum))
+            {
+                barcodes = barcodes.Where(m => m.BarCodesNum.Contains(BarCodeNum));
+            }
+
             var recordCount = barcodes.Count();
             var pageCount = GetPageCount(recordCount);
             if (PageIndex >= pageCount && pageCount >= 1)
@@ -310,6 +316,14 @@ namespace JianHeMES.Controllers
             {
                 return HttpNotFound();
             }
+
+            string BarCodeNum = barCodes.BarCodesNum;
+
+            ViewBag.assemble = db.Assemble.Where(c => c.BoxBarCode == BarCodeNum).ToList();
+            ViewBag.burn_in = db.Burn_in.Where(c => c.BarCodesNum == BarCodeNum).ToList();
+            ViewBag.calibration = db.CalibrationRecord.Where(c => c.ModuleGroupNum == BarCodeNum).ToList();
+            ViewBag.appearance = db.Appearance.Where(c => c.BarCodesNum == BarCodeNum).ToList();
+
             return View(barCodes);
         }
 

@@ -1,0 +1,274 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<h2>Index</h2>
+
+
+<div id="test">这里即将显示服务器推送的数据</div>
+<br>
+<button class="btn btn-primary" type="button" id="test1">
+    Messages <span class="badge" id="test2">4</span>
+</button>
+<br>
+<hr />
+<div id="test3">
+    Messages <span class="badge" id="test4">4</span>
+</div>
+
+<br>
+<hr />
+<div id="test5">
+    Messages <span class="badge" id="test6">4</span>
+</div>
+
+<br>
+<hr />
+
+
+@section scripts {
+    <script src="~/Scripts/jquery-1.11.3.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.2.3.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        $(function () {
+            var mypush = $.connection.myHub;
+
+            mypush.client.sendTest1 = function (json) {
+                //$("#test").text(message); 
+                $("#test1").html(json.A + '<span class="badge">' + json.B + '</span>');
+                console.log(json);
+            };
+
+            mypush.client.sendTest2 = function (KY_json) {
+                var aircomp1 = JSON.parse(KY_json.A3);
+                $("#test3").html("aircomp1" + aircomp1.id + "," + aircomp1.pressure + "," + aircomp1.temperature + ',<br \><hr>' + "aircomp2" + KY_json.aircomp2 + ',<br \><hr>' + "aircomp3" + KY_json.aircomp3 + ',<br \><hr>' + '<span class="badge">' + "aircomp1" + KY_json.A3 + '</span>');
+
+            };
+
+            $.connection.hub.start();
+        });
+
+    </script>
+}
+
+
+<div id="example">
+    <p>Original message:"{{message}}"</p>
+    <p>Computed reversed message:"{{reversedMessage}}"</p>
+</div>
+<script type="text/javascript">
+    var vm = new Vue({
+        el: '#example',
+        data: {
+            message:'Hello'
+        },
+        computed: {
+            //计算属性的getter
+            reversedMessage: function () {
+                //'this'指向vm实例
+                return this.message.split('').reverse().join('')
+            }
+        }
+    })
+</script>
+
+@*-----------------JSON传输试验---------------------------------------------------------------------------------------------*@
+
+<input id="hdData" type="hidden" value="@ViewData["data"]" />   @*value=”@ViewData[“data”]”来取得*@
+<input type="button" id="send0" value="显示0(get获取后台JSON数据)" /> @*接收并显示后台传过来的ViewData["data"] JSON数据*@
+<input type="button" id="send" value="向Controller发送JSON数据" />    @*向后台Controller传jsondata string*@
+<button id="send1">显示1(get获取后台JSON数据)</button>  @*接收并显示后台传过来的ViewData["Person"] JSON数据*@
+<script type="text/javascript">
+
+        var jsonString = $("#hdData").val();        //用jq选择器取到input标签的value
+        var jsondata = eval('(' + jsonString + ')');    //调用evel方法，把字符串转化为object
+        //var jsonstr = JSON.stringify(jsondata);
+
+
+
+
+    //触发“显示”按钮事件，网页打开时已经得到JSON数据，触发后才使用和显示数据
+    $("#send0").click(function () {
+        var jsonString = $("#hdData").val();        //用jq选择器取到input标签的value
+        var jsondata = eval('(' + jsonString + ')');    //调用evel方法，把字符串转化为object
+        var jsonstr = JSON.stringify(jsondata);
+        //设置断点，查看json变量的值
+        alert(jsonstr);
+    });
+    //$("#send1").click(function () {
+    //    var jsonString = $("#hdData").val();        //用jq选择器取到input标签的value
+    //    var json = eval('(' + jsonString + ')');    //调用evel方法，把字符串转化为object
+    //    //设置断点，查看json变量的值
+    //    alert(json.name);
+    //});
+    //触发“发送”按钮事件，向后台发送JSON数据
+    $("#send").click(function () {
+        var person = {
+            name: "张三",
+            sex: "男",
+            phone: "13555555"
+        }
+        $.ajax({
+            url: "/Home/Index",                           //格式为/controller名字（但不需要controller单词）/方法名
+            type: "post",
+            data: { jsondata: JSON.stringify(person) },   //data：jsondata要与controller方法的参数名一致，调用JSON.stringify方法把object转化为json字符串
+            success: function () {
+                alert("发送成功！")
+            },
+            error: function () {
+                alert("发送失败！")
+            }
+        })
+    });
+    //触发“显示1”按钮事件，触发后才获取后台JSON数据
+    $("#send1").click(function () {
+        $.ajax({
+            url: "/Home/Index",
+            type: "get",
+            dataType:"json",
+            success:function(data){
+                alert(data.name+","+data.sex+","+data.phone);
+                //设置断点，查看data的值
+            },
+            error: function (e) {
+                alert("错误！");
+            }
+        })
+    })
+</script>
+
+
+
+@*-----------------------分页功能试验----------------------------------------------------------------------------------------*@
+
+<div>
+    <table id="grid"></table>
+</div>
+
+
+<script type="text/javascript">
+    $(function(){
+        $('#grid').datagrid( {
+        border : false,
+            rownumbers : true,
+            pageList: [5,10,20,30],//选择一页显示多少数据
+            pagination : true,//在DataGrid控件底部显示分页工具栏。
+            data:eval('('+$("#hdData").val()+')'),
+            columns :[ [ {
+                field : 'ID',//简单的测试字段
+                title : 'Id号',
+                width : 60,
+                align : 'center'
+            },{
+                field : 'OrderNum',//简单的测试字段
+                title : '订单号',
+                width : 120,
+                align : 'center'
+            }, {
+                field : 'ModuleGroupNum',
+                title : '模组号',
+                width : 60,
+                align : 'center'
+            },{
+                field : 'BeginCalibration',
+                title : '开始校正时间',
+                width : 160,
+                align : 'center'
+            },{
+                field : 'FinishCalibration',
+                title : '完成校正时间',
+                width : 160,
+                align : 'center'
+            },{
+                field : 'Normal',
+                title : '正常',
+                width : 60,
+                align : 'center'
+            },{
+                field : 'AbnormalDescription',
+                title : '异常描述',
+                width : 100,
+                align : 'center'
+            },{
+                field : 'CalibrationTimeSpan',
+                title : '校正用时',
+                width : 100,
+                align : 'center'
+            },{
+                field : 'Operator',
+                title : '校正员',
+                width : 50,
+                align : 'center'
+            }
+             ] ],
+           url :"${pageContext.request.contextPath}/staffAction_pageQuery",          //提交的url地址
+                idField : 'id'
+           });
+    });
+</script>
+
+
+
+@*-----------------JSON传输---------------------------------------------------------------------------------------------*@
+
+<input id="hdData" type="hidden" value="@ViewData["data"]" />   @*value=”@ViewData[“data”]”来取得*@
+<input type="button" id="send0" value="显示0(get获取后台JSON数据)" /> @*接收并显示后台传过来的ViewData["data"] JSON数据*@
+<input type="button" id="send" value="向Controller发送JSON数据" />    @*向后台Controller传jsondata string*@
+<button id="send1">显示1(get获取后台JSON数据)</button>  @*接收并显示后台传过来的ViewData["Person"] JSON数据*@
+<script type="text/javascript">
+        //var jsonString = $("#hdData").val();        //用jq选择器取到input标签的value
+        //var jsondata = eval('(' + jsonString + ')');    //调用evel方法，把字符串转化为object
+        //var jsondata2 = eval('('+$("#hdData").val()+')');
+
+    //触发“显示”按钮事件，网页打开时已经得到JSON数据，触发后才使用和显示数据
+    $("#send0").click(function () {
+        var jsonString = $("#hdData").val();        //用jq选择器取到input标签的value
+        var jsondata = eval('(' + jsonString + ')');    //调用evel方法，把字符串转化为object
+        var jsonstr = JSON.stringify(jsondata);
+        //设置断点，查看json变量的值
+        alert(jsonstr);
+    });
+    //$("#send1").click(function () {
+    //    var jsonString = $("#hdData").val();        //用jq选择器取到input标签的value
+    //    var json = eval('(' + jsonString + ')');    //调用evel方法，把字符串转化为object
+    //    //设置断点，查看json变量的值
+    //    alert(json.name);
+    //});
+    //触发“发送”按钮事件，向后台发送JSON数据
+    $("#send").click(function () {
+        var person = {
+            name: "张三",
+            sex: "男",
+            phone: "13555555"
+        }
+        $.ajax({
+            url: "/Home/Index",                           //格式为/controller名字（但不需要controller单词）/方法名
+            type: "post",
+            data: { jsondata: JSON.stringify(person) },   //data：jsondata要与controller方法的参数名一致，调用JSON.stringify方法把object转化为json字符串
+            success: function () {
+                alert("发送成功！")
+            },
+            error: function () {
+                alert("发送失败！")
+            }
+        })
+    });
+    //触发“显示1”按钮事件，触发后才获取后台JSON数据
+    $("#send1").click(function () {
+        $.ajax({
+            url: "/Home/Index",
+            type: "get",
+            dataType:"json",
+            success:function(data){
+                alert(data.name+","+data.sex+","+data.phone);
+                //设置断点，查看data的值
+            },
+            error: function (e) {
+                alert("错误！");
+            }
+        })
+    })
+</script>
+
