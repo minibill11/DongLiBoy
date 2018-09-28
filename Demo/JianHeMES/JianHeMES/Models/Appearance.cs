@@ -17,6 +17,9 @@ namespace JianHeMES.Models
         [Display(Name = "条码号")]
         public string BarCodesNum { get; set; }
 
+        [Display(Name = "模组箱体号")]
+        public string ModuleGroupNum { get; set; }
+
         [Display(Name = "开始时间")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public DateTime? OQCCheckBT { get; set; }

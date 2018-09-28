@@ -20,7 +20,7 @@ namespace JianHeMES.Controllers
         public Assemble assemble = null;
 
 
-        #region  -----//PQC异常列表-----------
+        #region --------------------PQC异常列表
 
         //private List<SelectListItem> SetAbnormalList()
         //{
@@ -72,7 +72,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region --------------------PQCNormal列表--------------------
+        #region --------------------PQCNormal列表
         private List<SelectListItem> PQCNormalList()
         {
             return new List<SelectListItem>()
@@ -91,7 +91,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  -----维修列表-----------
+        #region --------------------维修列表
 
         private List<SelectListItem> SetRepairList()
         {
@@ -119,7 +119,7 @@ namespace JianHeMES.Controllers
 
         // GET: Assembles
 
-        #region -------------组装模块工段-----------------
+        #region --------------------组装模块工段
 
         // GET: Assembles/Create
         public ActionResult Create()
@@ -270,7 +270,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region -------------防水测试工段------------
+        #region --------------------防水测试工段
 
         public ActionResult WaterproofTestB()
         {
@@ -381,7 +381,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ----------组装电源、转接卡工段-----------
+        #region --------------------组装电源、转接卡工段
         /// <summary>
         /// 电源、转接卡工段
         /// </summary>
@@ -491,7 +491,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ----------------视检工段-----------------
+        #region --------------------视检工段
         /// <summary>
         /// 视检工段
         /// </summary>
@@ -591,7 +591,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ----------------电检工段----------------
+        #region --------------------电检工段
         /// <summary>
         /// 电检工段
         /// </summary>
@@ -694,7 +694,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region --------------------PQC工段-------------------
+        #region --------------------PQC工段
         /// <summary>
         /// PQC工段
         /// </summary>
@@ -877,7 +877,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region    --------------------首页------------------
+        #region    --------------------首页
 
         public ActionResult AssembleIndex()
         {
@@ -1083,7 +1083,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  ---------------检查条码是否存在------------------
+        #region --------------------检查条码是否存在
         [HttpPost]
         public Boolean CheckBarCode(string barcode)
         {
@@ -1098,7 +1098,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region    -------------其他方法----------
+        #region --------------------其他方法
 
         // GET: Assembles/Details/5
         public ActionResult Details(int? id)
@@ -1205,7 +1205,7 @@ namespace JianHeMES.Controllers
 
 
 
-        #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        #region --------------------取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
             var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
@@ -1223,7 +1223,7 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-        #region ------------------ 分页函数 ----------------------------
+        #region --------------------分页函数
         static List<Assemble> GetPageListByIndex(List<Assemble> list, int pageIndex)
         {
             int pageSize = 10;

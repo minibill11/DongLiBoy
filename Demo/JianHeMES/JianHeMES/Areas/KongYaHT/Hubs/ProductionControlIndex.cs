@@ -78,11 +78,11 @@ namespace JianHeMESEntities.Hubs
                     {
                         {"Id",item.ID },
                         { "OrderNum", item.OrderNum },
-                        { "Quantity", item.Boxes+"个" },
+                        { "Quantity", item.Boxes },
                         { "PlatformType", item.PlatformType },
                         { "PlanInputTime", item.PlanInputTime.ToString() },
                         { "PlanCompleteTime", item.PlanCompleteTime.ToString() },
-                };
+                    };
 
                     //-------------------组装部分
                     var AssembleRecord = (from m in db.Assemble where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有组装记录
@@ -97,6 +97,8 @@ namespace JianHeMESEntities.Hubs
                             OrderNum.Add("ActualProductionTime", AssembleRecord.Min(c => c.PQCCheckBT).ToString()); //取出最早记录的PQCCheckBT值
                         //}
                         Decimal Assemble_Normal = AssembleRecord.Where(m => m.PQCCheckAbnormal == "正常").Count();//组装PQC正常个数
+                        OrderNum.Add("Assemble_Finish", Convert.ToInt32(Assemble_Normal));
+                        OrderNum.Add("AssembleRecord_Count", AssembleRecord.Count());
                         //计算组装完成率、合格率
                         if (Assemble_Normal == 0)
                         {
@@ -123,6 +125,8 @@ namespace JianHeMESEntities.Hubs
                         Decimal Burn_in_Normal = Burn_in_Record.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化正常个数
                         //Decimal Burn_in_FirstPass = Burn_in_Record.Where(m => m.OQCCheckFinish == true && m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化工序直通个数
                         Decimal Burn_in_Finish = Burn_in_Record.Count(m => m.OQCCheckFinish == true); //完成老化工序的个数
+                        OrderNum.Add("Burn_in_Finish", Convert.ToInt32(Burn_in_Finish));
+                        OrderNum.Add("Burn_in_Count", Burn_in_Record.Count());
                         //计算老化完成率、合格率
                         if (Burn_in_Finish == 0)
                         {
@@ -146,6 +150,8 @@ namespace JianHeMESEntities.Hubs
                     if(Calibration_Record.Count()>0)
                     {
                         Decimal Calibration_Normal = Calibration_Record.Where(m => m.Normal == true).Count();//校正正常个数
+                        OrderNum.Add("Calibration_Finish", Convert.ToInt32(Calibration_Normal));
+                        OrderNum.Add("Calibration_Count", Calibration_Record.Count());
                         //计算校正完成率、合格率
                         if (Calibration_Normal == 0)
                         {
@@ -168,17 +174,20 @@ namespace JianHeMESEntities.Hubs
                     var Appearances_Record = (from m in db.Appearance where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有外观包装记录
                     if(Appearances_Record.Count()>0)
                     {
-                        Decimal Appearances_Normal = Appearances_Record.Where(m => m.Appearance_OQCCheckAbnormal == "正常").Count();//外观包装正常个数
+                        //Decimal Appearances_Normal = Appearances_Record.Where(m => m.Appearance_OQCCheckAbnormal == "正常").Count();//外观包装正常个数
+                        Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
+                        OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
+                        OrderNum.Add("Appearances_Count", Appearances_Record.Count());
                         //计算外观包装完成率、合格率
-                        if (Appearances_Normal == 0)
+                        if (Appearances_Finish == 0)
                         {
                             OrderNum.Add("Appearances_Finish_Rate", "0%");
                             OrderNum.Add("Appearances_Pass_Rate", "0%");
                         }
                         else
                         {
-                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Normal / item.Boxes*100).ToString("F2") + "%");
-                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Normal / Appearances_Record.Count()*100).ToString("F2") + "%");
+                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes*100).ToString("F2") + "%");
+                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count()*100).ToString("F2") + "%");
                         }
                     }
                     else

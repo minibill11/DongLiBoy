@@ -16,6 +16,7 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Net.Mail;
 using System.Text;
+using System.Web.Helpers;
 
 namespace JianHeMES.Areas.kongya.Controllers
 {
@@ -3586,7 +3587,64 @@ namespace JianHeMES.Areas.kongya.Controllers
             }
         }
 
+        #endregion
+
+        #region -----------系统通讯异常邮件通知
+
+        /// <summary>
+        /// 三台空压机通讯有问题（网络、弱电箱电源等问题）
+        /// </summary>
+        /// <param name="a"></param>
+        [HttpPost]
+        public void SendEmail(string a)
+        {
+            var errorMessage = "发送失败";
+            #region MyRegion
+            //try
+            //{
+            //    WebMail.SmtpServer = "smtp.qq.com";
+            //    WebMail.SmtpPort = 25;//端口号，不同SMTP服务器可能不同，可以查一下
+            //    WebMail.EnableSsl = false;//禁用SSL
+            //    WebMail.UserName = "3490212659";
+            //    WebMail.Password = "ABC@123.";
+            //    WebMail.From = "3490212659@qq.com";
+            //    WebMail.Send("250389538@qq.com,3490212659@qq.com", "空压机房异常", "空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+            //}
             #endregion
 
+            try
+            {
+                WebMail.SmtpServer = "smtp.163.com";
+                WebMail.SmtpPort = 25;//SMTP服务器端口号
+                WebMail.EnableSsl = true;//禁用SSL
+                WebMail.UserName = "18665227107";
+                WebMail.Password = "ABC@123.";
+                WebMail.From = "18665227107@163.com";
+                #region MyRegion
+                //List<string> EmailList = new List<string>
+                //{
+                // "2906397229@qq.com",
+                // "250389538@qq.com",
+                // "3490212659@qq.com"
+                //};
+                //foreach (var i in EmailList)
+                //{
+                //    WebMail.Send(i, "MES系统信息", "三台空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+                //}
+                #endregion
+
+                WebMail.Send("2906397229@qq.com,250389538@qq.com,3490212659@qq.com", "MES系统信息", "三台空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+            }
+
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+            }
+        }
+
+
+
+
+        #endregion
     }
 }

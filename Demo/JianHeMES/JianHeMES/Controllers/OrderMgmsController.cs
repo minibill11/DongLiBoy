@@ -16,7 +16,7 @@ namespace JianHeMESEntities.Controllers
 
         // GET: OrderMgms
 
-        #region  -------------检索订单号------
+        #region --------------------检索订单号
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.OrderMgm.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -34,7 +34,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region  //分页
+        #region --------------------分页
         private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)
@@ -48,7 +48,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region  ---------首页----------
+        #region --------------------首页
         // GET: OrderMgms
         public ActionResult Index()
         {
@@ -97,6 +97,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
+        #region --------------------Details页
         // GET: OrderMgms/Details/5
         public ActionResult Details(int? id)
         {
@@ -111,7 +112,9 @@ namespace JianHeMESEntities.Controllers
             }
             return View(orderMgm);
         }
+        #endregion
 
+        #region --------------------Create页
         // GET: OrderMgms/Create
         public ActionResult Create()
         {
@@ -151,7 +154,9 @@ namespace JianHeMESEntities.Controllers
 
             return View(orderMgm);
         }
+        #endregion
 
+        #region --------------------Edit页
         // GET: OrderMgms/Edit/5
         public ActionResult Edit(int? id)
         {
@@ -195,7 +200,9 @@ namespace JianHeMESEntities.Controllers
             }
             return View(orderMgm);
         }
+        #endregion
 
+        #region --------------------Delete页
         // GET: OrderMgms/Delete/5
         public ActionResult Delete(int? id)
         {
@@ -235,5 +242,6 @@ namespace JianHeMESEntities.Controllers
             }
             base.Dispose(disposing);
         }
+        #endregion
     }
 }

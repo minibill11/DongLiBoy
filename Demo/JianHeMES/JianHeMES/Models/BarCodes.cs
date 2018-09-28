@@ -23,6 +23,9 @@ namespace JianHeMES.Models
         [Display(Name = "条码")]
         public string BarCodesNum { get; set; }
 
+        [Display(Name = "模组箱体号")]
+        public string ModuleGroupNum { get; set; }
+
         [Required]
         [Display(Name = "类型")]
         public string BarCodeType { get; set; }

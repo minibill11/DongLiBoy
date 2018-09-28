@@ -19,7 +19,7 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region --------------------OQCNormal列表--------------------
+        #region ---------------------------------------OQCNormal列表
         private List<SelectListItem> OQCNormalList()
         {
             return new List<SelectListItem>()
@@ -38,7 +38,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region --------------------FinishStatus列表--------------------
+        #region ---------------------------------------FinishStatus列表
         private List<SelectListItem> FinishStatusList()
         {
             return new List<SelectListItem>()
@@ -57,9 +57,8 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-
-
-        #region  -----维修列表-----------
+        
+        #region ---------------------------------------维修列表
 
         private List<SelectListItem> SetRepairList()
         {
@@ -85,7 +84,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region -------老化首页---------
+        #region ---------------------------------------老化首页
         // GET: Burn_in
         public async Task<ActionResult> Index()
         {
@@ -276,7 +275,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region   ----------其他页面-------------------
+        #region ---------------------------------------其他页面
         // GET: Burn_in/Details/5
         public async Task<ActionResult> Details(int? id)
         {
@@ -403,7 +402,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region -------------单个模组老化开始-----------------
+        #region ---------------------------------------单个模组老化开始
 
 
         // GET: Burn_in/Burn_in_B
@@ -508,7 +507,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region -----------------------老化异常录入--------------------------------
+        #region ---------------------------------------老化异常录入
 
         public ActionResult AbnormalRecordInput()
         {
@@ -547,9 +546,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         //[ValidateAntiForgeryToken]
-        //public async Task<ActionResult> AbnormalRecordInput(string Id, string OrderNum, string BarCodeNum, string RepairCondition,string OQCPrincipal,string Burn_in_OQCCheckAbnormal)
         public async Task<ActionResult> AbnormalRecordInput(string Id, string Burn_in_OQCCheckAbnormal)
-        //public async Task<ActionResult> AbnormalRecordInput([Bind(Include = "Id,Burn_in_OQCCheckAbnormal")] Burn_in burn_in)
         {
             ApplicationDbContext db = new ApplicationDbContext();
             if (Id == null)
@@ -577,24 +574,9 @@ namespace JianHeMES.Controllers
             ViewBag.RepairList = SetRepairList();
             return View(burn_in);
         }
-
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<ActionResult> AbnormalRecordInput([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        db.Entry(burn_in).State = EntityState.Modified;
-        //        await db.SaveChangesAsync();
-        //        return RedirectToAction("Index");
-        //    }
-        //    ViewBag.RepairList = SetRepairList();
-
-        //    return View(burn_in);
-        //}
         #endregion
 
-        #region -------------单个模组老化完成------------
+        #region ---------------------------------------单个模组老化完成
         // GET: Burn_in/Burn_in_F
         public ActionResult Burn_in_F(int? id)
         {
@@ -663,7 +645,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ---------------------------------------批量模组老化开始--------------------------------------------
+        #region ---------------------------------------批量模组老化开始
 
 
         // GET: Burn_in/Burn_in_B
@@ -877,7 +859,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ------------------------------------批量模组老化完成---------------------------------------------
+        #region ---------------------------------------批量模组老化完成
 
         // GET: Burn_in/Burn_in_F
         public ActionResult Burn_in_Batch_F()
@@ -1163,7 +1145,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        #region ---------------------------------------取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
             var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
@@ -1181,7 +1163,7 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-        #region  -------------检索订单号------
+        #region ---------------------------------------检索订单号
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.OrderMgm.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -1199,7 +1181,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  -----------分页------------
+        #region ---------------------------------------分页
         private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)
@@ -1215,3 +1197,4 @@ namespace JianHeMES.Controllers
 
     }
 }
+

@@ -17,7 +17,7 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region --------------------OQCNormal列表--------------------
+        #region --------------------OQCNormal列表
         private List<SelectListItem> AppearancesNormalList()
         {
             return new List<SelectListItem>()
@@ -37,7 +37,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region  -----//维修列表-----------
+        #region --------------------维修列表-----------
 
         private List<SelectListItem> SetRepairList()
         {
@@ -64,7 +64,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region -------外观首页---------
+        #region --------------------外观首页---------
         // GET: Appearances
         public async Task<ActionResult> Index()
         {
@@ -236,6 +236,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
+        #region --------------------其他页面
         // GET: Appearances/Details/5
         public async Task<ActionResult> Details(int? id)
         {
@@ -267,7 +268,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
+        public async Task<ActionResult> Create([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
         {
             if (Session["User"] == null)
             {
@@ -310,7 +311,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
+        public async Task<ActionResult> Edit([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
         {
             if (Session["User"] == null)
             {
@@ -365,10 +366,10 @@ namespace JianHeMES.Controllers
             }
             base.Dispose(disposing);
         }
+        #endregion
 
 
-
-        #region ----------外观电检开始-----------------
+        #region --------------------外观电检开始-----------------
 
 
         // GET: Appearances/Appearance_B
@@ -391,7 +392,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
+        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
@@ -415,6 +416,8 @@ namespace JianHeMES.Controllers
                     appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
                     appearance.OQCCheckBT = DateTime.Now;
                     appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
+                    //增加模组箱体号到外观记录中
+                    appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
                     db.Appearance.Add(appearance);
                     db.SaveChanges();
                     return RedirectToAction("Appearance_F", new { appearance.Id });
@@ -438,6 +441,8 @@ namespace JianHeMES.Controllers
                         appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
                         appearance.OQCCheckBT = DateTime.Now;
                         appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
+                        //增加模组箱体号到外观记录中
+                        appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
                         db.Appearance.Add(appearance);
                         db.SaveChanges();
                         return RedirectToAction("Appearance_F", new { appearance.Id });
@@ -464,7 +469,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region -------------外观电检完成------------
+        #region --------------------外观电检完成------------
         // GET: Appearances/Appearance_F
         public ActionResult Appearance_F(int? id)
         {
@@ -491,7 +496,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
+        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
         {
             if (Session["User"] == null)
             {
@@ -510,7 +515,10 @@ namespace JianHeMES.Controllers
                 {
                     appearance.Appearance_OQCCheckAbnormal = "正常";
                 }
-                appearance.OQCCheckFinish = true;
+                if(appearance.Appearance_OQCCheckAbnormal=="正常" && appearance.RepairCondition=="正常")
+                {
+                    appearance.OQCCheckFinish = true;
+                }
             }
 
             if (ModelState.IsValid)
@@ -527,7 +535,7 @@ namespace JianHeMES.Controllers
 
 
 
-        #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        #region --------------------取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
         private List<SelectListItem> GetOrderList()
         {
             var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
@@ -545,7 +553,7 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-        #region  -------------检索订单号------
+        #region --------------------检索订单号------
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.OrderMgm.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -563,7 +571,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  -----------分页------------
+        #region --------------------分页------------
         private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)

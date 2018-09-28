@@ -28,7 +28,7 @@ namespace JianHeMES.Controllers
 
 
 
-        #region -----------------组装PQC详情页面-------------------
+        #region -----------------组装PQC详情页面
 
         [HttpPost]
         public ActionResult Assemble(string OrderNum)
@@ -236,7 +236,7 @@ namespace JianHeMES.Controllers
 
 
 
-        #region -----------------调试老化OQC详情页面-------------------
+        #region -----------------调试老化OQC详情页面
         [HttpPost]
         public ActionResult Burn_in(string OrderNum)
         {
@@ -430,7 +430,7 @@ namespace JianHeMES.Controllers
 
 
 
-        #region -----------------校正详情页面-------------------
+        #region -----------------校正详情页面
         [HttpPost]
         public ActionResult Calibration(string OrderNum)
         {
@@ -624,7 +624,7 @@ namespace JianHeMES.Controllers
 
 
 
-        #region -----------------外观包装OQC详情页面-------------------
+        #region -----------------外观包装OQC详情页面
         [HttpPost]
         public ActionResult Appearance(string OrderNum)
         {
@@ -734,7 +734,8 @@ namespace JianHeMES.Controllers
 
             #endregion
 
-            var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(finishedList.ToArray()).ToList().Except(going_temp.Select(c => c.BarCodesNum).ToArray()).ToList();//14.未开始外观包装OQC的条码清单、个数(排除已完成（包含正常异常）、正在进行)
+            //var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(finishedList.ToArray()).ToList().Except(going_temp.Select(c => c.BarCodesNum).ToArray()).ToList();//14.未开始外观包装OQC的条码清单、个数(排除已完成（包含正常异常）、正在进行)
+            var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(Appearance_Record.Select(m => m.BarCodesNum).ToList().Distinct().ToArray()).ToList();//14.未开始外观包装OQC的条码清单、个数(排除已有记录)
 
             string unbeginRecord = null;
             foreach (var item in unbeginRecord_temp)

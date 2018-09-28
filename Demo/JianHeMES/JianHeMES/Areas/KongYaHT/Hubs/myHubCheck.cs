@@ -100,7 +100,7 @@ namespace JianHeMES.Hubs
             }
             if (KY_json_old == KY_json) countsame++;
 
-            if (countsame==8|| countsame == 18 || countsame == 60 || countsame == 300 || countsame == 900 || countsame == 1800 || countsame == 3600 || countsame == 7200 || countsame == 14400 || countsame == 28800 || countsame == 43200 || countsame == 86400 || countsame == 172800 || countsame == 259200 || countsame == 345600)
+            if (countsame==8|| countsame == 18 || countsame == 30 || countsame == 60 || countsame == 300 || countsame == 900 || countsame == 1800 || countsame == 3600 || countsame == 7200 || countsame == 14400 || countsame == 28800 || countsame == 43200 || countsame == 86400 || countsame == 172800 || countsame == 259200 || countsame == 345600)
             {
                 switch (countsame)
                 {
@@ -109,6 +109,9 @@ namespace JianHeMES.Hubs
                         break;
                     case 18:
                         SendEmail2("18秒");//8秒
+                        break;
+                    case 30:
+                        SendEmail2("30秒");//30秒
                         break;
                     case 60:
                         SendEmail2("1分钟");//1分钟
@@ -386,16 +389,28 @@ namespace JianHeMES.Hubs
         private void SendEmail2(string a)
         {
             var errorMessage = "发送失败";
+            //try
+            //{
+            //    WebMail.SmtpServer = "smtp.qq.com";
+            //    WebMail.SmtpPort = 25;//25;//端口号，不同SMTP服务器可能不同，可以查一下
+            //    WebMail.EnableSsl = false;//禁用SSL
+            //    WebMail.UserName = "3490212659";
+            //    WebMail.Password = "ABC@123.";
+            //    WebMail.From = "3490212659@qq.com";
+            //    WebMail.Send("250389538@qq.com;3490212659@qq.com", "空压机房异常", "空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+            //}
+
             try
             {
-                WebMail.SmtpServer = "smtp.qq.com";
-                WebMail.SmtpPort = 25;//25;//端口号，不同SMTP服务器可能不同，可以查一下
-                WebMail.EnableSsl = false;//禁用SSL
-                WebMail.UserName = "3490212659";
-                WebMail.Password = "ABC@123.";
-                WebMail.From = "3490212659@qq.com";
-                WebMail.Send("250389538@qq.com;3490212659@qq.com", "空压机房异常", "空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+                WebMail.SmtpServer = "smtp.163.com";
+                WebMail.SmtpPort = 25;//端口号，不同SMTP服务器可能不同，可以查一下
+                WebMail.EnableSsl = true;//禁用SSL
+                WebMail.UserName = "gamon";
+                WebMail.Password = "gamonking800502";
+                WebMail.From = "gamon@163.com";
+                WebMail.Send("250389538@qq.com","空压机房异常", "空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
             }
+
             catch (Exception ex)
             {
                 errorMessage = ex.Message;

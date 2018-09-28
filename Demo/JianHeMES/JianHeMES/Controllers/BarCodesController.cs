@@ -14,8 +14,8 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region  -----//类型列表-----------
-        
+        #region --------------------类型列表
+
         private List<SelectListItem> SetTypeList()
         {
             return new List<SelectListItem>()
@@ -48,8 +48,8 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  -------------//检索订单号---------------
-        
+        #region --------------------检索订单号
+
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.BarCodes.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -68,8 +68,8 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region   ---------------//检索类型----------
-        
+        #region --------------------检索类型
+
         private List<SelectListItem> GetBarCodeTypeList()
         {
             var barcodetype = db.BarCodes.OrderBy(m => m.BarCodeType).Select(m => m.BarCodeType).Distinct();
@@ -87,7 +87,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ---------------//分页----------------
+        #region --------------------分页
         private static readonly int PAGE_SIZE = 20;
 
         private int GetPageCount(int recordCount)
@@ -116,7 +116,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  ----------首页---------------
+        #region --------------------首页
         // GET: BarCodes
         public ActionResult Index()
         {
@@ -183,7 +183,7 @@ namespace JianHeMES.Controllers
             return View();
         }
 
-        #region  --------------创建条码-----------------
+        #region --------------------创建条码
 
         public ActionResult CreateBarCodes(int? id)
         {
@@ -233,6 +233,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum= orderMgm.BarCode_Prefix + "A"+ i.ToString("00000");
                     aBarCode.BarCodeType = "模组";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -243,6 +244,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "B" + i.ToString("00000");
                     aBarCode.BarCodeType = "模块";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -253,6 +255,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "C" + i.ToString("00000");
                     aBarCode.BarCodeType = "电源";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -263,6 +266,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "D" + i.ToString("00000");
                     aBarCode.BarCodeType = "转接卡";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -278,7 +282,6 @@ namespace JianHeMES.Controllers
                 aOrder.BarCodeCreated = 1;
                 aOrder.BarCodeCreateDate = DateTime.Now;
                 aOrder.BarCodeCreator = ((Users)Session["User"]).UserName;
-            
                 db.SaveChanges();
             
                 //分页
@@ -302,7 +305,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region   ------------Details页----------------
+        #region --------------------Details页
 
         // GET: BarCodes/Details/5
         public ActionResult Details(int? id)
@@ -330,7 +333,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  -------------Create页-----------------
+        #region --------------------Create页
         // GET: BarCodes/Create
         public ActionResult Create()
         {
@@ -357,7 +360,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  -------------Edit页-------------
+        #region --------------------Edit页
         // GET: BarCodes/Edit/5
         public ActionResult Edit(int? id)
         {
@@ -401,7 +404,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ----------Delete页-------------
+        #region --------------------Delete页
         // GET: BarCodes/Delete/5
         public ActionResult Delete(int? id)
         {
