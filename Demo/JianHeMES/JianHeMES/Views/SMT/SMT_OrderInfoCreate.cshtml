@@ -1,0 +1,196 @@
+﻿@model JianHeMES.Models.SMT_OrderInfo
+
+@{
+    ViewBag.Title = "SMT_OrderInfoCreate";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/vue.js"></script>
+<h2>SMT_OrderInfoCreate</h2>
+
+<div id="app" class="form-horizontal">
+    <h4>SMT_OrderInfo</h4>
+    <hr>
+    <table id="para_table" class="table table-bordered">
+        <tr>
+            <th>订单号</th>
+            <th>数量</th>
+            <th>平台类型</th>
+            <th>客户</th>
+            <th>交货时间</th>
+            <th></th>
+        </tr>
+        <tr class="orderNum">
+            <td><input class="form-control"></td>
+            <td><input class="form-control number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="date"></td>
+            <td align="center"><button type="button" class="btn btn-link" disabled="disabled">移除</button></td>
+            @*<td><input class="check-box"  type="checkbox"></td>*@
+        </tr>
+        <tr class="orderNum">
+            <td><input class="form-control" type="text"></td>
+            <td><input class="form-control number" type="text" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control" type="text"></td>
+            <td><input class="form-control" type="text"></td>
+            <td><input class="form-control" type="date"></td>
+            <td align="center"><button type="button" class="btn btn-link" onclick="deletetr(this)">移除</button></td>
+        </tr>
+    </table>
+    <table class="table">
+        <tr>
+            <td colspan="5" style="text-align:center;border-top:none;"><button id="addtrdiv" class="btn btn-primary" onclick="addtr()">增加一行</button></td>
+        </tr>
+    </table>
+    <div id="setForm"></div>
+
+    <div class="form-group">
+        <div class="col-md-12">
+            <input value="创建" v-on:click="createPost" class="btn btn-default" type="button">
+        </div>
+    </div>
+</div>
+<div>
+    @Html.ActionLink("返回", "SMT_OrderMangage")
+</div>
+
+<script>
+    function addtr() {
+        var table = $("#para_table");
+        var tr = $("<tr class=\"orderNum\">" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control number\" onkeyup=\"value=value.replace(/[^\d]/g,'')\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\" type=\"date\"></td>" +
+            "<td  align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deletetr(this)\">移除</button></td></tr>");
+        table.append(tr);
+    }
+    function deletetr(tdobject) {
+        var td = $(tdobject);
+        td.parents("tr").remove();
+    }
+</script>
+<script type="text/javascript">
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            recordsArray: [],
+            recordsJson: {},
+            empty:false
+        },
+        methods: {
+            createPost: function (event) { //提交post内容
+                //event.preventDefault();
+                app.recordsArray = [];
+                app.recordsJson = {};
+                $(".orderNum").each(function (index, val) {
+                    app.recordsJson['OrderNum'] = val.children[0].firstChild.value;
+                    app.recordsJson['Quantity'] = val.children[1].firstChild.value;
+                    app.recordsJson['PlatformType'] = val.children[2].firstChild.value;
+                    app.recordsJson['Customer'] = val.children[3].firstChild.value;
+                    app.recordsJson['DeliveryDate'] = val.children[4].firstChild.value;
+                    //app.recordsJson['Status'] = val.children[5].firstChild.checked;
+                    for (var item in app.recordsJson) {
+                        if (app.recordsJson[item] == "") {
+                            console.log(item + ' : ' + app.recordsJson[item]);
+                            app.empty = false;
+                            return false;
+                        } else {
+                            app.empty = true;
+                        }
+                    };
+                });
+                if (app.empty == true) {
+                    app.recordsArray.push(app.recordsJson);
+                    this.$options.methods.postForm("/SMT/SMT_OrderInfoCreate", JSON.stringify(app.recordsArray));
+                } else {
+                    alert("内容不能为空");
+                };
+                app.recordsJson = {};
+                console.log(JSON.stringify(app.recordsArray))
+            },
+            postForm: function (url, params) {
+                var newForm = $("<form action=" + url + " method='post' style='display:none' ><input name='records' value=" + params + " ></form>");
+                $("#setForm").append(newForm);
+                newForm.submit();
+                newForm.remove();
+            }
+        },
+        computed: {
+
+        },
+        watch: {
+
+        }
+    });
+</script>
+
+@*@using (Html.BeginForm())
+    {
+        @Html.AntiForgeryToken()
+
+        <div class="form-horizontal">
+            <h4>SMT_OrderInfo</h4>
+            <hr />
+            @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Quantity, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.Quantity, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Quantity, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.PlatformType, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.PlatformType, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.PlatformType, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Customer, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.Customer, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Customer, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.DeliveryDate, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.DeliveryDate, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.DeliveryDate, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Status, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    <div class="checkbox">
+                        @Html.EditorFor(model => model.Status)
+                        @Html.ValidationMessageFor(model => model.Status, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-2 col-md-10">
+                    <input type="submit" value="创建" class="btn btn-default" />
+                </div>
+            </div>
+        </div>
+    }*@
+
+
