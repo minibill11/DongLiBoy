@@ -167,48 +167,66 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult AssembleStationB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,AssembleBT,AssemblePrincipal,AssembleFT")]Assemble assemble)
+        public ActionResult AssembleStationB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,AssembleBT,AssemblePrincipal,AssembleFT")]Assemble assemble, Boolean IsRepertory)
         {
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
+                if (Session["User"] == null)
+                {
+                    return RedirectToAction("Login", "Users");
+                }
+                //if(db.Assemble.Count(u=>u.BoxBarCode==assemble.BoxBarCode)>0)
+                if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
+                    return View(assemble);
+                }
 
-            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
-            //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
-            {
-                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
-                return View(assemble);
-            }
-            //if(db.Assemble.Count(u=>u.BoxBarCode==assemble.BoxBarCode)>0)
-            //{
-
-            //}
-
-            if (assemble.AssembleBT == null)
-            {
-                assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
-                assemble.AssembleBT = DateTime.Now;
-                assemble.AssemblePrincipal = ((Users)Session["User"]).UserName;
-                db.Assemble.Add(assemble);
-                db.SaveChanges();
-                return RedirectToAction("AssembleStationF", new { assemble.Id });
+                if (assemble.AssembleBT == null)
+                {
+                    assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
+                    assemble.AssembleBT = DateTime.Now;
+                    assemble.AssemblePrincipal = ((Users)Session["User"]).UserName;
+                    db.Assemble.Add(assemble);
+                    db.SaveChanges();
+                    return RedirectToAction("AssembleStationF", new { assemble.Id });
+                }
+                else
+                {
+                    //assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                    //取出对应的id号
+                    return RedirectToAction("AssembleStationF", new { assemble.Id });
+                }
             }
             else
             {
-                //assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
-                //取出对应的id号
-                return RedirectToAction("AssembleStationF", new { assemble.Id });
-            }
+                //...TODO..
+                //return View(assemble);
+                if (Session["User"] == null)
+                {
+                    return RedirectToAction("Login", "Users");
+                }
+                if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
+                    return View(assemble);
+                }
 
-            //assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
-            //assemble.AssembleBT = DateTime.Now;
-            //assemble.AssemblePrincipal = ((Users)Session["User"]).UserName;
-            //db.Assemble.Add(assemble);
-            ////db.Configuration.ValidateOnSaveEnabled = false;
-            //db.SaveChanges();
-            ////db.Configuration.ValidateOnSaveEnabled = true;
-            //return RedirectToAction("AssembleStationF", new { assemble.Id});
+                if (assemble.AssembleBT == null)
+                {
+                    assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
+                    assemble.AssembleBT = DateTime.Now;
+                    assemble.AssemblePrincipal = ((Users)Session["User"]).UserName;
+                    db.Assemble.Add(assemble);
+                    db.SaveChanges();
+                    return RedirectToAction("AssembleStationF", new { assemble.Id });
+                }
+                else
+                {
+                    //取出对应的id号
+                    return RedirectToAction("AssembleStationF", new { assemble.Id });
+                }
+            }
         }
 
         // GET: Assembles/Edit/5
@@ -285,48 +303,57 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult WaterproofTestB([Bind(Include = "Id,BoxBarCode,WaterproofTestBT,WaterproofTestPrincipal")] Assemble assemble)
+        public ActionResult WaterproofTestB([Bind(Include = "Id,BoxBarCode,WaterproofTestBT,WaterproofTestPrincipal")] Assemble assemble, Boolean IsRepertory)
         {
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
+                if (Session["User"] == null)
+                {
+                    return RedirectToAction("Login", "Users");
+                }
 
 
-            if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
-            {
-                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查组装工作是否已经完成！");
-                return View(assemble);
-            }
-            assemble = db.Assemble.FirstOrDefault(u=>u.BoxBarCode == assemble.BoxBarCode);
+                if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查组装工作是否已经完成！");
+                    return View(assemble);
+                }
+                assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
 
-            if (assemble.AssembleFinish==false)
-            {
-                ModelState.AddModelError("", "组装工作尚未完成，不能进行防水工作！");
-                return View(assemble);
-            }
+                if (assemble.AssembleFinish == false)
+                {
+                    ModelState.AddModelError("", "组装工作尚未完成，不能进行防水工作！");
+                    return View(assemble);
+                }
 
-            if (assemble.WaterproofTestBT == null)
-            {
-                assemble.WaterproofTestBT = DateTime.Now;
-                assemble.WaterproofTestPrincipal = ((Users)Session["User"]).UserName;
-                db.SaveChanges();
-                return RedirectToAction("WaterproofTestF", new { assemble.Id });
+                if (assemble.WaterproofTestBT == null)
+                {
+                    assemble.WaterproofTestBT = DateTime.Now;
+                    assemble.WaterproofTestPrincipal = ((Users)Session["User"]).UserName;
+                    db.SaveChanges();
+                    return RedirectToAction("WaterproofTestF", new { assemble.Id });
+                }
+                else
+                {
+                    //取出对应的id号
+                    return RedirectToAction("WaterproofTestF", new { assemble.Id });
+                }
+
+                //if (ModelState.IsValid)
+                //{
+                //    db.Entry(assemble).State = EntityState.Modified;
+                //    db.SaveChanges();
+                //    return RedirectToAction("WaterproofTestF", new { assemble.Id });
+                //}
+                //return View(assemble);
+                //return View(assemble);
             }
             else
             {
-                //取出对应的id号
-                return RedirectToAction("WaterproofTestF", new { assemble.Id });
+                //...TODO..
+                return View(assemble);
             }
 
-            //if (ModelState.IsValid)
-            //{
-            //    db.Entry(assemble).State = EntityState.Modified;
-            //    db.SaveChanges();
-            //    return RedirectToAction("WaterproofTestF", new { assemble.Id });
-            //}
-            //return View(assemble);
-            //return View(assemble);
         }
 
         public ActionResult WaterproofTestF(int? id)
@@ -398,41 +425,50 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult AssembleAdapterCardB([Bind(Include = "Id,BoxBarCode,AssembleAdapterCardBT,AssembleAdapterCardPrincipal")] Assemble assemble)
+        public ActionResult AssembleAdapterCardB([Bind(Include = "Id,BoxBarCode,AssembleAdapterCardBT,AssembleAdapterCardPrincipal")] Assemble assemble, Boolean IsRepertory)
         {
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
+                if (Session["User"] == null)
+                {
+                    return RedirectToAction("Login", "Users");
+                }
 
 
-            if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
-            {
-                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查防水测试工作是否已经完成！");
-                return View(assemble);
-            }
-            assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查防水测试工作是否已经完成！");
+                    return View(assemble);
+                }
+                assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
 
-            if (assemble.WaterproofTestFinish == false)
-            {
-                ModelState.AddModelError("", "防水测试工作尚未完成，不能进行转接卡及电源组装工作！");
-                return View(assemble);
-            }
+                if (assemble.WaterproofTestFinish == false)
+                {
+                    ModelState.AddModelError("", "防水测试工作尚未完成，不能进行转接卡及电源组装工作！");
+                    return View(assemble);
+                }
 
-            if (assemble.AssembleAdapterCardBT == null)
-            {
-                assemble.AssembleAdapterCardBT = DateTime.Now;
-                assemble.AssembleAdapterCardPrincipal = ((Users)Session["User"]).UserName;
-                db.SaveChanges();
-                return RedirectToAction("AssembleAdapterCardF", new { assemble.Id });
+                if (assemble.AssembleAdapterCardBT == null)
+                {
+                    assemble.AssembleAdapterCardBT = DateTime.Now;
+                    assemble.AssembleAdapterCardPrincipal = ((Users)Session["User"]).UserName;
+                    db.SaveChanges();
+                    return RedirectToAction("AssembleAdapterCardF", new { assemble.Id });
+                }
+                else
+                {
+                    //assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                    //取出对应的id号
+                    return RedirectToAction("AssembleAdapterCardF", new { assemble.Id });
+                }
+                //return View(assemble);
             }
             else
             {
-                //assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
-                //取出对应的id号
-                return RedirectToAction("AssembleAdapterCardF", new { assemble.Id });
+                //...TODO..
+                return View(assemble);
             }
-            //return View(assemble);
+
         }
 
         public ActionResult AssembleAdapterCardF(int? id)
@@ -508,40 +544,49 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult ViewCheckB([Bind(Include = "Id,BoxBarCode,ViewCheckBT,AssembleViewCheckPrincipal")] Assemble assemble)
+        public ActionResult ViewCheckB([Bind(Include = "Id,BoxBarCode,ViewCheckBT,AssembleViewCheckPrincipal")] Assemble assemble, Boolean IsRepertory)
         {
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
+                if (Session["User"] == null)
+                {
+                    return RedirectToAction("Login", "Users");
+                }
 
-            if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
-            {
-                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查转接卡、电源组装工作是否已经完成！");
-                return View(assemble);
-            }
-            assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查转接卡、电源组装工作是否已经完成！");
+                    return View(assemble);
+                }
+                assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
 
-            if (assemble.AssembleAdapterFinish == false)
-            {
-                ModelState.AddModelError("", "转接卡、电源组装工作尚未完成，不能进行视检工作！");
-                return View(assemble);
-            }
+                if (assemble.AssembleAdapterFinish == false)
+                {
+                    ModelState.AddModelError("", "转接卡、电源组装工作尚未完成，不能进行视检工作！");
+                    return View(assemble);
+                }
 
-            if (assemble.ViewCheckBT == null)
-            {
-                assemble.ViewCheckBT = DateTime.Now;
-                assemble.AssembleViewCheckPrincipal = ((Users)Session["User"]).UserName;
-                db.SaveChanges();
-                return RedirectToAction("ViewCheckF", new { assemble.Id });
+                if (assemble.ViewCheckBT == null)
+                {
+                    assemble.ViewCheckBT = DateTime.Now;
+                    assemble.AssembleViewCheckPrincipal = ((Users)Session["User"]).UserName;
+                    db.SaveChanges();
+                    return RedirectToAction("ViewCheckF", new { assemble.Id });
+                }
+                else
+                {
+                    //取出对应的id号
+                    return RedirectToAction("ViewCheckF", new { assemble.Id });
+                }
+
+                //return View(assemble);
             }
             else
             {
-                //取出对应的id号
-                return RedirectToAction("ViewCheckF", new { assemble.Id });
+                //...TODO..
+                return View(assemble);
             }
 
-            //return View(assemble);
         }
 
         public ActionResult ViewCheckF(int? id)
@@ -608,41 +653,50 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult ElectricityCheckB([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal")] Assemble assemble)
+        public ActionResult ElectricityCheckB([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal")] Assemble assemble, Boolean IsRepertory)
         {
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
+                if (Session["User"] == null)
+                {
+                    return RedirectToAction("Login", "Users");
+                }
 
-            if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
-            {
-                ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查视检工作是否已经完成！");
-                return View(assemble);
-            }
-            assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查视检工作是否已经完成！");
+                    return View(assemble);
+                }
+                assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
 
-            if (assemble.ViewCheckFinish == false)
-            {
-                ModelState.AddModelError("", "视检工作尚未完成，不能进行电检工作！");
-                return View(assemble);
-            }
+                if (assemble.ViewCheckFinish == false)
+                {
+                    ModelState.AddModelError("", "视检工作尚未完成，不能进行电检工作！");
+                    return View(assemble);
+                }
 
-            if (assemble.ElectricityCheckBT == null)
-            {
-                assemble.ElectricityCheckBT = DateTime.Now;
-                assemble.AssembleElectricityCheckPrincipal = ((Users)Session["User"]).UserName;
-                db.SaveChanges();
-                return RedirectToAction("ElectricityCheckF", new { assemble.Id });
+                if (assemble.ElectricityCheckBT == null)
+                {
+                    assemble.ElectricityCheckBT = DateTime.Now;
+                    assemble.AssembleElectricityCheckPrincipal = ((Users)Session["User"]).UserName;
+                    db.SaveChanges();
+                    return RedirectToAction("ElectricityCheckF", new { assemble.Id });
+                }
+                else
+                {
+                    //assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
+                    //取出对应的id号
+                    return RedirectToAction("ElectricityCheckF", new { assemble.Id });
+                }
+
+                //return View(assemble);
             }
             else
             {
-                //assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
-                //取出对应的id号
-                return RedirectToAction("ElectricityCheckF", new { assemble.Id });
+                //...TODO..
+                return View(assemble);
             }
 
-            //return View(assemble);
         }
 
         public ActionResult ElectricityCheckF(int? id)
@@ -706,7 +760,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "组装PQC"|| ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "组装PQC" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
@@ -716,65 +770,37 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal")] Assemble assemble)
+        public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal")] Assemble assemble, Boolean IsRepertory)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
-
-            //在BarCodes条码表中找不到此条码号
-            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)   
-            {
-                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
-                return View(assemble);
-            }
-            if(db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode).OrderNum != assemble.OrderNum)
-            {
-                ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
-                return View(assemble);
-            }
-            //在BarCodes条码表中找到此条码号
-            //在Assembles组装记录表中找不到对应BoxBarCode的记录，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
-            if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
-            {
-                if (assemble.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum)
+                ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+                if (Session["User"] == null)
                 {
-                    //var assembleRecord = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
-                    assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
-                    assemble.BarCode_Prefix = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().BarCode_Prefix;
-                    assemble.PQCCheckBT = DateTime.Now;
-                    assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
-                    db.Assemble.Add(assemble);
-                    db.SaveChanges();
-                    return RedirectToAction("PQCCheckF", new { assemble.Id });
-                }else
+                    return RedirectToAction("Login", "Users");
+                }
+
+                //在BarCodes条码表中找不到此条码号
+                if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
+                {
+                    ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
+                    return View(assemble);
+                }
+                if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode).OrderNum != assemble.OrderNum)
                 {
                     ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                     return View(assemble);
                 }
-
-            }
-            //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有完成的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
-            else if (db.Assemble.Count(u => u.BoxBarCode == assemble.BoxBarCode) >= 1)
-            {
-                var assemblelist = db.Assemble.Where(m => m.BoxBarCode == assemble.BoxBarCode).ToList();
-                int finishCount = assemblelist.Where(m => m.PQCCheckFinish == true).Count();
-                if (finishCount == 0)
+                //在BarCodes条码表中找到此条码号
+                //在Assembles组装记录表中找不到对应BoxBarCode的记录，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
+                if (db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode) == null)
                 {
-                    foreach (var item in assemblelist)
-                    {
-                        if (item.PQCCheckBT != null && item.PQCCheckFT == null)  //如果只有开始时间，没有结束时间，把此记录调出来
-                        {
-                            assemble = item;
-                            return RedirectToAction("PQCCheckF", new { assemble.Id });
-                        }
-                    }
-
                     if (assemble.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum)
                     {
+                        //var assembleRecord = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
                         assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
+                        assemble.BarCode_Prefix = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().BarCode_Prefix;
                         assemble.PQCCheckBT = DateTime.Now;
                         assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
                         db.Assemble.Add(assemble);
@@ -786,20 +812,59 @@ namespace JianHeMES.Controllers
                         ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                         return View(assemble);
                     }
-                    
+
+                }
+                //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有完成的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
+                else if (db.Assemble.Count(u => u.BoxBarCode == assemble.BoxBarCode) >= 1)
+                {
+                    var assemblelist = db.Assemble.Where(m => m.BoxBarCode == assemble.BoxBarCode).ToList();
+                    int finishCount = assemblelist.Where(m => m.PQCCheckFinish == true).Count();
+                    if (finishCount == 0)
+                    {
+                        foreach (var item in assemblelist)
+                        {
+                            if (item.PQCCheckBT != null && item.PQCCheckFT == null)  //如果只有开始时间，没有结束时间，把此记录调出来
+                            {
+                                assemble = item;
+                                return RedirectToAction("PQCCheckF", new { assemble.Id });
+                            }
+                        }
+
+                        if (assemble.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum)
+                        {
+                            assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
+                            assemble.PQCCheckBT = DateTime.Now;
+                            assemble.AssemblePQCPrincipal = ((Users)Session["User"]).UserName;
+                            db.Assemble.Add(assemble);
+                            db.SaveChanges();
+                            return RedirectToAction("PQCCheckF", new { assemble.Id });
+                        }
+                        else
+                        {
+                            ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                            return View(assemble);
+                        }
+
+                    }
+                    else
+                    {
+                        //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Assembles/AssembleIndex';</script>");
+                        ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
+                        return View(assemble);
+                    }
                 }
                 else
                 {
-                    //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Assembles/AssembleIndex';</script>");
-                    ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
-                    return View(assemble);
+                    //return RedirectToAction("PQCCheckF", new { assemble.Id });
+                    return RedirectToAction("AssembleIndex");
                 }
             }
             else
             {
-                //return RedirectToAction("PQCCheckF", new { assemble.Id });
-                return RedirectToAction("AssembleIndex");
+                //...TODO..
+                return View(assemble);
             }
+
         }
 
         public ActionResult PQCCheckF(int? id)
@@ -824,7 +889,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        
+
         //public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BoxBarCode,PQCCheckBT,PQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish")] Assemble assemble)
         public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish")] Assemble assemble)
         {
@@ -917,7 +982,7 @@ namespace JianHeMES.Controllers
             else
             {
                 //筛选出对应orderNum所有记录
-                Allassembles = from m in db.Assemble 
+                Allassembles = from m in db.Assemble
                                where (m.OrderNum == orderNum)
                                select m;
             }
@@ -941,7 +1006,7 @@ namespace JianHeMES.Controllers
             //正常、异常记录筛选
             if (PQCNormal == "异常")
             {
-                Allassembles = from m in Allassembles where (m.PQCCheckAbnormal !="正常") select m;
+                Allassembles = from m in Allassembles where (m.PQCCheckAbnormal != "正常") select m;
             }
             else if (PQCNormal == "正常")
             {
@@ -973,9 +1038,9 @@ namespace JianHeMES.Controllers
 
             //取出对应orderNum对应组装中PQC时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.Assemble
-                                                    where (m.OrderNum == orderNum)
-                                                    orderby m.PQCCheckTime
-                                                    select m.PQCCheckTime;
+                                                 where (m.OrderNum == orderNum)
+                                                 orderby m.PQCCheckTime
+                                                 select m.PQCCheckTime;
 
             //计算校正总时长  TotalTimeSpan
             TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
@@ -1025,15 +1090,15 @@ namespace JianHeMES.Controllers
                     //item.ModelList = JsonConvert.SerializeObject(modelCollectionsList);
                     foreach (var it in modelCollectionsList)
                     {
-                        item.ModelList = item.ModelList + "位置ID:"+it.StationId + "," + "\r\n"+"模块条码号:" + it.BarCodesNum+ "；"+ "\r\n";
+                        item.ModelList = item.ModelList + "位置ID:" + it.StationId + "," + "\r\n" + "模块条码号:" + it.BarCodesNum + "；" + "\r\n";
                     }
                 }
                 List<AdapterCard_Power_Collection> AdapterCard_Power_List = db.AdapterCard_Power_Collection.Where(m => m.BoxBarCode == item.BoxBarCode).ToList();
                 if (AdapterCard_Power_List != null)
-                { 
+                {
                     foreach (var it in AdapterCard_Power_List)
                     {
-                        item.AdapterCard_Power_List =item.AdapterCard_Power_List + it.BarCodesNum+",";
+                        item.AdapterCard_Power_List = item.AdapterCard_Power_List + it.BarCodesNum + ",";
                     }
                 }
                 //item.ModelCollections.AddRange(list.ToList());
@@ -1087,7 +1152,7 @@ namespace JianHeMES.Controllers
         [HttpPost]
         public Boolean CheckBarCode(string barcode)
         {
-            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == barcode)==null)
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == barcode) == null)
             {
                 return false;
             }
@@ -1255,7 +1320,7 @@ namespace JianHeMES.Controllers
                                .Skip(pageIndex * PAGE_SIZE)
                                .Take(PAGE_SIZE).ToList();
             return assemble;
-         }
+        }
         #endregion
 
     }

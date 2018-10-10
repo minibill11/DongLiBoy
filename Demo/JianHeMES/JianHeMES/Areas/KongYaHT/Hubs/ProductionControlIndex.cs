@@ -61,7 +61,7 @@ namespace JianHeMESEntities.Hubs
 
         private void ProductionControlIndexBroadcastShape(object state)
         {   // 定期执行的方法
-            //三楼温湿度数据
+            // 三楼温湿度数据
             JObject ProductionControlIndex = new JObject();   //创建JSON对象
             //取出数据
             using (var db = new ApplicationDbContext())

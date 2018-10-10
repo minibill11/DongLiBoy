@@ -26,8 +26,8 @@ namespace JianHeMES.Controllers
 
         public ActionResult SMT_Mangage()
         {
-            List<SMT_ProcutionLineInfo> SMT_ProcutionLineInfos = new List<SMT_ProcutionLineInfo>();
-            SMT_ProcutionLineInfos = db.SMT_ProcutionLineInfo.ToList();
+            List<SMT_ProductionLineInfo> SMT_ProcutionLineInfos = new List<SMT_ProductionLineInfo>();
+            SMT_ProcutionLineInfos = db.SMT_ProductionLineInfo.ToList();
             if (SMT_ProcutionLineInfos != null)
             {
                 return View(SMT_ProcutionLineInfos);
@@ -48,7 +48,7 @@ namespace JianHeMES.Controllers
         [HttpPost]
         public ActionResult SMT_ProductionLineCreate(FormCollection fc)
         {
-            SMT_ProcutionLineInfo newline = new SMT_ProcutionLineInfo();
+            SMT_ProductionLineInfo newline = new SMT_ProductionLineInfo();
             newline.LineNum = Convert.ToInt32(fc["LineNum"]);
             newline.CreateDate = DateTime.Now;
             newline.Team = fc["Team"];
@@ -57,7 +57,7 @@ namespace JianHeMES.Controllers
             ViewBag.Status = ProductionLineStatus();
             if (ModelState.IsValid)
             {
-                db.SMT_ProcutionLineInfo.Add(newline);
+                db.SMT_ProductionLineInfo.Add(newline);
                 db.SaveChanges();
                 return RedirectToAction("SMT_Mangage");
             }
@@ -74,7 +74,7 @@ namespace JianHeMES.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            SMT_ProcutionLineInfo record = await db.SMT_ProcutionLineInfo.FindAsync(id);
+            SMT_ProductionLineInfo record = await db.SMT_ProductionLineInfo.FindAsync(id);
             if (record == null)
             {
                 return HttpNotFound();
@@ -84,7 +84,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> SMT_ProductionLineEdit([Bind(Include = "Id,LineNum,ProducingOrderNum,CreateDate,Team,GroupLeader,Status")]SMT_ProcutionLineInfo record)
+        public async Task<ActionResult> SMT_ProductionLineEdit([Bind(Include = "Id,LineNum,ProducingOrderNum,CreateDate,Team,GroupLeader,Status")]SMT_ProductionLineInfo record)
         {
             if (ModelState.IsValid)
             {
@@ -206,7 +206,7 @@ namespace JianHeMES.Controllers
         // GET: SMT用户管理
         public ActionResult SMT_UserMangage()
         {
-            List<Users> SMT_User = db.Users.Where(c => c.Department == "SMT").ToList();
+            List<Users> SMT_User = db.Users.Where(c => c.Department == "SMT" && c.Role!="经理").ToList();
             return View(SMT_User);
         }
 
@@ -339,11 +339,11 @@ namespace JianHeMES.Controllers
         }
 
         //产线看板页面
-        [HttpPost]
-        public ActionResult SMT_ProductionLineInfo(int i)
+        //[HttpPost]
+        public ActionResult SMT_ProductionLineInfo(int LineNum)
         {
             //内容:痴线号，时间，班组，组长，正在生产的订单，良品数量，不良品数量，不良率，产线累计个数，订单完成率，今天计划订单，产线状态
-            ViewBag.LineNum = i;//获取产线号
+            ViewBag.LineNum = LineNum;//获取产线号
 
 
             return View();
@@ -352,22 +352,25 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region------------------生产操作
+        #region------------------生产操作(数据)
         // GET: SMT产线未段工位输入操作
-        public ActionResult InPutInfo()
+        public ActionResult SMT_Operator()
         {
-           //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
-
+            //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
             return View();
         }
 
         [HttpPost]
-        public ActionResult InPutInfo(string OrderNum, string Result)
+        //public ActionResult SMT_Operator(string OrderNum, int LineNum, string Result)
+        public ActionResult SMT_Operator(FormCollection fc)
         {
+
+            string ordernum = fc["OrderNum"];
+            int linenum = Convert.ToInt32(fc["LineNum"]);
+            string result = fc["Result"];
 
             return View();
         }
-
         #endregion
 
 

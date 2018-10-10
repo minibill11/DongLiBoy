@@ -36,6 +36,13 @@ namespace JianHeMES.Models
         [Display(Name = "创建人")]
         public string Creator { get; set; }
 
+        [Display(Name = "是否为库存")]
+        public Boolean IsRepertory { get; set; }
+
+        [Display(Name = "备注")]
+        public string Remark { get; set; }
+
+
         public virtual List<OrderMgm> OrderMgm { get; set; }
         public virtual List<Assemble> Assemble { get; set; }
         public virtual List<Users> Users { get; set; }

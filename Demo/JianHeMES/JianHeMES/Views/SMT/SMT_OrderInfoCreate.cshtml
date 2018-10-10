@@ -1,16 +1,21 @@
 ﻿@model JianHeMES.Models.SMT_OrderInfo
 
 @{
-    ViewBag.Title = "SMT_OrderInfoCreate";
+    ViewBag.Title = "SMT_订单创建";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <script src="~/Scripts/jquery-1.11.3.js"></script>
 <script src="~/Scripts/vue.js"></script>
-<h2>SMT_OrderInfoCreate</h2>
+<h2>@ViewBag.Title</h2>
 
 <div id="app" class="form-horizontal">
-    <h4>SMT_OrderInfo</h4>
+    @*<h4>SMT_OrderInfo</h4>*@
     <hr>
+    <table class="table">
+        <tr>
+            <td colspan="6" style="border-top:none;color:green"><span>Excel内容粘贴在此处</span><textarea v-model="pasteExcel" class="form-control" style="width:130px;height:35px;resize: none;"></textarea></td>
+        </tr>
+    </table>
     <table id="para_table" class="table table-bordered">
         <tr>
             <th>订单号</th>
@@ -22,19 +27,19 @@
         </tr>
         <tr class="orderNum">
             <td><input class="form-control"></td>
-            <td><input class="form-control number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
             <td><input class="form-control"></td>
             <td><input class="form-control"></td>
-            <td><input class="form-control" type="date"></td>
-            <td align="center"><button type="button" class="btn btn-link" disabled="disabled">移除</button></td>
+            <td><input class="form-control" type="datetime"></td>
+            <td align="center"><button type="button" class="btn btn-link" onclick="emptytr(this)">清空</button></td>
             @*<td><input class="check-box"  type="checkbox"></td>*@
         </tr>
         <tr class="orderNum">
-            <td><input class="form-control" type="text"></td>
-            <td><input class="form-control number" type="text" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
-            <td><input class="form-control" type="text"></td>
-            <td><input class="form-control" type="text"></td>
-            <td><input class="form-control" type="date"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="datetime"></td>
             <td align="center"><button type="button" class="btn btn-link" onclick="deletetr(this)">移除</button></td>
         </tr>
     </table>
@@ -60,17 +65,23 @@
         var table = $("#para_table");
         var tr = $("<tr class=\"orderNum\">" +
             "<td><input class=\"form-control\"></td>" +
-            "<td><input class=\"form-control number\" onkeyup=\"value=value.replace(/[^\d]/g,'')\"></td>" +
+            "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
             "<td><input class=\"form-control\"></td>" +
             "<td><input class=\"form-control\"></td>" +
-            "<td><input class=\"form-control\" type=\"date\"></td>" +
+            "<td><input class=\"form-control\" type=\"datetime\"></td>" +
             "<td  align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deletetr(this)\">移除</button></td></tr>");
         table.append(tr);
-    }
+    };
     function deletetr(tdobject) {
         var td = $(tdobject);
         td.parents("tr").remove();
-    }
+    };
+    function emptytr(tdobject) {
+        var td = $(tdobject);
+        td.parents("tr").children("td").each(function (index, val) {
+            val.firstChild.value = "";
+        })
+    };
 </script>
 <script type="text/javascript">
     var app = new Vue({ //创建Vue对象实例
@@ -78,38 +89,57 @@
         data: {
             recordsArray: [],
             recordsJson: {},
-            empty:false
+            okNum: 0,
+            emptyNum: 0,
+            pasteExcel: "",
         },
         methods: {
             createPost: function (event) { //提交post内容
                 //event.preventDefault();
                 app.recordsArray = [];
                 app.recordsJson = {};
+                app.okNum = 0;
+                app.emptyNum = 0;
                 $(".orderNum").each(function (index, val) {
-                    app.recordsJson['OrderNum'] = val.children[0].firstChild.value;
-                    app.recordsJson['Quantity'] = val.children[1].firstChild.value;
-                    app.recordsJson['PlatformType'] = val.children[2].firstChild.value;
-                    app.recordsJson['Customer'] = val.children[3].firstChild.value;
-                    app.recordsJson['DeliveryDate'] = val.children[4].firstChild.value;
-                    //app.recordsJson['Status'] = val.children[5].firstChild.checked;
-                    for (var item in app.recordsJson) {
-                        if (app.recordsJson[item] == "") {
-                            console.log(item + ' : ' + app.recordsJson[item]);
-                            app.empty = false;
-                            return false;
+                    if (val.children[0].firstChild.value != ""
+                        || val.children[1].firstChild.value != ""
+                        || val.children[2].firstChild.value != ""
+                        || val.children[3].firstChild.value != ""
+                        || val.children[4].firstChild.value != "") {
+                        if (val.children[0].firstChild.value != ""
+                        && val.children[1].firstChild.value != ""
+                        && val.children[2].firstChild.value != ""
+                        && val.children[3].firstChild.value != ""
+                        && val.children[4].firstChild.value != "") {
+                            app.recordsJson['OrderNum'] = val.children[0].firstChild.value;
+                            app.recordsJson['Quantity'] = val.children[1].firstChild.value;
+                            app.recordsJson['PlatformType'] = val.children[2].firstChild.value;
+                            app.recordsJson['Customer'] = val.children[3].firstChild.value;
+                            app.recordsJson['DeliveryDate'] = val.children[4].firstChild.value;
+                            //app.recordsJson['Status'] = val.children[5].firstChild.checked;
+                            app.recordsArray.push(app.recordsJson);
+                            app.recordsJson = {};
+                            $(val.children).each(function (i, v) {
+                                $(v.firstChild).next().remove("p");
+                            });
+                            app.okNum++;
                         } else {
-                            app.empty = true;
-                        }
+                            $(val.children).each(function (i, v) {
+                                $(v.firstChild).next().remove("p");
+                                if (v.firstChild.value == "" && v.firstChild.type != "button") {
+                                    $(v).append($("<p style=\"color:red\">内容不能为空</p>"));
+                                }
+                            });
+                        };
+                    } else {
+                        app.emptyNum++;
                     };
                 });
-                if (app.empty == true) {
-                    app.recordsArray.push(app.recordsJson);
+                if (($(".orderNum").length - app.emptyNum) == app.okNum && app.okNum != 0) {
+                    //alert("ok");
+                    //console.log(JSON.stringify(app.recordsArray))
                     this.$options.methods.postForm("/SMT/SMT_OrderInfoCreate", JSON.stringify(app.recordsArray));
-                } else {
-                    alert("内容不能为空");
                 };
-                app.recordsJson = {};
-                console.log(JSON.stringify(app.recordsArray))
             },
             postForm: function (url, params) {
                 var newForm = $("<form action=" + url + " method='post' style='display:none' ><input name='records' value=" + params + " ></form>");
@@ -122,7 +152,46 @@
 
         },
         watch: {
-
+            pasteExcel: function (val) {
+                if (val == "") {
+                    return false;
+                };
+                var pasteQuantity = val.split("\n");
+                pasteQuantity.pop();
+                pasteQuantity.forEach(function (value, index) {
+                    var cutPasteQuantity = value.split("\t")
+                    pasteQuantity[index] = cutPasteQuantity;
+                    //console.log(cutPasteQuantity);
+                });
+                //console.log(pasteQuantity);
+                var tableLength = $(".orderNum").length;
+                var pasteLength = pasteQuantity.length;
+                if (tableLength < pasteQuantity.length) {
+                    for (var i = 0; i < (pasteLength - tableLength) ; i++) {
+                        addtr();
+                    };
+                    $(".orderNum").each(function (index, val) {
+                        if (index < pasteLength) {
+                            val.children[0].firstChild.value = pasteQuantity[index][0];
+                            val.children[1].firstChild.value = pasteQuantity[index][1];
+                            val.children[2].firstChild.value = pasteQuantity[index][2];
+                            val.children[3].firstChild.value = pasteQuantity[index][3];
+                            val.children[4].firstChild.value = pasteQuantity[index][4];
+                        };
+                    });
+                } else {
+                    $(".orderNum").each(function (index, val) {
+                        if (index < pasteLength) {
+                            val.children[0].firstChild.value = pasteQuantity[index][0];
+                            val.children[1].firstChild.value = pasteQuantity[index][1];
+                            val.children[2].firstChild.value = pasteQuantity[index][2];
+                            val.children[3].firstChild.value = pasteQuantity[index][3];
+                            val.children[4].firstChild.value = pasteQuantity[index][4];
+                        };
+                    });
+                };
+                app.pasteExcel = "";
+            }
         }
     });
 </script>

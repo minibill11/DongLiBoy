@@ -31,7 +31,7 @@ namespace JianHeMES.Models
         public Boolean Status { get; set; }
 
         public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
-        public virtual List<SMT_ProcutionLineInfo> SMT_ProcutionLineInfo { get; set; }
+        public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
         public virtual List<SMT_ProductionData> SMT_ProductionData { get; set; }
 
     }
@@ -52,14 +52,14 @@ namespace JianHeMES.Models
 
 
 
-        public virtual List<SMT_ProcutionLineInfo> SMT_ProcutionLineInfo { get; set; }
+        public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
         public virtual List<SMT_OrderInfo> SMT_OrderInfo { get; set; }
         public virtual List<SMT_ProductionData> SMT_ProductionData { get; set; }
 
 
     }
 
-    public class SMT_ProcutionLineInfo
+    public class SMT_ProductionLineInfo
     {
         [Key]
         public int Id { get; set; }
@@ -138,7 +138,7 @@ namespace JianHeMES.Models
         public DateTime? ProductionDate { get; set; }
 
         public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
-        public virtual List<SMT_ProcutionLineInfo> SMT_ProcutionLineInfo { get; set; }
+        public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
         public virtual List<SMT_OrderInfo> SMT_OrderInfo { get; set; }
     }
 }

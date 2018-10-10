@@ -46,7 +46,7 @@ namespace JianHeMES.Models
 
         public DbSet<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
 
-        public DbSet<SMT_ProcutionLineInfo> SMT_ProcutionLineInfo { get; set; }
+        public DbSet<SMT_ProductionLineInfo> SMT_ProductionLineInfo { get; set; }
 
         public DbSet<SMT_ProductionData> SMT_ProductionData { get; set; }
 

@@ -48,6 +48,10 @@
         width: 33px;
         height: 20px;
     }
+    .RepertoryStyle{
+        color:#555;
+        padding:6px 12px 6px 12px;
+    }
 </style>
 
 <h2>@ViewBag.Title</h2>
@@ -55,7 +59,7 @@
 <div id="app" class="form-horizontal">
     <h4>老化异常</h4>
     <hr />
-    <div class="form-group">
+    <div  id="isorder" class="form-group">
         @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
         <div class="col-md-10">
             @Html.DropDownListFor(model => model.OrderNum,
@@ -69,6 +73,8 @@
         <div class="col-md-10">
             @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus", onkeyup = "this.value=this.value.toUpperCase()" } })
             <button class="btn btn-default" v-on:click="postBarCode">打开模组记录</button>
+            <span class="RepertoryStyle">是否为库存：<input id="IsRepertory" type="checkbox" onclick="javascript: document.getElementById('hiddenIsRepertory').value = this.checked;"></span>
+            <input id="hiddenIsRepertory" name="IsRepertory" type="hidden" value="false">
             @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
         </div>
     </div>
@@ -124,10 +130,9 @@
                         @Html.ValidationMessageFor(model => model.Burn_in_OQCCheckAbnormal, "", new { @class = "text-danger" })
                     </div>
                 </div>
-
                 <div class="form-group">
                     <div class="col-md-offset-4 col-md-8">
-                        <input type="submit" value="老化异常录入" class="btn btn-default" />
+                        <input id="burnRepertory" type="submit" value="老化异常录入" class="btn btn-default" />
                     </div>
                 </div>
                 <div>
@@ -246,6 +251,7 @@
     <div class="form-group"><div class="col-md-12"></div></div>
 </div>
 
+<script src="~/Scripts/jquery-1.11.3.js"></script>
 @section Scripts {
     @Scripts.Render("~/bundles/jqueryval")
     <script>
@@ -265,7 +271,8 @@
                         url: '/Burn_in/Get_Burn_in_Record',
                         data: {
                             OrderNum: $("#OrderNum").val(),
-                            BarCodeNum: $("#BarCodesNum").val()
+                            BarCodeNum: $("#BarCodesNum").val(),
+                            IsRepertory: $("#hiddenIsRepertory").val()
                         },
                         success: function (data) {
                             //console.log(data);
@@ -356,15 +363,36 @@
         };
     </script>
     <script>
-        var localOrder = localStorage.getItem('BurnInBarchB');
-        if (localOrder != null) {
-            $("#OrderNum").val(localOrder);
-        }
-        $("#OrderNum").change(function (val) {
-            localStorage.setItem('BurnInBarchB', val.target.value);
+        $(function () {
+            var localOrder = localStorage.getItem('BurnInBarchB');
+            if (localOrder != null) {
+                $("#OrderNum").val(localOrder);
+            }
+            $("#OrderNum").change(function (val) {
+                localStorage.setItem('BurnInBarchB', val.target.value);
+                $("#BarCodesNum").select();
+            })
             $("#BarCodesNum").select();
-        })
-        $("#BarCodesNum").select();
+
+            if (localStorage.getItem('isRepertory') == "true") {
+                $("#IsRepertory").attr("checked", true);
+                $("#isorder").hide();
+                $("#hiddenIsRepertory").val(true);
+                $("#OrderNum").removeAttr("name").val("");
+            };
+            $("#IsRepertory").change(function () {
+                localStorage.setItem('isRepertory', $(this).is(':checked'));
+                if ($(this).is(':checked') == true) {
+                    $("#isorder").hide();
+                    $("#OrderNum").removeAttr("name").val("");
+                } else {
+                    $("#isorder").show();
+                    $("#OrderNum").attr("name", "OrderNum");
+                    $("#OrderNum").val(localOrder);
+                }
+            });
+        });
+
 
         $(function () {
             $("#addAbnormal").click(function () {

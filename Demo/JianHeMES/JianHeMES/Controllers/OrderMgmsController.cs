@@ -135,7 +135,7 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {
@@ -185,7 +185,7 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {

@@ -57,7 +57,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-
+        
         #region ---------------------------------------维修列表
 
         private List<SelectListItem> SetRepairList()
@@ -105,7 +105,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal, string FinishStatus, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal,string FinishStatus, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -241,7 +241,7 @@ namespace JianHeMES.Controllers
             ViewBag.NormalCount = Order_CR_Normal_Count;
             ViewBag.AbnormalCount = Abnormal_Count;
             ViewBag.RecordCount = AllBurn_inRecords.Count();
-            ViewBag.Finish = AllBurn_inRecordsList.Count(c => c.OQCCheckFinish == true);
+            ViewBag.Finish = AllBurn_inRecordsList.Count(c=>c.OQCCheckFinish==true);
             ViewBag.NeverFinish = Order_MG_Quantity - Finish_Count;
             ViewBag.orderNum = OrderNum;
 
@@ -320,7 +320,7 @@ namespace JianHeMES.Controllers
             }
 
 
-
+            
 
             if (ModelState.IsValid)
             {
@@ -512,7 +512,7 @@ namespace JianHeMES.Controllers
                 //...TODO..
                 return View(burn_in);
             }
-
+            
         }
         #endregion
 
@@ -534,25 +534,25 @@ namespace JianHeMES.Controllers
             if (IsRepertory == false)
             {
                 ApplicationDbContext db = new ApplicationDbContext();
-                Burn_in record = db.Burn_in.Where(m => m.OrderNum == OrderNum && m.BarCodesNum == BarCodeNum && m.OQCCheckBT != null && m.OQCCheckFT == null).FirstOrDefault();
-                if (record != null)
+            Burn_in record = db.Burn_in.Where(m => m.OrderNum == OrderNum && m.BarCodesNum == BarCodeNum && m.OQCCheckBT != null && m.OQCCheckFT == null).FirstOrDefault();
+            if (record != null)
+            {
+                List<Object> recordData = new List<object>();
+                recordData.Add(new
                 {
-                    List<Object> recordData = new List<object>();
-                    recordData.Add(new
-                    {
-                        RecordId = record.Id,
-                        RecordOrderNum = record.OrderNum,
-                        RecordBarCodesNum = record.BarCodesNum,
-                        RecordOQCCheckBT = record.OQCCheckBT.ToString(),
-                        recordOQCPrincipal = record.OQCPrincipal,
-                        RecordBurn_in_OQCCheckAbnormal_old = record.Burn_in_OQCCheckAbnormal
-                    });
-                    return Json(recordData, JsonRequestBehavior.AllowGet);
-                }
-                else
-                {
-                    return Content("不存在正在进行老化的此模组");
-                }
+                    RecordId = record.Id,
+                    RecordOrderNum = record.OrderNum,
+                    RecordBarCodesNum = record.BarCodesNum,
+                    RecordOQCCheckBT = record.OQCCheckBT.ToString(),
+                    recordOQCPrincipal = record.OQCPrincipal,
+                    RecordBurn_in_OQCCheckAbnormal_old = record.Burn_in_OQCCheckAbnormal
+                });
+                return Json(recordData, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                return Content("不存在正在进行老化的此模组");
+            }
             }
             else
             {
@@ -569,34 +569,34 @@ namespace JianHeMES.Controllers
 
             ViewBag.RepairList = SetRepairList();
 
-            ApplicationDbContext db = new ApplicationDbContext();
-            if (Id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            Burn_in burn_in = await db.Burn_in.FindAsync(Convert.ToInt32(Id));
-
-            if (burn_in == null)
-            {
-                return HttpNotFound();
-            }
-            else
-            {
-                burn_in.Burn_in_OQCCheckAbnormal = burn_in.Burn_in_OQCCheckAbnormal + Burn_in_OQCCheckAbnormal;
-                burn_in.RepairCondition = "现场维修";
-
-                if (ModelState.IsValid)
+                ApplicationDbContext db = new ApplicationDbContext();
+                if (Id == null)
                 {
-                    db.Entry(burn_in).State = EntityState.Modified;
-                    await db.SaveChangesAsync();
-                    return RedirectToAction("Index");
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
                 }
-            }
-            ViewBag.RepairList = SetRepairList();
-            return View(burn_in);
+                Burn_in burn_in = await db.Burn_in.FindAsync(Convert.ToInt32(Id));
 
+                if (burn_in == null)
+                {
+                    return HttpNotFound();
+                }
+                else
+                {
+                    burn_in.Burn_in_OQCCheckAbnormal = burn_in.Burn_in_OQCCheckAbnormal + Burn_in_OQCCheckAbnormal;
+                    burn_in.RepairCondition = "现场维修";
 
-
+                    if (ModelState.IsValid)
+                    {
+                        db.Entry(burn_in).State = EntityState.Modified;
+                        await db.SaveChangesAsync();
+                        return RedirectToAction("Index");
+                    }
+                }
+                ViewBag.RepairList = SetRepairList();
+                return View(burn_in);
+            
+            
+            
         }
         #endregion
 
@@ -645,13 +645,13 @@ namespace JianHeMES.Controllers
                 //burn_in.OQCCheckTime = (DateTime.Now-burn_in.OQCCheckBT).Value;
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                 burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-                if (burn_in.Burn_in_OQCCheckAbnormal == null)
+                if(burn_in.Burn_in_OQCCheckAbnormal==null)
                 {
                     burn_in.Burn_in_OQCCheckAbnormal = "正常";
                 }
                 if (burn_in.RepairCondition == null)
                 {
-                    burn_in.RepairCondition = "正常";
+                    burn_in.RepairCondition= "正常";
                 }
                 burn_in.OQCCheckFinish = true;
             }
@@ -697,7 +697,7 @@ namespace JianHeMES.Controllers
         public ActionResult Burn_in_Batch_B(string OrderNum, List<string> BarCodesNumList)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-
+            
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -888,7 +888,7 @@ namespace JianHeMES.Controllers
                 //...TODO..
                 return Json("选中库存");
             }
-
+            
         }
         #endregion
 
@@ -1095,7 +1095,7 @@ namespace JianHeMES.Controllers
                 //...TODO..
                 return Json("选中库存");
             }
-
+            
         }
         #endregion
 
@@ -1107,7 +1107,7 @@ namespace JianHeMES.Controllers
             foreach (var item in BarCodesNumList)
             {
                 var burn_in = (from x in burn_in_List where (x.BarCodesNum == item && x.OQCCheckFT == null) select x).FirstOrDefault();
-                burn_in.OQCCheckFT = DateTime.Now;
+                burn_in.OQCCheckFT =DateTime.Now;
                 var CT = burn_in.OQCCheckFT.Value - burn_in.OQCCheckBT.Value;
                 burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;

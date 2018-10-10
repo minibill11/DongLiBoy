@@ -28,7 +28,7 @@ namespace JianHeMES.Models
 
         public IEnumerable<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
 
-        public IEnumerable<SMT_ProcutionLineInfo> SMT_ProcutionLineInfo { get; set; }
+        public IEnumerable<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
 
         public IEnumerable<SMT_ProductionData> SMT_ProductionData { get; set; }
 
@@ -57,7 +57,7 @@ namespace JianHeMES.Models
             this.Users = db.Users.ToList();
             this.IQCReports = db.IQCReports.ToList();
             this.SMT_ProductionPlan = db.SMT_ProductionPlan.ToList();
-            this.SMT_ProcutionLineInfo = db.SMT_ProcutionLineInfo.ToList();
+            this.SMT_ProcutionLineInfo = db.SMT_ProductionLineInfo.ToList();
             this.SMT_ProductionData = db.SMT_ProductionData.ToList();
             this.SMT_OrderInfo = db.SMT_OrderInfo.ToList();
 

@@ -83,7 +83,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum,string BoxBarCode, string AppearancesNormal, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string BoxBarCode, string AppearancesNormal, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -392,52 +392,29 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
+        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance, Boolean IsRepertory)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            if (Session["User"] == null)
+            if (IsRepertory == false)
             {
-                return RedirectToAction("Login", "Users");
-            }
-
-            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
-            //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
-            {
-                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
-                return View(appearance);
-            }
-            //在BarCodesNum条码表中找到此条码号
-            //Burn_in，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
-            if (db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
-            {
-                if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
+                if (Session["User"] == null)
                 {
-                    var appearanceRecord = db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum);
-                    appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
-                    appearance.OQCCheckBT = DateTime.Now;
-                    appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
-                    //增加模组箱体号到外观记录中
-                    appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
-                    db.Appearance.Add(appearance);
-                    db.SaveChanges();
-                    return RedirectToAction("Appearance_F", new { appearance.Id });
+                    return RedirectToAction("Login", "Users");
                 }
-                else
+
+                if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
+                //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
                 {
-                    ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                    ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                     return View(appearance);
                 }
-                
-            }
-            //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
-            else if (db.Appearance.Count(u => u.BarCodesNum == appearance.BarCodesNum) >= 1)
-            {
-                var appearance_list = db.Appearance.Where(m => m.BarCodesNum == appearance.BarCodesNum).ToList();
-                int normalCount = appearance_list.Where(m => m.RepairCondition == "正常" && m.OQCCheckFinish==true).Count();
-                if (normalCount == 0)
+                //在BarCodesNum条码表中找到此条码号
+                //Burn_in，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
+                if (db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
                 {
                     if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
                     {
+                        var appearanceRecord = db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum);
                         appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
                         appearance.OQCCheckBT = DateTime.Now;
                         appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
@@ -452,19 +429,51 @@ namespace JianHeMES.Controllers
                         ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                         return View(appearance);
                     }
+
+                }
+                //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
+                else if (db.Appearance.Count(u => u.BarCodesNum == appearance.BarCodesNum) >= 1)
+                {
+                    var appearance_list = db.Appearance.Where(m => m.BarCodesNum == appearance.BarCodesNum).ToList();
+                    int normalCount = appearance_list.Where(m => m.RepairCondition == "正常" && m.OQCCheckFinish == true).Count();
+                    if (normalCount == 0)
+                    {
+                        if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
+                        {
+                            appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
+                            appearance.OQCCheckBT = DateTime.Now;
+                            appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
+                            //增加模组箱体号到外观记录中
+                            appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
+                            db.Appearance.Add(appearance);
+                            db.SaveChanges();
+                            return RedirectToAction("Appearance_F", new { appearance.Id });
+                        }
+                        else
+                        {
+                            ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
+                            return View(appearance);
+                        }
+                    }
+                    else
+                    {
+                        //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Appearances';</script>");
+                        ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
+                        return View(appearance);
+                    }
                 }
                 else
                 {
-                    //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Appearances';</script>");
-                    ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
-                    return View(appearance);
+                    //return RedirectToAction("Appearance_F", new { appearance.Id });
+                    return RedirectToAction("Index");
                 }
             }
             else
             {
-                //return RedirectToAction("Appearance_F", new { appearance.Id });
-                return RedirectToAction("Index");
+                //...TODO..
+                return View(appearance);
             }
+
         }
         #endregion
 
@@ -515,7 +524,7 @@ namespace JianHeMES.Controllers
                 {
                     appearance.Appearance_OQCCheckAbnormal = "正常";
                 }
-                if(appearance.Appearance_OQCCheckAbnormal=="正常" && appearance.RepairCondition=="正常")
+                if (appearance.Appearance_OQCCheckAbnormal == "正常" && appearance.RepairCondition == "正常")
                 {
                     appearance.OQCCheckFinish = true;
                 }
