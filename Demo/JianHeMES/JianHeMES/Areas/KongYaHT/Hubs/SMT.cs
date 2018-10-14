@@ -95,13 +95,25 @@ namespace JianHeMESEntities.Hubs
 
                     //产线i今天生产订单
                     JObject LineTodayFinishOrder = new JObject();
+                    //JObject OrderQuantity = new JObject();
                     var LineTodayFinishOrderList = LineProductionData.Select(c => c.OrderNum).ToList();
+                    //var OrderQuantityList = SMT_OrderInfos.Select(c => c.OrderNum);//订单数量
                     foreach (var item in LineTodayFinishOrderList)
                     {
+                        //订单数量
+                        //foreach (var order in OrderQuantityList)
+                        //{
+                        //    if (item == order)
+                        //    {
+                        //        OrderQuantity.Add(x.ToString(), SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString());
+                        //    }
+                        //}
+                        //产线i今天生产订单
                         LineTodayFinishOrder.Add(x.ToString(), item);
                         x++;
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrder", LineTodayFinishOrder);//产线i今天生产订单
+                    //SMT_LineInfo.Add("OrderQuantity", OrderQuantity);//订单数量
 
                     //产线i今天生产订单合格品
                     JObject LineTodayFinishOrderNormal = new JObject();
@@ -127,7 +139,7 @@ namespace JianHeMESEntities.Hubs
 
                     //产线i今天计划生产订单
                     JObject LinePlanOrder = new JObject();
-                    var LinePlanOrderList = SMT_ProductionPlans.Where(c=>c.LineNum==i).Select(c => c.OrderNum).ToList();
+                    var LinePlanOrderList = SMT_ProductionPlans.Where(c => c.LineNum == i).Select(c => c.OrderNum).ToList();
                     x = 1;
                     foreach (var item in LinePlanOrderList)
                     {
@@ -137,7 +149,7 @@ namespace JianHeMESEntities.Hubs
                     SMT_LineInfo.Add("LinePlanOrder", LinePlanOrder);//产线i今天计划生产订单
 
                     SMT_LineInfo.Add("LineDoingOrder", LineInfo.ProducingOrderNum);//产线i正在生产订单
-                    SMT_LineInfo.Add("LineTodayFinishOrderQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i今天生产订单数量
+                    //SMT_LineInfo.Add("LineTodayFinishOrderQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i今天生产订单数量
                     SMT_LineInfo.Add("LineTotalQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i累计数量
                     SMT_LineInfo.Add("Team", LineInfo.Team);//产线i的班组
                     SMT_LineInfo.Add("GroupLeader", LineInfo.GroupLeader);//产线i组长
@@ -147,58 +159,95 @@ namespace JianHeMESEntities.Hubs
                 #endregion
 
 
-                #region-------------------各条产线SMT_Board看板JSON
+                #region-------------------各条产线SMT_ProductionLineInfo看板JSON
+
                 foreach (var i in SMT_LineList)
                 {
                     JObject SMT_LineInfo = new JObject();//各条产线JSON对象  1.1.1 JSON
 
                     LineInfo = SMT_ProductionLineInfos.Where(c => c.LineNum == i).ToList().FirstOrDefault();//产线i信息
                     LineProductionData = SMT_ProductionDatas.Where(c => c.LineNum == i).ToList();//产线i生产数据
+                    int OrderTotalFinishQuantity = SMT_ProductionDatas.Where(c => c.LineNum == i && c.OrderNum == LineInfo.ProducingOrderNum).Sum(c => c.NormalCount + c.AbnormalCount); //产线i正在生产的订单累计生产数量
+                    int TotalFinishQuantity = SMT_ProductionDatas.Where(c => c.LineNum == i).Sum(c => c.NormalCount + c.AbnormalCount); //产线累计生产数量
 
-                    int x = 1;
-                    //产线i今天生产订单
-                    JObject LineTodayFinishOrder = new JObject();
+                    //产线i今天生产订单   //订单数量
+                    string LineTodayFinishOrder = "";
+                    string OrderQuantity = "";
                     var LineTodayFinishOrderList = LineProductionData.Select(c => c.OrderNum).ToList();
+                    var OrderList = SMT_OrderInfos.Select(c => c.OrderNum);
                     foreach (var item in LineTodayFinishOrderList)
                     {
-                        LineTodayFinishOrder.Add(item.ToString(), item);
-                        x++;
+                        //订单数量
+                        foreach (var order in OrderList)
+                        {
+                            if (item == order)
+                            {
+                                if (OrderQuantity == "")
+                                {
+                                    OrderQuantity = SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString();
+                                }
+                                else
+                                {
+                                    OrderQuantity = OrderQuantity + "," + SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString();
+                                }
+                            }
+                        }
+                        //产线i今天生产订单
+                        if (LineTodayFinishOrder == "")
+                        {
+                            LineTodayFinishOrder = item.ToString();
+                        }
+                        else
+                        {
+                            LineTodayFinishOrder = LineTodayFinishOrder + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrder", LineTodayFinishOrder);//产线i今天生产订单
+                    SMT_LineInfo.Add("OrderQuantity", OrderQuantity);//订单数量
 
 
                     //产线i今天生产订单合格品
-                    JObject LineTodayFinishOrderNormal = new JObject();
+                    string LineTodayFinishOrderNormal = "";
                     var LineTodayFinishOrderNormalList = LineProductionData.Select(c => c.NormalCount);
-                    x = 1;
                     foreach (var item in LineTodayFinishOrderNormalList)
                     {
-                        LineTodayFinishOrderNormal.Add(item.ToString(), item);
-                        x++;
+                        if (LineTodayFinishOrderNormal == "")
+                        {
+                            LineTodayFinishOrderNormal = item.ToString();
+                        }
+                        else
+                        {
+                            LineTodayFinishOrderNormal = LineTodayFinishOrderNormal + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrderNormal", LineTodayFinishOrderNormal);//产线i今天生产订单合格品
 
                     //产线i今天生产订单不良品
-                    JObject LineTodayFinishOrderAbnormal = new JObject();
+                    string LineTodayFinishOrderAbnormal = "";
                     var LineTodayFinishOrderAbnormalList = LineProductionData.Select(c => c.AbnormalCount).ToList();
-                    x = 1;
                     foreach (var item in LineTodayFinishOrderAbnormalList)
                     {
-                        LineTodayFinishOrderAbnormal.Add(item.ToString(), item);
-                        x++;
+                        if (LineTodayFinishOrderAbnormal == "")
+                        {
+                            LineTodayFinishOrderAbnormal = item.ToString();
+                        }
+                        else
+                        {
+                            LineTodayFinishOrderAbnormal = LineTodayFinishOrderAbnormal + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrderAbnormal", LineTodayFinishOrderAbnormal);//产线i今天生产订单不良品
 
-                    //产线i今天计划生产订单
+                    //产线i今天计划生产订单：
+                    var TodayPlanOrder = db.SMT_ProductionPlan.Where(c => c.LineNum == i && DbFunctions.DiffDays(c.CreateDate, DateTime.Now) == 0).ToList();
                     JObject LinePlanOrder = new JObject();
-                    var LinePlanOrderList = SMT_ProductionPlans.Where(c => c.LineNum == i).Select(c => c.OrderNum).ToList();
-                    x = 1;
-                    foreach (var item in LinePlanOrderList)
+                    //产线i今天计划生产订单、数量、平台、客户
+                    int x = 0;
+                    foreach (var item in TodayPlanOrder)
                     {
-                        LinePlanOrder.Add(item.ToString(), item);
-                        x++;
+                        LinePlanOrder.Add(x++.ToString(), item.OrderNum + "," + item.Quantity + "," + item.PlatformType + "," + item.Customer);
                     }
-                    SMT_LineInfo.Add("LinePlanOrder", LinePlanOrder);//产线i今天计划生产订单
+                    SMT_LineInfo.Add("LinePlanOrder", LinePlanOrder);
 
                     SMT_LineInfo.Add("Date", DateTime.Now.ToString());//产线i日期
                     SMT_LineInfo.Add("Team", LineInfo.Team);//产线i的班组
@@ -206,8 +255,41 @@ namespace JianHeMESEntities.Hubs
                     SMT_LineInfo.Add("LineStatus", LineInfo.Status);//产线i状态
                     SMT_LineInfo.Add("LineDoingOrder", LineInfo.ProducingOrderNum);//产线i正在生产订单
                     SMT_LineInfo.Add("LineTotalQuantity", LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).Sum(c => c.NormalCount + c.AbnormalCount));//产线i今天生产数量汇总
-                    SMT_LineInfo.Add("OrderTotalFinishQuantity", SMT_ProductionDatas.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).Sum(c => c.NormalCount + c.AbnormalCount));//产线i正在生产的订单累计生产数量
-                    SMT_LineInfo.Add("OrderQuantity", SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).Select(c => c.Quantity).ToString());//产线i正在生产的订单数量
+                    SMT_LineInfo.Add("TotalFinishQuantity", TotalFinishQuantity);//产线累计生产数量
+                    SMT_LineInfo.Add("OrderTotalFinishQuantity", OrderTotalFinishQuantity);//产线i正在生产的订单累计生产数量
+
+
+                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault() != null)
+                    //{
+                    //    SMT_LineInfo.Add("OrderQuantity", SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity);//订单数量
+                    //}
+                    //else
+                    //{
+                    //    SMT_LineInfo.Add("OrderQuantity", "");//订单数量
+                    //}
+
+
+                    //if (LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault() != null)
+                    //{
+                    //    var order_AbnormalCount = LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().AbnormalCount;
+                    //    decimal OrderAbnormalRate = Convert.ToDecimal(order_AbnormalCount) * 100 / OrderTotalFinishQuantity;
+                    //    SMT_LineInfo.Add("OrderAbnormalRate", OrderAbnormalRate);//产线i正在生产的订单不良率
+                    //}
+                    //else
+                    //{
+                    //    SMT_LineInfo.Add("OrderAbnormalRate", "--%");//产线i正在生产的订单不良率
+                    //}
+
+                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault()!=null)
+                    //{
+                    //    decimal ProducingOrderFinishRate = Convert.ToDecimal(OrderTotalFinishQuantity)*100 / SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity;
+                    //    SMT_LineInfo.Add("OrderTotalFinishRate", ProducingOrderFinishRate);//产线i正在生产的订单完成率
+                    //}
+                    //else
+                    //{
+                    //    SMT_LineInfo.Add("OrderTotalFinishRate", "--%");//产线i正在生产的订单完成率
+                    //}
+
                     SMT_Board.Add(i.ToString(), SMT_LineInfo);//产线i的看板信息   1.1.1 JSON-->1.1 JSON
                 }
 
@@ -221,58 +303,131 @@ namespace JianHeMESEntities.Hubs
 
                     LineInfo = SMT_ProductionLineInfos.Where(c => c.LineNum == i).ToList().FirstOrDefault();//产线i信息
                     LineProductionData = SMT_ProductionDatas.Where(c => c.LineNum == i).ToList();//产线i生产数据
+                    int TotalFinishQuantity = SMT_ProductionDatas.Where(c => c.LineNum == i).Sum(c => c.NormalCount + c.AbnormalCount); //产线累计生产数量
+                    int OrderTotalFinishQuantity = SMT_ProductionDatas.Where(c => c.LineNum == i && c.OrderNum == LineInfo.ProducingOrderNum).Sum(c => c.NormalCount + c.AbnormalCount); //产线i正在生产的订单累计生产数量
 
-                    int x = 1;
-                    //产线i今天生产订单
-                    JObject LineTodayFinishOrder = new JObject();
+                    //产线i今天生产订单   //订单数量
+                    string LineTodayFinishOrder = "";
+                    string OrderQuantity = "";
                     var LineTodayFinishOrderList = LineProductionData.Select(c => c.OrderNum).ToList();
+                    var OrderList = SMT_OrderInfos.Select(c => c.OrderNum);
                     foreach (var item in LineTodayFinishOrderList)
                     {
-                        LineTodayFinishOrder.Add(item.ToString(), item);
-                        x++;
+                        //订单数量
+                        foreach (var order in OrderList)
+                        {
+                            if (item == order)
+                            {
+                                if (OrderQuantity == "")
+                                {
+                                    OrderQuantity = SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString();
+                                }
+                                else
+                                {
+                                    OrderQuantity = OrderQuantity + "," + SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString();
+                                }
+                            }
+                        }
+                        //产线i今天生产订单
+                        if (LineTodayFinishOrder == "")
+                        {
+                            LineTodayFinishOrder = item.ToString();
+                        }
+                        else
+                        {
+                            LineTodayFinishOrder = LineTodayFinishOrder + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrder", LineTodayFinishOrder);//产线i今天生产订单
+                    SMT_LineInfo.Add("OrderQuantity", OrderQuantity);//订单数量
 
 
                     //产线i今天生产订单合格品
-                    JObject LineTodayFinishOrderNormal = new JObject();
-                    var LineTodayFinishOrderNormalList = LineProductionData.Select(c => c.NormalCount).ToList();
-                    x = 1;
+                    string LineTodayFinishOrderNormal = "";
+                    var LineTodayFinishOrderNormalList = LineProductionData.Select(c => c.NormalCount);
                     foreach (var item in LineTodayFinishOrderNormalList)
                     {
-                        LineTodayFinishOrderNormal.Add(item.ToString(), item);
-                        x++;
+                        if (LineTodayFinishOrderNormal == "")
+                        {
+                            LineTodayFinishOrderNormal = item.ToString();
+                        }
+                        else
+                        {
+                            LineTodayFinishOrderNormal = LineTodayFinishOrderNormal + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrderNormal", LineTodayFinishOrderNormal);//产线i今天生产订单合格品
 
                     //产线i今天生产订单不良品
-                    JObject LineTodayFinishOrderAbnormal = new JObject();
+                    string LineTodayFinishOrderAbnormal = "";
                     var LineTodayFinishOrderAbnormalList = LineProductionData.Select(c => c.AbnormalCount).ToList();
-                    x = 1;
                     foreach (var item in LineTodayFinishOrderAbnormalList)
                     {
-                        LineTodayFinishOrderAbnormal.Add(item.ToString(), item);
-                        x++;
+                        if (LineTodayFinishOrderAbnormal == "")
+                        {
+                            LineTodayFinishOrderAbnormal = item.ToString();
+                        }
+                        else
+                        {
+                            LineTodayFinishOrderAbnormal = LineTodayFinishOrderAbnormal + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrderAbnormal", LineTodayFinishOrderAbnormal);//产线i今天生产订单不良品
 
                     //产线i今天计划生产订单
-                    JObject LinePlanOrder = new JObject();
+                    string LinePlanOrder = "";
                     var LinePlanOrderList = SMT_ProductionPlans.Where(c => c.LineNum == i).Select(c => c.OrderNum).ToList();
-                    x = 1;
                     foreach (var item in LinePlanOrderList)
                     {
-                        LinePlanOrder.Add(item.ToString(), item);
-                        x++;
+                        if (LinePlanOrder == "")
+                        {
+                            LinePlanOrder = item;
+                        }
+                        else
+                        {
+                            LinePlanOrder = LinePlanOrder + "," + item;
+                        }
                     }
                     SMT_LineInfo.Add("LinePlanOrder", LinePlanOrder);//产线i今天计划生产订单
 
                     SMT_LineInfo.Add("LineDoingOrder", LineInfo.ProducingOrderNum);//产线i正在生产订单
                     SMT_LineInfo.Add("LineTodayFinishOrderQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i今天生产订单数量
-                    SMT_LineInfo.Add("LineTotalQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i累计数量
+                    SMT_LineInfo.Add("LineTotalQuantity", OrderTotalFinishQuantity);//产线i累计数量
                     SMT_LineInfo.Add("Team", LineInfo.Team);//产线i的班组
                     SMT_LineInfo.Add("GroupLeader", LineInfo.GroupLeader);//产线i组长
                     SMT_LineInfo.Add("LineStatus", LineInfo.Status);//产线i状态
+
+                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault() != null)
+                    //{
+                    //    SMT_LineInfo.Add("OrderQuantity", SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity);//订单数量
+                    //}
+                    //else
+                    //{
+                    //    SMT_LineInfo.Add("OrderQuantity", "");//订单数量
+                    //}
+
+
+                    //if (LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault()!=null)
+                    //{
+                    //    var order_AbnormalCount = LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().AbnormalCount;
+                    //    decimal OrderAbnormalRate = order_AbnormalCount / OrderTotalFinishQuantity;
+                    //    SMT_LineInfo.Add("OrderAbnormalRate", OrderAbnormalRate);//产线i正在生产的订单不良率
+                    //}
+                    //else
+                    //{
+                    //    SMT_LineInfo.Add("OrderAbnormalRate", "--%");//产线i正在生产的订单不良率
+                    //}
+
+                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault()!=null)
+                    //{
+                    //    decimal ProducingOrderFinishRate = OrderTotalFinishQuantity / SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity;
+                    //    SMT_LineInfo.Add("OrderTotalFinishRate", ProducingOrderFinishRate);//产线i正在生产的订单完成率
+                    //}
+                    //else
+                    //{
+                    //    SMT_LineInfo.Add("OrderTotalFinishRate", "--%");//产线i正在生产的订单完成率
+                    //}
+
                     SMT_Operator.Add(i.ToString(), SMT_LineInfo);//产线i的看板信息   1.1.1 JSON-->1.1 JSON
                 }
                 #endregion

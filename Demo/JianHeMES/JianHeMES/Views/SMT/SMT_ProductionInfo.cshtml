@@ -9,13 +9,23 @@
         vertical-align: middle;
     }
 
-        .table > tbody > tr > td:nth-child(n+7), .table > tbody > tr > td:nth-child(1) {
+        .table > tbody > tr > td:nth-child(-n+2) {
             cursor: pointer;
         }
 
     .table > tbody > tr:nth-child(n+3):hover {
         background-color: rgba(77, 72, 72, 0.15);
     }
+
+    ul {
+        padding: 0;
+        margin: 0;
+    }
+
+        ul li {
+            list-style: none;
+            white-space: nowrap;
+        }
 </style>
 <h2 class="text-center">SMT生产信息</h2>
 
@@ -53,17 +63,41 @@
             <th>不良品</th>
             <th>不良率</th>
         </tr>
-
-        <tr v-for="(item, index) in marqueeList">
-            <td>{{index+1}}</td>
-            <td v-on:click="orderDetail(item.OrderNum,item.Id)">{{item.LineDoingOrder}}</td>
-            <td >{{item.LineTodayFinishOrder}}</td>
-            <td>{{item.LineTodayFinishOrderQuantity}}</td>
-            <td>{{item.LineTodayFinishOrderNormal}}</td>
-            <td>{{item.LineTodayFinishOrderAbnormal}}</td>
-            <td>不良率</td>
+        <tr v-for="(item, index) in lineDataList">
+            <td v-on:click="lineDetail('',index+1)">{{index+1}}</td>
+            <td v-on:click="lineDetail('',index+1)">{{item.LineDoingOrder}}</td>
+            <td>
+                <ul>
+                    <li v-for="i in item.LineTodayFinishOrder">{{i}}</li>
+                </ul>
+            </td>
+            @*<td>{{item.LineTodayFinishOrderQuantity}}</td>*@
+            <td>
+                <ul>
+                    <li v-for="i in item.OrderQuantity">{{i}}</li>
+                </ul>
+            </td>
+            <td>
+                <ul>
+                    <li v-for="i in item.LineTodayFinishOrderNormal">{{i}}</li>
+                </ul>
+            </td>
+            <td>
+                <ul>
+                    <li v-for="i in item.LineTodayFinishOrderAbnormal">{{i}}</li>
+                </ul>
+            </td>
+            <td>
+                <ul>
+                    <li v-for="i in item.OrderAbnormalRate">{{i}}</li>
+                </ul>
+            </td>
             <td>{{item.LineTotalQuantity}}个</td>
-            <td>{{item.LinePlanOrder}}</td>
+            <td>
+                <ul>
+                    <li v-for="i in item.LinePlanOrder">{{i}}</li>
+                </ul>
+            </td>
             <td>{{item.Team}}</td>
             <td>{{item.GroupLeader}}</td>
             <td>{{item.LineStatus}}</td>
@@ -77,11 +111,7 @@
     var app = new Vue({
         el: "#app",
         data: {
-            //animate: false,
-            marqueeList: []
-        },
-        created: function () {
-            //setInterval(this.showMarquee, 5000)
+            lineDataList: [],
         },
         methods: {
             Detail: function (val, station) {
@@ -100,8 +130,8 @@
                 //    }
                 //});
             },
-            orderDetail: function (val, station) {
-                this.$options.methods.postForm("/SMT/SMT_ProductionLineInfo?LineNum=1"/* + station, val*/);
+            lineDetail: function (val, station) {
+                this.$options.methods.postForm("/SMT/SMT_ProductionLineInfo?LineNum=" + station, val);
             },
             postForm: function (url, params) {
                 var newForm = $("<form action=" + url + " target='_blank' method='post' style='display:none' ><input name='OrderNum' value=" + params + " ></form>");
@@ -109,14 +139,6 @@
                 newForm.submit();
                 newForm.remove();
             }
-            //showMarquee: function () {
-            //    this.animate = true;
-            //    setTimeout(() => {
-            //        this.marqueeList.push(this.marqueeList[0]);
-            //        this.marqueeList.shift();
-            //        this.animate = false;
-            //    }, 1000);
-            //}
         }
     })
 </script>
@@ -130,14 +152,23 @@
             var mypush = $.connection.SMT;
             mypush.client.sendSMT_ProductionInfo = function (SMT_ProductionInfo) {
                 console.log(SMT_ProductionInfo);
-                app.marqueeList = [];
+                app.lineDataList = [];
                 console.log(Object.keys(SMT_ProductionInfo).length)
 
                 for (index in SMT_ProductionInfo) {
-                    app.marqueeList.push({
+                    var normal = SMT_ProductionInfo[index].LineTodayFinishOrderNormal;
+                    var abnormal = SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal;
+                    var OrderQuantityList = [];
+                    var OrderAbnormalRateList = [];
+                    for (item in normal) {
+                        var normalCount = normal[item] + abnormal[item];
+                        OrderQuantityList.push(normalCount);
+                        OrderAbnormalRateList.push(((abnormal[item] / normalCount) * 100).toFixed(2) + "%")
+                    };
+                    app.lineDataList.push({
                         LineDoingOrder: SMT_ProductionInfo[index].LineDoingOrder,
                         LineTodayFinishOrder: SMT_ProductionInfo[index].LineTodayFinishOrder,
-                        LineTodayFinishOrderQuantity: SMT_ProductionInfo[index].LineTodayFinishOrderQuantity,
+                        //LineTodayFinishOrderQuantity: SMT_ProductionInfo[index].LineTodayFinishOrderQuantity,
                         LineTodayFinishOrderNormal: SMT_ProductionInfo[index].LineTodayFinishOrderNormal,
                         LineTodayFinishOrderAbnormal: SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal,
                         LineTotalQuantity: SMT_ProductionInfo[index].LineTotalQuantity,
@@ -145,42 +176,12 @@
                         Team: SMT_ProductionInfo[index].Team,
                         GroupLeader: SMT_ProductionInfo[index].GroupLeader,
                         LineStatus: SMT_ProductionInfo[index].LineStatus,
+                        //OrderQuantity: SMT_ProductionInfo[index].OrderQuantity,
+
+                        OrderQuantity: OrderQuantityList,
+                        OrderAbnormalRate: OrderAbnormalRateList
                     });
-                    //temporaryJson[key] = SMT_ProductionInfo[key];
-                    //app.marqueeList.push(SMT_ProductionInfo[key]);
-                    //console.log(key)
-                    //console.log(SMT_ProductionInfo[key])
-                    //console.log(app.marqueeList)
-
-
                 }
-                //for (index in SMT_ProductionInfo) {
-                //    app.marqueeList.push({
-                //        Id: SMT[index].Id,
-                //        OrderNum: SMT[index].OrderNum,
-                //        Quantity: SMT[index].Quantity,
-                //        PlatformType: SMT[index].PlatformType,
-                //        PlanInputTime: SMT[index].PlanInputTime,
-                //        PlanCompleteTime: SMT[index].PlanCompleteTime,
-                //        ActualProductionTime: SMT[index].ActualProductionTime,
-                //        Assemble_Finish_Rate: SMT[index].Assemble_Finish_Rate,
-                //        Assemble_Pass_Rate: SMT[index].Assemble_Pass_Rate,
-                //        Burn_in_Finish_Rate: SMT[index].Burn_in_Finish_Rate,
-                //        Burn_in_Pass_Rate: SMT[index].Burn_in_Pass_Rate,
-                //        Calibration_Finish_Rate: SMT[index].Calibration_Finish_Rate,
-                //        Calibration_Pass_Rate: SMT[index].Calibration_Pass_Rate,
-                //        Appearances_Finish_Rate: SMT[index].Appearances_Finish_Rate,
-                //        Appearances_Pass_Rate: SMT[index].Appearances_Pass_Rate,
-                //        Assemble_Finish: SMT[index].Assemble_Finish,
-                //        AssembleRecord_Count: SMT[index].AssembleRecord_Count,
-                //        Burn_in_Finish: SMT[index].Burn_in_Finish,
-                //        Burn_in_Count: SMT[index].Burn_in_Count,
-                //        Calibration_Finish: SMT[index].Calibration_Finish,
-                //        Calibration_Count: SMT[index].Calibration_Count,
-                //        Appearances_Finish: SMT[index].Appearances_Finish,
-                //        Appearances_Count: SMT[index].Appearances_Count
-                //    });
-                //}
             };
             //启动
             $.connection.hub.start();

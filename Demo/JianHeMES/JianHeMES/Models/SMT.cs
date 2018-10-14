@@ -47,6 +47,16 @@ namespace JianHeMES.Models
         [Display(Name ="订单")]
         public string OrderNum { get; set; }
 
+        [Display(Name = "数量")]
+        public int Quantity { get; set; }
+
+        [Display(Name = "平台类型")]
+
+        public string PlatformType { get; set; }
+
+        [Display(Name = "客户")]
+        public string Customer { get; set; }
+
         [Display(Name ="创建记录日期"),DataType(DataType.DateTime)]
         public DateTime? CreateDate { get; set; }
 

@@ -42,8 +42,16 @@ namespace JianHeMES.Controllers
 
         public ActionResult SMT_ProductionLineCreate()
         {
-            ViewBag.Status = ProductionLineStatus();
-            return View();
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                ViewBag.Status = ProductionLineStatus();
+                return View();
+            }
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
         }
         [HttpPost]
         public ActionResult SMT_ProductionLineCreate(FormCollection fc)
@@ -70,17 +78,26 @@ namespace JianHeMES.Controllers
 
         public async Task<ActionResult> SMT_ProductionLineEdit(int? id)
         {
-            if (id == null)
+            if (Session["User"] == null)
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                return RedirectToAction("Login", "Users");
             }
-            SMT_ProductionLineInfo record = await db.SMT_ProductionLineInfo.FindAsync(id);
-            if (record == null)
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
             {
-                return HttpNotFound();
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                SMT_ProductionLineInfo record = await db.SMT_ProductionLineInfo.FindAsync(id);
+                if (record == null)
+                {
+                    return HttpNotFound();
+                }
+                ViewBag.Status = ProductionLineStatus();
+                ViewBag.StatusValue = record.Status;
+                return View(record);
             }
-            ViewBag.Status = ProductionLineStatus();
-            return View(record);
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_Mangage';</script>");
         }
 
         [HttpPost]
@@ -135,13 +152,21 @@ namespace JianHeMES.Controllers
         }
         public ActionResult SMT_OrderInfoCreate()
         {
-            return View();
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                return View();
+            }
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_OrderMangage';</script>");
         }
         [HttpPost]
         public ActionResult SMT_OrderInfoCreate(string records)
         {
             List<SMT_OrderInfo> orders = new List<SMT_OrderInfo>();
-           
+
             ////单个model传入
             //var order = JsonConvert.DeserializeObject<SMT_OrderInfo>(records);
             //if(order!=null)
@@ -154,7 +179,7 @@ namespace JianHeMES.Controllers
             //    return RedirectToAction("SMT_Mangage");
             //}
             orders = JsonConvert.DeserializeObject<List<SMT_OrderInfo>>(records);
-            if (orders!=null)
+            if (orders != null)
             {
                 foreach (var item in orders)
                 {
@@ -172,17 +197,25 @@ namespace JianHeMES.Controllers
 
         public async Task<ActionResult> SMT_OrderInfoEdit(int? id)
         {
-            if (id == null)
+            if (Session["User"] == null)
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                return RedirectToAction("Login", "Users");
             }
-            SMT_OrderInfo record = await db.SMT_OrderInfo.FindAsync(id);
-            if (record == null)
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
             {
-                return HttpNotFound();
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                SMT_OrderInfo record = await db.SMT_OrderInfo.FindAsync(id);
+                if (record == null)
+                {
+                    return HttpNotFound();
+                }
+                ViewBag.Status = ProductionLineStatus();
+                return View(record);
             }
-            ViewBag.Status = ProductionLineStatus();
-            return View(record);
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_OrderMangage';</script>");
         }
 
         [HttpPost]
@@ -206,8 +239,23 @@ namespace JianHeMES.Controllers
         // GET: SMT用户管理
         public ActionResult SMT_UserMangage()
         {
-            List<Users> SMT_User = db.Users.Where(c => c.Department == "SMT" && c.Role!="经理").ToList();
-            return View(SMT_User);
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            List < Users > SMT_User = db.Users.Where(c => c.Department == "SMT").ToList();
+            string userRole = ((Users)Session["User"]).Role;
+            string department = ((Users)Session["User"]).Department;
+            if (userRole == "经理" & department=="SMT"|| userRole == "系统管理员")
+            {
+                return View(SMT_User);
+            }
+            if (userRole == "SMT看板管理员" & department == "SMT" || userRole == "系统管理员")
+            {
+                SMT_User = SMT_User.Where(c => c.Role != "经理").ToList();
+                return View(SMT_User);
+            }
+            return Content("<script>alert('对不起，您的不能管理SMT产线用户，请联系SMT经理！');window.location.href='../SMT/SMT_Mangage';</script>");
         }
 
 
@@ -246,7 +294,7 @@ namespace JianHeMES.Controllers
                 db.Users.Add(user);
                 await db.SaveChangesAsync();
                 //return RedirectToAction("SMT_UserMangage");
-                return Content("<script>alert('用户"+ user.UserName +"添加成功！');window.location.href='../SMT/SMT_UserMangage';</script>");
+                return Content("<script>alert('用户" + user.UserName + "添加成功！');window.location.href='../SMT/SMT_UserMangage';</script>");
 
             }
             return View(user);
@@ -322,9 +370,6 @@ namespace JianHeMES.Controllers
         }
 
 
-
-
-
         #endregion
 
 
@@ -344,8 +389,6 @@ namespace JianHeMES.Controllers
         {
             //内容:痴线号，时间，班组，组长，正在生产的订单，良品数量，不良品数量，不良率，产线累计个数，订单完成率，今天计划订单，产线状态
             ViewBag.LineNum = LineNum;//获取产线号
-
-
             return View();
         }
 
@@ -357,7 +400,15 @@ namespace JianHeMES.Controllers
         public ActionResult SMT_Operator()
         {
             //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
-            return View();
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role != "SMT操作员" || ((Users)Session["User"]).Role != "系统管理员")
+            {
+                return View();
+            }
+            return Content("对不起，您的不能进入产线操作，请联系SMT看板管理员！");
         }
 
         [HttpPost]
@@ -367,9 +418,64 @@ namespace JianHeMES.Controllers
 
             string ordernum = fc["OrderNum"];
             int linenum = Convert.ToInt32(fc["LineNum"]);
-            string result = fc["Result"];
-
-            return View();
+            bool result = Convert.ToBoolean(fc["Result"]);
+            if(linenum != ((Users)Session["User"]).LineNum)
+            {
+                return Content("您不是产线"+linenum+"的操作员，不能在"+linenum+"产线上操作！");
+            }
+            var datarecord = db.SMT_ProductionData.Where(c => DbFunctions.DiffDays(c.ProductionDate, DateTime.Now) == 0 && c.LineNum == linenum && c.OrderNum == ordernum).ToList().FirstOrDefault();
+            if (datarecord != null)  //订单已有当天的生产记录
+            {
+                datarecord.ProductionDate = DateTime.Now;
+                if (result == true)
+                {
+                    datarecord.NormalCount++;
+                    return Content("订单" + ordernum + "良品数已增加一个！");
+                }
+                else
+                {
+                    datarecord.AbnormalCount++;
+                    return Content("订单" + ordernum + "不良品数已增加一个！");
+                }
+            }
+            else //订单没有当天生产记录
+            {
+                var order = db.SMT_OrderInfo.Where(c => c.OrderNum == ordernum).ToList().FirstOrDefault();
+                if (order == null)
+                {
+                    return Content("订单" + ordernum + "还没有创建，请联系SMT看板管理员！");
+                }
+                else if (order!=null && order.Status==true)
+                {
+                    return Content("订单" + ordernum + "已经生产完成，请确认订单是否正确或联系SMT看板管理员！");
+                }
+                else if (order != null && order.Status == false)
+                {
+                    SMT_ProductionData newdata = new SMT_ProductionData
+                    {
+                        LineNum = ((Users)Session["User"]).LineNum,
+                        OrderNum = ordernum,
+                        ProductionDate = DateTime.Now,
+                        NormalCount = 0,
+                        AbnormalCount = 0
+                    };
+                    if (result == true)
+                    {
+                        newdata.NormalCount++;
+                        db.SMT_ProductionData.Add(newdata);
+                        db.SaveChanges();
+                        return Content("订单" + ordernum + "今天的生产记录已经创建，良品数已增加一个！");
+                    }
+                    else
+                    {
+                        newdata.AbnormalCount++;
+                        db.SMT_ProductionData.Add(newdata);
+                        db.SaveChanges();
+                        return Content("订单" + ordernum + "今天的生产记录已经创建，不良品数已增加一个！");
+                    }
+                }
+                return View(fc);
+            }
         }
         #endregion
 

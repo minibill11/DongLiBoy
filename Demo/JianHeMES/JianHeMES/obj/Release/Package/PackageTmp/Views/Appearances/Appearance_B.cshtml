@@ -6,7 +6,16 @@
 }
 
 <h2>外观包装工作</h2>
+<style>
+    #BarCodesNum {
+        display: inline-block;
+    }
 
+    .RepertoryStyle {
+        color: #555;
+        padding: 6px 12px 6px 12px;
+    }
+</style>
 @using (Html.BeginForm())
 {
     @Html.AntiForgeryToken()
@@ -34,19 +43,41 @@
         </div>
 
         @*<div class="form-group">
-            @Html.LabelFor(model => model.ModuleGroupNum, htmlAttributes: new { @class = "control-label col-md-2" })
-            <div class="col-md-10">
-                @Html.EditorFor(model => model.ModuleGroupNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus",@readonly="readonly" } })
-                @Html.ValidationMessageFor(model => model.ModuleGroupNum, "", new { @class = "text-danger" })
-            </div>
-        </div>*@
+                @Html.LabelFor(model => model.ModuleGroupNum, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.ModuleGroupNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus",@readonly="readonly" } })
+                    @Html.ValidationMessageFor(model => model.ModuleGroupNum, "", new { @class = "text-danger" })
+                </div>
+            </div>*@
         <div class="form-group">
             @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-2" })
             <div class="col-md-10">
                 @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus", onkeyup = "this.value=this.value.toUpperCase()" } })
+                <span class="RepertoryStyle">是否为库存转新订单：<input id="IsRepertory" type="checkbox"></span>
                 @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
             </div>
         </div>
+        <div id="isorder">
+            <div class="form-group">
+                @Html.LabelFor(model => model.ToOrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.DropDownListFor(model => model.ToOrderNum,
+            ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "form-control" })
+                    @*@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, new { @class = "form-control" })*@
+                    @Html.ValidationMessageFor(model => model.ToOrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Remark, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.Remark, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Remark, "", new { @class = "text-danger" })
+                </div>
+            </div>
+        </div>
+        
+
         @*@Html.ValidationSummary(true, "", new { @class = "text-danger" })
             <div class="form-group">
                 @Html.LabelFor(model => model.OQCCheckBT, htmlAttributes: new { @class = "control-label col-md-2" })
@@ -112,6 +143,9 @@
                 </div>
             </div>*@
 
+        
+
+
         <div class="form-group">
             <div class="col-md-offset-2 col-md-10">
                 <input type="submit" value="开始外观包装" class="btn btn-default" />
@@ -123,16 +157,52 @@
 <div>
     @Html.ActionLink("返回", "Index")
 </div>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
 <script>
-    var localOrder = localStorage.getItem('Order');
-    if (localOrder != null) {
-        $("#OrderNum").val(localOrder);
-    }
-    $("#OrderNum").change(function (val) {
-        localStorage.setItem('Order', val.target.value);
+    $(function () {
+        var localRepertory = localStorage.getItem('isRepertory');
+        if (localRepertory == "false" || localRepertory == null) {
+            $("#isorder").hide();
+            $("#ToOrderNum").removeAttr("name");
+            $("#Remark").removeAttr("name");
+        } else if (localRepertory == "true") {
+            $("#IsRepertory").prop('checked', true);
+        };
+
+        $("#IsRepertory").change(function () {
+            localStorage.setItem('isRepertory', $(this).is(':checked'));
+            if ($(this).is(':checked') == true) {
+                $("#isorder").show();
+                $("#ToOrderNum").attr("name", "ToOrderNum");
+                $("#Remark").attr("name", "Remark");
+            } else {
+                $("#isorder").hide();
+                $("#ToOrderNum").removeAttr("name");
+                $("#Remark").removeAttr("name");
+            }
+        });
+
+        
+        var localOrder = localStorage.getItem('Order');
+        if (localOrder != null) {
+            $("#OrderNum").val(localOrder);
+        }
+        $("#OrderNum").change(function (val) {
+            localStorage.setItem('Order', val.target.value);
+            $("#BarCodesNum").select();
+        })
+
+        var localToOrder = localStorage.getItem('toOrder');
+        if (localToOrder != null) {
+            $("#ToOrderNum").val(localToOrder);
+        }
+        $("#ToOrderNum").change(function (val) {
+            localStorage.setItem('toOrder', val.target.value);
+            $("#Remark").select();
+        })
+
         $("#BarCodesNum").select();
-    })
-    $("#BarCodesNum").select();
+    });
 </script>
 @section Scripts {
     @Scripts.Render("~/bundles/jqueryval")

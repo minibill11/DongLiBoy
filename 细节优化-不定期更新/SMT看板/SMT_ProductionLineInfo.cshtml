@@ -1,0 +1,249 @@
+﻿
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<style>
+    * {
+        background-color: dodgerblue;
+        color: white;
+    }
+
+    html, body, .SMT {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .SMTLineTitle {
+        width: 100%;
+        height: 20%;
+    }
+
+        .SMTLineTitle > div {
+            position: relative;
+            float: left;
+            width: 33.3%;
+            height: 100%;
+        }
+
+    .Line, .Line > span {
+        color: yellow;
+        font-size: 80px;
+        margin: 30px 0 0 0;
+        text-align: center;
+        z-index: -2;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .lineInfo {
+        position: absolute;
+        left: 150px;
+        bottom: 10px;
+        color: white;
+        font-size: 18px;
+    }
+
+    .SMTContent {
+        position: relative;
+        border-top: 2px solid red;
+        width: 100%;
+        height: 79%;
+    }
+
+    .leftContent {
+        position: absolute;
+        left: 0;
+        border-right: 2px solid red;
+        width: 39%;
+        height: 100%;
+    }
+
+        .leftContent > table {
+            margin: 10% 10%;
+            width: 80%;
+            border: 0;
+        }
+
+    .rightContent {
+        position: absolute;
+        right: 0;
+        width: 60%;
+        height: 100%;
+    }
+
+        .rightContent > div {
+            margin: 5% 10%;
+        }
+
+    .colorG {
+        color: #31ec31;
+    }
+
+    .colorR {
+        color: red;
+    }
+
+    .colorY {
+        color: yellow;
+    }
+
+    .table > tbody > tr > td, .table > tbody > tr > th {
+        text-align: center;
+        vertical-align: middle !important;
+        border-top: 0px !important;
+        font-size: 20px;
+    }
+    .table {
+        max-width:700px!important;
+    }
+</style>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <script src="~/Scripts/vue.js"></script>
+    <link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+    <script src="~/Scripts/bootstrap.min.js"></script>
+    <title>SMT</title>
+</head>
+<body>
+    <div id="app" class="SMT">
+        <div class="SMTLineTitle row">
+            <div class="col-md-3"></div>
+            <div class="col-md-6">
+                <p class="Line">SMT-<span>@ViewBag.LineNum</span>线</p>
+            </div>
+            <div class="col-md-3">
+                <div class="lineInfo" v-for="(item,index) in LineDataList" v-if="lineSelect==(index+1)">
+                    <p>班组：{{item.Team}}</p>
+                    <p>组长：{{item.GroupLeader}}</p>
+                    <p>日期：{{item.Date}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="row SMTContent">
+            <div class="col-md-5 leftContent">
+                <table class="table" v-for="(item,index) in LineDataList" v-if="lineSelect==(index+1)">
+                    <colgroup>
+                        <col style="width:40%" />
+                        <col style="width:20%" />
+                        <col style="width:20%" />
+                        <col style="width:20%" />
+                    </colgroup>
+                    <tr>
+                        <th colspan="4">今天计划生产订单：</th>
+                    </tr>
+                    <tr>
+                        <th>订单号</th>
+                        <th>数量</th>
+                        <th>平台</th>
+                        <th>地区</th>
+                    </tr>
+                    <tr v-for="i in item.LinePlanOrder">
+                        <td>{{i.split(",")[0]}}</td>
+                        <td>{{i.split(",")[1]}}个</td>
+                        <td>{{i.split(",")[2]}}</td>
+                        <td>{{i.split(",")[3]}}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-7 rightContent">
+                <div v-for="(item,index) in LineDataList" v-if="lineSelect==(index+1)">
+                    <h1 class="colorG">正在生产订单：<span>{{item.LineDoingOrder}}</span></h1>
+                    <h1 class="colorY">今天生产数量汇总：{{item.LineTotalQuantity}}个</h1>
+                    <h3 class="colorG">正在生产的订单累计生产数量：{{item.OrderTotalFinishQuantity}}个</h3>
+                    <br />
+                    <h2>产线累计生产数量：{{item.TotalFinishQuantity}}</h2>
+                    <h1>产线状态：<span class="colorR">{{item.LineStatus}}</span></h1>
+                    <br />
+                    <table class="table table-bordered">
+                        <colgroup>
+                            <col style="width:34%" />
+                            <col style="width:15%" />
+                            <col style="width:15%" />
+                            <col style="width:18%" />
+                            <col style="width:18%" />
+                        </colgroup>
+                        <tr>
+                            <th>今天生产订单</th>
+                            <th>合格品</th>
+                            <th>不良品</th>
+                            <th>不良率</th>
+                            <th>完成率</th>
+                        </tr>
+                        <tr v-for="(i,index) in (item.LineTodayFinishOrder.split(','))">
+                            <td>{{item.LineTodayFinishOrder.split(",")[index]}}</td>
+                            <td>{{item.LineTodayFinishOrderNormal.split(",")[index]}}</td>
+                            <td>{{item.LineTodayFinishOrderAbnormal.split(",")[index]}}</td>
+                            <td>{{item.OrderAbnormalRate[index]}}</td>
+                            <td>{{item.OrderTotalFinishRate[index]}}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var app = new Vue({
+            el: "#app",
+            data: {
+                LineDataList: [],
+                lineSelect: "@ViewBag.LineNum"
+            },
+            methods: {
+            },
+            watch: {
+
+            },
+            computed: {
+            }
+        })
+    </script>
+    <script src="~/Scripts/jquery-1.11.3.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        $(function () {
+            var mypush = $.connection.SMT;
+            mypush.client.sendSMT_Board = function (SMT_Board) {
+                console.log(SMT_Board)
+                app.LineDataList = [];
+                console.log(Object.keys(SMT_Board).length)
+                for (index in SMT_Board) {
+                    var normal = SMT_Board[index].LineTodayFinishOrderNormal.split(",");
+                    var abnormal = SMT_Board[index].LineTodayFinishOrderAbnormal.split(",");
+                    var OrderQuantity = SMT_Board[index].OrderQuantity.split(",");
+                    var OrderAbnormalRateList = [];
+                    var OrderTotalFinishRateList = [];
+                    for (item in normal) {
+                        var normalCount = parseInt(normal[item]) + parseInt(abnormal[item]);
+                        OrderAbnormalRateList.push(((abnormal[item] / normalCount) * 100).toFixed(2) + "%");
+                        OrderTotalFinishRateList.push(((normalCount / parseInt(OrderQuantity[item])) * 100).toFixed(2) + "%");
+                    };
+                    app.LineDataList.push({
+                        LineTodayFinishOrder: SMT_Board[index].LineTodayFinishOrder,
+                        LineTodayFinishOrderNormal: SMT_Board[index].LineTodayFinishOrderNormal,
+                        LineTodayFinishOrderAbnormal: SMT_Board[index].LineTodayFinishOrderAbnormal,
+                        LinePlanOrder: SMT_Board[index].LinePlanOrder,
+                        Date: SMT_Board[index].Date,
+                        Team: SMT_Board[index].Team,
+                        GroupLeader: SMT_Board[index].GroupLeader,
+                        LineStatus: SMT_Board[index].LineStatus,
+                        LineDoingOrder: SMT_Board[index].LineDoingOrder,
+                        LineTotalQuantity: SMT_Board[index].LineTotalQuantity,
+                        OrderTotalFinishQuantity: SMT_Board[index].OrderTotalFinishQuantity,
+                        TotalFinishQuantity: SMT_Board[index].TotalFinishQuantity,
+                        //OrderQuantity: SMT_Board[index].OrderQuantity,
+
+                        OrderAbnormalRate: OrderAbnormalRateList,
+                        OrderTotalFinishRate: OrderTotalFinishRateList
+                    });
+                }
+            };
+            //启动
+            $.connection.hub.start();
+        });
+    </script>
+</body>
+</html>

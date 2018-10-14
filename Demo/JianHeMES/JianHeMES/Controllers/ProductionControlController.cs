@@ -639,7 +639,12 @@ namespace JianHeMES.Controllers
 
             var modelGroupQuantity = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).ToList().FirstOrDefault().Boxes;//2.订单模组数
             var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单
+
             var Appearance_Record = (from m in db.Appearance where m.OrderNum == OrderNum select m).OrderBy(x => x.BarCodesNum).ToList();//订单外观包装OQC全部记录
+            if(Appearance_Record==null)
+            {
+                Appearance_Record = db.Appearance.Where(c => c.ToOrderNum == OrderNum).OrderBy(c => c.BarCodesNum).ToList();
+            }
             var Appearance_RecordBarCodeList = Appearance_Record.Select(m => m.BarCodesNum).Distinct().ToList();//外观包装OQC记录全部条码清单(去重)
 
             var finished = Appearance_Record.Count(m => m.OQCCheckFinish == true);//3.订单已完成外观包装OQC个数
@@ -658,11 +663,11 @@ namespace JianHeMES.Controllers
             List<Appearance> firstPassYield_expect = new List<Appearance>();//有异常记录的条码Finish记录
             foreach (var item in Appearance_Record_abnormal_BoxBarCode_list)
             {
-                foreach (var burn_in_erecord in firstPassYield_temp)
+                foreach (var appearance_erecord in firstPassYield_temp)
                 {
-                    if (burn_in_erecord.BarCodesNum == item)
+                    if (appearance_erecord.BarCodesNum == item)
                     {
-                        firstPassYield_expect.Add(burn_in_erecord);
+                        firstPassYield_expect.Add(appearance_erecord);
                     }
                 }
             }

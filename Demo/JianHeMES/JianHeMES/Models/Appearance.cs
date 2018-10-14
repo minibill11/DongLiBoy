@@ -14,6 +14,9 @@ namespace JianHeMES.Models
         [Display(Name = "订单号")]
         public string OrderNum { get; set; }
 
+        [Display(Name = "新订单号")]
+        public string ToOrderNum { get; set; }
+
         [Display(Name = "条码号")]
         public string BarCodesNum { get; set; }
 
@@ -49,6 +52,10 @@ namespace JianHeMES.Models
         [Display(Name = "OQC是否完成")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public Boolean OQCCheckFinish { get; set; }
+
+        [Display(Name = "备注")]
+        public string Remark { get; set; }
+
 
         public virtual List<OrderMgm> OrderMgm { get; set; }
         public virtual List<Users> Users { get; set; }

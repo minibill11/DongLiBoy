@@ -226,6 +226,23 @@ namespace JianHeMES.Controllers
             
                 BarCodes aBarCode= new BarCodes() ;
                 aBarCode.OrderNum = orderMgm.OrderNum;
+                aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+
+                //  //批量生成模组条码
+                //  List<BarCodes> barcodelist = new List<BarCodes>();
+                //  for (int i = 1; i <= orderMgm.Boxes; i++)
+                //  {
+                //      aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                //      aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
+                //      aBarCode.BarCodeType = "模组";
+                //      aBarCode.Creator = ((Users)Session["User"]).UserName;
+                //      aBarCode.CreateDate = DateTime.Now;
+                //      barcodelist.Add(aBarCode);
+                //  }
+                //  db.BarCodes.Intersect(barcodelist);
+                //  db.SaveChanges();
+
+
                 //生成模组条码
                 for (int i=1;i<=orderMgm.Boxes; i++)
                 {
@@ -346,7 +363,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator")] BarCodes barCodes)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
         {
             if (ModelState.IsValid)
             {
@@ -390,7 +407,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator")] BarCodes barCodes)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
         {
             if (ModelState.IsValid)
             {

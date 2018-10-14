@@ -15,6 +15,9 @@ namespace JianHeMES.Models
         [Display(Name = "订单号")]
         public string OrderNum { get; set; }
 
+        [Display(Name = "新订单号")]
+        public string ToOrderNum { get; set; }
+
         [Required]
         [Display(Name = "条码前缀")]
         public string BarCode_Prefix { get; set; }

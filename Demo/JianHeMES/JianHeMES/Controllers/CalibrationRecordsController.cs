@@ -47,26 +47,37 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-            IQueryable<CalibrationRecord> AllCalibrationRecords = null;
-
+            //IQueryable<CalibrationRecord> AllCalibrationRecords = null;
+            List<CalibrationRecord> AllCalibrationRecords = new List<CalibrationRecord>();
             if (orderNum == "")
             {
                 //调出全部记录      
-                AllCalibrationRecords = from m in db.CalibrationRecord
-                                        select m;
+                //AllCalibrationRecords = from m in db.CalibrationRecord
+                //                        select m;
+                AllCalibrationRecords = db.CalibrationRecord.ToList();
             }
             else
             {
                 //筛选出对应orderNum所有记录
-                AllCalibrationRecords = from m in db.CalibrationRecord
-                                        where (m.OrderNum == orderNum)
-                                        select m;
+                //AllCalibrationRecords = from m in db.CalibrationRecord
+                //                        where (m.OrderNum == orderNum)
+                //                        select m;
+                AllCalibrationRecords = db.CalibrationRecord.Where(c => c.OrderNum == orderNum).ToList();
+                if (AllCalibrationRecords.Count() == 0)
+                {
+                    var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == orderNum).ToList();
+
+                    foreach (var item in barcodelist)
+                    {
+                        AllCalibrationRecords.AddRange(db.CalibrationRecord.Where(c => c.BarCodesNum == item.BarCodesNum));
+                    }
+                }
             }
 
             //检查orderNum和searchString是否为空
             if (!String.IsNullOrEmpty(searchString))
             {   //从调出的记录中筛选含searchString内容的记录
-                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription.Contains(searchString));
+                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription.Contains(searchString)).ToList();
             }
 
             //取出对应orderNum校正时长所有记录
@@ -111,7 +122,8 @@ namespace JianHeMES.Controllers
             }
 
             //列出记录
-            CalibrationRecordVM.AllCalibrationRecord = await AllCalibrationRecords.ToListAsync();
+            //CalibrationRecordVM.AllCalibrationRecord = await AllCalibrationRecords.ToListAsync();
+            CalibrationRecordVM.AllCalibrationRecord = AllCalibrationRecords.ToList();
             //统计校正结果正常的模组数量
             CalibrationRecordVM.Order_CR_Normal_Count = AllCalibrationRecords.Where(x => x.Normal == true).Count();
             var Abnormal_Count = AllCalibrationRecords.Where(x => x.Normal == false).Count();
@@ -182,47 +194,41 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult CreateCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord, Boolean IsRepertory)
+        public ActionResult CreateCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             ViewBag.OrderList = GetOrderList();
-            if (IsRepertory == false)
-            {
-                if (Session["User"] == null)
-                {
-                    return RedirectToAction("Login", "Users");
-                }
 
-                calibrationRecord.Operator = ((Users)Session["User"]).UserName;
-                calibrationRecord.BeginCalibration = DateTime.Now;
-                if (ModelState.IsValid)
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+
+            calibrationRecord.Operator = ((Users)Session["User"]).UserName;
+            calibrationRecord.BeginCalibration = DateTime.Now;
+            if (ModelState.IsValid)
+            {
+                string ON = Request.Form["OrderNum"];
+                string MGN = Request.Form["ModuleGroupNum"];
+                string BCN = Request.Form["BarCodesNum"];
+                db.CalibrationRecord.Add(calibrationRecord);
+                db.SaveChanges();
+                //把箱体号存到对应的条码号记录中
+                if (calibrationRecord.BarCodesNum != null)
                 {
-                    string ON = Request.Form["OrderNum"];
-                    string MGN = Request.Form["ModuleGroupNum"];
-                    string BCN = Request.Form["BarCodesNum"];
-                    db.CalibrationRecord.Add(calibrationRecord);
-                    db.SaveChanges();
-                    //把箱体号存到对应的条码号记录中
-                    if (calibrationRecord.BarCodesNum != null)
+                    if ((from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).Count() > 0)
                     {
-                        if ((from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).Count() > 0)
-                        {
-                            var barcode = (from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).FirstOrDefault();
-                            barcode.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
-                            db.Entry(barcode).State = EntityState.Modified;
-                            db.SaveChanges();
-                        }
+                        var barcode = (from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).FirstOrDefault();
+                        barcode.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
+                        db.Entry(barcode).State = EntityState.Modified;
+                        db.SaveChanges();
                     }
-                    return RedirectToAction("FinishCal", new { calibrationRecord.ID });
                 }
+                return RedirectToAction("FinishCal", new { calibrationRecord.ID });
+            }
 
-                ViewBag.OrderList = GetOrderList();
-                return View(calibrationRecord);
-            }
-            else
-            {
-                //...TODO..
-                return View(calibrationRecord);
-            }
+            ViewBag.OrderList = GetOrderList();
+            return View(calibrationRecord);
+
 
         }
         #endregion

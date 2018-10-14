@@ -90,20 +90,32 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-            var AllAppearanceRecords = db.Appearance as IQueryable<Appearance>;
+            //var AllAppearanceRecords = db.Appearance as IQueryable<Appearance>;
+            List<Appearance> AllAppearanceRecords = new List<Appearance>(); ;
             List<Appearance> AllAppearanceRecordsList = null;
             if (String.IsNullOrEmpty(OrderNum))
             {
                 //调出全部记录      
-                AllAppearanceRecords = from m in db.Appearance
-                                       select m;
+                //AllAppearanceRecords = from m in db.Appearance
+                //                       select m;
+                AllAppearanceRecords = db.Appearance.ToList();
             }
             else
             {
                 //筛选出对应orderNum所有记录
-                AllAppearanceRecords = from m in db.Appearance
-                                       where (m.OrderNum == OrderNum)
-                                       select m;
+                //AllAppearanceRecords = from m in db.Appearance
+                //                       where (m.OrderNum == OrderNum)
+                //                       select m;
+                AllAppearanceRecords = db.Appearance.Where(c => c.OrderNum == OrderNum).ToList();
+                if (AllAppearanceRecords.Count() == 0)
+                {
+                    var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == OrderNum).ToList();
+                    //..TODO..待优化
+                    foreach (var item in barcodelist)
+                    {
+                        AllAppearanceRecords.AddRange(db.Appearance.Where(c => c.BarCodesNum == item.BarCodesNum));
+                    }
+                }
             }
 
             //统计外观包装结果正常的模组数量
@@ -113,8 +125,7 @@ namespace JianHeMES.Controllers
             #region  ---------按条码筛选--------------
             if (BoxBarCode != "")
             {
-                AllAppearanceRecords = AllAppearanceRecords.Where(x => x.BarCodesNum == BoxBarCode);
-                //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
+                AllAppearanceRecords = AllAppearanceRecords.Where(x => x.BarCodesNum == BoxBarCode).ToList();
             }
             #endregion
 
@@ -122,11 +133,13 @@ namespace JianHeMES.Controllers
             //正常、异常记录筛选
             if (AppearancesNormal == "异常")
             {
-                AllAppearanceRecords = from m in AllAppearanceRecords where (m.Appearance_OQCCheckAbnormal != "正常") select m;
+                AllAppearanceRecords = AllAppearanceRecords.Where(c => c.Appearance_OQCCheckAbnormal != "正常").ToList();
+                //AllAppearanceRecords = from m in AllAppearanceRecords where (m.Appearance_OQCCheckAbnormal != "正常") select m;
             }
             else if (AppearancesNormal == "正常")
             {
-                AllAppearanceRecords = from m in AllAppearanceRecords where (m.Appearance_OQCCheckAbnormal == "正常") select m;
+                AllAppearanceRecords = AllAppearanceRecords.Where(c => c.Appearance_OQCCheckAbnormal == "正常").ToList();
+                //AllAppearanceRecords = from m in AllAppearanceRecords where (m.Appearance_OQCCheckAbnormal == "正常") select m;
             }
 
             #endregion
@@ -150,7 +163,7 @@ namespace JianHeMES.Controllers
             //检查orderNum和searchString是否为空
             if (!String.IsNullOrEmpty(searchString))
             {   //从调出的记录中筛选含searchString内容的记录
-                AllAppearanceRecords = AllAppearanceRecords.Where(m => m.OrderNum.Contains(searchString));
+                AllAppearanceRecords = AllAppearanceRecords.Where(m => m.OrderNum.Contains(searchString)).ToList();
             }
 
             //取出对应orderNum外观包装时长所有记录
@@ -224,7 +237,7 @@ namespace JianHeMES.Controllers
             }
             AllAppearanceRecords = AllAppearanceRecords.OrderByDescending(m => m.OQCCheckBT)
                                 .Skip(PageIndex * PAGE_SIZE)
-                                .Take(PAGE_SIZE);
+                                .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
             ViewBag.PageCount = pageCount;
             ViewBag.OrderNumList = GetOrderNumList();
@@ -369,7 +382,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region --------------------外观电检开始-----------------
+        #region --------------------外观电检包装开始-----------------
 
 
         // GET: Appearances/Appearance_B
@@ -392,34 +405,79 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance, Boolean IsRepertory)
+        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            if (IsRepertory == false)
-            {
-                if (Session["User"] == null)
-                {
-                    return RedirectToAction("Login", "Users");
-                }
 
-                if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
-                //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
+            //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
+            {
+                ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
+                return View(appearance);
+            }
+            //在BarCodesNum条码表中找到此条码号
+            //Burn_in，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
+            if (db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
+            {
+                if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
                 {
-                    ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
+                    var appearanceRecord = db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum);
+                    appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
+                    appearance.OQCCheckBT = DateTime.Now;
+                    appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
+                    //增加模组箱体号到外观记录中
+                    appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
+                    db.Appearance.Add(appearance);
+                    //db.SaveChanges();
+                    //修改BarCodes表中的ToOrderNum记录
+                    var barcoderecord = db.BarCodes.Where(c => c.BarCodesNum == appearance.BarCodesNum).FirstOrDefault();
+                    if(barcoderecord.IsRepertory!=true)
+                    {
+                        ModelState.AddModelError("", "此模组条码是订单" + barcoderecord.OrderNum + "的，但此订单不属于库存订单，请检查条码是否正确！");
+                        return View(appearance);
+                    }
+                    if (barcoderecord.ToOrderNum!=null)
+                    {
+                        ModelState.AddModelError("", "此模组条码已经绑定给订单"+ barcoderecord.ToOrderNum + "了，请选择正确的库存订单号和新订单号！");
+                        return View(appearance);
+                    }
+                    barcoderecord.ToOrderNum = appearance.ToOrderNum;
+                    db.Entry(barcoderecord).State = EntityState.Modified;
+                    db.SaveChanges();
+                    return RedirectToAction("Appearance_F", new { appearance.Id });
+                }
+                else
+                {
+                    ModelState.AddModelError("", "此模组条码不属于所选订单，请选择正确的订单号！");
                     return View(appearance);
                 }
-                //在BarCodesNum条码表中找到此条码号
-                //Burn_in，准备在Assembles组装记录表中新建记录，包括OrderNum、BoxBarCode、PQCCheckBT、AssemblePQCPrincipal
-                if (db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
+
+            }
+            //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
+            else if (db.Appearance.Count(u => u.BarCodesNum == appearance.BarCodesNum) >= 1)
+            {
+                var appearance_list = db.Appearance.Where(m => m.BarCodesNum == appearance.BarCodesNum).ToList();
+                int normalCount = appearance_list.Where(m => m.RepairCondition == "正常" && m.OQCCheckFinish == true).Count();
+                if (normalCount == 0)
                 {
                     if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
                     {
-                        var appearanceRecord = db.Appearance.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum);
                         appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
                         appearance.OQCCheckBT = DateTime.Now;
                         appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
                         //增加模组箱体号到外观记录中
                         appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
+                        string toordernum = db.BarCodes.Where(c => c.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().ToOrderNum;
+                        if (appearance.ToOrderNum!= toordernum)
+                        {
+                            ModelState.AddModelError("", "该模组条码已经绑定给订单" + toordernum + "了，请选择正确的新订单号！");
+                            return View(appearance);
+                        }
                         db.Appearance.Add(appearance);
                         db.SaveChanges();
                         return RedirectToAction("Appearance_F", new { appearance.Id });
@@ -429,56 +487,26 @@ namespace JianHeMES.Controllers
                         ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                         return View(appearance);
                     }
-
-                }
-                //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有正常的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
-                else if (db.Appearance.Count(u => u.BarCodesNum == appearance.BarCodesNum) >= 1)
-                {
-                    var appearance_list = db.Appearance.Where(m => m.BarCodesNum == appearance.BarCodesNum).ToList();
-                    int normalCount = appearance_list.Where(m => m.RepairCondition == "正常" && m.OQCCheckFinish == true).Count();
-                    if (normalCount == 0)
-                    {
-                        if (appearance.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum)
-                        {
-                            appearance.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == appearance.BarCodesNum).FirstOrDefault().OrderNum;
-                            appearance.OQCCheckBT = DateTime.Now;
-                            appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
-                            //增加模组箱体号到外观记录中
-                            appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
-                            db.Appearance.Add(appearance);
-                            db.SaveChanges();
-                            return RedirectToAction("Appearance_F", new { appearance.Id });
-                        }
-                        else
-                        {
-                            ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
-                            return View(appearance);
-                        }
-                    }
-                    else
-                    {
-                        //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Appearances';</script>");
-                        ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
-                        return View(appearance);
-                    }
                 }
                 else
                 {
-                    //return RedirectToAction("Appearance_F", new { appearance.Id });
-                    return RedirectToAction("Index");
+                    //return Content("<script>alert('此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！');window.location.href='../Appearances';</script>");
+                    ModelState.AddModelError("", "此模组已经完成PQC，不能对已通过PQC的模组进行重复PQC！");
+                    return View(appearance);
                 }
             }
             else
             {
-                //...TODO..
-                return View(appearance);
+                //return RedirectToAction("Appearance_F", new { appearance.Id });
+                return RedirectToAction("Index");
             }
+
 
         }
         #endregion
 
 
-        #region --------------------外观电检完成------------
+        #region --------------------外观电检包装完成------------
         // GET: Appearances/Appearance_F
         public ActionResult Appearance_F(int? id)
         {
@@ -505,7 +533,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Appearance appearance)
+        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
         {
             if (Session["User"] == null)
             {
