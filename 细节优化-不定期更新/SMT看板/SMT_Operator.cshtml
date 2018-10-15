@@ -9,6 +9,11 @@
         height: 98%;
     }
 
+    body {
+        background-color: #dff0d8;
+        color: #555;
+    }
+
     .SMTLineTitle {
         width: 100%;
         height: 18%;
@@ -26,7 +31,7 @@
         font-size: 50px;
         margin: 30px 0 0 0;
         text-align: center;
-        color: #555;
+        color: #289c12;
         z-index: -2;
         overflow: hidden;
         white-space: nowrap;
@@ -34,7 +39,7 @@
 
     .lineInfo {
         position: absolute;
-        left: 100px;
+        right: 0px;
         bottom: 1px;
         height: 80px;
         width: 200px;
@@ -77,10 +82,6 @@
             font-size: 15px;
         }
 
-    .form-control {
-        max-width: 280px;
-    }
-
     #lineSelect {
         border: 1px solid #808080;
         -moz-appearance: none;
@@ -114,6 +115,22 @@
     .planOrderName div {
         font-weight: bold;
     }
+
+    .colorG {
+        color: #289c12;
+    }
+
+    .colorR {
+        color: #334BFF;
+    }
+
+    .colorY {
+        color: #1368BC;
+    }
+
+    .colorB {
+        color: #F33;
+    }
 </style>
 <html>
 <head>
@@ -133,7 +150,7 @@
             <br /><br />
             <h1 class="text-center">请选择产线</h1>
             <hr />
-            <ul id="selectLine" v-model="lineSelect">
+            <ul id="selectLine">
                 <li value="1">1</li>
                 <li value="2">2</li>
                 <li value="3">3</li>
@@ -176,7 +193,7 @@
                     </p>
                 </div>
                 <div class="col-md-3">
-                    <div class="lineInfo" v-for="(item,index) in LineDataList" v-if="lineSelect==(index+1)">
+                    <div class="lineInfo colorR" v-for="(item,index) in LineDataList" v-if="lineSelect==(index+1)">
                         <p>班组：{{item.Team}}</p>
                         <p>组长：{{item.GroupLeader}}</p>
                     </div>
@@ -188,16 +205,18 @@
                         <div class="form-group">
                             <label class="control-label col-md-3" for="orderNum">订单号</label>
                             <div class="col-md-9">
-                                <input id="orderNum" autofocus="autofocus" class="form-control text-box single-line" placeholder="请扫描订单号" type="text">
+                                <input id="orderNum" class="form-control text-box single-line" placeholder="请扫描订单号" v-focus v-on:keyup.enter="orderEnder" type="text">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="control-label col-md-3" for="isNormal">正常/异常</label>
+                            <label class="control-label col-md-3 colorB" for="isNormal">正常/异常</label>
                             <div class="col-md-9">
-                                <input id="isNormal" v-model="isNormal" class="form-control text-box single-line" placeholder="请扫描正/异常" type="text">
-                                <span id="ruturnMessage" class="text-danger"></span>
+                                <input id="isNormal" v-model="isNormal" class="form-control text-box single-line" placeholder="请扫描正/异常" v-on:keyup.enter="enter" type="text">
+                                <br />
+                                <div id="ruturnMessage"></div>
                             </div>
                         </div>
+                        <br />
                         <div class="form-group">
                             <div class="col-md-9 col-md-offset-3">
                                 <button class="btn btn-default" v-on:click="isNormal=true">True</button>
@@ -214,10 +233,10 @@
                 <div class="col-md-7 rightContent">
                     <div v-for="(item,index) in LineDataList" v-if="lineSelect==(index+1)">
                         <h2 class="text-center">产线<span>{{lineSelect}}</span>统计：</h2>
-                        <h3>正在生产订单：<span>{{item.LineDoingOrder}}</span></h3>
+                        <h3 class="colorY">正在生产订单：<span>{{item.LineDoingOrder}}</span></h3>
                         <h3>今天生产数量汇总：{{item.LineTodayFinishOrderQuantity}}个</h3>
                         <br />
-                        <div class="row planOrderName">
+                        <div class="row planOrderName colorG">
                             <div class="col-md-4">今天计划生产订单：</div>
                             <div class="planOrder col-md-8">
                                 <ul v-for="i in item.LinePlanOrder.split(',')">
@@ -226,10 +245,9 @@
                             </div>
                         </div>
                         <h3>产线累计生产数量：{{item.LineTotalQuantity}}个</h3>
-                        <h3>产线状态：<span>{{item.LineStatus}}</span></h3>
-
+                        <h3 class="colorB">产线状态：<span>{{item.LineStatus}}</span></h3>
                         <br />
-                        <table class="table table-bordered">
+                        <table class="table table-bordered colorR">
                             <colgroup>
                                 <col style="width:34%" />
                                 <col style="width:15%" />
@@ -259,12 +277,10 @@
     </div>
 
     <script>
-        $("#selectLine li").click(function (val) {
-            app.lineSelect = $(this).val();
-        });
-        $(function () {
-            $("#orderNum").focus();
-            console.log("进入")
+        Vue.directive('focus', {
+            inserted: function (el) {
+                el.focus()
+            }
         });
         var app = new Vue({
             el: "#app",
@@ -274,24 +290,50 @@
                 isNormal: ""
             },
             methods: {
-                lineDetail: function (val, station) {
-                    //this.$options.methods.postForm("/ProductionControl/" + station, val);
-                    $.ajax({
-                        type: 'post',
-                        url: "/SMT/SMT_Operator/",
-                        data: {
-                            LineNum: app.lineSelect,
-                            OrderNum: $("#orderNum").val(),
-                            Result: $("#isNormal").val()
-                        },
-                        success: function (data) {
-                            console.log(data);
-                            $("#ruturnMessage").text(data);
-                        },
-                        error: function (XMLHttpRequest, textStatus, errorThrown) {
-                            alert("POST失败")
-                        }
-                    });
+                lineDetail: function () {
+                    var orderNum = $("#orderNum").val();
+                    var isNormal = $("#isNormal").val();
+                    if (orderNum != "" && isNormal != "") {
+                        if (isNormal == "true" || isNormal == "false") {
+                            $.ajax({
+                                type: 'post',
+                                url: "/SMT/SMT_Operator/",
+                                data: {
+                                    LineNum: app.lineSelect,
+                                    OrderNum: orderNum,
+                                    Result: isNormal
+                                },
+                                success: function (data) {
+                                    console.log(data);
+                                    $("#ruturnMessage").append($("<span style=\"color:red\">" + data + "</span>"));
+                                    setTimeout(function () {
+                                        $("#ruturnMessage").children().remove();
+                                    }, 3000);
+                                    $("#isNormal").focus();
+                                },
+                                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                                    alert("POST失败")
+                                }
+                            });
+                        } else {
+                            $("#ruturnMessage").append($("<span style=\"color:red\">正常/异常 内容不正确</span>"));
+                            setTimeout(function () {
+                                $("#ruturnMessage").children().remove();
+                            }, 3000);
+                        };
+                    } else {
+                        $("#ruturnMessage").append($("<span style=\"color:red\">输入内容不能为空</span>"));
+                        setTimeout(function () {
+                            $("#ruturnMessage").children().remove();
+                        }, 3000);
+                    };
+                },
+                orderEnder: function () {
+                    $("#isNormal").focus();
+                },
+                enter: function (el) {
+                    $(this).focus();
+                    this.$options.methods.lineDetail();
                 }
             },
             watch: {
@@ -299,7 +341,13 @@
             },
             computed: {
 
+            },
+            created: function () {
+
             }
+        });
+        $("#selectLine li").click(function (val) {
+            app.lineSelect = $(this).val();
         });
     </script>
 

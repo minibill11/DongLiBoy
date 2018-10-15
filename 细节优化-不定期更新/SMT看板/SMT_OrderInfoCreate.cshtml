@@ -1,15 +1,21 @@
 ﻿@model JianHeMES.Models.SMT_OrderInfo
 
 @{
-    ViewBag.Title = "SMT_OrderInfoCreate";
+    ViewBag.Title = "SMT_订单创建";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
+<style>
+    .table > tbody > tr > th{
+        text-align:center;
+        vertical-align:middle;
+    }
+</style>
 <script src="~/Scripts/jquery-1.11.3.js"></script>
 <script src="~/Scripts/vue.js"></script>
-<h2>SMT_OrderInfoCreate</h2>
+<h2>@ViewBag.Title</h2>
 
 <div id="app" class="form-horizontal">
-    <h4>SMT_OrderInfo</h4>
+    @*<h4>SMT_OrderInfo</h4>*@
     <hr>
     <table class="table">
         <tr>
@@ -23,7 +29,7 @@
             <th>平台类型</th>
             <th>客户</th>
             <th>交货时间</th>
-            <th></th>
+            <th align="center"><button type="button" class="btn btn-link" onclick="emptytable()">清空</button></th>
         </tr>
         <tr class="orderNum">
             <td><input class="form-control"></td>
@@ -31,7 +37,7 @@
             <td><input class="form-control"></td>
             <td><input class="form-control"></td>
             <td><input class="form-control" type="datetime"></td>
-            <td align="center"><button type="button" class="btn btn-link" onclick="emptytr(this)">清空</button></td>
+            <td align="center"><button type="button" class="btn btn-link" onclick="emptytr(this)">清除</button></td>
             @*<td><input class="check-box"  type="checkbox"></td>*@
         </tr>
         <tr class="orderNum">
@@ -52,7 +58,8 @@
 
     <div class="form-group">
         <div class="col-md-12">
-            <input value="创建" v-on:click="createPost" class="btn btn-default" type="button">
+            <input value="检查订单信息" v-on:click="checkPost" class="btn btn-default" type="button">
+            <input value="创建" v-show="okCreate" v-on:click="createPost" class="btn btn-default" type="button">
         </div>
     </div>
 </div>
@@ -62,6 +69,7 @@
 
 <script>
     function addtr() {
+        app.okCreate = false;
         var table = $("#para_table");
         var tr = $("<tr class=\"orderNum\">" +
             "<td><input class=\"form-control\"></td>" +
@@ -73,10 +81,21 @@
         table.append(tr);
     };
     function deletetr(tdobject) {
+        app.okCreate = false;
         var td = $(tdobject);
         td.parents("tr").remove();
     };
+    function emptytable() {
+        app.okCreate = false;
+        var tr = $(".orderNum")
+        tr.each(function (index, val) {
+            $(val).children("td").each(function (i, v) {
+                v.firstChild.value = "";
+            })
+        });
+    };
     function emptytr(tdobject) {
+        app.okCreate = false;
         var td = $(tdobject);
         td.parents("tr").children("td").each(function (index, val) {
             val.firstChild.value = "";
@@ -92,14 +111,16 @@
             okNum: 0,
             emptyNum: 0,
             pasteExcel: "",
+            okCreate: false
         },
         methods: {
-            createPost: function (event) { //提交post内容
+            checkPost: function (event) {
                 //event.preventDefault();
                 app.recordsArray = [];
                 app.recordsJson = {};
                 app.okNum = 0;
                 app.emptyNum = 0;
+                app.okCreate = false;
                 $(".orderNum").each(function (index, val) {
                     if (val.children[0].firstChild.value != ""
                         || val.children[1].firstChild.value != ""
@@ -133,13 +154,44 @@
                         };
                     } else {
                         app.emptyNum++;
+                        $(val.children).each(function (i, v) {
+                            $(v.firstChild).next().remove("p");
+                        });
                     };
                 });
                 if (($(".orderNum").length - app.emptyNum) == app.okNum && app.okNum != 0) {
                     //alert("ok");
-                    //console.log(JSON.stringify(app.recordsArray))
-                    this.$options.methods.postForm("/SMT/SMT_OrderInfoCreate", JSON.stringify(app.recordsArray));
+                    //console.log(app.recordsArray)
+                    $.ajax({
+                        type: 'post',
+                        url: "/SMT/SMT_OrderInfoCheck/",
+                        data: {
+                            records: JSON.stringify(app.recordsArray)
+                        },
+                        success: function (data) {
+                            returnData = JSON.parse(data);
+                            console.log(returnData);
+                            var i = 0;
+                            for (var val in returnData) {
+                                if (returnData[val] == "订单已存在") {
+                                    if ($(".orderNum")[i].firstChild.firstChild.value == val) {
+                                        $($(".orderNum")[i].firstChild).append($("<p class=\"unqualified\" style=\"color:red\">此订单已存在</p>"));
+                                    };
+                                };
+                                i++;
+                            };
+                            if ($(".unqualified").length == 0) {
+                                app.okCreate = true;
+                            };
+                        },
+                        error: function (XMLHttpRequest, textStatus, errorThrown) {
+                            alert("POST失败")
+                        }
+                    });
                 };
+            },
+            createPost: function (event) { //提交post内容
+                this.$options.methods.postForm("/SMT/SMT_OrderInfoCreate", JSON.stringify(app.recordsArray));
             },
             postForm: function (url, params) {
                 var newForm = $("<form action=" + url + " method='post' style='display:none' ><input name='records' value=" + params + " ></form>");
@@ -156,6 +208,7 @@
                 if (val == "") {
                     return false;
                 };
+                app.okCreate = false;
                 var pasteQuantity = val.split("\n");
                 pasteQuantity.pop();
                 pasteQuantity.forEach(function (value, index) {
@@ -180,6 +233,7 @@
                         };
                     });
                 } else {
+                    emptytable();
                     $(".orderNum").each(function (index, val) {
                         if (index < pasteLength) {
                             val.children[0].firstChild.value = pasteQuantity[index][0];
@@ -195,71 +249,3 @@
         }
     });
 </script>
-
-@*@using (Html.BeginForm())
-    {
-        @Html.AntiForgeryToken()
-
-        <div class="form-horizontal">
-            <h4>SMT_OrderInfo</h4>
-            <hr />
-            @Html.ValidationSummary(true, "", new { @class = "text-danger" })
-            <div class="form-group">
-                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
-                <div class="col-md-10">
-                    @Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control" } })
-                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group">
-                @Html.LabelFor(model => model.Quantity, htmlAttributes: new { @class = "control-label col-md-2" })
-                <div class="col-md-10">
-                    @Html.EditorFor(model => model.Quantity, new { htmlAttributes = new { @class = "form-control" } })
-                    @Html.ValidationMessageFor(model => model.Quantity, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group">
-                @Html.LabelFor(model => model.PlatformType, htmlAttributes: new { @class = "control-label col-md-2" })
-                <div class="col-md-10">
-                    @Html.EditorFor(model => model.PlatformType, new { htmlAttributes = new { @class = "form-control" } })
-                    @Html.ValidationMessageFor(model => model.PlatformType, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group">
-                @Html.LabelFor(model => model.Customer, htmlAttributes: new { @class = "control-label col-md-2" })
-                <div class="col-md-10">
-                    @Html.EditorFor(model => model.Customer, new { htmlAttributes = new { @class = "form-control" } })
-                    @Html.ValidationMessageFor(model => model.Customer, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group">
-                @Html.LabelFor(model => model.DeliveryDate, htmlAttributes: new { @class = "control-label col-md-2" })
-                <div class="col-md-10">
-                    @Html.EditorFor(model => model.DeliveryDate, new { htmlAttributes = new { @class = "form-control" } })
-                    @Html.ValidationMessageFor(model => model.DeliveryDate, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group">
-                @Html.LabelFor(model => model.Status, htmlAttributes: new { @class = "control-label col-md-2" })
-                <div class="col-md-10">
-                    <div class="checkbox">
-                        @Html.EditorFor(model => model.Status)
-                        @Html.ValidationMessageFor(model => model.Status, "", new { @class = "text-danger" })
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <div class="col-md-offset-2 col-md-10">
-                    <input type="submit" value="创建" class="btn btn-default" />
-                </div>
-            </div>
-        </div>
-    }*@
-
-
