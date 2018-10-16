@@ -53,15 +53,38 @@ namespace JianHeMES.Controllers
             }
             return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
         }
+
+        //[HttpPost]
+        //public ActionResult SMT_ProductionLineCreate(FormCollection fc)
+        //{
+        //    SMT_ProductionLineInfo newline = new SMT_ProductionLineInfo();
+        //    newline.LineNum = Convert.ToInt32(fc["LineNum"]);
+        //    newline.CreateDate = DateTime.Now;
+        //    newline.Team = fc["Team"];
+        //    newline.GroupLeader = fc["GroupLeader"];
+        //    newline.Status = fc["Status"];
+        //    ViewBag.Status = ProductionLineStatus();
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.SMT_ProductionLineInfo.Add(newline);
+        //        db.SaveChanges();
+        //        return RedirectToAction("SMT_Mangage");
+        //    }
+        //    else
+        //    {
+        //        return View(newline);
+        //    }
+        //}
+
         [HttpPost]
-        public ActionResult SMT_ProductionLineCreate(FormCollection fc)
+        public ActionResult SMT_ProductionLineCreate([Bind(Include = "Id,LineNum,ProducingOrderNum,CreateDate,Team,GroupLeader,Status")] SMT_ProductionLineInfo newline)
         {
-            SMT_ProductionLineInfo newline = new SMT_ProductionLineInfo();
-            newline.LineNum = Convert.ToInt32(fc["LineNum"]);
+            //if (db.SMT_ProductionLineInfo.Where(c => c.LineNum == newline.LineNum).Count() > 0)
+            //{
+            //    ModelState.AddModelError("", "此产线已经存在，请检查产线号是否正确！");
+            //    return View(newline);
+            //}
             newline.CreateDate = DateTime.Now;
-            newline.Team = fc["Team"];
-            newline.GroupLeader = fc["GroupLeader"];
-            newline.Status = fc["Status"];
             ViewBag.Status = ProductionLineStatus();
             if (ModelState.IsValid)
             {
@@ -162,22 +185,40 @@ namespace JianHeMES.Controllers
             }
             return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_OrderMangage';</script>");
         }
+
+
+        [HttpPost]
+        public ActionResult SMT_OrderInfoCheck(string records)
+        {
+            List<SMT_OrderInfo> orders = new List<SMT_OrderInfo>();
+
+            JObject SMT_OrderInfoCheck_result = new JObject();
+            orders = JsonConvert.DeserializeObject<List<SMT_OrderInfo>>(records);
+            if (orders != null)
+            {
+                foreach (var item in orders)
+                {
+                    var IsExistOrder = db.SMT_OrderInfo.Where(c => c.OrderNum == item.OrderNum).Count();
+                    if (IsExistOrder>0)
+                    {
+                        SMT_OrderInfoCheck_result.Add(item.OrderNum, "订单已存在");
+                    }
+                    else
+                    {
+                        SMT_OrderInfoCheck_result.Add(item.OrderNum, "订单不存在");
+                    }
+                }
+                //return Content(SMT_OrderInfoCheck_result.ToString());
+                return Json(SMT_OrderInfoCheck_result.ToString(),JsonRequestBehavior.AllowGet);
+            }
+            return View(records);
+        }
+
         [HttpPost]
         public ActionResult SMT_OrderInfoCreate(string records)
         {
             List<SMT_OrderInfo> orders = new List<SMT_OrderInfo>();
 
-            ////单个model传入
-            //var order = JsonConvert.DeserializeObject<SMT_OrderInfo>(records);
-            //if(order!=null)
-            //{
-            //    if (ModelState.IsValid)
-            //    {
-            //        db.SMT_OrderInfo.Add(order);
-            //        db.SaveChanges();
-            //    }
-            //    return RedirectToAction("SMT_Mangage");
-            //}
             orders = JsonConvert.DeserializeObject<List<SMT_OrderInfo>>(records);
             if (orders != null)
             {
@@ -429,12 +470,12 @@ namespace JianHeMES.Controllers
                 datarecord.ProductionDate = DateTime.Now;
                 if (result == true)
                 {
-                    datarecord.NormalCount++;
+                    datarecord.NormalCount= datarecord.NormalCount + 1;
                     return Content("订单" + ordernum + "良品数已增加一个！");
                 }
                 else
                 {
-                    datarecord.AbnormalCount++;
+                    datarecord.AbnormalCount= datarecord.AbnormalCount + 1;
                     return Content("订单" + ordernum + "不良品数已增加一个！");
                 }
             }

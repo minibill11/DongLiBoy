@@ -16,14 +16,16 @@
     .table > tbody > tr:nth-child(n+3):hover {
         background-color: rgba(77, 72, 72, 0.15);
     }
-    ul{
-        padding:0;
-        margin:0;
+
+    ul {
+        padding: 0;
+        margin: 0;
     }
-    ul li{
-        list-style:none;
-        white-space:nowrap;
-    }
+
+        ul li {
+            list-style: none;
+            white-space: nowrap;
+        }
 </style>
 <h2 class="text-center">SMT生产信息</h2>
 
@@ -43,11 +45,13 @@
             <col width="80 ">
             <col width="80 ">
             <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
         </colgroup>
         <tr class="rowTitle1">
             <th rowspan="2">产线</th>
             <th rowspan="2">正在生产订单</th>
-            <th colspan="5">今天生产订单</th>
+            <th colspan="7">今天生产订单</th>
             <th rowspan="2">累计数量</th>
             <th rowspan="2">今天计划订单</th>
             <th rowspan="2">班组</th>
@@ -56,12 +60,13 @@
         </tr>
         <tr class="rowTitle2">
             <th>订单</th>
-            <th>数量</th>
+            <th>订单数量</th>
+            <th>生产数量</th>
             <th>良品</th>
             <th>不良品</th>
             <th>不良率</th>
+            <th>完成率</th>
         </tr>
-
         <tr v-for="(item, index) in lineDataList">
             <td v-on:click="lineDetail('',index+1)">{{index+1}}</td>
             <td v-on:click="lineDetail('',index+1)">{{item.LineDoingOrder}}</td>
@@ -70,7 +75,17 @@
                     <li v-for="i in item.LineTodayFinishOrder">{{i}}</li>
                 </ul>
             </td>
-            <td>{{item.LineTodayFinishOrderQuantity}}</td>
+            @*<td>{{item.LineTodayFinishOrderQuantity}}</td>*@
+            <td>
+                <ul>
+                    <li v-for="i in item.OrderQuantity">{{i}}</li>
+                </ul>
+            </td>
+            <td>
+                <ul>
+                    <li v-for="i in item.normalQuantity">{{i}}</li>
+                </ul>
+            </td>
             <td>
                 <ul>
                     <li v-for="i in item.LineTodayFinishOrderNormal">{{i}}</li>
@@ -81,7 +96,16 @@
                     <li v-for="i in item.LineTodayFinishOrderAbnormal">{{i}}</li>
                 </ul>
             </td>
-            <td>不良率</td>
+            <td>
+                <ul>
+                    <li v-for="i in item.OrderAbnormalRate">{{i}}</li>
+                </ul>
+            </td>
+            <td>
+                <ul>
+                    <li v-for="i in item.OrderTotalFinishRate">{{i}}</li>
+                </ul>
+            </td>
             <td>{{item.LineTotalQuantity}}个</td>
             <td>
                 <ul>
@@ -101,7 +125,7 @@
     var app = new Vue({
         el: "#app",
         data: {
-            lineDataList: []
+            lineDataList: [],
         },
         methods: {
             Detail: function (val, station) {
@@ -146,10 +170,22 @@
                 console.log(Object.keys(SMT_ProductionInfo).length)
 
                 for (index in SMT_ProductionInfo) {
+                    var normal = SMT_ProductionInfo[index].LineTodayFinishOrderNormal;
+                    var abnormal = SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal;
+                    var OrderQuantity = SMT_ProductionInfo[index].OrderQuantity;
+                    var OrderQuantityList = [];
+                    var OrderAbnormalRateList = [];
+                    var OrderTotalFinishRateList = [];
+                    for (item in normal) {
+                        var normalCount = normal[item] + abnormal[item];
+                        OrderQuantityList.push(normalCount);
+                        OrderAbnormalRateList.push(((abnormal[item] / normalCount) * 100).toFixed(2) + "%")
+                        OrderTotalFinishRateList.push(((normalCount / parseInt(OrderQuantity[item])) * 100).toFixed(2) + "%");
+                    };
                     app.lineDataList.push({
                         LineDoingOrder: SMT_ProductionInfo[index].LineDoingOrder,
                         LineTodayFinishOrder: SMT_ProductionInfo[index].LineTodayFinishOrder,
-                        LineTodayFinishOrderQuantity: SMT_ProductionInfo[index].LineTodayFinishOrderQuantity,
+                        //LineTodayFinishOrderQuantity: SMT_ProductionInfo[index].LineTodayFinishOrderQuantity,
                         LineTodayFinishOrderNormal: SMT_ProductionInfo[index].LineTodayFinishOrderNormal,
                         LineTodayFinishOrderAbnormal: SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal,
                         LineTotalQuantity: SMT_ProductionInfo[index].LineTotalQuantity,
@@ -157,6 +193,11 @@
                         Team: SMT_ProductionInfo[index].Team,
                         GroupLeader: SMT_ProductionInfo[index].GroupLeader,
                         LineStatus: SMT_ProductionInfo[index].LineStatus,
+                        OrderQuantity: SMT_ProductionInfo[index].OrderQuantity,
+
+                        normalQuantity: OrderQuantityList,
+                        OrderAbnormalRate: OrderAbnormalRateList,
+                        OrderTotalFinishRate: OrderTotalFinishRateList
                     });
                 }
             };

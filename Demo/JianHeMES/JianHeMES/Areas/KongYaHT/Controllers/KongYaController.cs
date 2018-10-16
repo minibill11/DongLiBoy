@@ -1094,7 +1094,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                    case "五楼SMT产线40000938#4":
+                 case "五楼SMT产线40000938#4":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime > right)
                                     orderby m.id
@@ -3104,6 +3104,14 @@ namespace JianHeMES.Areas.kongya.Controllers
                 case "四楼老化调试3号40004493#5":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40004493" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼小间距装配40004518#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "7" && m.RecordTime > begin && m.RecordTime < end)
                                    orderby m.id
                                    select m;
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;

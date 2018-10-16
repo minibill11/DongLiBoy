@@ -446,7 +446,7 @@ namespace JianHeMES.Controllers
                         ModelState.AddModelError("", "此模组条码已经绑定给订单"+ barcoderecord.ToOrderNum + "了，请选择正确的库存订单号和新订单号！");
                         return View(appearance);
                     }
-                    barcoderecord.ToOrderNum = appearance.ToOrderNum;
+                    barcoderecord.ToOrderNum = appearance.ToOrderNum;//添加新订单ToOrderNum
                     db.Entry(barcoderecord).State = EntityState.Modified;
                     db.SaveChanges();
                     return RedirectToAction("Appearance_F", new { appearance.Id });

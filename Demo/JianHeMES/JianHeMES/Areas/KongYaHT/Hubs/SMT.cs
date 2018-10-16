@@ -95,25 +95,25 @@ namespace JianHeMESEntities.Hubs
 
                     //产线i今天生产订单
                     JObject LineTodayFinishOrder = new JObject();
-                    //JObject OrderQuantity = new JObject();
+                    JObject OrderQuantity = new JObject();
                     var LineTodayFinishOrderList = LineProductionData.Select(c => c.OrderNum).ToList();
-                    //var OrderQuantityList = SMT_OrderInfos.Select(c => c.OrderNum);//订单数量
+                    var OrderQuantityList = SMT_OrderInfos.Select(c => c.OrderNum);//订单数量
                     foreach (var item in LineTodayFinishOrderList)
                     {
                         //订单数量
-                        //foreach (var order in OrderQuantityList)
-                        //{
-                        //    if (item == order)
-                        //    {
-                        //        OrderQuantity.Add(x.ToString(), SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString());
-                        //    }
-                        //}
+                        foreach (var order in OrderQuantityList)
+                        {
+                            if (item == order)
+                            {
+                                OrderQuantity.Add(x.ToString(), SMT_OrderInfos.Where(c => c.OrderNum == order).FirstOrDefault().Quantity.ToString());
+                            }
+                        }
                         //产线i今天生产订单
                         LineTodayFinishOrder.Add(x.ToString(), item);
                         x++;
                     }
                     SMT_LineInfo.Add("LineTodayFinishOrder", LineTodayFinishOrder);//产线i今天生产订单
-                    //SMT_LineInfo.Add("OrderQuantity", OrderQuantity);//订单数量
+                    SMT_LineInfo.Add("OrderQuantity", OrderQuantity);//订单数量
 
                     //产线i今天生产订单合格品
                     JObject LineTodayFinishOrderNormal = new JObject();
@@ -149,7 +149,6 @@ namespace JianHeMESEntities.Hubs
                     SMT_LineInfo.Add("LinePlanOrder", LinePlanOrder);//产线i今天计划生产订单
 
                     SMT_LineInfo.Add("LineDoingOrder", LineInfo.ProducingOrderNum);//产线i正在生产订单
-                    //SMT_LineInfo.Add("LineTodayFinishOrderQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i今天生产订单数量
                     SMT_LineInfo.Add("LineTotalQuantity", LineProductionData.Sum(c => c.NormalCount + c.AbnormalCount));//产线i累计数量
                     SMT_LineInfo.Add("Team", LineInfo.Team);//产线i的班组
                     SMT_LineInfo.Add("GroupLeader", LineInfo.GroupLeader);//产线i组长
@@ -258,38 +257,6 @@ namespace JianHeMESEntities.Hubs
                     SMT_LineInfo.Add("TotalFinishQuantity", TotalFinishQuantity);//产线累计生产数量
                     SMT_LineInfo.Add("OrderTotalFinishQuantity", OrderTotalFinishQuantity);//产线i正在生产的订单累计生产数量
 
-
-                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault() != null)
-                    //{
-                    //    SMT_LineInfo.Add("OrderQuantity", SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity);//订单数量
-                    //}
-                    //else
-                    //{
-                    //    SMT_LineInfo.Add("OrderQuantity", "");//订单数量
-                    //}
-
-
-                    //if (LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault() != null)
-                    //{
-                    //    var order_AbnormalCount = LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().AbnormalCount;
-                    //    decimal OrderAbnormalRate = Convert.ToDecimal(order_AbnormalCount) * 100 / OrderTotalFinishQuantity;
-                    //    SMT_LineInfo.Add("OrderAbnormalRate", OrderAbnormalRate);//产线i正在生产的订单不良率
-                    //}
-                    //else
-                    //{
-                    //    SMT_LineInfo.Add("OrderAbnormalRate", "--%");//产线i正在生产的订单不良率
-                    //}
-
-                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault()!=null)
-                    //{
-                    //    decimal ProducingOrderFinishRate = Convert.ToDecimal(OrderTotalFinishQuantity)*100 / SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity;
-                    //    SMT_LineInfo.Add("OrderTotalFinishRate", ProducingOrderFinishRate);//产线i正在生产的订单完成率
-                    //}
-                    //else
-                    //{
-                    //    SMT_LineInfo.Add("OrderTotalFinishRate", "--%");//产线i正在生产的订单完成率
-                    //}
-
                     SMT_Board.Add(i.ToString(), SMT_LineInfo);//产线i的看板信息   1.1.1 JSON-->1.1 JSON
                 }
 
@@ -396,37 +363,6 @@ namespace JianHeMESEntities.Hubs
                     SMT_LineInfo.Add("Team", LineInfo.Team);//产线i的班组
                     SMT_LineInfo.Add("GroupLeader", LineInfo.GroupLeader);//产线i组长
                     SMT_LineInfo.Add("LineStatus", LineInfo.Status);//产线i状态
-
-                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault() != null)
-                    //{
-                    //    SMT_LineInfo.Add("OrderQuantity", SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity);//订单数量
-                    //}
-                    //else
-                    //{
-                    //    SMT_LineInfo.Add("OrderQuantity", "");//订单数量
-                    //}
-
-
-                    //if (LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault()!=null)
-                    //{
-                    //    var order_AbnormalCount = LineProductionData.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().AbnormalCount;
-                    //    decimal OrderAbnormalRate = order_AbnormalCount / OrderTotalFinishQuantity;
-                    //    SMT_LineInfo.Add("OrderAbnormalRate", OrderAbnormalRate);//产线i正在生产的订单不良率
-                    //}
-                    //else
-                    //{
-                    //    SMT_LineInfo.Add("OrderAbnormalRate", "--%");//产线i正在生产的订单不良率
-                    //}
-
-                    //if (SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault()!=null)
-                    //{
-                    //    decimal ProducingOrderFinishRate = OrderTotalFinishQuantity / SMT_OrderInfos.Where(c => c.OrderNum == LineInfo.ProducingOrderNum).FirstOrDefault().Quantity;
-                    //    SMT_LineInfo.Add("OrderTotalFinishRate", ProducingOrderFinishRate);//产线i正在生产的订单完成率
-                    //}
-                    //else
-                    //{
-                    //    SMT_LineInfo.Add("OrderTotalFinishRate", "--%");//产线i正在生产的订单完成率
-                    //}
 
                     SMT_Operator.Add(i.ToString(), SMT_LineInfo);//产线i的看板信息   1.1.1 JSON-->1.1 JSON
                 }
