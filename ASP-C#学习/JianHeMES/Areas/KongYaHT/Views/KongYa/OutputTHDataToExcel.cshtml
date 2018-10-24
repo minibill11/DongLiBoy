@@ -1,0 +1,325 @@
+﻿
+@{
+    ViewBag.Title = "OutputTHDataToExcel";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*引用js、加载数据*@
+<script src="~/Scripts/vue.js"></script>
+<link href="~/Scripts/Bootstraps/bootstrap-datetimepicker.min.css" rel="stylesheet" />
+<script src="~/Scripts/echarts.js"></script>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/jquery.unobtrusive-ajax.min.js"></script>
+<script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.js"></script>
+<script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.zh-CN.js"></script>
+
+<style>
+    .color-show {
+        display: flex;
+        flex-wrap: wrap;
+        max-height: 200px;
+        overflow: auto;
+    }
+
+    .color-box {
+        width: 30%;
+        text-align: center;
+        transition: transform .3s;
+    }
+
+    .green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }
+
+    .barcodeFrame {
+        width: 250px;
+        height: 100px;
+        border: 1px solid #000000;
+        overflow: auto;
+    }
+
+    .pointCSS {
+        float: left;
+        list-style: none;
+        width: 33%;
+        line-height: 20px;
+        font-size: 12px;
+    }
+
+        .pointCSS label {
+            font-weight: normal;
+        }
+
+    .modal-dialog {
+        width: 800px;
+        margin: 60px auto;
+    }
+
+    .fontsize {
+        font-size: 20px;
+        margin: 0;
+        vertical-align: middle;
+    }
+</style>
+
+
+<h3 class="text-center">导出湿湿记录输出Excel表格</h3><hr />
+<div id="app" class="container">
+    <div class="row">
+        <div class="form-group  text-center">
+            <label class="control-label fontsize">信息点：</label>
+            <!-- 按钮触发模态框 -->
+            <button class="btn btn-default" data-toggle="modal" data-target="#myModal">选择</button>
+        </div>
+        <div class="form-group color-show">
+            <template v-for="(task,index) in pointList">
+                <li v-if="pointList.length>0" readonly="readonly" class="color-box form-control">
+                    <span>{{task}}</span>
+                    <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;">✗</button>
+                </li>
+            </template>
+        </div>
+        <div class="form-group">
+
+        </div>
+        <!-- 模态框（Modal） -->
+        <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                            &times;
+                        </button>
+                        <h4 class="modal-title" id="myModalLabel">
+                            模态框（Modal）标题
+                        </h4>
+                    </div>
+                    <div class="modal-body">
+                        @{int i = 0; }
+                        <ul>
+                            @foreach (var item in ViewBag.PointList)
+                            {
+                                <li class="pointCSS">
+                                    <input id="@i" class="pointValue" value="@item" type="checkbox" v-model="pointList">
+                                    <label for="@i">@item</label>
+                                </li>
+                                i++;
+                            }
+                        </ul>
+                        <div class="row"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button v-on:click="allcheck" type="button" class="btn btn-default">
+                            全选
+                        </button>
+                        <button v-on:click="confirmcheck" type="button" class="btn btn-primary" data-dismiss="modal">
+                            选择完毕
+                        </button>
+                    </div>
+                </div><!-- /.modal-content -->
+            </div><!-- /.modal -->
+        </div>
+    </div>
+    <div class="row">
+        <span>时间点：</span>
+        <div class="form-group">
+
+        </div>
+    </div>
+    <br />
+    <div class="row">
+        <div class="form-group">
+
+        </div>
+        <div style="float:left ;margin-left:2%">
+            <label class="form-control">选择时间段  👉</label>
+        </div>
+        <div style="float:left ;margin-left:2%;width:330px">
+            <div id="start_Date" class="input-group date" data-date="" data-link-field="start_input">
+                <div for="start_input" class="input-group-addon">开始时间</div>
+                <input id="startTime" name="startTime" class="form-control" type="text" value="" readonly>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+                <input type="hidden" id="start_input" value="" />
+            </div>
+        </div>
+        <div style="float:left ;margin-left:2%;width:330px">
+            <div id="end_Date" class="input-group date" data-date="" data-link-field="end_input">
+                <div for="end_input" class="input-group-addon">结束时间</div>
+                <input id="endTime" name="endTime" class="form-control" type="text" value="" readonly>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+                <input type="hidden" id="end_input" value="" />
+            </div>
+        </div>
+        <div style="float:left ;margin-left:2%">
+            <input class="form-control" type="button" id="btnSub" name="btnSub" value="加载时间段数据" />
+        </div>
+    </div>
+    <br />
+</div>
+
+<script>
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            tasks: [],
+            newTask: "", //input默认值
+            same: true,
+            prompt: false,
+            returnList: [],
+            okList: [],
+            pointList: []
+        },
+        methods: {
+            confirmcheck: function (e) {
+
+            },
+            allcheck: function (e) {
+
+            },
+            addTask: function (event) {
+                event.preventDefault();
+                this.prompt = false;
+                sames = app.same;
+                if (app.newTask != "") {
+                    app.newTask = app.newTask.toUpperCase();
+                    app.tasks.forEach(function (item, index) {
+                        if (app.newTask == item) {
+                            console.log(index);
+                            sames = false;
+                            app.prompt = true;
+                            app.newTask = "";
+                        }
+                    });
+                    if (sames) { //没有相同数据才允许添加
+                        app.tasks.push(app.newTask);
+                        app.newTask = "";
+                        $("#content").focus();
+                        console.log(app.tasks); //数组
+                    }
+                }
+            },
+            removeTask: function (task) { //删除条码，重新排序数组，焦点回到input，保存删除后的数据
+                this.prompt = false;
+                //指向Vue实例中的tasks
+                removetasks = this.tasks;
+                //remove
+                removetasks.forEach(function (item, index) {
+                    if (item == task) {
+                        removetasks.splice(index, 1);
+                    }
+                });
+                console.log(app.tasks); //数组
+                $("#content").focus();
+            },
+            submitANDclear: function (event) { //提交post内容，清空本地存储表单
+                event.preventDefault();
+                $.ajax({
+                    type: 'post',
+                    url: '/KongYaHT/KongYa/OutputTHDataToExcel',
+                    data: {
+                        //OutputTHDataToExcel(List<string> querylist, string Key, List<DateTime> Time, DateTime Begin, DateTime End)
+                        querylist: 0,
+                        Key: 0,
+                        Time: 0,
+                        Begin: "",
+                        End: 0
+                    },
+                    success: function (data) {
+                        //console.log(data);
+                        app.tasks = [];
+                        app.returnList = [];
+                        app.okList = [];
+                        alert(data);
+                        $("#content").focus();
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                    }
+                });
+            }
+        },
+        computed: {
+
+        },
+        watch: {
+
+        }
+    });
+</script>
+<script type="text/javascript">
+    //文档加载时设置点击事件
+    $(document).ready(function () {
+        $("#allcheck").click(function () {
+            if ($(".pointValue").length == $(".pointValue:checked").length) {
+                $(".pointValue").prop("checked", false);
+            } else {
+                $(".pointValue").prop("checked", true)
+            };
+        });
+        $("#confirmcheck").click(function () {
+            $(".pointValue").each(function (index) {
+                if ($(this).prop("checked") == true) {
+                    for (index in app.pointList) {
+                        if ($(this).val() == app.pointList[index])
+                            console.log()
+                        console.log($(this).val())
+                    };
+                    app.pointList.push();
+                };
+            });
+        });
+        //根据时间段进行POST
+        $("#btnSub").click(function () {
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsDuring',  //请求的某个action的地址
+                data: {
+                    point: "@ViewBag.Station",
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                },
+                success: function (data) {
+                }
+            })
+        })
+    })
+
+    //时间控件
+    $("#start_Date").datetimepicker({
+        language: 'zh-CN',
+        format: 'yyyy-mm-dd hh:ii',//显示格式
+        //minView: "month",//设置只显示到月份
+        weekStart: 1, //一周从哪一天开始。0（星期日）到6（星期六）
+        todayBtn: 1,
+        autoclose: 1, //当选择一个日期之后是否立即关闭此日期时间选择器。
+        todayHighlight: 1, //今天高亮
+        startView: 2,
+        forceParse: 0,
+        pickerPosition: "bottom-left",
+        showMeridian: 1,
+        endDate: new Date()
+    }).on('changeDate', function (ev) {
+        $("#end_Date").datetimepicker('setStartDate', $("#start_input").val());
+    });
+    $("#end_Date").datetimepicker({
+        language: 'zh-CN',
+        format: 'yyyy-mm-dd hh:ii',
+        weekStart: 1,
+        todayBtn: 1,
+        autoclose: 1,
+        todayHighlight: 1,
+        startView: 2,
+        forceParse: 0,
+        pickerPosition: "bottom-left",
+        showMeridian: 1,
+        endDate: new Date()
+    }).on('changeDate', function (ev) {
+        $("#start_Date").datetimepicker('setEndDate', $("#end_input").val());
+    });
+
+</script>

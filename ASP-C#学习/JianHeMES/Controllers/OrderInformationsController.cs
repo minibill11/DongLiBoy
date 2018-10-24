@@ -14,7 +14,7 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region Index首页
+        #region --------------------Index首页
         // GET: OrderInformations
         public ActionResult Index()
         {
@@ -54,7 +54,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region Details页
+        #region --------------------Details页
         // GET: OrderInformations/Details/5
         public ActionResult Details(int? id)
         {
@@ -72,7 +72,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region Create页
+        #region --------------------Create页
         // GET: OrderInformations/Create
         public ActionResult Create()
         {
@@ -101,7 +101,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region Edit页
+        #region --------------------Edit页
         // GET: OrderInformations/Edit/5
         public ActionResult Edit(int? id)
         {
@@ -137,7 +137,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  Delete页
+        #region --------------------Delete页
         // GET: OrderInformations/Delete/5
         public ActionResult Delete(int? id)
         {
@@ -175,7 +175,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ------------------ 分页功能函数 ----------------------------
+        #region --------------------分页功能函数
         private static readonly int PAGE_SIZE = 15;
         static List<OrderInformation> GetPageListByIndex(List<OrderInformation> list, int pageIndex)
         {

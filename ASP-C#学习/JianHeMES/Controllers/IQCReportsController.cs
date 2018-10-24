@@ -15,7 +15,7 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region  -----//物料列表-----------
+        #region --------------------物料列表
 
         private List<SelectListItem> Material()
         {
@@ -41,7 +41,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  -----//检验水平等级-----------
+        #region --------------------检验水平等级
 
         private List<SelectListItem> level()
         {
@@ -67,12 +67,16 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+        #region --------------------首页
         // GET: IQCReports
         public async Task<ActionResult> Index()
         {
             return View(await db.IQCReports.ToListAsync());
         }
 
+        #endregion
+
+        #region --------------------Details页
         // GET: IQCReports/Details/5
         public async Task<ActionResult> Details(int? id)
         {
@@ -87,7 +91,9 @@ namespace JianHeMES.Controllers
             }
             return View(iQCReport);
         }
+        #endregion
 
+        #region --------------------IQCReportCreate页
         // GET: IQCReports/Create
         public ActionResult IQCReportCreate()
         {
@@ -123,7 +129,9 @@ namespace JianHeMES.Controllers
             }
             return View(iQCReport);
         }
+        #endregion
 
+        #region --------------------IQCReportEdit页
         // GET: IQCReports/Edit/5
         public async Task<ActionResult> IQCReportEdit(int? id)
         {
@@ -166,7 +174,9 @@ namespace JianHeMES.Controllers
             }
             return View(iQCReport);
         }
+        #endregion
 
+        #region --------------------IQCReportAssessor页
         public async Task<ActionResult> IQCReportAssessor(int? id)
         {
             if (Session["User"] == null)
@@ -205,7 +215,9 @@ namespace JianHeMES.Controllers
             }
             return View(iQCReport);
         }
+        #endregion
 
+        #region --------------------IQCReportApprove页
         public async Task<ActionResult> IQCReportApprove(int? id)
         {
             if (Session["User"] == null)
@@ -243,8 +255,9 @@ namespace JianHeMES.Controllers
             }
             return View(iQCReport);
         }
+        #endregion
 
-
+        #region --------------------Delete页
         // GET: IQCReports/Delete/5
         public async Task<ActionResult> Delete(int? id)
         {
@@ -287,5 +300,6 @@ namespace JianHeMES.Controllers
             }
             base.Dispose(disposing);
         }
+        #endregion
     }
 }

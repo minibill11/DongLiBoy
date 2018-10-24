@@ -15,6 +15,9 @@ namespace JianHeMES.Models
         [Display(Name = "订单号")]
         public string OrderNum { get; set; }
 
+        [Display(Name = "新订单号")]
+        public string ToOrderNum { get; set; }
+
         [Required]
         [Display(Name = "条码前缀")]
         public string BarCode_Prefix { get; set; }
@@ -22,6 +25,9 @@ namespace JianHeMES.Models
         [Required]
         [Display(Name = "条码")]
         public string BarCodesNum { get; set; }
+
+        [Display(Name = "模组箱体号")]
+        public string ModuleGroupNum { get; set; }
 
         [Required]
         [Display(Name = "类型")]
@@ -32,6 +38,13 @@ namespace JianHeMES.Models
 
         [Display(Name = "创建人")]
         public string Creator { get; set; }
+
+        [Display(Name = "是否为库存")]
+        public Boolean IsRepertory { get; set; }
+
+        [Display(Name = "备注")]
+        public string Remark { get; set; }
+
 
         public virtual List<OrderMgm> OrderMgm { get; set; }
         public virtual List<Assemble> Assemble { get; set; }

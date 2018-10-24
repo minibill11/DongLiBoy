@@ -20,7 +20,7 @@ namespace JianHeMES.Controllers
         public Assemble assemble = null;
 
 
-        #region  -----//PQC异常列表-----------
+        #region --------------------PQC异常列表
 
         //private List<SelectListItem> SetAbnormalList()
         //{
@@ -72,7 +72,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region --------------------PQCNormal列表--------------------
+        #region --------------------PQCNormal列表
         private List<SelectListItem> PQCNormalList()
         {
             return new List<SelectListItem>()
@@ -91,7 +91,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  -----维修列表-----------
+        #region --------------------维修列表
 
         private List<SelectListItem> SetRepairList()
         {
@@ -119,7 +119,7 @@ namespace JianHeMES.Controllers
 
         // GET: Assembles
 
-        #region -------------组装模块工段-----------------
+        #region --------------------组装模块工段
 
         // GET: Assembles/Create
         public ActionResult Create()
@@ -173,17 +173,12 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
+            //if(db.Assemble.Count(u=>u.BoxBarCode==assemble.BoxBarCode)>0)
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
-            //if (db.BarCodes.Where(u => u.BarCodesNum == model.BoxBarCode) != null)
             {
                 ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                 return View(assemble);
             }
-            //if(db.Assemble.Count(u=>u.BoxBarCode==assemble.BoxBarCode)>0)
-            //{
-
-            //}
 
             if (assemble.AssembleBT == null)
             {
@@ -200,15 +195,6 @@ namespace JianHeMES.Controllers
                 //取出对应的id号
                 return RedirectToAction("AssembleStationF", new { assemble.Id });
             }
-
-            //assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
-            //assemble.AssembleBT = DateTime.Now;
-            //assemble.AssemblePrincipal = ((Users)Session["User"]).UserName;
-            //db.Assemble.Add(assemble);
-            ////db.Configuration.ValidateOnSaveEnabled = false;
-            //db.SaveChanges();
-            ////db.Configuration.ValidateOnSaveEnabled = true;
-            //return RedirectToAction("AssembleStationF", new { assemble.Id});
         }
 
         // GET: Assembles/Edit/5
@@ -270,7 +256,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region -------------防水测试工段------------
+        #region --------------------防水测试工段
 
         public ActionResult WaterproofTestB()
         {
@@ -298,9 +284,9 @@ namespace JianHeMES.Controllers
                 ModelState.AddModelError("", "模组条码在组装记录中找不到，请检查条码输入是否正确，或检查组装工作是否已经完成！");
                 return View(assemble);
             }
-            assemble = db.Assemble.FirstOrDefault(u=>u.BoxBarCode == assemble.BoxBarCode);
+            assemble = db.Assemble.FirstOrDefault(u => u.BoxBarCode == assemble.BoxBarCode);
 
-            if (assemble.AssembleFinish==false)
+            if (assemble.AssembleFinish == false)
             {
                 ModelState.AddModelError("", "组装工作尚未完成，不能进行防水工作！");
                 return View(assemble);
@@ -327,6 +313,8 @@ namespace JianHeMES.Controllers
             //}
             //return View(assemble);
             //return View(assemble);
+
+
         }
 
         public ActionResult WaterproofTestF(int? id)
@@ -381,7 +369,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ----------组装电源、转接卡工段-----------
+        #region --------------------组装电源、转接卡工段
         /// <summary>
         /// 电源、转接卡工段
         /// </summary>
@@ -433,6 +421,8 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("AssembleAdapterCardF", new { assemble.Id });
             }
             //return View(assemble);
+
+
         }
 
         public ActionResult AssembleAdapterCardF(int? id)
@@ -491,7 +481,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ----------------视检工段-----------------
+        #region --------------------视检工段
         /// <summary>
         /// 视检工段
         /// </summary>
@@ -542,6 +532,8 @@ namespace JianHeMES.Controllers
             }
 
             //return View(assemble);
+
+
         }
 
         public ActionResult ViewCheckF(int? id)
@@ -591,7 +583,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ----------------电检工段----------------
+        #region --------------------电检工段
         /// <summary>
         /// 电检工段
         /// </summary>
@@ -610,6 +602,7 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public ActionResult ElectricityCheckB([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal")] Assemble assemble)
         {
+
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -643,6 +636,8 @@ namespace JianHeMES.Controllers
             }
 
             //return View(assemble);
+
+
         }
 
         public ActionResult ElectricityCheckF(int? id)
@@ -694,7 +689,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region --------------------PQC工段-------------------
+        #region --------------------PQC工段
         /// <summary>
         /// PQC工段
         /// </summary>
@@ -706,7 +701,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "组装PQC"|| ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "组装PQC" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
@@ -725,12 +720,12 @@ namespace JianHeMES.Controllers
             }
 
             //在BarCodes条码表中找不到此条码号
-            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)   
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
             {
                 ModelState.AddModelError("", "模组条码不存在，请检查条码输入是否正确！");
                 return View(assemble);
             }
-            if(db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode).OrderNum != assemble.OrderNum)
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode).OrderNum != assemble.OrderNum)
             {
                 ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                 return View(assemble);
@@ -749,7 +744,8 @@ namespace JianHeMES.Controllers
                     db.Assemble.Add(assemble);
                     db.SaveChanges();
                     return RedirectToAction("PQCCheckF", new { assemble.Id });
-                }else
+                }
+                else
                 {
                     ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                     return View(assemble);
@@ -786,7 +782,7 @@ namespace JianHeMES.Controllers
                         ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                         return View(assemble);
                     }
-                    
+
                 }
                 else
                 {
@@ -800,6 +796,8 @@ namespace JianHeMES.Controllers
                 //return RedirectToAction("PQCCheckF", new { assemble.Id });
                 return RedirectToAction("AssembleIndex");
             }
+
+
         }
 
         public ActionResult PQCCheckF(int? id)
@@ -824,7 +822,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        
+
         //public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BoxBarCode,PQCCheckBT,PQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish")] Assemble assemble)
         public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish")] Assemble assemble)
         {
@@ -877,7 +875,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region    --------------------首页------------------
+        #region    --------------------首页
 
         public ActionResult AssembleIndex()
         {
@@ -906,20 +904,32 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-            IQueryable<Assemble> Allassembles = null;
+            //IQueryable<Assemble> Allassembles = null;
+            List<Assemble> Allassembles = null;
             List<Assemble> AllassemblesList = null;
-            if (orderNum == "")
+            if (String.IsNullOrEmpty(orderNum))
             {
                 ////调出全部记录      
-                Allassembles = from m in db.Assemble
-                               select m;
+                //Allassembles = from m in db.Assemble
+                //               select m;
+                Allassembles = db.Assemble.ToList();
             }
             else
             {
                 //筛选出对应orderNum所有记录
-                Allassembles = from m in db.Assemble 
-                               where (m.OrderNum == orderNum)
-                               select m;
+                //Allassembles = from m in db.Assemble
+                //               where (m.OrderNum == orderNum)
+                //               select m;
+                Allassembles = db.Assemble.Where(c => c.OrderNum == orderNum).ToList();
+                if (Allassembles.Count() == 0)
+                {
+                    var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == orderNum).ToList();
+                    //..TODO..待优化
+                    foreach (var item in barcodelist)
+                    {
+                        Allassembles.AddRange(db.Assemble.Where(c => c.BoxBarCode == item.BarCodesNum));
+                    }
+                }
             }
             //ViewData["Finished"] = from m in Allassembles where (m.PQCCheckAbnormal == "正常") select m;
             //ViewData["CheckedNotFinished"] = null;
@@ -932,7 +942,7 @@ namespace JianHeMES.Controllers
             #region  ---------按条码筛选--------------
             if (BoxBarCode != "")
             {
-                Allassembles = Allassembles.Where(x => x.BoxBarCode == BoxBarCode);
+                Allassembles = Allassembles.Where(x => x.BoxBarCode == BoxBarCode).ToList();
                 //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
             }
             #endregion
@@ -941,18 +951,23 @@ namespace JianHeMES.Controllers
             //正常、异常记录筛选
             if (PQCNormal == "异常")
             {
-                Allassembles = from m in Allassembles where (m.PQCCheckAbnormal !="正常") select m;
+                //Allassembles = from m in Allassembles where (m.PQCCheckAbnormal != "正常") select m;
+                Allassembles = Allassembles.Where(c => c.PQCCheckAbnormal != "正常").ToList();
             }
             else if (PQCNormal == "正常")
             {
-                Allassembles = from m in Allassembles where (m.PQCCheckAbnormal == "正常") select m;
+                //Allassembles = from m in Allassembles where (m.PQCCheckAbnormal == "正常") select m;
+                Allassembles = Allassembles.Where(c => c.PQCCheckAbnormal == "正常").ToList();
+
             }
             #endregion
 
-            #region   ----------筛选从未开始做的条码清单------------
+            #region   ----------筛选从未开始、未完成、正在进行PQC的条码清单------------
             List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == orderNum select m).ToList();
             //List<string> NotPQCList = new List<string>();
-            ArrayList NotPQCList = new ArrayList();
+            List<string> NotPQCList = new List<string>();
+            List<string> DoingNow = new List<string>();
+            List<string> NeverFinishList = new List<string>();
             foreach (var barcode in BarCodesList)
             {
                 if ((from m in db.Assemble where m.BoxBarCode == barcode.BarCodesNum select m).Count() == 0)
@@ -960,9 +975,30 @@ namespace JianHeMES.Controllers
                     NotPQCList.Add(barcode.BarCodesNum);
                 }
             }
-            ViewBag.NotDo = NotPQCList;//输出未完成的条码清单
-            int barcodeslistcount = NotPQCList.Count;
-            ViewBag.NotDoCount = barcodeslistcount;//未完成数量
+            ViewBag.NotDo = NotPQCList;//输出未进行PQC的条码清单
+            int barcodeslistcount = NotPQCList.Count;//未进行PQC数量
+            ViewBag.NotDoCount = barcodeslistcount;//未进行PQC数量
+
+            foreach (var barcode in BarCodesList)
+            {
+                if (db.Assemble.Where(m => m.BoxBarCode == barcode.BarCodesNum).Where(m => m.PQCCheckBT != null && m.PQCCheckFT == null).Count() > 0 )
+                {
+                    DoingNow.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.DoingNowList = DoingNow;//正在做PQC的条码清单
+            ViewBag.DoingNowListCount = DoingNow.Count();//正在做PQC的条码个数
+
+            foreach (var barcode in BarCodesList)
+            {
+                if(Allassembles.Where(m=>m.BoxBarCode==barcode.BarCodesNum).Count(c=>c.PQCCheckFinish==true)==0)
+                {
+                    NeverFinishList.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.NeverFinishList = NeverFinishList.Except(NotPQCList).Except(DoingNow);//输出未完成PQC的条码清单
+            ViewBag.NeverFinishListCount = NeverFinishList.Except(NotPQCList).Except(DoingNow).Count();//未完成PQC的条码数量
+
             #endregion
 
             //检查orderNum和searchString是否为空
@@ -973,9 +1009,9 @@ namespace JianHeMES.Controllers
 
             //取出对应orderNum对应组装中PQC时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.Assemble
-                                                    where (m.OrderNum == orderNum)
-                                                    orderby m.PQCCheckTime
-                                                    select m.PQCCheckTime;
+                                                 where (m.OrderNum == orderNum)
+                                                 orderby m.PQCCheckTime
+                                                 select m.PQCCheckTime;
 
             //计算校正总时长  TotalTimeSpan
             TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
@@ -992,7 +1028,7 @@ namespace JianHeMES.Controllers
             }
             else
             {
-                ViewBag.TotalTimeSpan = "暂时没有已完成校正的模组";
+                ViewBag.TotalTimeSpan = "暂时没有已完成组装PQC的模组";
             }
 
             //计算平均用时  AvgTimeSpan
@@ -1009,7 +1045,7 @@ namespace JianHeMES.Controllers
             }
             else
             {
-                ViewBag.AvgTimeSpan = "暂时没有已完成校正的模组";//向View传递计算平均用时
+                ViewBag.AvgTimeSpan = "暂时没有已完成组装PQC的模组";//向View传递计算平均用时
             }
 
             //列出记录
@@ -1025,15 +1061,15 @@ namespace JianHeMES.Controllers
                     //item.ModelList = JsonConvert.SerializeObject(modelCollectionsList);
                     foreach (var it in modelCollectionsList)
                     {
-                        item.ModelList = item.ModelList + "位置ID:"+it.StationId + "," + "\r\n"+"模块条码号:" + it.BarCodesNum+ "；"+ "\r\n";
+                        item.ModelList = item.ModelList + "位置ID:" + it.StationId + "," + "\r\n" + "模块条码号:" + it.BarCodesNum + "；" + "\r\n";
                     }
                 }
                 List<AdapterCard_Power_Collection> AdapterCard_Power_List = db.AdapterCard_Power_Collection.Where(m => m.BoxBarCode == item.BoxBarCode).ToList();
                 if (AdapterCard_Power_List != null)
-                { 
+                {
                     foreach (var it in AdapterCard_Power_List)
                     {
-                        item.AdapterCard_Power_List =item.AdapterCard_Power_List + it.BarCodesNum+",";
+                        item.AdapterCard_Power_List = item.AdapterCard_Power_List + it.BarCodesNum + ",";
                     }
                 }
                 //item.ModelCollections.AddRange(list.ToList());
@@ -1072,7 +1108,7 @@ namespace JianHeMES.Controllers
                 PageIndex = pageCount - 1;
             }
 
-            AllassemblesList = AllassemblesList//.OrderByDescending(m => m.BeginCalibration)
+            AllassemblesList = AllassemblesList.OrderBy(m => m.BoxBarCode)//按条码排序
                                  .Skip(PageIndex * PAGE_SIZE)
                                  .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
@@ -1083,11 +1119,11 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  ---------------检查条码是否存在------------------
+        #region --------------------检查条码是否存在
         [HttpPost]
         public Boolean CheckBarCode(string barcode)
         {
-            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == barcode)==null)
+            if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == barcode) == null)
             {
                 return false;
             }
@@ -1098,7 +1134,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region    -------------其他方法----------
+        #region --------------------其他方法
 
         // GET: Assembles/Details/5
         public ActionResult Details(int? id)
@@ -1205,10 +1241,10 @@ namespace JianHeMES.Controllers
 
 
 
-        #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
-            var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
             var items = new List<SelectListItem>();
             foreach (string order in orders)
             {
@@ -1223,7 +1259,7 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-        #region ------------------ 分页函数 ----------------------------
+        #region --------------------分页函数
         static List<Assemble> GetPageListByIndex(List<Assemble> list, int pageIndex)
         {
             int pageSize = 10;
@@ -1232,7 +1268,7 @@ namespace JianHeMES.Controllers
 
 
         //分页方法
-        private static readonly int PAGE_SIZE = 5;
+        private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)
         {
@@ -1255,7 +1291,7 @@ namespace JianHeMES.Controllers
                                .Skip(pageIndex * PAGE_SIZE)
                                .Take(PAGE_SIZE).ToList();
             return assemble;
-         }
+        }
         #endregion
 
     }

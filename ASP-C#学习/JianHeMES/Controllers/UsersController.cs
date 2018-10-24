@@ -64,7 +64,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,Deleter,DeleteDate,Description")] Users users)
+        public ActionResult Create([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,LineNum,Deleter,DeleteDate,Description")] Users users)
         {
             if (Session["User"] == null)
             {
@@ -107,7 +107,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,Deleter,DeleteDate,Description")] Users users)
+        public ActionResult Edit([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,LineNum,Deleter,DeleteDate,Description")] Users users)
         {
             if (Session["User"] == null)
             {
@@ -145,7 +145,7 @@ namespace JianHeMES.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
 
-        public ActionResult Modifypwd([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,Deleter,DeleteDate,Description")] Users users)
+        public ActionResult Modifypwd([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,LineNum,Deleter,DeleteDate,Description")] Users users)
         {
             if (Session["User"] == null)
             {

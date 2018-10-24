@@ -39,6 +39,9 @@ namespace JianHeMES.Models
         [Display(Name ="部门")]
         public string Department { get; set; }
 
+        [Display(Name = "产线")]
+        public int LineNum { get; set; }
+
         [Display(Name = "删除人")]
         public string Deleter { get; set; }
 
@@ -52,7 +55,6 @@ namespace JianHeMES.Models
         public virtual List<OrderMgm> OrderMgm { get; set; }
         public virtual List<Assemble> Assemble { get; set; }
         public virtual List<BarCodes> BarCodes { get; set; }
-
         public virtual List<UserRole> UserRole { get; set; }
         public virtual List<Departments> Departments { get; set; }
     }

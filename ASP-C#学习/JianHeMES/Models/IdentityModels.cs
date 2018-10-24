@@ -44,6 +44,14 @@ namespace JianHeMES.Models
         public DbSet<Packaging_OQCCheckAbnormal> Packaging_OQCCheckAbnormal { get; set; }
         public DbSet<IQCReport> IQCReports { get; set; }
 
+        public DbSet<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
+
+        public DbSet<SMT_ProductionLineInfo> SMT_ProductionLineInfo { get; set; }
+
+        public DbSet<SMT_ProductionData> SMT_ProductionData { get; set; }
+
+        public DbSet<SMT_OrderInfo> SMT_OrderInfo { get; set; }
+        
         public object BarCode { get; internal set; }
         public Task TNews { get; internal set; }
 
@@ -54,6 +62,7 @@ namespace JianHeMES.Models
         {
             return new ApplicationDbContext();
         }
+
 
         //public System.Data.Entity.DbSet<JianHeMES.Models.Packaging> Packagings { get; set; }
 

@@ -19,7 +19,7 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region --------------------OQCNormal列表--------------------
+        #region ---------------------------------------OQCNormal列表
         private List<SelectListItem> OQCNormalList()
         {
             return new List<SelectListItem>()
@@ -38,7 +38,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region --------------------FinishStatus列表--------------------
+        #region ---------------------------------------FinishStatus列表
         private List<SelectListItem> FinishStatusList()
         {
             return new List<SelectListItem>()
@@ -57,10 +57,8 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        
 
-
-        #region  -----维修列表-----------
+        #region ---------------------------------------维修列表
 
         private List<SelectListItem> SetRepairList()
         {
@@ -86,7 +84,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region -------老化首页---------
+        #region ---------------------------------------老化首页
         // GET: Burn_in
         public async Task<ActionResult> Index()
         {
@@ -99,7 +97,7 @@ namespace JianHeMES.Controllers
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.OQCNormal = OQCNormalList();
             ViewBag.FinishStatus = FinishStatusList();
-
+            ViewBag.Finish = null;
             ViewBag.NotDo = null;
             return View();
 
@@ -107,27 +105,39 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal,string FinishStatus, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal, string FinishStatus, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
 
-            var AllBurn_inRecords = db.Burn_in as IQueryable<Burn_in>;
+            //var AllBurn_inRecords = db.Burn_in as IQueryable<Burn_in>;
+            List<Burn_in> AllBurn_inRecords = new List<Burn_in>();
             List<Burn_in> AllBurn_inRecordsList = null;
             if (String.IsNullOrEmpty(OrderNum))
             {
                 //调出全部记录      
-                AllBurn_inRecords = from m in db.Burn_in
-                                    select m;
+                //AllBurn_inRecords = from m in db.Burn_in
+                //                    select m;
+                AllBurn_inRecords = db.Burn_in.ToList();
             }
             else
             {
                 //筛选出对应orderNum所有记录
-                AllBurn_inRecords = from m in db.Burn_in
-                                    where (m.OrderNum == OrderNum)
-                                    select m;
+                //AllBurn_inRecords = from m in db.Burn_in
+                //                    where (m.OrderNum == OrderNum)
+                //                    select m;
+                AllBurn_inRecords = db.Burn_in.Where(c => c.OrderNum == OrderNum).ToList();
+                if (AllBurn_inRecords.Count() == 0)
+                {
+                    var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == OrderNum).ToList();
+                    //..TODO..待优化
+                    foreach (var item in barcodelist)
+                    {
+                        AllBurn_inRecords.AddRange(db.Burn_in.Where(c => c.BarCodesNum == item.BarCodesNum));
+                    }
+                }
             }
 
             //统计老化结果正常的模组数量
@@ -137,7 +147,7 @@ namespace JianHeMES.Controllers
             #region  ---------按条码筛选--------------
             if (BoxBarCode != "")
             {
-                AllBurn_inRecords = AllBurn_inRecords.Where(x => x.BarCodesNum == BoxBarCode);
+                AllBurn_inRecords = AllBurn_inRecords.Where(x => x.BarCodesNum == BoxBarCode).ToList();
                 //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
             }
             #endregion
@@ -146,11 +156,13 @@ namespace JianHeMES.Controllers
             //正常、异常记录筛选
             if (OQCNormal == "异常")
             {
-                AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition != "正常") select m;
+                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition != "正常") select m;
+                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.Burn_in_OQCCheckAbnormal !=null).ToList();
             }
             else if (OQCNormal == "正常")
             {
-                AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition == "正常") select m;
+                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition == "正常") select m;
+                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.Burn_in_OQCCheckAbnormal == null).ToList();
             }
             #endregion
 
@@ -158,19 +170,30 @@ namespace JianHeMES.Controllers
             //完成、未完成记录筛选
             if (FinishStatus == "完成")
             {
-                AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT != null) select m;
+                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT != null) select m;
+                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.OQCCheckFT != null).ToList();
             }
             else if (FinishStatus == "未完成")
             {
-                AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT == null) select m;
+                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT == null) select m;
+                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.OQCCheckFT == null).ToList();
             }
             #endregion
 
+            #region   ---------异常描述条件筛选-------------
 
-            #region   ----------筛选从未开始做的条码清单------------
+            //检查searchString是否为空
+            if (!String.IsNullOrEmpty(searchString))
+            {   //从调出的记录中筛选含searchString内容的记录
+                AllBurn_inRecords = AllBurn_inRecords.Where(m => m.Burn_in_OQCCheckAbnormal!=null && m.Burn_in_OQCCheckAbnormal.Contains(searchString)).ToList();
+            }
+            #endregion
+
+            #region   ----------筛选从未开始、正在老化调试OQC的条码清单------------
             //取出订单的全部条码
             List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == OrderNum select m).ToList();
-            ArrayList NotDoOQCList = new ArrayList();
+            List<string> NotDoOQCList = new List<string>();
+            List<string> DoingNowOQCList = new List<string>();
             foreach (var barcode in BarCodesList)
             {
                 if ((from m in db.Burn_in where m.BarCodesNum == barcode.BarCodesNum select m).Count() == 0)
@@ -178,16 +201,21 @@ namespace JianHeMES.Controllers
                     NotDoOQCList.Add(barcode.BarCodesNum);
                 }
             }
-            ViewBag.NotDo = NotDoOQCList;//输出未完成的条码清单
+            ViewBag.NotDo = NotDoOQCList;//输出未开始做OQC的条码清单
             int barcodeslistcount = NotDoOQCList.Count;
-            ViewBag.NotDoCount = barcodeslistcount;//未完成数量
+            ViewBag.NotDoCount = barcodeslistcount;//未开始数量
+
+            foreach (var barcode in BarCodesList)
+            {
+                if (db.Burn_in.Where(m=>m.BarCodesNum==barcode.BarCodesNum).Where(m=>m.OQCCheckBT!=null && m.OQCCheckFT==null).Count() > 0)
+                {
+                    DoingNowOQCList.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.DoingNowOQCList = DoingNowOQCList;//正在做老化调试OQC的条码清单
+            ViewBag.DoingNowOQCListCount = DoingNowOQCList.Count(); //正在做老化调试OQC的条码清单个数
             #endregion
 
-            //检查orderNum和searchString是否为空
-            if (!String.IsNullOrEmpty(searchString))
-            {   //从调出的记录中筛选含searchString内容的记录
-                AllBurn_inRecords = AllBurn_inRecords.Where(m => m.OrderNum.Contains(searchString));
-            }
 
             //取出对应orderNum校正时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.Burn_in
@@ -231,6 +259,8 @@ namespace JianHeMES.Controllers
 
             //列出记录
             AllBurn_inRecordsList = AllBurn_inRecords.ToList();
+            //计算已经完成OQC的数量
+            var Finish_Count = AllBurn_inRecords.Count(c => c.OQCCheckFinish == true);
 
             //读出订单中模组总数量
             var Order_MG_Quantity = (from m in db.OrderMgm
@@ -241,7 +271,8 @@ namespace JianHeMES.Controllers
             ViewBag.NormalCount = Order_CR_Normal_Count;
             ViewBag.AbnormalCount = Abnormal_Count;
             ViewBag.RecordCount = AllBurn_inRecords.Count();
-            ViewBag.NeverFinish = Order_MG_Quantity - Order_CR_Normal_Count;
+            ViewBag.Finish = AllBurn_inRecordsList.Count(c => c.OQCCheckFinish == true);
+            ViewBag.NeverFinish = Order_MG_Quantity - ViewBag.Finish;
             ViewBag.orderNum = OrderNum;
 
             //未选择订单时隐藏基本信息设置
@@ -260,9 +291,9 @@ namespace JianHeMES.Controllers
             {
                 PageIndex = pageCount - 1;
             }
-            AllBurn_inRecords = AllBurn_inRecords.OrderByDescending(m => m.OQCCheckBT)
+            AllBurn_inRecords = AllBurn_inRecords.OrderBy(m => m.BarCodesNum)
                                 .Skip(PageIndex * PAGE_SIZE)
-                                .Take(PAGE_SIZE);
+                                .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
             ViewBag.PageCount = pageCount;
             ViewBag.OrderNumList = GetOrderNumList();
@@ -274,7 +305,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region   ----------其他页面-------------------
+        #region ---------------------------------------其他页面
         // GET: Burn_in/Details/5
         public async Task<ActionResult> Details(int? id)
         {
@@ -319,7 +350,7 @@ namespace JianHeMES.Controllers
             }
 
 
-            
+
 
             if (ModelState.IsValid)
             {
@@ -401,7 +432,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region -------------单个模组老化开始-----------------
+        #region ---------------------------------------单个模组老化开始
 
 
         // GET: Burn_in/Burn_in_B
@@ -413,12 +444,11 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "TEST" || ((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
             return RedirectToAction("Index");
-
         }
 
         // POST: Burn_in/Create
@@ -429,6 +459,7 @@ namespace JianHeMES.Controllers
         public async Task<ActionResult> Burn_in_B([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -445,14 +476,12 @@ namespace JianHeMES.Controllers
             {
                 if (burn_in.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum)
                 {
-                    //var burn_inRecord = db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum);
                     burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
                     burn_in.OQCCheckBT = DateTime.Now;
                     burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                     db.Burn_in.Add(burn_in);
                     db.SaveChanges();
-                    //return RedirectToAction("Burn_in_F", new { burn_in.Id });
-                    return RedirectToAction("Index");
+                    return RedirectToAction("Burn_in_B");
                 }
                 else
                 {
@@ -506,7 +535,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region -----------------------老化异常录入--------------------------------
+        #region ---------------------------------------老化异常录入
 
         public ActionResult AbnormalRecordInput()
         {
@@ -521,6 +550,7 @@ namespace JianHeMES.Controllers
         //[HttpPost]
         public ActionResult Get_Burn_in_Record(string OrderNum, string BarCodeNum)
         {
+
             ApplicationDbContext db = new ApplicationDbContext();
             Burn_in record = db.Burn_in.Where(m => m.OrderNum == OrderNum && m.BarCodesNum == BarCodeNum && m.OQCCheckBT != null && m.OQCCheckFT == null).FirstOrDefault();
             if (record != null)
@@ -541,14 +571,17 @@ namespace JianHeMES.Controllers
             {
                 return Content("不存在正在进行老化的此模组");
             }
+
         }
 
         [HttpPost]
         //[ValidateAntiForgeryToken]
-        //public async Task<ActionResult> AbnormalRecordInput(string Id, string OrderNum, string BarCodeNum, string RepairCondition,string OQCPrincipal,string Burn_in_OQCCheckAbnormal)
         public async Task<ActionResult> AbnormalRecordInput(string Id, string Burn_in_OQCCheckAbnormal)
-        //public async Task<ActionResult> AbnormalRecordInput([Bind(Include = "Id,Burn_in_OQCCheckAbnormal")] Burn_in burn_in)
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
+            ViewBag.RepairList = SetRepairList();
+
             ApplicationDbContext db = new ApplicationDbContext();
             if (Id == null)
             {
@@ -574,25 +607,13 @@ namespace JianHeMES.Controllers
             }
             ViewBag.RepairList = SetRepairList();
             return View(burn_in);
+
+
+
         }
-
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<ActionResult> AbnormalRecordInput([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Burn_in burn_in)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        db.Entry(burn_in).State = EntityState.Modified;
-        //        await db.SaveChangesAsync();
-        //        return RedirectToAction("Index");
-        //    }
-        //    ViewBag.RepairList = SetRepairList();
-
-        //    return View(burn_in);
-        //}
         #endregion
 
-        #region -------------单个模组老化完成------------
+        #region ---------------------------------------单个模组老化完成
         // GET: Burn_in/Burn_in_F
         public ActionResult Burn_in_F(int? id)
         {
@@ -637,13 +658,13 @@ namespace JianHeMES.Controllers
                 //burn_in.OQCCheckTime = (DateTime.Now-burn_in.OQCCheckBT).Value;
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                 burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-                if(burn_in.Burn_in_OQCCheckAbnormal==null)
+                if (burn_in.Burn_in_OQCCheckAbnormal == null)
                 {
                     burn_in.Burn_in_OQCCheckAbnormal = "正常";
                 }
                 if (burn_in.RepairCondition == null)
                 {
-                    burn_in.RepairCondition= "正常";
+                    burn_in.RepairCondition = "正常";
                 }
                 burn_in.OQCCheckFinish = true;
             }
@@ -661,7 +682,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ---------------------------------------批量模组老化开始--------------------------------------------
+        #region ---------------------------------------批量模组老化开始
 
 
         // GET: Burn_in/Burn_in_B
@@ -673,7 +694,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "TEST" || ((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
@@ -688,6 +709,8 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public ActionResult Burn_in_Batch_B(string OrderNum, List<string> BarCodesNumList)
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -719,6 +742,7 @@ namespace JianHeMES.Controllers
         #region --------------批量模组查验功能--------------
         public ActionResult CheckBarCodesList_B(string OrderNum, List<string> BarCodesNumList)
         {
+
             var barcodelist = new List<Object>();  //1.条码
             var barcodeinorder = new List<Object>(); //2.是否在订单中
             var barcodeinotherorder = new List<Object>();//3.在其他订单号中
@@ -742,7 +766,7 @@ namespace JianHeMES.Controllers
                 //一、检查此条码是否在此订单中（如果不存在，则返回条码所属的订单号，返回条码老化工序的状态，并跳出foreach循环）
                 var barcodelistinOrderNum = from m in db.BarCodes where m.OrderNum == OrderNum select m.BarCodesNum;//取出订单的所有条码号
                 var barcodeCountin = (from m in barcodelistinOrderNum where m == barcode select m).Count();//查询条码在订单中和条目数
-                //订单中有此条码
+                                                                                                           //订单中有此条码
                 if (barcodeCountin == 1)
                 {
                     //二、检查此条码是否已经正在老化（已经开始老化，但还没有老化完成时间,返回在何时已经开始了老化）
@@ -838,25 +862,25 @@ namespace JianHeMES.Controllers
                     barcodefinishtime.Add("");//5.完成时间
                     barcodestatus.Add(""); //6.老化状态
                     barcodecomfirm.Add("");//7.可以进行老化
-                    //if (record.Count()>0)
-                    //{
-                    //    var finishtrue = (from m in record where m.OQCCheckFinish == true select m).Count();
-                    //    if(finishtrue==1)
-                    //    {
-                    //       barcodestatus.Add("老化完成"); //6.老化状态
-                    //       barcodecomfirm.Add("NO");//7.可以进行老化
-                    //    }
-                    //    else if (finishtrue==0)
-                    //    {
-                    //        barcodestatus.Add("经过"+record.Count()+"次老化，但未完成老化"); //6.老化状态
-                    //        barcodecomfirm.Add("Yes");//7.可以进行老化
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    barcodestatus.Add("未开始老化");//6.老化状态
-                    //    barcodecomfirm.Add("Yes");//7.可以进行老化
-                    //}
+                                           //if (record.Count()>0)
+                                           //{
+                                           //    var finishtrue = (from m in record where m.OQCCheckFinish == true select m).Count();
+                                           //    if(finishtrue==1)
+                                           //    {
+                                           //       barcodestatus.Add("老化完成"); //6.老化状态
+                                           //       barcodecomfirm.Add("NO");//7.可以进行老化
+                                           //    }
+                                           //    else if (finishtrue==0)
+                                           //    {
+                                           //        barcodestatus.Add("经过"+record.Count()+"次老化，但未完成老化"); //6.老化状态
+                                           //        barcodecomfirm.Add("Yes");//7.可以进行老化
+                                           //    }
+                                           //}
+                                           //else
+                                           //{
+                                           //    barcodestatus.Add("未开始老化");//6.老化状态
+                                           //    barcodecomfirm.Add("Yes");//7.可以进行老化
+                                           //}
                 }
             }
             data.Add(new
@@ -870,12 +894,14 @@ namespace JianHeMES.Controllers
                 BarcodeComfirm = barcodecomfirm
             });
             return Json(data, JsonRequestBehavior.AllowGet);
+
+
         }
         #endregion
 
         #endregion
 
-        #region ------------------------------------批量模组老化完成---------------------------------------------
+        #region ---------------------------------------批量模组老化完成
 
         // GET: Burn_in/Burn_in_F
         public ActionResult Burn_in_Batch_F()
@@ -886,7 +912,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "TEST" || ((Users)Session["User"]).Role == "老化OQC" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
@@ -911,6 +937,8 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Burn_in_Batch_F(string OrderNum, List<string> BarCodesNumList)
         {
+
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -923,6 +951,7 @@ namespace JianHeMES.Controllers
         #region --------------批量模组查验功能--------------
         public ActionResult CheckBarCodesList_F(string OrderNum, List<string> BarCodesNumList)
         {
+
             var barcodelist = new List<Object>();  //1.条码
             var barcodeinorder = new List<Object>(); //2.是否在订单中
             var barcodeinotherorder = new List<Object>();//3.在其他订单号中
@@ -938,7 +967,7 @@ namespace JianHeMES.Controllers
                 //一、检查此条码是否在此订单中（如果不存在，则返回条码所属的订单号，返回条码老化工序的状态，并跳出foreach循环）
                 var barcodelistinOrderNum = from m in db.BarCodes where m.OrderNum == OrderNum select m.BarCodesNum;//取出订单的所有条码号
                 var barcodeCountin = (from m in barcodelistinOrderNum where m == barcode select m).Count();//查询条码在订单中和条目数
-                //订单中有此条码
+                                                                                                           //订单中有此条码
                 if (barcodeCountin == 1)
                 {
                     //二、检查此条码是否已经正在老化（已经开始老化，但还没有老化完成时间,返回在何时已经开始了老化）
@@ -1034,25 +1063,25 @@ namespace JianHeMES.Controllers
                     barcodefinishtime.Add("");//5.完成时间
                     barcodestatus.Add(""); //6.老化状态
                     barcodecomfirm.Add("");//7.可以进行老化
-                    //if (record.Count()>0)
-                    //{
-                    //    var finishtrue = (from m in record where m.OQCCheckFinish == true select m).Count();
-                    //    if(finishtrue==1)
-                    //    {
-                    //       barcodestatus.Add("老化完成"); //6.老化状态
-                    //       barcodecomfirm.Add("NO");//7.可以进行老化
-                    //    }
-                    //    else if (finishtrue==0)
-                    //    {
-                    //        barcodestatus.Add("经过"+record.Count()+"次老化，但未完成老化"); //6.老化状态
-                    //        barcodecomfirm.Add("Yes");//7.可以进行老化
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    barcodestatus.Add("未开始老化");//6.老化状态
-                    //    barcodecomfirm.Add("Yes");//7.可以进行老化
-                    //}
+                                           //if (record.Count()>0)
+                                           //{
+                                           //    var finishtrue = (from m in record where m.OQCCheckFinish == true select m).Count();
+                                           //    if(finishtrue==1)
+                                           //    {
+                                           //       barcodestatus.Add("老化完成"); //6.老化状态
+                                           //       barcodecomfirm.Add("NO");//7.可以进行老化
+                                           //    }
+                                           //    else if (finishtrue==0)
+                                           //    {
+                                           //        barcodestatus.Add("经过"+record.Count()+"次老化，但未完成老化"); //6.老化状态
+                                           //        barcodecomfirm.Add("Yes");//7.可以进行老化
+                                           //    }
+                                           //}
+                                           //else
+                                           //{
+                                           //    barcodestatus.Add("未开始老化");//6.老化状态
+                                           //    barcodecomfirm.Add("Yes");//7.可以进行老化
+                                           //}
                 }
             }
             data.Add(new
@@ -1066,6 +1095,8 @@ namespace JianHeMES.Controllers
                 BarcodeComfirm = barcodecomfirm
             });
             return Json(data, JsonRequestBehavior.AllowGet);
+
+
         }
         #endregion
 
@@ -1077,7 +1108,7 @@ namespace JianHeMES.Controllers
             foreach (var item in BarCodesNumList)
             {
                 var burn_in = (from x in burn_in_List where (x.BarCodesNum == item && x.OQCCheckFT == null) select x).FirstOrDefault();
-                burn_in.OQCCheckFT =DateTime.Now;
+                burn_in.OQCCheckFT = DateTime.Now;
                 var CT = burn_in.OQCCheckFT.Value - burn_in.OQCCheckBT.Value;
                 burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
@@ -1161,10 +1192,10 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        #region ---------------------------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
-            var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
             var items = new List<SelectListItem>();
             foreach (string order in orders)
             {
@@ -1179,7 +1210,7 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-        #region  -------------检索订单号------
+        #region ---------------------------------------检索订单号
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.OrderMgm.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -1197,7 +1228,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  -----------分页------------
+        #region ---------------------------------------分页
         private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)
@@ -1213,3 +1244,4 @@ namespace JianHeMES.Controllers
 
     }
 }
+

@@ -55,6 +55,9 @@ namespace JianHeMES.Models
         [Display(Name = "模组号")]
         public string ModuleGroupNum { get; set; }
 
+        [Display(Name = "条码")]
+        public string BarCodesNum { get; set; }
+
         [Display(Name = "开始校正时间")]
         [DataType(DataType.DateTime)]
         public DateTime? BeginCalibration { get; set; }

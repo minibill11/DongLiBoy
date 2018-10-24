@@ -113,6 +113,12 @@ namespace JianHeMES.Models
         [Display(Name = "完工率")]
         public float? CompletedRate { get; set; }
 
+        [Display(Name = "是否为库存")]
+        public Boolean IsRepertory { get; set; }
+
+        [Display(Name = "备注")]
+        public string Remark { get; set; }
+
         public virtual List<Assemble> Assemble { get; set; }
         public virtual List<Users> Users { get; set; }
         public virtual List<BarCodes> BarCodes { get; set; }

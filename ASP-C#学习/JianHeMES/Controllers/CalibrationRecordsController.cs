@@ -21,7 +21,7 @@ namespace JianHeMES.Controllers
         ModuleGroupCalibrationViewModel CalibrationRecordVM = new ModuleGroupCalibrationViewModel();
 
 
-        #region -----------------模组校正首页-----------------------
+        #region --------------------模组校正首页
         [HttpGet]
         //GET: CalibrationRecords
         public ActionResult Index()
@@ -40,85 +40,107 @@ namespace JianHeMES.Controllers
 
 
         [HttpPost]
-        public async Task<ActionResult> Index(string orderNum, string searchString, int PageIndex=0)
+        public async Task<ActionResult> Index(string orderNum, string moduleGroupNum, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
 
-            IQueryable<CalibrationRecord> AllCalibrationRecords = null;
-            
-            if (orderNum=="")
-            {     
+            //IQueryable<CalibrationRecord> AllCalibrationRecords = null;
+            List<CalibrationRecord> AllCalibrationRecords = new List<CalibrationRecord>();
+
+            //检查orderNum和searchString是否为空
+            if (orderNum == "")
+            {
                 //调出全部记录      
-                AllCalibrationRecords = from m in db.CalibrationRecord
-                                        select m;
+                //AllCalibrationRecords = from m in db.CalibrationRecord
+                //                        select m;
+                AllCalibrationRecords = db.CalibrationRecord.ToList();
             }
             else
             {
                 //筛选出对应orderNum所有记录
-                AllCalibrationRecords = from m in db.CalibrationRecord
-                                        where (m.OrderNum==orderNum)
-                                        select m;
-            }
+                //AllCalibrationRecords = from m in db.CalibrationRecord
+                //                        where (m.OrderNum == orderNum)
+                //                        select m;
+                AllCalibrationRecords = db.CalibrationRecord.Where(c => c.OrderNum == orderNum).ToList();
+                if (AllCalibrationRecords.Count() == 0)
+                {
+                    var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == orderNum).ToList();
 
-            //检查orderNum和searchString是否为空
+                    foreach (var item in barcodelist)
+                    {
+                        AllCalibrationRecords.AddRange(db.CalibrationRecord.Where(c => c.BarCodesNum == item.BarCodesNum));
+                    }
+                }
+            }
+            #region-------------按描述条件查询
             if (!String.IsNullOrEmpty(searchString))
             {   //从调出的记录中筛选含searchString内容的记录
-                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription.Contains(searchString));
+                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription != null && s.AbnormalDescription.Contains(searchString)).ToList();
             }
+            #endregion
+
+            #region-------------按描模组号查询
+            if (!String.IsNullOrEmpty(moduleGroupNum))
+            {   //从调出的记录中筛选含searchString内容的记录
+                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription != null && s.ModuleGroupNum.Contains(moduleGroupNum.ToUpper())).ToList();
+            }
+            #endregion
+
 
             //取出对应orderNum校正时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.CalibrationRecord
-                                                where (m.OrderNum == orderNum)
-                                                orderby m.CalibrationTime
-                                                select  m.CalibrationTime;
+                                                 where (m.OrderNum == orderNum)
+                                                 orderby m.CalibrationTime
+                                                 select m.CalibrationTime;
 
             //计算校正总时长
             TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
-            if (AllCalibrationRecords.Where(x => x.Normal == true).Count()!= 0)
+            if (AllCalibrationRecords.Where(x => x.Normal == true).Count() != 0)
             {
-               foreach (var m in TimeSpanList)
-               {
-                    if (m!=null)
-                     {
+                foreach (var m in TimeSpanList)
+                {
+                    if (m != null)
+                    {
                         TotalTimeSpan = TotalTimeSpan.Add(m.Value).Duration();
-                      }
+                    }
                 }
-               ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
             }
             else
             {
-               ViewBag.TotalTimeSpan = "暂时没有已完成校正的模组";
+                ViewBag.TotalTimeSpan = "暂时没有已完成校正的模组";
             }
 
             //计算平均用时
             TimeSpan AvgTimeSpan = DateTime.Now - DateTime.Now;
             int Order_CR_valid_Count = AllCalibrationRecords.Where(x => x.CalibrationTime != null).Count();
-            int TotalTimeSpanSecond = Convert.ToInt32(TotalTimeSpan.Hours.ToString())*3600 + Convert.ToInt32(TotalTimeSpan.Minutes.ToString())*60 + Convert.ToInt32(TotalTimeSpan.Seconds.ToString());
-            int AvgTimeSpanInSecond=0;
+            int TotalTimeSpanSecond = Convert.ToInt32(TotalTimeSpan.Hours.ToString()) * 3600 + Convert.ToInt32(TotalTimeSpan.Minutes.ToString()) * 60 + Convert.ToInt32(TotalTimeSpan.Seconds.ToString());
+            int AvgTimeSpanInSecond = 0;
             if (Order_CR_valid_Count != 0)
             {
-              AvgTimeSpanInSecond = TotalTimeSpanSecond / Order_CR_valid_Count;
-              int AvgTimeSpanMinute = AvgTimeSpanInSecond/60;
-              int AvgTimeSpanSecond = AvgTimeSpanInSecond % 60;
-              ViewBag.AvgTimeSpan= AvgTimeSpanMinute + "分"+ AvgTimeSpanSecond+"秒";//向View传递计算平均用时
+                AvgTimeSpanInSecond = TotalTimeSpanSecond / Order_CR_valid_Count;
+                int AvgTimeSpanMinute = AvgTimeSpanInSecond / 60;
+                int AvgTimeSpanSecond = AvgTimeSpanInSecond % 60;
+                ViewBag.AvgTimeSpan = AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
             }
             else
             {
-              ViewBag.AvgTimeSpan = "暂时没有已完成校正的模组";//向View传递计算平均用时
+                ViewBag.AvgTimeSpan = "暂时没有已完成校正的模组";//向View传递计算平均用时
             }
 
             //列出记录
-            CalibrationRecordVM.AllCalibrationRecord = await AllCalibrationRecords.ToListAsync();
+            //CalibrationRecordVM.AllCalibrationRecord = await AllCalibrationRecords.ToListAsync();
+            CalibrationRecordVM.AllCalibrationRecord = AllCalibrationRecords.ToList();
             //统计校正结果正常的模组数量
             CalibrationRecordVM.Order_CR_Normal_Count = AllCalibrationRecords.Where(x => x.Normal == true).Count();
             var Abnormal_Count = AllCalibrationRecords.Where(x => x.Normal == false).Count();
             //读出订单中模组总数量
             CalibrationRecordVM.Order_MG_Quantity = (from m in db.OrderInformation
-                                    where (m.OrderNum == orderNum)
-                                    select m.ModuleGroupQuantity).FirstOrDefault();
+                                                     where (m.OrderNum == orderNum)
+                                                     select m.ModuleGroupQuantity).FirstOrDefault();
             //将模组总数量、正常的模组数量、未完成校正模组数量、订单号信息传递到View页面
             ViewBag.Quantity = CalibrationRecordVM.Order_MG_Quantity;
             ViewBag.NormalCount = CalibrationRecordVM.Order_CR_Normal_Count;
@@ -129,7 +151,7 @@ namespace JianHeMES.Controllers
 
             //未选择订单时隐藏基本信息设置
             if (ViewBag.Quantity == 0)
-            { ViewBag.Display= "display:none"; }
+            { ViewBag.Display = "display:none"; }
             else { ViewBag.Display = "display:normal"; }
 
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
@@ -142,7 +164,7 @@ namespace JianHeMES.Controllers
                 PageIndex = pageCount - 1;
             }
 
-            CalibrationRecordVM.AllCalibrationRecord = CalibrationRecordVM.AllCalibrationRecord//.OrderByDescending(m => m.BeginCalibration)
+            CalibrationRecordVM.AllCalibrationRecord = CalibrationRecordVM.AllCalibrationRecord.OrderByDescending(m => m.BeginCalibration)//按条码排序
                                                                             .Skip(PageIndex * PAGE_SIZE)
                                                                             .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
@@ -160,7 +182,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ---------------校正开始----------------------------------------
+        #region --------------------校正开始
 
         // GET: CalibrationRecords/Create
         public ActionResult CreateCal() //async Task<ActionResult> Create()
@@ -182,8 +204,10 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult CreateCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult CreateCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
+            ViewBag.OrderList = GetOrderList();
+
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -195,17 +219,31 @@ namespace JianHeMES.Controllers
             {
                 string ON = Request.Form["OrderNum"];
                 string MGN = Request.Form["ModuleGroupNum"];
+                string BCN = Request.Form["BarCodesNum"];
                 db.CalibrationRecord.Add(calibrationRecord);
                 db.SaveChanges();
-                return RedirectToAction("FinishCal",new { calibrationRecord.ID });
+                //把箱体号存到对应的条码号记录中
+                if (calibrationRecord.BarCodesNum != null)
+                {
+                    if ((from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).Count() > 0)
+                    {
+                        var barcode = (from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).FirstOrDefault();
+                        barcode.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
+                        db.Entry(barcode).State = EntityState.Modified;
+                        db.SaveChanges();
+                    }
+                }
+                return RedirectToAction("FinishCal", new { calibrationRecord.ID });
             }
 
             ViewBag.OrderList = GetOrderList();
             return View(calibrationRecord);
+
+
         }
         #endregion
 
-        #region ------------校正完成------------------------------
+        #region --------------------校正完成
         // GET: CalibrationRecords/Edit/5
         public ActionResult FinishCal(int? id)
         {
@@ -231,7 +269,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult FinishCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult FinishCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -240,13 +278,13 @@ namespace JianHeMES.Controllers
 
             if (calibrationRecord.FinishCalibration == null)
             {
-            calibrationRecord.FinishCalibration = DateTime.Now;
+                calibrationRecord.FinishCalibration = DateTime.Now;
 
-            var BC = calibrationRecord.BeginCalibration.Value;
-            var FC = calibrationRecord.FinishCalibration.Value;
-            var CT = FC - BC;
-            calibrationRecord.CalibrationTime = CT;
-            calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                var BC = calibrationRecord.BeginCalibration.Value;
+                var FC = calibrationRecord.FinishCalibration.Value;
+                var CT = FC - BC;
+                calibrationRecord.CalibrationTime = CT;
+                calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
             }
 
             if (ModelState.IsValid)
@@ -262,7 +300,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region  ------------FinishCal1页面-------------------
+        #region --------------------FinishCal1页面
         public ActionResult FinishCal1(int? id)
         {
             if (Session["User"] == null)
@@ -289,7 +327,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult FinishCal1([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult FinishCal1([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -320,7 +358,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  ------------Edit页面---------------
+        #region --------------------Edit页面
 
         // GET: CalibrationRecords/Edit/5
         public ActionResult Edit(int? id)
@@ -347,7 +385,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -406,7 +444,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult Edit0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -450,7 +488,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit1([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult Edit1([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -481,7 +519,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ---------------Details页-------------
+        #region --------------------Details页
 
         // GET: CalibrationRecords/Details/5
         public ActionResult Details(int? id)
@@ -504,7 +542,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region  --------------Create页面----------------
+        #region --------------------Create页面
 
         //// POST: CalibrationRecords/Create
         //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
@@ -540,7 +578,7 @@ namespace JianHeMES.Controllers
         //}
         #endregion
 
-        #region --------------Delete页-----------------
+        #region --------------------Delete页
         // GET: CalibrationRecords/Delete/5
         public ActionResult Delete(int? id)
         {
@@ -575,6 +613,8 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+
+        #region --------------------其他方法
         public ActionResult Index0()
         {
             IQueryable<string> OrderNumQuery = from m in db.OrderInformation
@@ -599,7 +639,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult CreateCal0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult CreateCal0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -661,7 +701,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult EFinishCal0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult EFinishCal0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -689,9 +729,33 @@ namespace JianHeMES.Controllers
         }
 
 
+        private TimeSpan DateDiff(DateTime DateTime1, DateTime DateTime2)
+        {
+            string dateDiff = null;
+
+            TimeSpan ts = DateTime1.Subtract(DateTime2).Duration();
+            dateDiff = ts.Days.ToString() + "天" + ts.Hours.ToString() + "小时" + ts.Minutes.ToString() + "分钟" + ts.Seconds.ToString() + "秒";
+            //return dateDiff;
+            return ts;
+
+        }
+
+        private TimeSpan TimeSpanAdd(TimeSpan TimeSpan1, TimeSpan TimeSpan2)
+        {
+            TimeSpan TimeAdd = new TimeSpan(TimeSpan1.Ticks);
+            TimeSpan TotalTimeSpan = TimeSpan1.Add(TimeSpan2).Duration();
+            return TotalTimeSpan;
+        }
 
 
-        #region ------------------ 取出整个OrderNum订单号列表.--------------------------------------------------
+
+
+
+
+        #endregion
+
+
+        #region --------------------取出整个OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
             var orders = db.OrderInformation.OrderByDescending(m => m.CreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
@@ -709,7 +773,7 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-        #region ------------------ 分页函数 ----------------------------
+        #region --------------------分页函数
         static List<ModuleGroupCalibrationViewModel> GetPageListByIndex(List<ModuleGroupCalibrationViewModel> list, int pageIndex)
         {
             int pageSize = 10;
@@ -750,31 +814,5 @@ namespace JianHeMES.Controllers
         //----------------------------------------------------------------------------------------
         #endregion
 
-
-
-
-
-        private TimeSpan DateDiff(DateTime DateTime1, DateTime DateTime2)
-        {
-            string dateDiff = null;
-            
-            TimeSpan ts = DateTime1.Subtract(DateTime2).Duration();
-            dateDiff = ts.Days.ToString() + "天" + ts.Hours.ToString() + "小时" + ts.Minutes.ToString() + "分钟" + ts.Seconds.ToString() + "秒";
-            //return dateDiff;
-            return ts;
-
-        }
-
-        private TimeSpan TimeSpanAdd(TimeSpan TimeSpan1, TimeSpan TimeSpan2)
-        {
-            TimeSpan TimeAdd = new TimeSpan(TimeSpan1.Ticks);
-            TimeSpan TotalTimeSpan = TimeSpan1.Add(TimeSpan2).Duration();
-            return TotalTimeSpan;
-        }
-
-
-        //------------------------------------------------------------------------------------------
-
-        
     }
 }

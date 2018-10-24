@@ -26,6 +26,15 @@ namespace JianHeMES.Models
         public IEnumerable<Users> Users { get; set; }
         public IEnumerable<IQCReport> IQCReports { get; set; }
 
+        public IEnumerable<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
+
+        public IEnumerable<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
+
+        public IEnumerable<SMT_ProductionData> SMT_ProductionData { get; set; }
+
+        public IEnumerable<SMT_OrderInfo> SMT_OrderInfo { get; set; }
+
+        
         public AllModels()
         {
             ApplicationDbContext db = new ApplicationDbContext();
@@ -47,6 +56,11 @@ namespace JianHeMES.Models
             this.Packaging_OQCCheckAbnormal = db.Packaging_OQCCheckAbnormal.ToList();
             this.Users = db.Users.ToList();
             this.IQCReports = db.IQCReports.ToList();
+            this.SMT_ProductionPlan = db.SMT_ProductionPlan.ToList();
+            this.SMT_ProcutionLineInfo = db.SMT_ProductionLineInfo.ToList();
+            this.SMT_ProductionData = db.SMT_ProductionData.ToList();
+            this.SMT_OrderInfo = db.SMT_OrderInfo.ToList();
+
         }
 
 

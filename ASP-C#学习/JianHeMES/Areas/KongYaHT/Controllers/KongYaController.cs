@@ -16,6 +16,7 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Net.Mail;
 using System.Text;
+using System.Web.Helpers;
 
 namespace JianHeMES.Areas.kongya.Controllers
 {
@@ -1093,7 +1094,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                    case "五楼SMT产线40000938#4":
+                 case "五楼SMT产线40000938#4":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime > right)
                                     orderby m.id
@@ -3108,6 +3109,14 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                case "四楼小间距装配40004518#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "7" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
                 case "4#四楼仓库40004493#3":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40004493" && m.NodeID == "3" && m.RecordTime > begin && m.RecordTime < end)
@@ -3427,6 +3436,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             return File(filecontent, ExcelExportHelper.ExcelContentType, point+".xlsx");
         }
 
+        #endregion
 
         /// <summary>
         /// Excel导出帮助类
@@ -3586,7 +3596,162 @@ namespace JianHeMES.Areas.kongya.Controllers
             }
         }
 
+
+
+
+        #region  -------------导出湿湿记录输出Excel表格方法------------------//..TODO..
+        //..TODO..
+        public ActionResult OutputTHDataToExcel()
+        {
+            ViewBag.PointList = db.THhistory.Select(m => m.DeviceName).Distinct();
+
+
+                       
+            return View();
+        }
+
+        [HttpPost]
+        public FileContentResult OutputTHDataToExcel(List<string> querylist, string Key, List<DateTime> Time, DateTime Begin, DateTime End)
+        {
+            string point = ""; //温湿度信息点
+            kongyadbEntities db = new kongyadbEntities();
+            List<string> list = null;
+            IQueryable <THhistory> queryRecords = null;
+            List<ResultTH> Resultlist = new List<ResultTH>();
+
+            #region-------测试数据------
+            list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
+            string Key1 = "Timeing", Key2 = "Periods";
+            Time.Add(Convert.ToDateTime("2018-10-23 12,00"));
+            Time.Add(Convert.ToDateTime("2018-10-23 13,00"));
+            Time.Add(Convert.ToDateTime("2018-10-23 14,00"));
+            Begin = Convert.ToDateTime("2018-10-20 00,00");
+            End = DateTime.Now;
+
+
             #endregion
 
+            if (querylist==null)  //全部点输出
+            {
+                list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
+                foreach (var item in list)
+                {
+                    if (Key == "Timing")  //时间点输出
+                    {
+                        foreach (var it in Time)
+                        {
+
+                        }
+                    }
+                    else if (Key == "Periods") //时间段输出
+                    {
+
+                    }
+                }
+            }
+            else //按照清单输出点输出
+            {
+                foreach(var item in querylist)   //按温湿度信息点清单查询
+                {
+
+                }
+            }
+
+            #region   ---------------选择器------------------
+            switch (point)
+            {
+                case "一楼篮球场40004493#1":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "一楼配套加工(1)40004518#1":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+            }
+
+            foreach (var item in queryRecords)
+            {
+                ResultTH at = new ResultTH();
+                at.Tem = Convert.ToDouble(item.Tem);
+                at.Hum = Convert.ToDouble(item.Hum);
+                at.RecordTime = Convert.ToDateTime(item.RecordTime);
+                Resultlist.Add(at);
+            }
+            #endregion
+
+            string[] columns = { "温度(℃)", "湿度(RH%)", "记录时间" };
+            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, point, false, columns);
+            return File(filecontent, ExcelExportHelper.ExcelContentType, "温湿度记录.xlsx");
+        }
+
+        #endregion
+
+
+        #region -----------系统通讯异常邮件通知
+
+        /// <summary>
+        /// 三台空压机通讯有问题（网络、弱电箱电源等问题）
+        /// </summary>
+        /// <param name="a"></param>
+        [HttpPost]
+        public void SendEmail(string a)
+        {
+            var errorMessage = "发送失败";
+            #region MyRegion
+            //try
+            //{
+            //    WebMail.SmtpServer = "smtp.qq.com";
+            //    WebMail.SmtpPort = 25;//端口号，不同SMTP服务器可能不同，可以查一下
+            //    WebMail.EnableSsl = false;//禁用SSL
+            //    WebMail.UserName = "3490212659";
+            //    WebMail.Password = "ABC@123.";
+            //    WebMail.From = "3490212659@qq.com";
+            //    WebMail.Send("250389538@qq.com,3490212659@qq.com", "空压机房异常", "空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+            //}
+            #endregion
+
+            try
+            {
+                WebMail.SmtpServer = "smtp.163.com";
+                WebMail.SmtpPort = 25;//SMTP服务器端口号
+                WebMail.EnableSsl = true;//禁用SSL
+                WebMail.UserName = "18665227107";
+                WebMail.Password = "ABC@123.";
+                WebMail.From = "18665227107@163.com";
+                #region MyRegion
+                //List<string> EmailList = new List<string>
+                //{
+                // "2906397229@qq.com",
+                // "250389538@qq.com",
+                // "3490212659@qq.com"
+                //};
+                //foreach (var i in EmailList)
+                //{
+                //    WebMail.Send(i, "MES系统信息", "三台空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+                //}
+                #endregion
+
+                WebMail.Send("2906397229@qq.com,250389538@qq.com,3490212659@qq.com", "MES系统信息", "三台空压机已经连续" + a + "没有新值，请检查采集程序及空压房弱电箱情况！");
+            }
+
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+            }
+        }
+
+
+
+
+        #endregion
     }
 }

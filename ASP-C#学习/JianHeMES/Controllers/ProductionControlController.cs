@@ -19,12 +19,16 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
+
+
         public ActionResult Index()
         {
             return View();
         }
 
-        #region -----------------组装PQC详情页面-------------------
+
+
+        #region -----------------组装PQC详情页面
 
         [HttpPost]
         public ActionResult Assemble(string OrderNum)
@@ -32,6 +36,10 @@ namespace JianHeMES.Controllers
             #region ---------------读取数据，处理数据
 
             ViewBag.OrderNum = OrderNum;//1.订单号
+
+            var order = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).FirstOrDefault();//取出订单
+            ViewBag.PlatformType = order.PlatformType; //平台类型
+            ViewBag.DeliveryDate = order.DeliveryDate; //出货日期
 
             var modelGroupQuantity = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).ToList().FirstOrDefault().Boxes;//2.订单模组数
             var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单
@@ -226,7 +234,9 @@ namespace JianHeMES.Controllers
 
 
 
-        #region -----------------调试老化OQC详情页面-------------------
+
+
+        #region -----------------调试老化OQC详情页面
         [HttpPost]
         public ActionResult Burn_in(string OrderNum)
         {
@@ -235,13 +245,17 @@ namespace JianHeMES.Controllers
 
             ViewBag.OrderNum = OrderNum;//1.订单号
 
+            var order = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).FirstOrDefault();//取出订单
+            ViewBag.PlatformType = order.PlatformType; //平台类型
+            ViewBag.DeliveryDate = order.DeliveryDate; //出货日期
+
             var modelGroupQuantity = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).ToList().FirstOrDefault().Boxes;//2.订单模组数
             var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单
             var Burn_in_Record = (from m in db.Burn_in where m.OrderNum == OrderNum select m).OrderBy(x => x.BarCodesNum).ToList();//订单OQC全部记录
             var Burn_in_RecordBarCodeList = Burn_in_Record.Select(m => m.BarCodesNum).Distinct().ToList();//OQC记录全部条码清单(去重)
 
-            var finished = Burn_in_Record.Count(m => m.Burn_in_OQCCheckAbnormal == "正常");//3.订单已完成OQC个数
-            var finishedList = Burn_in_Record.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Select(m => m.BarCodesNum).ToList(); //订单已完成OQC的条码清单
+            var finished = Burn_in_Record.Count(m => m.OQCCheckFinish == true);//3.订单已完成OQC个数
+            var finishedList = Burn_in_Record.Where(m => m.OQCCheckFinish == true).Select(m => m.BarCodesNum).ToList(); //订单已完成OQC的条码清单
 
             var Burn_in_OQC_Count = Burn_in_Record.Count();//4.订单OQC全部记录条数
 
@@ -276,7 +290,8 @@ namespace JianHeMES.Controllers
 
             var abnormalList_temp1 = (from m in Burn_in_Record where m.Burn_in_OQCCheckAbnormal != "正常" orderby m.BarCodesNum select m).ToList();//10.异常记录清单(包含正在OQC)
 
-            var abnormalList_temp = abnormalList_temp1.Except(going_temp).ToList();
+            var going_temp_normal = going_temp.Where(m => m.Burn_in_OQCCheckAbnormal == null).ToList();
+            var abnormalList_temp = abnormalList_temp1.Except(going_temp_normal).ToList();
 
             var abnormalList = Burn_in_PutOutJson(abnormalList_temp);
 
@@ -351,7 +366,7 @@ namespace JianHeMES.Controllers
                 }
             }
 
-            var passed_temp = Burn_in_Record.Where(x => x.Burn_in_OQCCheckAbnormal == "正常").ToList();//16.已经完成OQC的条码清单、个数
+            var passed_temp = Burn_in_Record.Where(x => x.OQCCheckFinish==true).ToList();//16.已经完成OQC的条码清单、个数
             var passed = Burn_in_PutOutJson(passed_temp);
             //string abnormalStatistics = null; //17.异常信息统计
 
@@ -396,7 +411,7 @@ namespace JianHeMES.Controllers
             return View();
         }
 
-        public JObject Burn_in_PutOutJson(List<Burn_in> inputlist)
+        public JObject Burn_in_PutOutJson(List<Burn_in> inputlist)  
         {
             JObject OutPutJson = new JObject();
             OutPutJson.Add("title", "[Id,OrderNum,BarCodesNum,A,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal," +
@@ -412,121 +427,608 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+
+
+
+        #region -----------------校正详情页面
         [HttpPost]
         public ActionResult Calibration(string OrderNum)
         {
 
+            #region ---------------读取数据，处理数据
+
+            ViewBag.OrderNum = OrderNum;//1.订单号
+
+            var order = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).FirstOrDefault();//取出订单
+            ViewBag.PlatformType = order.PlatformType; //平台类型
+            ViewBag.DeliveryDate = order.DeliveryDate; //出货日期
+
+            var modelGroupQuantity = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).FirstOrDefault().Boxes;//2.订单模组数
+            var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).OrderBy(c=>c.BarCodesNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单(值为空)
+            var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == OrderNum select m).OrderBy(x => x.ModuleGroupNum).ToList();//订单校正全部记录
+            var Calibration_RecordBarCodeList = Calibration_Record.Select(m => m.BarCodesNum).Distinct().ToList();//校正记录全部条码(模组号)清单(去重)
+
+            var finished = Calibration_Record.Count(m => m.Normal == true);//3.订单已完成校正个数
+            var finishedList = Calibration_Record.Where(m => m.Normal == true).Select(m => m.ModuleGroupNum).ToList(); //订单已完成校正的条码(模组号)清单
+
+            var Calibration_Count = Calibration_Record.Count();//4.订单校正全部记录条数
+
+            var finisthRate = (Convert.ToDouble(finished) / modelGroupQuantity * 100).ToString("F2");//5.完成率：完成数/订单的模组数
+
+            var passRate = (Convert.ToDouble(finished) / Calibration_Count * 100).ToString("F2");//6.合格率：完成数/记录数
+
+            #region ---------------------一次直通记录、个数、直通率----------------------
+            //---------------------一次直通记录----------------------
+            var Calibration_Record_abnormal_BoxBarCode_list = Calibration_Record.Where(c=>c.AbnormalDescription != "正常").Select(c => c.ModuleGroupNum).ToList();//异常记录(模组号)清单
+            var firstPassYield_temp = Calibration_Record.DistinctBy(c => c.ModuleGroupNum).Where(c=>c.AbnormalDescription == "正常" && c.Normal == true).ToList();//Finish记录
+            List<CalibrationRecord> firstPassYield_expect = new List<CalibrationRecord>();//有异常记录的条码Finish记录
+            foreach (var item in Calibration_Record_abnormal_BoxBarCode_list)
+            {
+                foreach (var Calibration_record in firstPassYield_temp)
+                {
+                    if (Calibration_record.ModuleGroupNum == item)
+                    {
+                        firstPassYield_expect.Add(Calibration_record);
+                    }
+                }
+            }
+            List<CalibrationRecord> firstPassYield = new List<CalibrationRecord>();
+            firstPassYield = firstPassYield_temp.Except(firstPassYield_expect).ToList();//一次直通记录
+            var firstPassYieldCount = firstPassYield.Count();//8.一次直通数
+            var firstPassYield_Rate = (Convert.ToDouble(firstPassYieldCount) / modelGroupQuantity * 100).ToString("F2");//7.直通率：直通数/模组数
+            #endregion
+
+
+            var going_temp = Calibration_Record.Where(x => x.BeginCalibration != null && x.FinishCalibration == null).ToList();//15.正在进行校正的条码清单、个数
+            var going = Calibration_PutOutJson(going_temp);
+
+            var abnormalList_temp1 = (from m in Calibration_Record where m.AbnormalDescription != "正常" orderby m.ModuleGroupNum select m).ToList();//10.异常记录清单(包含正在校正)
+
+            var abnormalList_temp = abnormalList_temp1.Except(going_temp).ToList();
+
+            var abnormalList = Calibration_PutOutJson(abnormalList_temp);
+
+            #region MyRegion
+            //#region ----------11.异常工时----------
+            ////----------11.异常工时----------
+            //int days = 0, hours = 0, minutes = 0, seconds = 0;
+            //foreach (var item in abnormalList_temp)
+            //{
+            //    if (item.CalibrationTime != null)
+            //    {
+            //        days = days + item.CalibrationTime.Value.Days;
+            //        hours = hours + item.CalibrationTime.Value.Hours;
+            //        minutes = minutes + item.CalibrationTime.Value.Minutes;
+            //        seconds = seconds + item.CalibrationTime.Value.Seconds;
+            //    }
+            //}
+            //TimeSpan abnormal_time = new TimeSpan(days, hours, minutes, seconds); //11.异常工时
+
+
+            ////#endregion
+
+            //var abnormal_Count = (from m in Calibration_Record where (m.AbnormalDescription == null || m.AbnormalDescription != "正常") select m).Count();//9.异常次数
+
+            //#region ---------------12.经过2次及以上校正已完成的条码清单-----------------
+            //List<CalibrationRecord> finishedAnd2record_temp = new List<CalibrationRecord>();//12.经过2次及以上校正已完成的条码清单、个数
+            //foreach (var item in Calibration_RecordBarCodeList)
+            //{
+            //    if (Calibration_Record.Where(c => c.ModuleGroupNum == item).ToList().Count() > 1)
+            //    {
+            //        var i = Calibration_Record.Where(c => c.ModuleGroupNum == item).ToList().Count(c => c.Normal == true);
+            //        if (i == 1)
+            //        {
+            //            finishedAnd2record_temp.AddRange(Calibration_Record.Where(c => c.ModuleGroupNum == item).ToList());
+            //        }
+            //    }
+            //}
+            //var finishedAnd2record = Burn_in_PutOutJson(finishedAnd2record_temp);
+            //#endregion
+
+
+            //#region ---------------13.经过1次以上校正未通过的条码清单-----------------
+            //List<CalibrationRecord> unfinishAndRecord_temp = new List<CalibrationRecord>();//13.经过1次以上校正未通过的条码清单、个数
+            //foreach (var item in Calibration_RecordBarCodeList)
+            //{
+            //    List<CalibrationRecord> temp = Calibration_Record.Where(c => c.ModuleGroupNum == item).ToList();
+            //    if (temp.Count() >= 1 && temp.Count(c => c.Normal == true) == 0)
+            //    {
+            //        unfinishAndRecord_temp.AddRange(temp);
+            //    }
+            //}
+            //unfinishAndRecord_temp = unfinishAndRecord_temp.Except(going_temp).ToList();
+            //var unfinishAndRecord = Burn_in_PutOutJson(unfinishAndRecord_temp);
+            //#endregion
+
+            #endregion
+
+            var passed_temp = Calibration_Record.Where(x => x.AbnormalDescription == "正常" || x.AbnormalDescription == null && x.Normal == true ).OrderBy(x=>x.BarCodesNum).ToList();//16.已经完成校正的条码清单、个数
+            List<string> passedlist = new List<string>();
+            passedlist = passed_temp.OrderBy(c=>c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+            var passed = Calibration_PutOutJson(passed_temp);
+
+            //var unbeginRecord_temp = orderBoxBarCodeList.Except(finishedList).ToList().Except(going_temp.Select(c => c.ModuleGroupNum)).ToList();//14.未开始校正的条码清单、个数(排除已完成（包含正常异常）、正在进行)
+            var unbeginRecord_temp = orderBoxBarCodeList.Except(passedlist).ToList();//14.未开始校正的条码清单、个数(排除已完成（包含正常异常）、正在进行)
+
+            string unbeginRecord = null;
+            foreach (var item in unbeginRecord_temp)
+            {
+                if (unbeginRecord == null)
+                {
+                    unbeginRecord = "[\"" + item;
+                }
+                else
+                {
+                    unbeginRecord = unbeginRecord + "\",\"" + item;
+                }
+                if (unbeginRecord_temp.IndexOf(item) == unbeginRecord_temp.Count() - 1)
+                {
+                    unbeginRecord = unbeginRecord + "\"]";
+                }
+            }
+
+
+            //string abnormalStatistics = null; //17.异常信息统计
+
+            #endregion
+
+            #region ---------------将对象转为列矩阵JSON
+            var iso = new Newtonsoft.Json.Converters.IsoDateTimeConverter();
+            iso.DateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+
+            //创建JSON对象
+            JObject JsonObj = new JObject
+            {
+                { "OrderNum", OrderNum },//1.订单号
+                { "modelGroupQuantity", modelGroupQuantity },//2.订单模组数
+                { "finished", finished},//3.订单已完成校正个数
+                { "Calibration_Count", Calibration_Count},//4.订单校正全部记录条数
+                { "finisthRate", finisthRate },//5.完成率：完成数/订单的模组数
+                { "passRate", passRate },//6.合格率：完成数/记录数
+                { "firstPassYield_Rate", firstPassYield_Rate },//7.直通率：直通数/模组数
+                { "firstPassYieldCount", firstPassYieldCount },//8.直通数
+                //{ "abnormal_Count", abnormal_Count },//9.异常次数
+                { "abnormalListNum", abnormalList_temp.Count() },//10.异常记录清单
+                //{ "abnormal_time",abnormal_time },//11.异常工时
+                //{ "finishedAnd2recordNum", finishedAnd2record_temp.Count() },//12.经过2次及以上校正已完成的条码清单、个数
+                //{ "unfinishAndRecordNum", unfinishAndRecord_temp.Count() },//13.经过1次以上校正未通过的条码清单、个数
+                { "unbeginRecordNum", unbeginRecord_temp.Count() },//14.未开始校正的条码清单、个数
+                { "goingNum", going_temp.Count() },//15.正在进行校正的条码清单、个数
+                { "passedNum", passed_temp.Count() },//16.已经完成校正的条码清单、个数
+                //17.异常信息统计
+            };
+
+            ViewBag.abnormalList_temp = abnormalList_temp;//10.异常记录清单
+            //ViewBag.finishedAnd2record_temp = finishedAnd2record_temp;//12.经过2次及以上校正已完成的条码清单、个数
+            //ViewBag.unfinishAndRecord_temp = unfinishAndRecord_temp;//13.经过1次以上OQC未通过的条码清单、个数
+            ViewBag.unbeginRecord_temp = unbeginRecord_temp;//14.未开始校正的条码清单、个数
+            ViewBag.going_temp = going_temp;//15.正在进行校正的条码清单、个数
+            ViewBag.passed_temp = passed_temp;//16.已经完成校正的条码清单、个数
+            ViewBag.JsonObj = JsonObj;
+
+            #endregion
+
+            return View();
+        }
+
+        public JObject Calibration_PutOutJson(List<CalibrationRecord> inputlist)
+        {
+            JObject OutPutJson = new JObject();
+            OutPutJson.Add("title", "[Id,OrderNum,ModuleGroupNum,A,BeginCalibration,Operator,FinishCalibration,CalibrationTime,CalibrationTimeSpan,AbnormalDescription,Normal]");
+            foreach (var item in inputlist)
+            {
+                OutPutJson.Add((inputlist.IndexOf(item) + 1).ToString(), "[" + item.ID + "," + item.OrderNum + "," + item.ModuleGroupNum + "," +
+                    item.BeginCalibration + "," + item.Operator + "," + item.FinishCalibration + "," + item.CalibrationTime + "," + item.CalibrationTimeSpan + "," +
+                    item.AbnormalDescription + ","  + item.Normal + "]");
+            }
+            return OutPutJson;
+        }
+
+        #endregion
+
+
+
+
+        #region -----------------外观包装OQC详情页面
+        [HttpPost]
+        public ActionResult Appearance(string OrderNum)
+        {
+
+            #region ---------------读取数据，处理数据
+
+            ViewBag.OrderNum = OrderNum;//1.订单号
+
+            var order = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).FirstOrDefault();//取出订单
+            ViewBag.PlatformType = order.PlatformType; //平台类型
+            ViewBag.DeliveryDate = order.DeliveryDate; //出货日期
+
+            var modelGroupQuantity = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).ToList().FirstOrDefault().Boxes;//2.订单模组数
+            var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单
+
+            var Appearance_Record = (from m in db.Appearance where m.OrderNum == OrderNum select m).OrderBy(x => x.BarCodesNum).ToList();//订单外观包装OQC全部记录
+            if(Appearance_Record==null)
+            {
+                Appearance_Record = db.Appearance.Where(c => c.ToOrderNum == OrderNum).OrderBy(c => c.BarCodesNum).ToList();
+            }
+            var Appearance_RecordBarCodeList = Appearance_Record.Select(m => m.BarCodesNum).Distinct().ToList();//外观包装OQC记录全部条码清单(去重)
+
+            var finished = Appearance_Record.Count(m => m.OQCCheckFinish == true);//3.订单已完成外观包装OQC个数
+            var finishedList = Appearance_Record.Where(m => m.OQCCheckFinish == true).Select(m => m.BarCodesNum).ToList(); //订单已完成外观包装OQC的条码清单
+
+            var Appearance_OQC_Count = Appearance_Record.Count();//4.订单外观包装OQC全部记录条数
+
+            var finisthRate = (Convert.ToDouble(finished) / modelGroupQuantity * 100).ToString("F2");//5.完成率：完成数/订单的模组数
+
+            var passRate = (Convert.ToDouble(finished) / Appearance_OQC_Count * 100).ToString("F2");//6.合格率：完成数/记录数
+
+            #region ---------------------一次直通记录、个数、直通率----------------------
+            //---------------------一次直通记录----------------------
+            var Appearance_Record_abnormal_BoxBarCode_list = Appearance_Record.Where(c => c.RepairCondition != "正常" || c.Appearance_OQCCheckAbnormal != "正常").Select(c => c.BarCodesNum).ToList();//异常记录
+            var firstPassYield_temp = Appearance_Record.DistinctBy(c => c.BarCodesNum).Where(c => c.Appearance_OQCCheckAbnormal == "正常" && c.RepairCondition == "正常" && c.OQCCheckFinish == true).ToList();//Finish记录
+            List<Appearance> firstPassYield_expect = new List<Appearance>();//有异常记录的条码Finish记录
+            foreach (var item in Appearance_Record_abnormal_BoxBarCode_list)
+            {
+                foreach (var appearance_erecord in firstPassYield_temp)
+                {
+                    if (appearance_erecord.BarCodesNum == item)
+                    {
+                        firstPassYield_expect.Add(appearance_erecord);
+                    }
+                }
+            }
+            List<Appearance> firstPassYield = new List<Appearance>();
+            firstPassYield = firstPassYield_temp.Except(firstPassYield_expect).ToList();//一次直通记录
+            var firstPassYieldCount = firstPassYield.Count();//8.一次直通数
+            var firstPassYield_Rate = (Convert.ToDouble(firstPassYieldCount) / modelGroupQuantity * 100).ToString("F2");//7.直通率：直通数/模组数
+            #endregion
+
+
+            var going_temp = Appearance_Record.Where(x => x.OQCCheckBT != null && x.OQCCheckFT == null).ToList();//15.正在进行外观包装OQC的条码清单、个数
+            var going = Appearance_PutOutJson(going_temp);
+
+            var abnormalList_temp1 = (from m in Appearance_Record where m.Appearance_OQCCheckAbnormal != "正常" orderby m.BarCodesNum select m).ToList();//10.异常记录清单(包含正在外观包装OQC)
+
+            var abnormalList_temp = abnormalList_temp1.Except(going_temp).ToList();
+
+            var abnormalList = Appearance_PutOutJson(abnormalList_temp);
+
+            #region MyRegion
+            //#region ----------11.异常工时----------
+            ////----------11.异常工时----------
+            //int days = 0, hours = 0, minutes = 0, seconds = 0;
+            //foreach (var item in abnormalList_temp)
+            //{
+            //    if (item.OQCCheckTime != null)
+            //    {
+            //        days = days + item.OQCCheckTime.Value.Days;
+            //        hours = hours + item.OQCCheckTime.Value.Hours;
+            //        minutes = minutes + item.OQCCheckTime.Value.Minutes;
+            //        seconds = seconds + item.OQCCheckTime.Value.Seconds;
+            //    }
+            //}
+            //TimeSpan abnormal_time = new TimeSpan(days, hours, minutes, seconds); //11.异常工时
+            //#endregion
+            //
+            //var abnormal_Count = (from m in Appearance_Record where m.Appearance_OQCCheckAbnormal != "正常" select m).Count();//9.异常次数
+            //
+            //#region ---------------12.经过2次及以上外观包装OQC已完成的条码清单-----------------
+            //List<Burn_in> finishedAnd2record_temp = new List<Burn_in>();//12.经过2次及以上外观包装QC已完成的条码清单、个数
+            //foreach (var item in Appearance_RecordBarCodeList)
+            //{
+            //    if (Appearance_Record.Where(c => c.BarCodesNum == item).ToList().Count() > 1)
+            //    {
+            //        var i = Appearance_Record.Where(c => c.BarCodesNum == item).ToList().Count(c => c.OQCCheckFinish == true);
+            //        if (i == 1)
+            //        {
+            //            finishedAnd2record_temp.AddRange(Appearance_Record.Where(c => c.BarCodesNum == item).ToList());
+            //        }
+            //    }
+            //}
+            //var finishedAnd2record = Appearance_PutOutJson(finishedAnd2record_temp);
+            //#endregion
+
+
+            //#region ---------------13.经过1次以上外观包装QC未通过的条码清单-----------------
+            //List<Appearance> unfinishAndRecord_temp = new List<Appearance>();//13.经过1次以上外观包装OQC未通过的条码清单、个数
+            //foreach (var item in Appearance_RecordBarCodeList)
+            //{
+            //    List<Appearance> temp = Appearance_Record.Where(c => c.BarCodesNum == item).ToList();
+            //    if (temp.Count() >= 1 && temp.Count(c => c.OQCCheckFinish == true) == 0)
+            //    {
+            //        unfinishAndRecord_temp.AddRange(temp);
+            //    }
+            //}
+            //unfinishAndRecord_temp = unfinishAndRecord_temp.Except(going_temp).ToList();
+            //var unfinishAndRecord = Appearance_PutOutJson(unfinishAndRecord_temp);
+            //#endregion
+
+            #endregion
+
+            //var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(finishedList.ToArray()).ToList().Except(going_temp.Select(c => c.BarCodesNum).ToArray()).ToList();//14.未开始外观包装OQC的条码清单、个数(排除已完成（包含正常异常）、正在进行)
+            var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(Appearance_Record.Select(m => m.BarCodesNum).ToList().Distinct().ToArray()).ToList();//14.未开始外观包装OQC的条码清单、个数(排除已有记录)
+
+            string unbeginRecord = null;
+            foreach (var item in unbeginRecord_temp)
+            {
+                if (unbeginRecord == null)
+                {
+                    unbeginRecord = "[\"" + item;
+                }
+                else
+                {
+                    unbeginRecord = unbeginRecord + "\",\"" + item;
+                }
+                if (unbeginRecord_temp.IndexOf(item) == unbeginRecord_temp.Count() - 1)
+                {
+                    unbeginRecord = unbeginRecord + "\"]";
+                }
+            }
+
+            var passed_temp = Appearance_Record.Where(x => x.Appearance_OQCCheckAbnormal == "正常").ToList();//16.已经完成外观包装OQC的条码清单、个数
+            var passed = Appearance_PutOutJson(passed_temp);
+            //string abnormalStatistics = null; //17.异常信息统计
+
+            #endregion
+
+            #region ---------------将对象转为列矩阵JSON
+            var iso = new Newtonsoft.Json.Converters.IsoDateTimeConverter();
+            iso.DateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+
+            //创建JSON对象
+            JObject JsonObj = new JObject
+            {
+                { "OrderNum", OrderNum },//1.订单号
+                { "modelGroupQuantity", modelGroupQuantity },//2.订单模组数
+                { "finished", finished},//3.订单已完成外观包装OQC个数
+                { "Appearance_PQC_Count", Appearance_OQC_Count},//4.订单外观包装OQC全部记录条数
+                { "finisthRate", finisthRate },//5.完成率：完成数/订单的模组数
+                { "passRate", passRate },//6.合格率：完成数/记录数
+                { "firstPassYield_Rate", firstPassYield_Rate },//7.直通率：直通数/模组数
+                { "firstPassYieldCount", firstPassYieldCount },//8.直通数
+                //{ "abnormal_Count", abnormal_Count },//9.异常次数
+                { "abnormalListNum", abnormalList_temp.Count() },//10.异常记录清单
+                //{ "abnormal_time",abnormal_time },//11.异常工时
+                //{ "finishedAnd2recordNum", finishedAnd2record_temp.Count() },//12.经过2次及以上外观包装OQC已完成的条码清单、个数
+                //{ "unfinishAndRecordNum", unfinishAndRecord_temp.Count() },//13.经过1次以上外观包装OQC未通过的条码清单、个数
+                { "unbeginRecordNum", unbeginRecord_temp.Count() },//14.未开始OQC的条码清单、个数
+                { "goingNum", going_temp.Count() },//15.正在进行外观包装OQC的条码清单、个数
+                { "passedNum", passed_temp.Count() },//16.已经完成外观包装OQC的条码清单、个数
+                //17.异常信息统计
+            };
+
+            ViewBag.abnormalList_temp = abnormalList_temp;//10.异常记录清单
+            //ViewBag.finishedAnd2record_temp = finishedAnd2record_temp;//12.经过2次及以上外观包装OQC已完成的条码清单、个数
+            //ViewBag.unfinishAndRecord_temp = unfinishAndRecord_temp;//13.经过1次以上外观包装OQC未通过的条码清单、个数
+            ViewBag.unbeginRecord_temp = unbeginRecord_temp;//14.未开始外观包装OQC的条码清单、个数
+            ViewBag.going_temp = going_temp;//15.正在进行外观包装OQC的条码清单、个数
+            ViewBag.passed_temp = passed_temp;//16.已经完成外观包装OQC的条码清单、个数
+            ViewBag.JsonObj = JsonObj;
+
+            #endregion
+
+            return View();
+        }
+
+        public JObject Appearance_PutOutJson(List<Appearance> inputlist)
+        {
+            JObject OutPutJson = new JObject();
+            OutPutJson.Add("title", "[Id,OrderNum,BarCodesNum,A,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal," +
+                "RepairCondition,OQCCheckFinish]");
+            foreach (var item in inputlist)
+            {
+                OutPutJson.Add((inputlist.IndexOf(item) + 1).ToString(), "[" + item.Id + "," + item.OrderNum + "," + item.BarCodesNum + "," +
+                    item.OQCCheckBT + "," + item.OQCPrincipal + "," + item.OQCCheckFT + "," + item.OQCCheckTime + "," + item.OQCCheckTimeSpan + "," +
+                    item.Appearance_OQCCheckAbnormal + "," + item.RepairCondition + "," + item.OQCCheckFinish + "]");
+            }
+            return OutPutJson;
+        }
+
+        #endregion
+
+
+        #region -----------------ProductionControlHistory生产管控历史记录页面
+
+
+        public ActionResult ProductionControlHistory()
+        {
+
+
+
             return View();
         }
 
 
         [HttpPost]
-        public ActionResult Appearances(string OrderNum)
+        public ActionResult ProductionControlHistory(string PlatformType)
         {
 
-            return View();
+            JObject ProductionControlHistory = new JObject();   //创建JSON对象
+            //取出数据
+            using (var db = new ApplicationDbContext())
+            {
+                var OrderList_All = (from m in db.OrderMgm select m).OrderBy(c => c.BarCodeCreated).ToList();
+                List<OrderMgm> OutputOrderList = new List<OrderMgm>();
+                List<OrderMgm> ExpectList = new List<OrderMgm>();
+
+                foreach (var item in OrderList_All)
+                {
+                    if (db.Appearance.Where(c => c.OrderNum == item.OrderNum).Count() == 0)
+                    {
+                        ExpectList.Add(item);
+                    }
+                }
+                OutputOrderList = OrderList_All.Except(ExpectList).ToList();
+
+                var OrderList_UnFinished = from m in OrderList_All where m.CompletedRate != 100 select m;
+
+                int i = 1;
+                //foreach (var item in OrderList_UnFinished.ToList())
+                foreach (var item in OutputOrderList)
+                {
+                    //存入JSON对象
+                    var OrderNum = new JObject
+                    {
+                        {"Id",item.ID },
+                        { "OrderNum", item.OrderNum },
+                        { "Quantity", item.Boxes },
+                        { "PlatformType", item.PlatformType },
+                        { "PlanInputTime", item.PlanInputTime.ToString() },
+                        { "PlanCompleteTime", item.PlanCompleteTime.ToString() },
+                    };
+
+                    var beginttime = db.Assemble.Where(c => c.OrderNum == item.OrderNum).Min(c => c.PQCCheckBT);//取出订单开始装配生产的PQCCheckBT值
+                    var finishtime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Max(c => c.OQCCheckFT);//取出最后包装记录的OQCCheckFT值
+
+                    var totaltime = finishtime - beginttime;
+                    OrderNum.Add("ActualFinishTime", finishtime.ToString());
+                    OrderNum.Add("TotalTime", totaltime.ToString());
+
+                    #region-------------------组装部分
+                    //-------------------组装部分
+                    var AssembleRecord = (from m in db.Assemble where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有组装记录
+                    if (AssembleRecord.Count() > 0)
+                    {
+                        OrderNum.Add("ActualProductionTime", AssembleRecord.Min(c => c.PQCCheckBT).ToString());
+                        Decimal Assemble_Normal = AssembleRecord.Where(m => m.PQCCheckAbnormal == "正常").Count();//组装PQC正常个数
+                        OrderNum.Add("Assemble_Finish", Convert.ToInt32(Assemble_Normal));
+                        OrderNum.Add("AssembleRecord_Count", AssembleRecord.Count());
+                        //计算组装完成率、合格率
+                        if (Assemble_Normal == 0)
+                        {
+                            OrderNum.Add("Assemble_Finish_Rate", "0%");
+                            OrderNum.Add("Assemble_Pass_Rate", "0%");
+                        }
+                        else
+                        {
+                            OrderNum.Add("Assemble_Finish_Rate", (Assemble_Normal / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Assemble_Pass_Rate", (Assemble_Normal / AssembleRecord.Count() * 100).ToString("F2") + "%");
+                        }
+                    }
+                    else
+                    {
+                        OrderNum.Add("ActualProductionTime", "未开始");
+                        OrderNum.Add("Assemble_Finish_Rate", "--%");
+                        OrderNum.Add("Assemble_Pass_Rate", "--%");
+                    }
+                    #endregion
+
+                    #region--------------------老化部分
+                    //--------------------老化部分
+                    var Burn_in_Record = (from m in db.Burn_in where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有老化记录
+                    if (Burn_in_Record.Count() > 0)
+                    {
+                        Decimal Burn_in_Normal = Burn_in_Record.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化正常个数
+                        //Decimal Burn_in_FirstPass = Burn_in_Record.Where(m => m.OQCCheckFinish == true && m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化工序直通个数
+                        Decimal Burn_in_Finish = Burn_in_Record.Count(m => m.OQCCheckFinish == true); //完成老化工序的个数
+                        OrderNum.Add("Burn_in_Finish", Convert.ToInt32(Burn_in_Finish));
+                        OrderNum.Add("Burn_in_Count", Burn_in_Record.Count());
+                        //计算老化完成率、合格率
+                        if (Burn_in_Finish == 0)
+                        {
+                            OrderNum.Add("Burn_in_Finish_Rate", "0%");
+                            OrderNum.Add("Burn_in_Pass_Rate", "0%");
+                        }
+                        else
+                        {
+                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count() * 100).ToString("F2") + "%");
+                        }
+                    }
+                    else
+                    {
+                        OrderNum.Add("Burn_in_Finish_Rate", "--%");
+                        OrderNum.Add("Burn_in_Pass_Rate", "--%");
+                    }
+                    #endregion
+
+                    #region---------------------校正部分
+                    //---------------------校正部分
+                    var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有校正记录
+                    if (Calibration_Record.Count() > 0)
+                    {
+                        Decimal Calibration_Normal = Calibration_Record.Where(m => m.Normal == true).Count();//校正正常个数
+                        OrderNum.Add("Calibration_Finish", Convert.ToInt32(Calibration_Normal));
+                        OrderNum.Add("Calibration_Count", Calibration_Record.Count());
+                        //计算校正完成率、合格率
+                        if (Calibration_Normal == 0)
+                        {
+                            OrderNum.Add("Calibration_Finish_Rate", "0%");
+                            OrderNum.Add("Calibration_Pass_Rate", "0%");
+                        }
+                        else
+                        {
+                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Calibration_Pass_Rate", (Calibration_Normal / Calibration_Record.Count() * 100).ToString("F2") + "%");
+                        }
+                    }
+                    else
+                    {
+                        OrderNum.Add("Calibration_Finish_Rate", "--%");
+                        OrderNum.Add("Calibration_Pass_Rate", "--%");
+                    }
+                    #endregion
+
+                    #region---------------------外观包装部分
+                    //---------------------外观包装部分
+                    var Appearances_Record = (from m in db.Appearance where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有外观包装记录
+                    if (Appearances_Record.Count() > 0)
+                    {
+                        //Decimal Appearances_Normal = Appearances_Record.Where(m => m.Appearance_OQCCheckAbnormal == "正常").Count();//外观包装正常个数
+                        Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
+                        OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
+                        OrderNum.Add("Appearances_Count", Appearances_Record.Count());
+                        //计算外观包装完成率、合格率
+                        if (Appearances_Finish == 0)
+                        {
+                            OrderNum.Add("Appearances_Finish_Rate", "0%");
+                            OrderNum.Add("Appearances_Pass_Rate", "0%");
+                        }
+                        else
+                        {
+                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
+                        }
+                    }
+                    else
+                    {
+                        //使用库存出库订单
+                        Appearances_Record = db.Appearance.Where(c => c.ToOrderNum == item.OrderNum).ToList();
+                        if (Appearances_Record.Count() > 0)
+                        {
+                            Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
+                            OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
+                            OrderNum.Add("Appearances_Count", Appearances_Record.Count());
+                            OrderNum.Remove("ActualProductionTime");
+                            OrderNum.Add("ActualProductionTime", Appearances_Record.Min(c => c.OQCCheckBT).ToString()); //取出最早记录的包装OQCCheckBT值
+                            //计算外观包装完成率、合格率
+                            if (Appearances_Finish == 0)
+                            {
+                                OrderNum.Add("Appearances_Finish_Rate", "0%");
+                                OrderNum.Add("Appearances_Pass_Rate", "0%");
+                            }
+                            else
+                            {
+                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
+                                OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
+                            }
+
+
+                        }
+                        else
+                        {
+                            OrderNum.Add("Appearances_Finish_Rate", "--%");
+                            OrderNum.Add("Appearances_Pass_Rate", "--%");
+                        }
+                    }
+                    #endregion
+
+                    ProductionControlHistory.Add(i.ToString(), OrderNum);
+                    i++;
+                }
+            }
+            ViewBag.History = ProductionControlHistory;
+            return View(ProductionControlHistory);
         }
-
-
-        [HttpPost]
-        public ActionResult Assemble_CompeleteRate(string OrderNum, string Content)
-        {
-
-            return View();
-        }
-
-        public ActionResult Assemble_PassRate()
-        {
-
-            return View();
-        }
-        public ActionResult Burn_in_CompeleteRate()
-        {
-
-            return View();
-        }
-
-        public ActionResult Burn_in_PassRate()
-        {
-
-            return View();
-        }
-        public ActionResult Calibration_CompeleteRate()
-        {
-
-            return View();
-        }
-
-        public ActionResult Calibration_PassRate()
-        {
-
-            return View();
-        }
-        public ActionResult Appearances_CompeleteRate()
-        {
-
-            return View();
-        }
-
-        public ActionResult Appearances_PassRate()
-        {
-
-            return View();
-        }
-
-
-        //public List<Assemble> PutOutList(List<Assemble> inputlist)
-        //{
-        //    List<Assemble> OutPutList = (from m in inputlist select new Assemble
-        //    {
-        //        Id = m.Id,
-        //        OrderNum = m.OrderNum,
-        //        BarCode_Prefix = m.BarCode_Prefix,
-        //        BoxBarCode = m.BoxBarCode,
-        //        AssembleBT = m.AssembleBT,
-        //        AssemblePrincipal = m.AssemblePrincipal,
-        //        AssembleFT = m.AssembleFT,
-        //        ModelList = m.ModelList,
-        //        AssembleTime = m.AssembleTime,
-        //        AssembleFinish = m.AssembleFinish,
-        //        WaterproofTestBT = m.WaterproofTestBT,
-        //        WaterproofTestPrincipal = m.WaterproofTestPrincipal,
-        //        WaterproofTestFT = m.WaterproofTestFT,
-        //        WaterproofTestTime = m.WaterproofTestTime,
-        //        WaterproofAbnormal = m.WaterproofAbnormal,
-        //        WaterproofMaintaince = m.WaterproofMaintaince,
-        //        WaterproofTestFinish = m.WaterproofTestFinish,
-        //        AssembleAdapterCardBT = m.AssembleAdapterCardBT,
-        //        AssembleAdapterCardPrincipal = m.AssembleAdapterCardPrincipal,
-        //        AssembleAdapterCardFT = m.AssembleAdapterCardFT,
-        //        AssembleAdapterTime = m.AssembleAdapterTime,
-        //        AssembleAdapterFinish = m.AssembleAdapterFinish,
-        //        AdapterCard_Power_Collection = m.AdapterCard_Power_Collection,
-        //        ViewCheckBT = m.ViewCheckBT,
-        //        AssembleViewCheckPrincipal = m.AssembleViewCheckPrincipal,
-        //        ViewCheckFT = m.ViewCheckFT,
-        //        ViewCheckTime = m.ViewCheckTime,
-        //        ViewCheckAbnormal = m.ViewCheckAbnormal,
-        //        ViewCheckFinish = m.ViewCheckFinish,
-        //        ElectricityCheckBT = m.ElectricityCheckBT,
-        //        AssembleElectricityCheckPrincipal = m.AssembleElectricityCheckPrincipal,
-        //        ElectricityCheckFT = m.ElectricityCheckFT,
-        //        ElectricityCheckTime = m.ElectricityCheckTime,
-        //        ElectricityCheckAbnormal = m.ElectricityCheckAbnormal,
-        //        ElectricityCheckFinish = m.ElectricityCheckFinish,
-        //        AssembleLineId = m.AssembleLineId,
-        //        AdapterCard_Power_List = m.AdapterCard_Power_List,
-        //        PQCCheckBT = m.PQCCheckBT,
-        //        AssemblePQCPrincipal = m.AssemblePQCPrincipal,
-        //        PQCCheckFT = m.PQCCheckFT,
-        //        PQCCheckTime = m.PQCCheckTime,
-        //        PQCCheckAbnormal = m.PQCCheckAbnormal,
-        //        PQCRepairCondition = m.PQCRepairCondition,
-        //        PQCCheckFinish = m.PQCCheckFinish
-        //    }).ToList();
-        //    return OutPutList;
-        //}
-
-
+        #endregion
     }
 }

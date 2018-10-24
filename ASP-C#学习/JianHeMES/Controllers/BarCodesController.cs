@@ -14,8 +14,8 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
-        #region  -----//类型列表-----------
-        
+        #region --------------------类型列表
+
         private List<SelectListItem> SetTypeList()
         {
             return new List<SelectListItem>()
@@ -48,8 +48,8 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  -------------//检索订单号---------------
-        
+        #region --------------------检索订单号
+
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.BarCodes.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -68,8 +68,8 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region   ---------------//检索类型----------
-        
+        #region --------------------检索类型
+
         private List<SelectListItem> GetBarCodeTypeList()
         {
             var barcodetype = db.BarCodes.OrderBy(m => m.BarCodeType).Select(m => m.BarCodeType).Distinct();
@@ -87,7 +87,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ---------------//分页----------------
+        #region --------------------分页
         private static readonly int PAGE_SIZE = 20;
 
         private int GetPageCount(int recordCount)
@@ -116,7 +116,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  ----------首页---------------
+        #region --------------------首页
         // GET: BarCodes
         public ActionResult Index()
         {
@@ -141,7 +141,7 @@ namespace JianHeMES.Controllers
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string BarCodeType, int PageIndex=0)
+        public ActionResult Index(string OrderNum, string BarCodeNum,string BarCodeType, int PageIndex=0)
         {
             var barcodes = db.BarCodes as IQueryable<BarCodes>;
             if (!String.IsNullOrEmpty(OrderNum))
@@ -153,6 +153,12 @@ namespace JianHeMES.Controllers
             {
                 barcodes = barcodes.Where(m => m.BarCodeType == BarCodeType);
             }
+
+            if (!String.IsNullOrEmpty(BarCodeNum))
+            {
+                barcodes = barcodes.Where(m => m.BarCodesNum.Contains(BarCodeNum));
+            }
+
             var recordCount = barcodes.Count();
             var pageCount = GetPageCount(recordCount);
             if (PageIndex >= pageCount && pageCount >= 1)
@@ -177,7 +183,7 @@ namespace JianHeMES.Controllers
             return View();
         }
 
-        #region  --------------创建条码-----------------
+        #region --------------------创建条码
 
         public ActionResult CreateBarCodes(int? id)
         {
@@ -186,7 +192,7 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE" || ((Users)Session["User"]).Role == "打标员")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
             {
                     if (id == null)
                 {
@@ -211,7 +217,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
             {
                     if (orderMgm.BarCodeCreated==1)
                 {
@@ -220,6 +226,23 @@ namespace JianHeMES.Controllers
             
                 BarCodes aBarCode= new BarCodes() ;
                 aBarCode.OrderNum = orderMgm.OrderNum;
+                aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+
+                //  //批量生成模组条码
+                //  List<BarCodes> barcodelist = new List<BarCodes>();
+                //  for (int i = 1; i <= orderMgm.Boxes; i++)
+                //  {
+                //      aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                //      aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
+                //      aBarCode.BarCodeType = "模组";
+                //      aBarCode.Creator = ((Users)Session["User"]).UserName;
+                //      aBarCode.CreateDate = DateTime.Now;
+                //      barcodelist.Add(aBarCode);
+                //  }
+                //  db.BarCodes.Intersect(barcodelist);
+                //  db.SaveChanges();
+
+
                 //生成模组条码
                 for (int i=1;i<=orderMgm.Boxes; i++)
                 {
@@ -227,6 +250,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum= orderMgm.BarCode_Prefix + "A"+ i.ToString("00000");
                     aBarCode.BarCodeType = "模组";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -237,6 +261,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "B" + i.ToString("00000");
                     aBarCode.BarCodeType = "模块";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -247,6 +272,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "C" + i.ToString("00000");
                     aBarCode.BarCodeType = "电源";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -257,6 +283,7 @@ namespace JianHeMES.Controllers
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "D" + i.ToString("00000");
                     aBarCode.BarCodeType = "转接卡";
                     aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
                     db.BarCodes.Add(aBarCode);
                     db.SaveChanges();
                 }
@@ -272,7 +299,6 @@ namespace JianHeMES.Controllers
                 aOrder.BarCodeCreated = 1;
                 aOrder.BarCodeCreateDate = DateTime.Now;
                 aOrder.BarCodeCreator = ((Users)Session["User"]).UserName;
-            
                 db.SaveChanges();
             
                 //分页
@@ -296,7 +322,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region   ------------Details页----------------
+        #region --------------------Details页
 
         // GET: BarCodes/Details/5
         public ActionResult Details(int? id)
@@ -310,13 +336,21 @@ namespace JianHeMES.Controllers
             {
                 return HttpNotFound();
             }
+
+            string BarCodeNum = barCodes.BarCodesNum;
+
+            ViewBag.assemble = db.Assemble.Where(c => c.BoxBarCode == BarCodeNum).ToList();
+            ViewBag.burn_in = db.Burn_in.Where(c => c.BarCodesNum == BarCodeNum).ToList();
+            ViewBag.calibration = db.CalibrationRecord.Where(c => c.ModuleGroupNum == BarCodeNum).ToList();
+            ViewBag.appearance = db.Appearance.Where(c => c.BarCodesNum == BarCodeNum).ToList();
+
             return View(barCodes);
         }
 
 
         #endregion
 
-        #region  -------------Create页-----------------
+        #region --------------------Create页
         // GET: BarCodes/Create
         public ActionResult Create()
         {
@@ -329,7 +363,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator")] BarCodes barCodes)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
         {
             if (ModelState.IsValid)
             {
@@ -343,7 +377,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region  -------------Edit页-------------
+        #region --------------------Edit页
         // GET: BarCodes/Edit/5
         public ActionResult Edit(int? id)
         {
@@ -373,7 +407,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator")] BarCodes barCodes)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
         {
             if (ModelState.IsValid)
             {
@@ -387,7 +421,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ----------Delete页-------------
+        #region --------------------Delete页
         // GET: BarCodes/Delete/5
         public ActionResult Delete(int? id)
         {

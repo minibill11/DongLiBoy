@@ -16,7 +16,8 @@ namespace JianHeMES
                         "~/Scripts/jquery.form.js"));
 
             bundles.Add(new ScriptBundle("~/bundles/jqueryval").Include(
-                        "~/Scripts/jquery.validate.unobtrusive.js",
+                        "~/Scripts/jquery.validate.min.js",
+                        "~/Scripts/jquery.validate.unobtrusive.min.js",
                         "~/Scripts/jquery.unobtrusive-ajax.min.js"));
             bundles.Add(new ScriptBundle("~/bundles/jqueryvalAll").Include(
                         "~/Scripts/jquery.validate*"));

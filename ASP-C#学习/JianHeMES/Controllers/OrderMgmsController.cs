@@ -16,7 +16,7 @@ namespace JianHeMESEntities.Controllers
 
         // GET: OrderMgms
 
-        #region  -------------检索订单号------
+        #region --------------------检索订单号
         private List<SelectListItem> GetOrderNumList()
         {
             var ordernum = db.OrderMgm.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
@@ -34,7 +34,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region  //分页
+        #region --------------------分页
         private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)
@@ -48,7 +48,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region  ---------首页----------
+        #region --------------------首页
         // GET: OrderMgms
         public ActionResult Index()
         {
@@ -97,6 +97,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
+        #region --------------------Details页
         // GET: OrderMgms/Details/5
         public ActionResult Details(int? id)
         {
@@ -109,9 +110,104 @@ namespace JianHeMESEntities.Controllers
             {
                 return HttpNotFound();
             }
+            #region----------订单在组装的统计数据
+
+
+            //开始时间 
+
+            //最后时间
+
+            //完成时间
+
+            //作业时长
+
+            //直通个数
+
+            //正常个数
+
+            //有效工时
+
+            //异常个数
+
+            //异常工时
+
+            #endregion
+
+            #region----------订单在老化的统计数据
+
+
+            //开始时间 
+
+            //最后时间
+
+            //完成时间
+
+            //作业时长
+
+            //直通个数
+
+            //正常个数
+
+            //有效工时
+
+            //异常个数
+
+            //异常工时
+
+            #endregion
+
+            #region----------订单在校正的统计数据
+
+
+            //开始时间 
+
+            //最后时间
+
+            //完成时间
+
+            //作业时长
+
+            //直通个数
+
+            //正常个数
+
+            //有效工时
+
+            //异常个数
+
+            //异常工时
+
+            #endregion
+
+            #region----------订单在外观包装的统计数据
+
+
+            //开始时间 
+
+            //最后时间
+
+            //完成时间
+
+            //作业时长
+
+            //直通个数
+
+            //正常个数
+
+            //有效工时
+
+            //异常个数
+
+            //异常工时
+
+            #endregion
+
+
             return View(orderMgm);
         }
+        #endregion
 
+        #region --------------------Create页
         // GET: OrderMgms/Create
         public ActionResult Create()
         {
@@ -119,12 +215,13 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员")
             {
                 return View();
 
             }
-            return RedirectToAction("Index");
+            return Content("<script>alert('对不起，您未授权管理订单，请联系PC部经理！');window.location.href='../OrderMgms/Index';</script>");
+            //return RedirectToAction("Index");
         }
 
         // POST: OrderMgms/Create
@@ -132,26 +229,26 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            //设置条码生成状态为0，表示未生成订单条码
-            orderMgm.BarCodeCreated = 0;
-
-            if (ModelState.IsValid)
-            {
-                db.OrderMgm.Add(orderMgm);
-                db.SaveChanges();
-                return RedirectToAction("Index");
+                //设置条码生成状态为0，表示未生成订单条码
+                orderMgm.BarCodeCreated = 0;
+                if (ModelState.IsValid)
+                {
+                    db.OrderMgm.Add(orderMgm);
+                    db.SaveChanges();
+                return Content("<script>alert('订单创建成功！');window.location.href='../OrderMgms/Index';</script>");
+                //return RedirectToAction("Index");
             }
-
             return View(orderMgm);
         }
+        #endregion
 
+        #region --------------------Edit页
         // GET: OrderMgms/Edit/5
         public ActionResult Edit(int? id)
         {
@@ -159,7 +256,7 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE" || ((Users)Session["User"]).Role == "打标员 ")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员")
             {
                 if (id == null)
                 {
@@ -180,7 +277,7 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate")] OrderMgm orderMgm)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {
@@ -195,7 +292,9 @@ namespace JianHeMESEntities.Controllers
             }
             return View(orderMgm);
         }
+        #endregion
 
+        #region --------------------Delete页
         // GET: OrderMgms/Delete/5
         public ActionResult Delete(int? id)
         {
@@ -235,5 +334,6 @@ namespace JianHeMESEntities.Controllers
             }
             base.Dispose(disposing);
         }
+        #endregion
     }
 }

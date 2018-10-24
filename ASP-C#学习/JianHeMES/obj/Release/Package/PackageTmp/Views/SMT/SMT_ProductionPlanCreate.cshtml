@@ -1,0 +1,262 @@
+﻿@model JianHeMES.Models.SMT_ProductionPlan
+
+@{
+    ViewBag.Title = "SMT_创建订单计划";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+    .table > tbody > tr > th {
+        text-align: center;
+        vertical-align: middle;
+    }
+</style>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/vue.js"></script>
+<h2>@ViewBag.Title</h2>
+
+<div id="app" class="form-horizontal">
+    @*<h4>SMT_OrderInfo</h4>*@
+    <hr>
+    <table class="table">
+        <tr>
+            <td colspan="7" style="border-top:none;color:green"><span>Excel内容粘贴在此处</span><textarea v-model="pasteExcel" class="form-control" style="width:130px;height:35px;resize: none;"></textarea></td>
+        </tr>
+    </table>
+    <table id="para_table" class="table table-bordered">
+        <tr>
+            <th>产线</th>
+            <th>订单号</th>
+            <th>数量</th>
+            <th>平台类型</th>
+            <th>客户</th>
+            <th>创建记录日期</th>
+            <th align="center"><button type="button" class="btn btn-link" onclick="emptytable()">清空</button></th>
+        </tr>
+        <tr class="orderNum">
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="datetime"></td>
+            <td align="center"><button type="button" class="btn btn-link" onclick="emptytr(this)">清除</button></td>
+            @*<td><input class="check-box"  type="checkbox"></td>*@
+        </tr>
+        <tr class="orderNum">
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control" type="datetime"></td>
+            <td align="center"><button type="button" class="btn btn-link" onclick="deletetr(this)">移除</button></td>
+        </tr>
+    </table>
+    <table class="table">
+        <tr>
+            <td colspan="6" style="text-align:center;border-top:none;"><button id="addtrdiv" class="btn btn-primary" onclick="addtr()">增加一行</button></td>
+        </tr>
+    </table>
+    <div id="setForm"></div>
+
+    <div class="form-group">
+        <div class="col-md-12">
+            <input value="检查订单信息" v-on:click="checkPost" class="btn btn-default" type="button">
+            <input value="创建" v-show="okCreate" v-on:click="createPost" class="btn btn-default" type="button">
+        </div>
+    </div>
+</div>
+<div>
+    @Html.ActionLink("返回", "SMT_ProductionPlan")
+</div>
+
+<script>
+    function addtr() {
+        app.okCreate = false;
+        var table = $("#para_table");
+        var tr = $("<tr class=\"orderNum\">" +
+            "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\" type=\"datetime\"></td>" +
+            "<td  align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deletetr(this)\">移除</button></td></tr>");
+        table.append(tr);
+    };
+    function deletetr(tdobject) {
+        app.okCreate = false;
+        var td = $(tdobject);
+        td.parents("tr").remove();
+    };
+    function emptytable() {
+        app.okCreate = false;
+        var tr = $(".orderNum")
+        tr.each(function (index, val) {
+            $(val).children("td").each(function (i, v) {
+                v.firstChild.value = "";
+            })
+        });
+    };
+    function emptytr(tdobject) {
+        app.okCreate = false;
+        var td = $(tdobject);
+        td.parents("tr").children("td").each(function (index, val) {
+            val.firstChild.value = "";
+        })
+    };
+</script>
+<script type="text/javascript">
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            recordsArray: [],
+            recordsJson: {},
+            okNum: 0,
+            emptyNum: 0,
+            pasteExcel: "",
+            okCreate: false
+        },
+        methods: {
+            checkPost: function (event) {
+                //event.preventDefault();
+                app.recordsArray = [];
+                app.recordsJson = {};
+                app.okNum = 0;
+                app.emptyNum = 0;
+                app.okCreate = false;
+                $(".orderNum").each(function (index, val) {
+                    if (val.children[0].firstChild.value != ""
+                        || val.children[1].firstChild.value != ""
+                        || val.children[2].firstChild.value != ""
+                        || val.children[3].firstChild.value != ""
+                        || val.children[4].firstChild.value != ""
+                        || val.children[5].firstChild.value != "") {
+                        if (val.children[0].firstChild.value != ""
+                        && val.children[1].firstChild.value != ""
+                        && val.children[2].firstChild.value != ""
+                        && val.children[3].firstChild.value != ""
+                        && val.children[4].firstChild.value != ""
+                        && val.children[5].firstChild.value != "") {
+                            app.recordsJson['LineNum'] = val.children[0].firstChild.value;
+                            app.recordsJson['OrderNum'] = val.children[1].firstChild.value;
+                            app.recordsJson['Quantity'] = val.children[2].firstChild.value;
+                            app.recordsJson['PlatformType'] = val.children[3].firstChild.value;
+                            app.recordsJson['Customer'] = val.children[4].firstChild.value;
+                            app.recordsJson['CreateDate'] = val.children[5].firstChild.value;
+                            //app.recordsJson['Status'] = val.children[5].firstChild.checked;
+                            app.recordsArray.push(app.recordsJson);
+                            app.recordsJson = {};
+                            $(val.children).each(function (i, v) {
+                                $(v.firstChild).next().remove("p");
+                            });
+                            app.okNum++;
+                        } else {
+                            $(val.children).each(function (i, v) {
+                                $(v.firstChild).next().remove("p");
+                                if (v.firstChild.value == "" && v.firstChild.type != "button") {
+                                    $(v).append($("<p style=\"color:red\">内容不能为空</p>"));
+                                }
+                            });
+                        };
+                    } else {
+                        app.emptyNum++;
+                        $(val.children).each(function (i, v) {
+                            $(v.firstChild).next().remove("p");
+                        });
+                    };
+                });
+                if (($(".orderNum").length - app.emptyNum) == app.okNum && app.okNum != 0) {
+                    //alert("ok");
+                    //console.log(app.recordsArray)
+                    $.ajax({
+                        type: 'post',
+                        url: "/SMT/SMT_ProductionPlanCheck/",
+                        data: {
+                            records: JSON.stringify(app.recordsArray)
+                        },
+                        success: function (data) {
+                            returnData = JSON.parse(data);
+                            console.log(returnData);
+                            var i = 0;
+                            for (var val in returnData) {
+                                if (returnData[val] == "此产线已存在该订单计划") {
+                                    $(".orderNum").each(function (index) {
+                                        if ($(".orderNum")[index].children[1].firstChild.value == val) {
+                                            $($(".orderNum")[index].firstChild).append($("<p class=\"unqualified\" style=\"color:red\">此产线已存在该订单计划</p>"));
+                                        };
+                                    });
+                                };
+                                i++;
+                            };
+                            if ($(".unqualified").length == 0) {
+                                app.okCreate = true;
+                            };
+                        },
+                        error: function (XMLHttpRequest, textStatus, errorThrown) {
+                            alert("POST失败")
+                        }
+                    });
+                };
+            },
+            createPost: function (event) { //提交post内容
+                this.$options.methods.postForm("/SMT/SMT_ProductionPlanCreate", JSON.stringify(app.recordsArray));
+            },
+            postForm: function (url, params) {
+                var newForm = $("<form action=" + url + " method='post' style='display:none' ><input name='records' value=" + params + " ></form>");
+                $("#setForm").append(newForm);
+                newForm.submit();
+                newForm.remove();
+            }
+        },
+        computed: {
+
+        },
+        watch: {
+            pasteExcel: function (val) {
+                if (val == "") {
+                    return false;
+                };
+                app.okCreate = false;
+                var pasteQuantity = val.split("\n");
+                pasteQuantity.pop();
+                pasteQuantity.forEach(function (value, index) {
+                    var cutPasteQuantity = value.split("\t")
+                    pasteQuantity[index] = cutPasteQuantity;
+                    //console.log(cutPasteQuantity);
+                });
+                //console.log(pasteQuantity);
+                var tableLength = $(".orderNum").length;
+                var pasteLength = pasteQuantity.length;
+                if (tableLength < pasteQuantity.length) {
+                    for (var i = 0; i < (pasteLength - tableLength) ; i++) {
+                        addtr();
+                    };
+                    $(".orderNum").each(function (index, val) {
+                        if (index < pasteLength) {
+                            val.children[0].firstChild.value = pasteQuantity[index][0];
+                            val.children[1].firstChild.value = pasteQuantity[index][1];
+                            val.children[2].firstChild.value = pasteQuantity[index][2];
+                            val.children[3].firstChild.value = pasteQuantity[index][3];
+                            val.children[4].firstChild.value = pasteQuantity[index][4];
+                            val.children[5].firstChild.value = pasteQuantity[index][5];
+                        };
+                    });
+                } else {
+                    emptytable();
+                    $(".orderNum").each(function (index, val) {
+                        if (index < pasteLength) {
+                            val.children[0].firstChild.value = pasteQuantity[index][0];
+                            val.children[1].firstChild.value = pasteQuantity[index][1];
+                            val.children[2].firstChild.value = pasteQuantity[index][2];
+                            val.children[3].firstChild.value = pasteQuantity[index][3];
+                            val.children[4].firstChild.value = pasteQuantity[index][4];
+                            val.children[5].firstChild.value = pasteQuantity[index][5];
+                        };
+                    });
+                };
+                app.pasteExcel = "";
+            }
+        }
+    });
+</script>
