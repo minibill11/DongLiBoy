@@ -37,7 +37,6 @@ namespace JianHeMES.Controllers
         }
 
 
-
         #region---------------------产线管理
 
         public ActionResult SMT_ProductionLineCreate()
@@ -53,28 +52,6 @@ namespace JianHeMES.Controllers
             }
             return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
         }
-
-        //[HttpPost]
-        //public ActionResult SMT_ProductionLineCreate(FormCollection fc)
-        //{
-        //    SMT_ProductionLineInfo newline = new SMT_ProductionLineInfo();
-        //    newline.LineNum = Convert.ToInt32(fc["LineNum"]);
-        //    newline.CreateDate = DateTime.Now;
-        //    newline.Team = fc["Team"];
-        //    newline.GroupLeader = fc["GroupLeader"];
-        //    newline.Status = fc["Status"];
-        //    ViewBag.Status = ProductionLineStatus();
-        //    if (ModelState.IsValid)
-        //    {
-        //        db.SMT_ProductionLineInfo.Add(newline);
-        //        db.SaveChanges();
-        //        return RedirectToAction("SMT_Mangage");
-        //    }
-        //    else
-        //    {
-        //        return View(newline);
-        //    }
-        //}
 
         [HttpPost]
         public ActionResult SMT_ProductionLineCreate([Bind(Include = "Id,LineNum,ProducingOrderNum,CreateDate,Team,GroupLeader,Status")] SMT_ProductionLineInfo newline)
@@ -274,6 +251,115 @@ namespace JianHeMES.Controllers
         #endregion
 
 
+        #region---------------------产线计划管理
+
+        public ActionResult SMT_ProductionPlan()
+        {
+            //ViewBag.OrderList = db.SMT_OrderInfo.Where(c=>c.Status!=true).ToList();
+            var records = db.SMT_ProductionPlan.OrderBy(c=>c.LineNum).Where(c=>DbFunctions.DiffDays(c.CreateDate,DateTime.Now)<=0).ToList();
+            return View(records);
+        }
+
+        public ActionResult SMT_ProductionPlanCreate()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                ViewBag.Status = ProductionLineStatus();
+                //ViewBag.OrderList = db.SMT_OrderInfo.Where(c => c.Status != true).ToList();
+                return View();
+            }
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
+        }
+
+        [HttpPost]
+        public ActionResult SMT_ProductionPlanCheck(string records)
+        {
+            List<SMT_ProductionPlan> orders = new List<SMT_ProductionPlan>();
+
+            JObject SMT_OrderInfoCheck_result = new JObject();
+            orders = JsonConvert.DeserializeObject<List<SMT_ProductionPlan>>(records);
+            if (orders != null)
+            {
+                foreach (var item in orders)
+                {
+                    var IsExistOrder = db.SMT_ProductionPlan.Where(c => c.OrderNum == item.OrderNum && c.LineNum==item.LineNum && DbFunctions.DiffDays(c.CreateDate,DateTime.Now )==0).Count();
+                    if (IsExistOrder > 0)
+                    {
+                        SMT_OrderInfoCheck_result.Add(item.OrderNum, "此产线已存在该订单计划");
+                    }
+                    else
+                    {
+                        SMT_OrderInfoCheck_result.Add(item.OrderNum, "此产线可以做订单计划");
+                    }
+                }
+                //return Content(SMT_OrderInfoCheck_result.ToString());
+                return Json(SMT_OrderInfoCheck_result.ToString(), JsonRequestBehavior.AllowGet);
+            }
+            return View(records);
+        }
+
+        [HttpPost]
+        public ActionResult SMT_ProductionPlanCreate(string records)
+        {
+            List<SMT_ProductionPlan> orders = new List<SMT_ProductionPlan>();
+
+            orders = JsonConvert.DeserializeObject<List<SMT_ProductionPlan>>(records);
+            if (orders != null)
+            {
+                foreach (var item in orders)
+                {
+                    if (ModelState.IsValid)
+                    {
+                        db.SMT_ProductionPlan.Add(item);
+                        db.SaveChanges();
+                    }
+                }
+                return RedirectToAction("SMT_ProductionPlan");
+            }
+            return View(records);
+        }
+
+        public async Task<ActionResult> SMT_ProductionPlanEdit(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                SMT_ProductionPlan record = await db.SMT_ProductionPlan.FindAsync(id);
+                if (record == null)
+                {
+                    return HttpNotFound();
+                }
+                ViewBag.Status = ProductionLineStatus();
+                return View(record);
+            }
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_Mangage';</script>");
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> SMT_ProductionPlanEdit([Bind(Include = "Id,LineNum,OrderNum,CreateDate,Quantity,PlatformType,Customer")]SMT_ProductionPlan record)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(record).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("SMT_ProductionPlan");
+            }
+            return View(record);
+        }
+
+        #endregion
+
 
         #region---------------------用户管理
 
@@ -318,6 +404,7 @@ namespace JianHeMES.Controllers
         // GET: SMT_User/Create
         public ActionResult SMT_UserCreate()
         {
+            ViewBag.createRoleList = createRoleList();//创建用户角色列表
             return View();
         }
 
@@ -328,6 +415,7 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> SMT_UserCreate([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,LineNum,Deleter,DeleteDate,Description")] Users user)
         {
+            ViewBag.createRoleList = createRoleList();//创建用户角色列表
             user.Department = "SMT";
             user.CreateDate = DateTime.Now;
             if (ModelState.IsValid)
@@ -344,6 +432,7 @@ namespace JianHeMES.Controllers
         // GET: SMT_User/Edit/5
         public async Task<ActionResult> SMT_UserEdit(int? id)
         {
+            ViewBag.createRoleList = createRoleList();//创建用户角色列表
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
@@ -363,6 +452,7 @@ namespace JianHeMES.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> SMT_UserEdit([Bind(Include = "ID,UserNum,UserName,Password,CreateDate,Creator,UserAuthorize,Role,Department,LineNum,Deleter,DeleteDate,Description")] Users user)
         {
+            ViewBag.createRoleList = createRoleList();//创建用户角色列表
             user.Department = "SMT";
             if (ModelState.IsValid)
             {
@@ -470,12 +560,16 @@ namespace JianHeMES.Controllers
                 datarecord.ProductionDate = DateTime.Now;
                 if (result == true)
                 {
-                    datarecord.NormalCount= datarecord.NormalCount + 1;
+                    datarecord.NormalCount++;
+                    db.Entry(datarecord).State = EntityState.Modified;
+                    db.SaveChanges();
                     return Content("订单" + ordernum + "良品数已增加一个！");
                 }
                 else
                 {
-                    datarecord.AbnormalCount= datarecord.AbnormalCount + 1;
+                    datarecord.AbnormalCount++;
+                    db.Entry(datarecord).State = EntityState.Modified;
+                    db.SaveChanges();
                     return Content("订单" + ordernum + "不良品数已增加一个！");
                 }
             }
@@ -617,6 +711,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+
         #region ---------------------------------------产线状态列表
         private List<SelectListItem> ProductionLineStatus()
         {
@@ -640,6 +735,27 @@ namespace JianHeMES.Controllers
             };
         }
         #endregion
+
+        #region --------------------创建角色列表
+        private List<SelectListItem> createRoleList()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "操作员",
+                    Value = "操作员"
+                },
+                new SelectListItem
+                {
+                    Text = "SMT看板管理员",
+                    Value = "SMT看板管理员"
+                }
+            };
+        }
+        #endregion
+
+
 
         /// <summary>
         /// 对象转换成json

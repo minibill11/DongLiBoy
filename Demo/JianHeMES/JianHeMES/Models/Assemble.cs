@@ -187,6 +187,10 @@ namespace JianHeMES.Models
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public Boolean PQCCheckFinish { get; set; } //PQC是否完成
 
+        [Display(Name = "备注")]
+        public string Remark { get; set; } //PQC是否完成
+
+
         public virtual List<OrderMgm> OrderMgm { get; set; }
         public virtual List<Users> Users { get; set; }
         public virtual List<BarCodes> BarCodes { get; set; }

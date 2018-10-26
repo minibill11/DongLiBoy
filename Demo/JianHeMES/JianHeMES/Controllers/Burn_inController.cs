@@ -157,12 +157,12 @@ namespace JianHeMES.Controllers
             if (OQCNormal == "异常")
             {
                 //AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition != "正常") select m;
-                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.RepairCondition != "正常").ToList();
+                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.Burn_in_OQCCheckAbnormal !=null).ToList();
             }
             else if (OQCNormal == "正常")
             {
                 //AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition == "正常") select m;
-                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.RepairCondition == "正常").ToList();
+                AllBurn_inRecords = AllBurn_inRecords.Where(c => c.Burn_in_OQCCheckAbnormal == null).ToList();
             }
             #endregion
 
@@ -180,11 +180,20 @@ namespace JianHeMES.Controllers
             }
             #endregion
 
+            #region   ---------异常描述条件筛选-------------
 
-            #region   ----------筛选从未开始做的条码清单------------
+            //检查searchString是否为空
+            if (!String.IsNullOrEmpty(searchString))
+            {   //从调出的记录中筛选含searchString内容的记录
+                AllBurn_inRecords = AllBurn_inRecords.Where(m => m.Burn_in_OQCCheckAbnormal!=null && m.Burn_in_OQCCheckAbnormal.Contains(searchString)).ToList();
+            }
+            #endregion
+
+            #region   ----------筛选从未开始、正在老化调试OQC的条码清单------------
             //取出订单的全部条码
             List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == OrderNum select m).ToList();
-            ArrayList NotDoOQCList = new ArrayList();
+            List<string> NotDoOQCList = new List<string>();
+            List<string> DoingNowOQCList = new List<string>();
             foreach (var barcode in BarCodesList)
             {
                 if ((from m in db.Burn_in where m.BarCodesNum == barcode.BarCodesNum select m).Count() == 0)
@@ -192,16 +201,21 @@ namespace JianHeMES.Controllers
                     NotDoOQCList.Add(barcode.BarCodesNum);
                 }
             }
-            ViewBag.NotDo = NotDoOQCList;//输出未完成的条码清单
+            ViewBag.NotDo = NotDoOQCList;//输出未开始做OQC的条码清单
             int barcodeslistcount = NotDoOQCList.Count;
-            ViewBag.NotDoCount = barcodeslistcount;//未完成数量
+            ViewBag.NotDoCount = barcodeslistcount;//未开始数量
+
+            foreach (var barcode in BarCodesList)
+            {
+                if (db.Burn_in.Where(m=>m.BarCodesNum==barcode.BarCodesNum).Where(m=>m.OQCCheckBT!=null && m.OQCCheckFT==null).Count() > 0)
+                {
+                    DoingNowOQCList.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.DoingNowOQCList = DoingNowOQCList;//正在做老化调试OQC的条码清单
+            ViewBag.DoingNowOQCListCount = DoingNowOQCList.Count(); //正在做老化调试OQC的条码清单个数
             #endregion
 
-            //检查orderNum和searchString是否为空
-            if (!String.IsNullOrEmpty(searchString))
-            {   //从调出的记录中筛选含searchString内容的记录
-                AllBurn_inRecords = AllBurn_inRecords.Where(m => m.OrderNum.Contains(searchString)).ToList();
-            }
 
             //取出对应orderNum校正时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.Burn_in
@@ -258,7 +272,7 @@ namespace JianHeMES.Controllers
             ViewBag.AbnormalCount = Abnormal_Count;
             ViewBag.RecordCount = AllBurn_inRecords.Count();
             ViewBag.Finish = AllBurn_inRecordsList.Count(c => c.OQCCheckFinish == true);
-            ViewBag.NeverFinish = Order_MG_Quantity - Finish_Count;
+            ViewBag.NeverFinish = Order_MG_Quantity - ViewBag.Finish;
             ViewBag.orderNum = OrderNum;
 
             //未选择订单时隐藏基本信息设置
@@ -277,7 +291,7 @@ namespace JianHeMES.Controllers
             {
                 PageIndex = pageCount - 1;
             }
-            AllBurn_inRecords = AllBurn_inRecords.OrderByDescending(m => m.OQCCheckBT)
+            AllBurn_inRecords = AllBurn_inRecords.OrderBy(m => m.BarCodesNum)
                                 .Skip(PageIndex * PAGE_SIZE)
                                 .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
@@ -435,7 +449,6 @@ namespace JianHeMES.Controllers
                 return View();
             }
             return RedirectToAction("Index");
-
         }
 
         // POST: Burn_in/Create
@@ -463,14 +476,12 @@ namespace JianHeMES.Controllers
             {
                 if (burn_in.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum)
                 {
-                    //var burn_inRecord = db.Burn_in.FirstOrDefault(u => u.BarCodesNum == burn_in.BarCodesNum);
                     burn_in.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == burn_in.BarCodesNum).FirstOrDefault().OrderNum;
                     burn_in.OQCCheckBT = DateTime.Now;
                     burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                     db.Burn_in.Add(burn_in);
                     db.SaveChanges();
-                    //return RedirectToAction("Burn_in_F", new { burn_in.Id });
-                    return RedirectToAction("Index");
+                    return RedirectToAction("Burn_in_B");
                 }
                 else
                 {
@@ -521,8 +532,6 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Burn_in_F", new { burn_in.Id });
                 //return RedirectToAction("Index");
             }
-
-
         }
         #endregion
 
@@ -1183,10 +1192,10 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ---------------------------------------取出整个OrderMgms的OrderNum订单号列表
+        #region ---------------------------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
-            var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
             var items = new List<SelectListItem>();
             foreach (string order in orders)
             {

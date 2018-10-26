@@ -33,14 +33,14 @@ namespace JianHeMES.Controllers
 
             CalibrationRecordVM.AllCalibrationRecord = null;
             ViewBag.Display = "display:none";//隐藏View基本情况信息
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.OrderList = GetOrderListForIndex();//向View传递OrderNum订单号列表.
 
             return View();
         }
 
 
         [HttpPost]
-        public async Task<ActionResult> Index(string orderNum, string searchString, int PageIndex = 0)
+        public async Task<ActionResult> Index(string orderNum, string moduleGroupNum, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -49,6 +49,8 @@ namespace JianHeMES.Controllers
 
             //IQueryable<CalibrationRecord> AllCalibrationRecords = null;
             List<CalibrationRecord> AllCalibrationRecords = new List<CalibrationRecord>();
+
+            //检查orderNum和searchString是否为空
             if (orderNum == "")
             {
                 //调出全部记录      
@@ -73,12 +75,20 @@ namespace JianHeMES.Controllers
                     }
                 }
             }
-
-            //检查orderNum和searchString是否为空
+            #region-------------按描述条件查询
             if (!String.IsNullOrEmpty(searchString))
             {   //从调出的记录中筛选含searchString内容的记录
-                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription.Contains(searchString)).ToList();
+                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription != null && s.AbnormalDescription.Contains(searchString)).ToList();
             }
+            #endregion
+
+            #region-------------按描模组号查询
+            if (!String.IsNullOrEmpty(moduleGroupNum))
+            {   //从调出的记录中筛选含searchString内容的记录
+                AllCalibrationRecords = AllCalibrationRecords.Where(s => s.AbnormalDescription != null && s.ModuleGroupNum.Contains(moduleGroupNum.ToUpper())).ToList();
+            }
+            #endregion
+
 
             //取出对应orderNum校正时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.CalibrationRecord
@@ -144,7 +154,7 @@ namespace JianHeMES.Controllers
             { ViewBag.Display = "display:none"; }
             else { ViewBag.Display = "display:normal"; }
 
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.OrderList = GetOrderListForIndex();//向View传递OrderNum订单号列表.
 
             //分页计算功能
             var recordCount = AllCalibrationRecords.Count();
@@ -154,7 +164,7 @@ namespace JianHeMES.Controllers
                 PageIndex = pageCount - 1;
             }
 
-            CalibrationRecordVM.AllCalibrationRecord = CalibrationRecordVM.AllCalibrationRecord//.OrderByDescending(m => m.BeginCalibration)
+            CalibrationRecordVM.AllCalibrationRecord = CalibrationRecordVM.AllCalibrationRecord.OrderByDescending(m => m.BeginCalibration)//按条码排序
                                                                             .Skip(PageIndex * PAGE_SIZE)
                                                                             .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
@@ -194,43 +204,90 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult CreateCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult CreateCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
         {
+            //if (Session["User"] == null)
+            //{
+            //    return RedirectToAction("Login", "Users");
+            //}
             ViewBag.OrderList = GetOrderList();
-
-            if (Session["User"] == null)
+            var ordernum = db.BarCodes.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum).ToList().FirstOrDefault();
+            //找不到订单
+            if (ordernum==null)
             {
-                return RedirectToAction("Login", "Users");
+                ModelState.AddModelError("", "找不到此条码号，请检查订单号或联系PC部门是否已经创建此订单和条码！");
+                return View(calibrationRecord);
             }
-
-            calibrationRecord.Operator = ((Users)Session["User"]).UserName;
-            calibrationRecord.BeginCalibration = DateTime.Now;
-            if (ModelState.IsValid)
+            //订单和条码都正确
+            if (ordernum.OrderNum == calibrationRecord.OrderNum)//检查条码是否属于此订单
             {
-                string ON = Request.Form["OrderNum"];
-                string MGN = Request.Form["ModuleGroupNum"];
-                string BCN = Request.Form["BarCodesNum"];
-                db.CalibrationRecord.Add(calibrationRecord);
-                db.SaveChanges();
-                //把箱体号存到对应的条码号记录中
-                if (calibrationRecord.BarCodesNum != null)
-                {
-                    if ((from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).Count() > 0)
+                //如果有正在校正并没有正常完成的记录，打开此记录
+                if ( db.CalibrationRecord.Where(c=> c.OrderNum == calibrationRecord.OrderNum && c.BarCodesNum == calibrationRecord.BarCodesNum && c.BeginCalibration!=null && c.FinishCalibration==null).Count()>0)//检查是否有正在校正并没有正常完成的记录
+                {   
+                    var record = db.CalibrationRecord.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum && c.BeginCalibration != null && c.FinishCalibration == null).FirstOrDefault();
+                    return RedirectToAction("FinishCal", new { record.ID });
+                }
+                //找开已经完成校正的记录，是否重复校正？并写明原因
+                else if (db.CalibrationRecord.Where(c =>c.OrderNum==calibrationRecord.OrderNum && c.BarCodesNum==calibrationRecord.BarCodesNum && c.Normal == true && c.BeginCalibration != null && c.FinishCalibration != null).Count() > 0) //已经校正完成
+                {   
+                    if (calibrationRecord.RepetitionCalibration==true)
                     {
-                        var barcode = (from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).FirstOrDefault();
-                        barcode.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
-                        db.Entry(barcode).State = EntityState.Modified;
-                        db.SaveChanges();
+                        calibrationRecord.Operator = ((Users)Session["User"]).UserName;
+                        calibrationRecord.BeginCalibration = DateTime.Now;
+                        if (ModelState.IsValid)
+                        {
+                            db.CalibrationRecord.Add(calibrationRecord);
+                            db.SaveChanges();
+                        }
+                        return RedirectToAction("FinishCal", new { calibrationRecord.ID });
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("", "此模组条码已经通过校正了！是否重复校正？");//..TODO..
+                        return View(calibrationRecord);
                     }
                 }
-                return RedirectToAction("FinishCal", new { calibrationRecord.ID });
+                //如果没有正常的校正记录，新建记录，保存记录
+                else
+                {
+                    calibrationRecord.Operator = ((Users)Session["User"]).UserName;
+                    calibrationRecord.BeginCalibration = DateTime.Now;
+                    if (ModelState.IsValid)
+                    {
+                        db.CalibrationRecord.Add(calibrationRecord);
+                        db.SaveChanges();
+                        //把箱体号存到对应的条码号记录中
+                        if (calibrationRecord.BarCodesNum != null)
+                        {
+                            if ((from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).Count() > 0)
+                            {
+                                var barcode = (from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).FirstOrDefault();
+                                barcode.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
+                                db.Entry(barcode).State = EntityState.Modified;
+                                db.SaveChanges();
+
+                            }
+                        }
+                        return RedirectToAction("FinishCal", new { calibrationRecord.ID });
+                    }
+                    else //模型数据有误
+                    {
+                        //返回提示信息
+                        ModelState.AddModelError("", "信息有误，请检查！");
+                        return View(calibrationRecord);
+                    }
+                }
             }
-
-            ViewBag.OrderList = GetOrderList();
-            return View(calibrationRecord);
-
-
+            //订单选择有误，返回提示信息
+            else
+            {
+                
+                ModelState.AddModelError("", "模组条码号应该属于"+ ordernum.OrderNum + "订单，请确定订单是否正确！");
+                return View(calibrationRecord);
+            }
         }
+
+
         #endregion
 
         #region --------------------校正完成
@@ -259,7 +316,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult FinishCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult FinishCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -281,7 +338,6 @@ namespace JianHeMES.Controllers
             {
                 db.Entry(calibrationRecord).State = EntityState.Modified;
                 db.SaveChanges();
-                //tempOrderNum = calibrationRecord.OrderNum;
                 return RedirectToAction("CreateCal");
             }
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
@@ -290,63 +346,6 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region --------------------FinishCal1页面
-        public ActionResult FinishCal1(int? id)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            CalibrationRecord calibrationRecord = db.CalibrationRecord.Find(id);
-            if (calibrationRecord == null)
-            {
-                return HttpNotFound();
-            }
-            return View(calibrationRecord);
-        }
-
-
-        // POST: CalibrationRecords/Edit/5
-        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult FinishCal1([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (calibrationRecord.FinishCalibration == null)
-            {
-                calibrationRecord.FinishCalibration = DateTime.Now;
-
-                var BC = calibrationRecord.BeginCalibration.Value;
-                var FC = calibrationRecord.FinishCalibration.Value;
-                var CT = FC - BC;
-                calibrationRecord.CalibrationTime = CT;
-                calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-            }
-            if (ModelState.IsValid)
-            {
-                db.Entry(calibrationRecord).State = EntityState.Modified;
-                db.SaveChanges();
-                //tempOrderNum = calibrationRecord.OrderNum;
-                return RedirectToAction("Index");
-            }
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            return View(calibrationRecord);
-        }
-
-        #endregion
 
         #region --------------------Edit页面
 
@@ -375,7 +374,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -409,105 +408,9 @@ namespace JianHeMES.Controllers
             return View(calibrationRecord);
         }
 
-        public ActionResult Edit0(int? id)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            CalibrationRecord calibrationRecord = db.CalibrationRecord.Find(id);
-            if (calibrationRecord == null)
-            {
-                return HttpNotFound();
-            }
-            return View(calibrationRecord);
-        }
-
-        // POST: CalibrationRecords/Edit/5
-        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (ModelState.IsValid)
-            {
-                db.Entry(calibrationRecord).State = EntityState.Modified;
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-            return View(calibrationRecord);
-        }
-
-
-        public ActionResult Edit1(int? id)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            CalibrationRecord calibrationRecord = db.CalibrationRecord.Find(id);
-            if (calibrationRecord == null)
-            {
-                return HttpNotFound();
-            }
-            return View(calibrationRecord);
-        }
-
-
-        // POST: CalibrationRecords/Edit/5
-        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit1([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (calibrationRecord.FinishCalibration == null)
-            {
-                calibrationRecord.FinishCalibration = DateTime.Now;
-
-                var BC = calibrationRecord.BeginCalibration.Value;
-                var FC = calibrationRecord.FinishCalibration.Value;
-                var CT = FC - BC;
-                calibrationRecord.CalibrationTime = CT;
-                calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-            }
-            if (ModelState.IsValid)
-            {
-                db.Entry(calibrationRecord).State = EntityState.Modified;
-                db.SaveChanges();
-                //tempOrderNum = calibrationRecord.OrderNum;
-                return RedirectToAction("Index");
-            }
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            return View(calibrationRecord);
-        }
 
         #endregion
+
 
         #region --------------------Details页
 
@@ -532,41 +435,6 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region --------------------Create页面
-
-        //// POST: CalibrationRecords/Create
-        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        //// 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public ActionResult Create([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        db.CalibrationRecord.Add(calibrationRecord);
-        //        db.SaveChanges();
-        //        return RedirectToAction("Index");
-        //    }
-
-        //    return View(calibrationRecord);
-        //}
-
-        //// POST: CalibrationRecords/Edit/5
-        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        //// 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        db.Entry(calibrationRecord).State = EntityState.Modified;
-        //        db.SaveChanges();
-        //        return RedirectToAction("Index");
-        //    }
-        //    return View(calibrationRecord);
-        //}
-        #endregion
 
         #region --------------------Delete页
         // GET: CalibrationRecords/Delete/5
@@ -605,119 +473,6 @@ namespace JianHeMES.Controllers
 
 
         #region --------------------其他方法
-        public ActionResult Index0()
-        {
-            IQueryable<string> OrderNumQuery = from m in db.OrderInformation
-                                               orderby m.OrderNum
-                                               select m.OrderNum;
-
-            CalibrationRecordVM.OrderNumQueryList = new SelectList(OrderNumQuery.Distinct().ToList());
-            ViewBag.OrderList = CalibrationRecordVM.OrderNumQueryList.ToList();
-            CalibrationRecordVM.AllCalibrationRecord = null;
-            ViewBag.Display = "display:none";
-
-            return View(db.CalibrationRecord.ToList());
-        }
-
-        public ActionResult CreateCal0()
-        {
-            return View();
-        }
-
-        // POST: CalibrationRecords/Create
-        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult CreateCal0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-            calibrationRecord.Operator = ((Users)Session["User"]).UserName;
-
-            if (ModelState.IsValid)
-            {
-                db.CalibrationRecord.Add(calibrationRecord);
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-
-            return View(calibrationRecord);
-        }
-
-        public ActionResult Details0(int? id)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            CalibrationRecord calibrationRecord = db.CalibrationRecord.Find(id);
-            if (calibrationRecord == null)
-            {
-                return HttpNotFound();
-            }
-            return View(calibrationRecord);
-        }
-
-        public ActionResult FinishCal0(int? id)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (id == null)
-            {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
-            }
-            CalibrationRecord calibrationRecord = db.CalibrationRecord.Find(id);
-            if (calibrationRecord == null)
-            {
-                return HttpNotFound();
-            }
-            return View(calibrationRecord);
-        }
-
-        // POST: CalibrationRecords/Edit/5
-        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
-        // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult EFinishCal0([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator")] CalibrationRecord calibrationRecord)
-        {
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-
-
-            if (ModelState.IsValid)
-            {
-                db.Entry(calibrationRecord).State = EntityState.Modified;
-                db.SaveChanges();
-                return RedirectToAction("Index");
-            }
-            return View(calibrationRecord);
-        }
-
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                db.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
 
         private TimeSpan DateDiff(DateTime DateTime1, DateTime DateTime2)
         {
@@ -746,20 +501,38 @@ namespace JianHeMES.Controllers
 
 
         #region --------------------取出整个OrderNum订单号列表
-        private List<SelectListItem> GetOrderList()
+        private List<SelectListItem> GetOrderListForIndex()
         {
-            var orders = db.OrderInformation.OrderByDescending(m => m.CreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.OrderInformation.OrderByDescending(m => m.CreateDate).Select(m => m.OrderNum).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            var list = db.OrderMgm.OrderByDescending(c => c.ID).Select(c => c.OrderNum).ToList();
+            var listall = orders.Union(list).ToList();
             var items = new List<SelectListItem>();
-            foreach (string order in orders)
+            foreach (var value in listall)
             {
                 items.Add(new SelectListItem
                 {
-                    Text = order,
-                    Value = order
+                    Text = value,
+                    Value = value
                 });
             }
             return items;
         }
+
+        private List<SelectListItem> GetOrderList()
+        {
+            var list = db.OrderMgm.OrderByDescending(c => c.ID).Select(c => c.OrderNum).ToList();
+            var items = new List<SelectListItem>();
+            foreach (var i in list)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = i,
+                    Value = i
+                });
+            }
+            return items;
+        }
+
         //----------------------------------------------------------------------------------------
         #endregion
 

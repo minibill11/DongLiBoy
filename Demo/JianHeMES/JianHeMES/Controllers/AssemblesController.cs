@@ -137,7 +137,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish")] Assemble assemble)
+        public ActionResult Create([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -167,7 +167,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult AssembleStationB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,AssembleBT,AssemblePrincipal,AssembleFT")]Assemble assemble)
+        public ActionResult AssembleStationB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,AssembleBT,AssemblePrincipal,AssembleFT,Remark")]Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -219,7 +219,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult AssembleStationF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,ModelCollections,AssembleBT,AssemblePrincipal,AssembleFT,AssembleTime,AssembleFinish")] Assemble assemble)
+        public ActionResult AssembleStationF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,ModelCollections,AssembleBT,AssemblePrincipal,AssembleFT,AssembleTime,AssembleFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -271,7 +271,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult WaterproofTestB([Bind(Include = "Id,BoxBarCode,WaterproofTestBT,WaterproofTestPrincipal")] Assemble assemble)
+        public ActionResult WaterproofTestB([Bind(Include = "Id,BoxBarCode,WaterproofTestBT,WaterproofTestPrincipal,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -338,7 +338,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult WaterproofTestF([Bind(Include = "Id,BoxBarCode,WaterproofTestBT,WaterproofTestPrincipal,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish")] Assemble assemble)
+        public ActionResult WaterproofTestF([Bind(Include = "Id,BoxBarCode,WaterproofTestBT,WaterproofTestPrincipal,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -386,7 +386,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult AssembleAdapterCardB([Bind(Include = "Id,BoxBarCode,AssembleAdapterCardBT,AssembleAdapterCardPrincipal")] Assemble assemble)
+        public ActionResult AssembleAdapterCardB([Bind(Include = "Id,BoxBarCode,AssembleAdapterCardBT,AssembleAdapterCardPrincipal,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -446,7 +446,7 @@ namespace JianHeMES.Controllers
 
 
         [HttpPost]
-        public ActionResult AssembleAdapterCardF([Bind(Include = "Id,OrderNum,BoxBarCode,ModelCollections,AssembleBT,ModelList,AssemblePrincipal,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestPrincipal,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AdapterCard_Power_Collection,AdapterCard_Power_List,AssembleAdapterCardPrincipal,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,AssembleViewCheckPrincipal,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,AssembleElectricityCheckPrincipal,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish")] Assemble assemble)
+        public ActionResult AssembleAdapterCardF([Bind(Include = "Id,OrderNum,BoxBarCode,ModelCollections,AssembleBT,ModelList,AssemblePrincipal,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestPrincipal,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AdapterCard_Power_Collection,AdapterCard_Power_List,AssembleAdapterCardPrincipal,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,AssembleViewCheckPrincipal,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,AssembleElectricityCheckPrincipal,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -498,7 +498,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult ViewCheckB([Bind(Include = "Id,BoxBarCode,ViewCheckBT,AssembleViewCheckPrincipal")] Assemble assemble)
+        public ActionResult ViewCheckB([Bind(Include = "Id,BoxBarCode,ViewCheckBT,AssembleViewCheckPrincipal,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -556,7 +556,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult ViewCheckF([Bind(Include = "Id,BoxBarCode,ViewCheckBT,AssembleViewCheckPrincipal,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish")] Assemble assemble)
+        public ActionResult ViewCheckF([Bind(Include = "Id,BoxBarCode,ViewCheckBT,AssembleViewCheckPrincipal,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -600,7 +600,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult ElectricityCheckB([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal")] Assemble assemble)
+        public ActionResult ElectricityCheckB([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal,Remark")] Assemble assemble)
         {
 
             if (Session["User"] == null)
@@ -660,7 +660,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult ElectricityCheckF([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish")] Assemble assemble)
+        public ActionResult ElectricityCheckF([Bind(Include = "Id,BoxBarCode,ElectricityCheckBT,AssembleElectricityCheckPrincipal,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -711,7 +711,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal")] Assemble assemble)
+        public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal,Remark")] Assemble assemble)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
@@ -824,7 +824,7 @@ namespace JianHeMES.Controllers
         [HttpPost]
 
         //public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BoxBarCode,PQCCheckBT,PQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish")] Assemble assemble)
-        public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish")] Assemble assemble)
+        public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTime,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {
@@ -897,7 +897,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult AssembleIndex(string orderNum, string BoxBarCode, string PQCNormal,/*string searchString,*/ int PageIndex = 0)
+        public ActionResult AssembleIndex(string orderNum, string BoxBarCode, string PQCNormal, string Remark, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
@@ -939,11 +939,17 @@ namespace JianHeMES.Controllers
             var assemble_Normal_Count = Allassembles.Where(m => m.PQCCheckAbnormal == "正常").Count();
             var assemble_Abnormal_Count = Allassembles.Where(m => m.PQCCheckAbnormal != "正常").Count();
 
+            #region  ---------按备注筛选--------------
+            if (Remark != "")
+            {
+                Allassembles = Allassembles.Where(m => m.Remark != null && m.Remark.Contains(Remark)).ToList();
+            }
+            #endregion
+
             #region  ---------按条码筛选--------------
             if (BoxBarCode != "")
             {
                 Allassembles = Allassembles.Where(x => x.BoxBarCode == BoxBarCode).ToList();
-                //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
             }
             #endregion
 
@@ -962,10 +968,12 @@ namespace JianHeMES.Controllers
             }
             #endregion
 
-            #region   ----------筛选从未开始做的条码清单------------
+            #region   ----------筛选从未开始、未完成、正在进行PQC的条码清单------------
             List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == orderNum select m).ToList();
             //List<string> NotPQCList = new List<string>();
-            ArrayList NotPQCList = new ArrayList();
+            List<string> NotPQCList = new List<string>();
+            List<string> DoingNow = new List<string>();
+            List<string> NeverFinishList = new List<string>();
             foreach (var barcode in BarCodesList)
             {
                 if ((from m in db.Assemble where m.BoxBarCode == barcode.BarCodesNum select m).Count() == 0)
@@ -973,9 +981,30 @@ namespace JianHeMES.Controllers
                     NotPQCList.Add(barcode.BarCodesNum);
                 }
             }
-            ViewBag.NotDo = NotPQCList;//输出未完成的条码清单
-            int barcodeslistcount = NotPQCList.Count;
-            ViewBag.NotDoCount = barcodeslistcount;//未完成数量
+            ViewBag.NotDo = NotPQCList;//输出未进行PQC的条码清单
+            int barcodeslistcount = NotPQCList.Count;//未进行PQC数量
+            ViewBag.NotDoCount = barcodeslistcount;//未进行PQC数量
+
+            foreach (var barcode in BarCodesList)
+            {
+                if (db.Assemble.Where(m => m.BoxBarCode == barcode.BarCodesNum).Where(m => m.PQCCheckBT != null && m.PQCCheckFT == null).Count() > 0 )
+                {
+                    DoingNow.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.DoingNowList = DoingNow;//正在做PQC的条码清单
+            ViewBag.DoingNowListCount = DoingNow.Count();//正在做PQC的条码个数
+
+            foreach (var barcode in BarCodesList)
+            {
+                if(Allassembles.Where(m=>m.BoxBarCode==barcode.BarCodesNum).Count(c=>c.PQCCheckFinish==true)==0)
+                {
+                    NeverFinishList.Add(barcode.BarCodesNum);
+                }
+            }
+            ViewBag.NeverFinishList = NeverFinishList.Except(NotPQCList).Except(DoingNow);//输出未完成PQC的条码清单
+            ViewBag.NeverFinishListCount = NeverFinishList.Except(NotPQCList).Except(DoingNow).Count();//未完成PQC的条码数量
+
             #endregion
 
             //检查orderNum和searchString是否为空
@@ -1005,7 +1034,7 @@ namespace JianHeMES.Controllers
             }
             else
             {
-                ViewBag.TotalTimeSpan = "暂时没有已完成校正的模组";
+                ViewBag.TotalTimeSpan = "暂时没有已完成组装PQC的模组";
             }
 
             //计算平均用时  AvgTimeSpan
@@ -1022,7 +1051,7 @@ namespace JianHeMES.Controllers
             }
             else
             {
-                ViewBag.AvgTimeSpan = "暂时没有已完成校正的模组";//向View传递计算平均用时
+                ViewBag.AvgTimeSpan = "暂时没有已完成组装PQC的模组";//向View传递计算平均用时
             }
 
             //列出记录
@@ -1085,7 +1114,7 @@ namespace JianHeMES.Controllers
                 PageIndex = pageCount - 1;
             }
 
-            AllassemblesList = AllassemblesList//.OrderByDescending(m => m.BeginCalibration)
+            AllassemblesList = AllassemblesList.OrderBy(m => m.BoxBarCode)//按条码排序
                                  .Skip(PageIndex * PAGE_SIZE)
                                  .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
@@ -1218,10 +1247,10 @@ namespace JianHeMES.Controllers
 
 
 
-        #region --------------------取出整个OrderMgms的OrderNum订单号列表
+        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
-            var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
             var items = new List<SelectListItem>();
             foreach (string order in orders)
             {
@@ -1245,7 +1274,7 @@ namespace JianHeMES.Controllers
 
 
         //分页方法
-        private static readonly int PAGE_SIZE = 5;
+        private static readonly int PAGE_SIZE = 10;
 
         private int GetPageCount(int recordCount)
         {

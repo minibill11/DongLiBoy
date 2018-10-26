@@ -1,8 +1,11 @@
 ﻿
 @{
-    ViewBag.Title = "生产管控";
+    ViewBag.Title = "ProductionControlHistory";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
+
+<script src="~/Scripts/vue.js"></script>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
 <style>
     .table > tbody > tr > th, .table > tbody > tr > td {
         text-align: center;
@@ -32,48 +35,42 @@
     .table > tbody > tr:nth-child(n+3):hover {
         background-color: rgba(77, 72, 72, 0.15);
     }
-
-    .table > tbody > tr > td {
-        padding: 8px 6px;
+    .table > tbody > tr > td{
+        padding:8px 6px;
     }
-
     @@media screen and (min-width: 1200px) {
         .container {
             width: 1300px;
         }
     }
 </style>
-<div class="row">
-    <h2 class="text-center" style="margin-bottom:0;">生产管控信息</h2>
-</div>
-
+<h3 class="text-center">生产管控历史记录查询</h3>
+<br />
+<form action="/ProductionControl/ProductionControlHistory" class="text-center" method="post">
+        <span>平台：<input name="PlatformType" type="text"></span>
+        <input value="查找" type="submit">
+</form>
+<br />
 <div id="app" class="form-group">
-    <table class="table table-bordered">
+    <table v-if="marqueeList.length>0" class="table table-bordered">
         <colgroup>
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
-            <col width="70 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
+            <col width="80 ">
         </colgroup>
-        <tr>
-            <th colspan="16" style="text-align:right;border:1px solid white; border-bottom:unset;padding-top:0">
-                <span class="text-success text-center btn btn-default">
-                    @Html.ActionLink("历史记录", "ProductionControlHistory", new { id = "" }, new { target = "_blank" })
-                </span>
-            </th>
-        </tr>
         <tr class="rowTitle1">
             <th rowspan="2">订单号</th>
             <th rowspan="2">订单数量</th>
@@ -120,19 +117,83 @@
             <td style="white-space:nowrap;" v-else></td>
         </tr>
     </table>
+    <div class="hidden">
+        <input id="viewbagValue" value="@ViewBag.History" />
+    </div>
 </div>
 <div id="setForm"></div>
+
+
 
 <script>
     var app = new Vue({
         el: "#app",
         data: {
-            //animate: false,
+            viewbagval: $("#viewbagValue").val(),
             marqueeList: [],
             bgcolor: "background-color:rgba(97, 207, 52, 0.37)"
         },
         created: function () {
-            //setInterval(this.showMarquee, 5000)
+            viewbagJson = JSON.parse(this.viewbagval);
+            console.log(viewbagJson)
+            for (index in viewbagJson) {
+                //console.log(index);
+                //console.log(viewbagJson[index]);
+                var totalTimeList = [];
+                if (viewbagJson[index].TotalTime == "") {
+                    var totalTime = "";
+                } else {
+                    var totalTime = viewbagJson[index].TotalTime.split(".");
+                };
+                if (totalTime.length == 3) {
+                    var totalTimenday = totalTime[1].split(":");
+                    totalTimeList.push(totalTime[0]);
+                    for (item in totalTimenday) {
+                        totalTimeList.push(totalTimenday[item]);
+                    };
+                } else if (totalTime.length == 2) {
+                    var totalTimenday = totalTime[0].split(":");
+                    var totalTimenday1 = totalTime[1].split(":");
+                    if (totalTimenday.length == 3) {
+                        for (item in totalTimenday) {
+                            totalTimeList.push(totalTimenday[item]);
+                        };
+                    } else if (totalTimenday1.length == 3) {
+                        for (item in totalTimenday1) {
+                            totalTimeList.push(totalTimenday1[item]);
+                        };
+                    }
+                } else {
+                    totalTimeList.push(totalTime);
+                };
+                this.marqueeList.push({
+                    Id: viewbagJson[index].Id,
+                    OrderNum: viewbagJson[index].OrderNum,
+                    Quantity: viewbagJson[index].Quantity,
+                    PlatformType: viewbagJson[index].PlatformType,
+                    PlanInputTime: viewbagJson[index].PlanInputTime,
+                    PlanCompleteTime: viewbagJson[index].PlanCompleteTime,
+                    ActualFinishTime: viewbagJson[index].ActualFinishTime,
+                    TotalTime: totalTimeList,
+                    ActualProductionTime: viewbagJson[index].ActualProductionTime,
+                    Assemble_Finish_Rate: viewbagJson[index].Assemble_Finish_Rate,
+                    Assemble_Pass_Rate: viewbagJson[index].Assemble_Pass_Rate,
+                    Burn_in_Finish_Rate: viewbagJson[index].Burn_in_Finish_Rate,
+                    Burn_in_Pass_Rate: viewbagJson[index].Burn_in_Pass_Rate,
+                    Calibration_Finish_Rate: viewbagJson[index].Calibration_Finish_Rate,
+                    Calibration_Pass_Rate: viewbagJson[index].Calibration_Pass_Rate,
+                    Appearances_Finish_Rate: viewbagJson[index].Appearances_Finish_Rate,
+                    Appearances_Pass_Rate: viewbagJson[index].Appearances_Pass_Rate,
+                    Assemble_Finish: viewbagJson[index].Assemble_Finish,
+                    AssembleRecord_Count: viewbagJson[index].AssembleRecord_Count,
+                    Burn_in_Finish: viewbagJson[index].Burn_in_Finish,
+                    Burn_in_Count: viewbagJson[index].Burn_in_Count,
+                    Calibration_Finish: viewbagJson[index].Calibration_Finish,
+                    Calibration_Count: viewbagJson[index].Calibration_Count,
+                    Appearances_Finish: viewbagJson[index].Appearances_Finish,
+                    Appearances_Count: viewbagJson[index].Appearances_Count
+                });
+            }
         },
         methods: {
             Detail: function (val, station) {
@@ -171,77 +232,3 @@
         }
     })
 </script>
-
-@section scripts {
-    <script src="~/Scripts/jquery-1.11.3.js"></script>
-    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
-    <script src="~/signalr/hubs"></script>
-    <script>
-        $(function () {
-            var mypush = $.connection.ProductionControlIndex;
-            mypush.client.sendProductionControlIndex = function (ProductionControlIndex) {
-                console.log(ProductionControlIndex)
-                app.marqueeList = [];
-                console.log(Object.keys(ProductionControlIndex).length)
-                for (index in ProductionControlIndex) {
-                    var totalTimeList = [];
-                    if (ProductionControlIndex[index].TotalTime == "") {
-                        var totalTime = "";
-                    } else {
-                        var totalTime = ProductionControlIndex[index].TotalTime.split(".");
-                    };
-                    if (totalTime.length == 3) {
-                        var totalTimenday = totalTime[1].split(":");
-                        totalTimeList.push(totalTime[0]);
-                        for (item in totalTimenday) {
-                            totalTimeList.push(totalTimenday[item]);
-                        };
-                    } else if (totalTime.length == 2) {
-                        var totalTimenday = totalTime[0].split(":");
-                        var totalTimenday1 = totalTime[1].split(":");
-                        if (totalTimenday.length == 3) {
-                            for (item in totalTimenday) {
-                                totalTimeList.push(totalTimenday[item]);
-                            };
-                        } else if (totalTimenday1.length == 3) {
-                            for (item in totalTimenday1) {
-                                totalTimeList.push(totalTimenday1[item]);
-                            };
-                        }
-                    } else {
-                        totalTimeList.push(totalTime);
-                    };
-                    app.marqueeList.push({
-                        Id: ProductionControlIndex[index].Id,
-                        OrderNum: ProductionControlIndex[index].OrderNum,
-                        Quantity: ProductionControlIndex[index].Quantity,
-                        PlatformType: ProductionControlIndex[index].PlatformType,
-                        PlanInputTime: ProductionControlIndex[index].PlanInputTime,
-                        PlanCompleteTime: ProductionControlIndex[index].PlanCompleteTime,
-                        ActualFinishTime: ProductionControlIndex[index].ActualFinishTime,
-                        TotalTime: totalTimeList,
-                        ActualProductionTime: ProductionControlIndex[index].ActualProductionTime,
-                        Assemble_Finish_Rate: ProductionControlIndex[index].Assemble_Finish_Rate,
-                        Assemble_Pass_Rate: ProductionControlIndex[index].Assemble_Pass_Rate,
-                        Burn_in_Finish_Rate: ProductionControlIndex[index].Burn_in_Finish_Rate,
-                        Burn_in_Pass_Rate: ProductionControlIndex[index].Burn_in_Pass_Rate,
-                        Calibration_Finish_Rate: ProductionControlIndex[index].Calibration_Finish_Rate,
-                        Calibration_Pass_Rate: ProductionControlIndex[index].Calibration_Pass_Rate,
-                        Appearances_Finish_Rate: ProductionControlIndex[index].Appearances_Finish_Rate,
-                        Appearances_Pass_Rate: ProductionControlIndex[index].Appearances_Pass_Rate,
-                        Assemble_Finish: ProductionControlIndex[index].Assemble_Finish,
-                        AssembleRecord_Count: ProductionControlIndex[index].AssembleRecord_Count,
-                        Burn_in_Finish: ProductionControlIndex[index].Burn_in_Finish,
-                        Burn_in_Count: ProductionControlIndex[index].Burn_in_Count,
-                        Calibration_Finish: ProductionControlIndex[index].Calibration_Finish,
-                        Calibration_Count: ProductionControlIndex[index].Calibration_Count,
-                        Appearances_Finish: ProductionControlIndex[index].Appearances_Finish,
-                        Appearances_Count: ProductionControlIndex[index].Appearances_Count
-                    });
-                }
-            };
-            //启动
-            $.connection.hub.start();
-        });
-    </script>
-}

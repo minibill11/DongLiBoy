@@ -51,7 +51,6 @@ namespace JianHeMES.Models
         [Display(Name = "订单号")]
         public string OrderNum { get; set; }
 
-        [Required]
         [Display(Name = "模组号")]
         public string ModuleGroupNum { get; set; }
 
@@ -80,6 +79,11 @@ namespace JianHeMES.Models
         [Display(Name = "校正员")]
         public string Operator { get; set; }
 
+        [Display(Name = "是否重复校正")]
+        public Boolean RepetitionCalibration { get; set; }
+
+        [Display(Name = "重复原因")]
+        public string RepetitionCalibrationCause { get; set; }
 
     }
 }

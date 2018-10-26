@@ -65,12 +65,31 @@ namespace JianHeMESEntities.Hubs
             //取出数据
             using (var db = new ApplicationDbContext())
             {
-                var OrderList_All = (from m in db.OrderMgm select m).OrderBy(c => c.BarCodeCreated);
-                var OrderList_Finished = from m in OrderList_All where m.CompletedRate == 100 select m;
+                var OrderList_All = (from m in db.OrderMgm select m).OrderBy(c => c.BarCodeCreated).ToList();
+                //var OrderList_Finished = from m in OrderList_All where m.CompletedRate == 100 select m;
+                List<OrderMgm> OutputOrderList = new List<OrderMgm>();
+                List<OrderMgm> ExpectList = new List<OrderMgm>();
+
+                foreach (var item in OrderList_All)
+                {
+                    if (db.Appearance.Where(c => c.OrderNum == item.OrderNum).Count(c => c.OQCCheckFinish == true) == item.Boxes)
+                    {
+                        //ExpectList.Add(item);
+                        var temp = db.Appearance.Where(c => c.OrderNum == item.OrderNum).ToList().Max(c => c.OQCCheckFT);
+                        var sub = (DateTime.Now - Convert.ToDateTime(temp)).Days > 3 ? true : false;
+                        if ( sub )
+                        {
+                            ExpectList.Add(item);
+                        }
+                    }
+                }
+                OutputOrderList = OrderList_All.Except(ExpectList).ToList();
+
                 var OrderList_UnFinished = from m in OrderList_All where m.CompletedRate != 100 select m;
 
                 int i = 1;
-                foreach (var item in OrderList_UnFinished.ToList())
+                //foreach (var item in OrderList_UnFinished.ToList())
+                foreach (var item in OutputOrderList)
                 {
                     //存入JSON对象
                     var OrderNum = new JObject
@@ -83,12 +102,18 @@ namespace JianHeMESEntities.Hubs
                         { "PlanCompleteTime", item.PlanCompleteTime.ToString() },
                     };
 
+                    var beginttime = db.Assemble.Where(c=>c.OrderNum==item.OrderNum).Min(c => c.PQCCheckBT);//取出订单开始装配生产的PQCCheckBT值
+                    var finishtime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Max(c => c.OQCCheckFT);//取出最后包装记录的OQCCheckFT值
+
+                    var totaltime = finishtime - beginttime;
+                    OrderNum.Add("ActualFinishTime", finishtime.ToString());
+                    OrderNum.Add("TotalTime", totaltime.ToString());
                     #region-------------------组装部分
                     //-------------------组装部分
                     var AssembleRecord = (from m in db.Assemble where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有组装记录
                     if (AssembleRecord.Count()>0)
                     {
-                        OrderNum.Add("ActualProductionTime", AssembleRecord.Min(c => c.PQCCheckBT).ToString()); //取出最早记录的PQCCheckBT值
+                        OrderNum.Add("ActualProductionTime", AssembleRecord.Min(c => c.PQCCheckBT).ToString()); 
                         Decimal Assemble_Normal = AssembleRecord.Where(m => m.PQCCheckAbnormal == "正常").Count();//组装PQC正常个数
                         OrderNum.Add("Assemble_Finish", Convert.ToInt32(Assemble_Normal));
                         OrderNum.Add("AssembleRecord_Count", AssembleRecord.Count());
@@ -211,6 +236,8 @@ namespace JianHeMESEntities.Hubs
                                 OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
                                 OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
                             }
+
+
                         }
                         else
                         {
@@ -219,6 +246,7 @@ namespace JianHeMESEntities.Hubs
                         }
                     }
                     #endregion
+
 
                     ProductionControlIndex.Add(i.ToString(), OrderNum);
                     i++;

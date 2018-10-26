@@ -1,9 +1,10 @@
 ﻿@model JianHeMES.Models.Burn_in
 @{
-    ViewBag.Title = "批量开始老化";
+    ViewBag.Title = "批量老化";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<h2>@ViewBag.Title</h2>
+<h2 class="hidden-xs">@ViewBag.Title</h2>
+<h4 class="visible-xs text-center">批量开始老化</h4>
 <script src="~/Scripts/jquery-1.11.3.js"></script>
 <script src="~/Scripts/vue.js"></script>
 <style>
@@ -18,11 +19,6 @@
         transition: transform .3s;
     }
 
-    .RepertoryStyle {
-        color: #555;
-        padding: 6px 12px 6px 12px;
-    }
-
     .green {
         color: green;
     }
@@ -35,9 +31,10 @@
 {
     @Html.AntiForgeryToken()
     <div id="app" class="form-horizontal">
-        <hr />
+        <h4 class="hidden-xs">老化工作</h4>
+        <hr class="hidden-xs" />
         @Html.ValidationSummary(true, "", new { @class = "text-danger" })
-        <div id="isorder" class="form-group">
+        <div class="form-group">
             <div class="col-md-6">
                 @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
@@ -45,16 +42,6 @@
  ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "form-control" })
                     @*@Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control" } })*@
                     @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
-                </div>
-            </div>
-            <div class="col-md-6"></div>
-        </div>
-        <div class="form-group">
-            <div class="col-md-6">
-                <div class="col-md-4"></div>
-                <div class="col-md-8">
-                    <span class="RepertoryStyle">是否为库存：<input id="IsRepertory" type="checkbox" onclick="javascript: document.getElementById('hiddenIsRepertory').value = this.checked;"></span>
-                    <input id="hiddenIsRepertory" name="IsRepertory" type="hidden" value="false">
                 </div>
             </div>
             <div class="col-md-6"></div>
@@ -69,15 +56,16 @@
                     <br /><span v-show="prompt" style="color: red;">不能输入相同条码</span>
                 </div>
                 <div class="form-group"><div class="col-md-12"></div></div>
-                <div class="form-group">
-                    <div class="col-md-8 col-md-offset-4">
-                        <button class="btn btn-default" style="color:dodgerblue" v-on:click="inspect">检查条码</button>
-                        @*<input type="submit" value="开始老化" class="btn btn-default" v-on:click="clearTask" />*@
-                        <input type="button" value="开始老化" class="btn btn-default" v-on:click="submitANDclearTask" v-show="beginShow" />
-                    </div>
+                <div class="col-md-8 col-md-offset-4">
+                    <button class="btn btn-default" style="color:dodgerblue" v-on:click="inspect">检查条码</button>
+                    @*<input type="submit" value="开始老化" class="btn btn-default" v-on:click="clearTask" />*@
+                    <input type="button" value="开始老化" class="btn btn-default" v-on:click="submitANDclearTask" v-show="beginShow" />
                 </div>
-                <label class="control-label col-md-4">模块条码清单:</label>
-                <div class="col-md-8" style="height:450px;overflow:auto">
+                <div class="form-group"><div class="col-md-12"></div></div>
+                <hr />
+                <label class="control-label col-md-4 hidden-xs">模块条码清单:</label>
+                <label class="control-label text-center visible-xs">模块条码清单</label>
+                <div class="col-md-8 hidden-xs" style="height:450px;overflow:auto">
                     <div class="form-group color-show">
                         <template v-for="(task,index) in tasks">
                             <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control">
@@ -87,8 +75,18 @@
                         </template>
                     </div>
                 </div>
+                <div class="col-md-8 visible-xs">
+                    <div class="form-group color-show">
+                        <template v-for="(task,index) in tasks">
+                            <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control" style="font-size:12px; padding:7px 5px">
+                                <span>{{task}}</span>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;padding:0">✗</button>
+                            </li>
+                        </template>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-6" style="height:550px;overflow:auto">
+            <div class="col-md-6 hidden-xs" style="height:550px;overflow:auto">
                 <table class="table">
                     <tr>
                         <th>条码号</th>
@@ -106,6 +104,20 @@
                         <td>{{list.BarcodeComfirm}}</td>
                         <td>{{list.BarcodeBeginTime}}</td>
                         <td>{{list.BarcodeFinishTime}}</td>
+                        <td>{{list.BarcodeStatus}}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="visible-xs" style="font-size:12px">
+                <table class="table">
+                    <tr>
+                        <th>条码号</th>
+                        <th>是否可以老化</th>
+                        <th>老化状态</th>
+                    </tr>
+                    <tr v-for="list in returnList">
+                        <td>{{list.BarcodeList}}</td>
+                        <td>{{list.BarcodeComfirm}}</td>
                         <td>{{list.BarcodeStatus}}</td>
                     </tr>
                 </table>
@@ -145,7 +157,7 @@
                 this.prompt = false;
                 sames = app.same;
                 if (app.newTask != "") {
-                    app.newTask = app.newTask.toUpperCase();
+                    app.newTask=app.newTask.toUpperCase();
                     app.tasks.forEach(function (item, index) {
                         if (app.newTask == item) {
                             console.log(index);
@@ -210,8 +222,7 @@
                     url: '/Burn_in/CheckBarCodesList_B',
                     data: {
                         OrderNum: $("#OrderNum").val(),
-                        BarCodesNumList: app.tasks,
-                        IsRepertory: $("#hiddenIsRepertory").val()
+                        BarCodesNumList: app.tasks
                     },
                     success: function (data) {
                         //console.log(data);
@@ -251,41 +262,15 @@
     });
 </script>
 <script>
-    $(function () {
-
-        var localOrder = localStorage.getItem('Order');
-        if (localOrder != null) {
-            $("#OrderNum").val(localOrder);
-        }
-        $("#OrderNum").change(function (val) {
-            localStorage.setItem('Order', val.target.value);
-            $("#content").select();
-        })
-        $("#content").focus();
-
-
-        if (localStorage.getItem('isRepertory') == "true") {
-            $("#IsRepertory").attr("checked", true);
-            $("#isorder").hide();
-            $("#hiddenIsRepertory").val(true);
-            $("#OrderNum").removeAttr("name").val("");
-        };
-        $("#IsRepertory").change(function () {
-            app.beginShow = false;
-            localStorage.setItem('isRepertory', $(this).is(':checked'));
-            if ($(this).is(':checked') == true) {
-                $("#isorder").hide();
-                $("#OrderNum").removeAttr("name").val("");
-            } else {
-                $("#isorder").show();
-                $("#OrderNum").attr("name", "OrderNum");
-                $("#OrderNum").val(localOrder);
-            }
-        });
-
-
-
-    });
+    var localOrder = localStorage.getItem('Order');
+    if (localOrder != null) {
+        $("#OrderNum").val(localOrder);
+    }
+    $("#OrderNum").change(function (val) {
+        localStorage.setItem('Order', val.target.value);
+        $("#content").select();
+    })
+    $("#content").focus();
 </script>
 
 @*<div class="form-group">

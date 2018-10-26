@@ -166,7 +166,7 @@ namespace JianHeMES.Controllers
                 PageIndex = pageCount - 1;
             }
 
-            barcodes = barcodes.OrderBy(m => m.OrderNum)
+            barcodes = barcodes.OrderBy(m => m.OrderNum).OrderBy(m=>m.BarCodesNum)
                  .Skip(PageIndex * PAGE_SIZE).Take(PAGE_SIZE);
             ViewBag.PageIndex = PageIndex;
             ViewBag.PageCount = pageCount;
@@ -178,10 +178,6 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        public ActionResult Test1()
-        {
-            return View();
-        }
 
         #region --------------------创建条码
 
@@ -192,7 +188,7 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE" || ((Users)Session["User"]).Role == "打标员")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
             {
                     if (id == null)
                 {
@@ -217,7 +213,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "ME工程师" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "OQE")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
             {
                     if (orderMgm.BarCodeCreated==1)
                 {
@@ -341,7 +337,7 @@ namespace JianHeMES.Controllers
 
             ViewBag.assemble = db.Assemble.Where(c => c.BoxBarCode == BarCodeNum).ToList();
             ViewBag.burn_in = db.Burn_in.Where(c => c.BarCodesNum == BarCodeNum).ToList();
-            ViewBag.calibration = db.CalibrationRecord.Where(c => c.ModuleGroupNum == BarCodeNum).ToList();
+            ViewBag.calibration = db.CalibrationRecord.Where(c => c.BarCodesNum == BarCodeNum).ToList();
             ViewBag.appearance = db.Appearance.Where(c => c.BarCodesNum == BarCodeNum).ToList();
 
             return View(barCodes);
@@ -363,7 +359,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,ToOrderNum,BarCode_Prefix,BarCodesNum,ModuleGroupNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
         {
             if (ModelState.IsValid)
             {
@@ -397,6 +393,7 @@ namespace JianHeMES.Controllers
                     return HttpNotFound();
                 }
                 ViewBag.TypeList = SetTypeList();
+                ViewBag.BarCodeType = barCodes.BarCodeType;
                 return View(barCodes);
             }
             return RedirectToAction("Index", "BarCodes");
@@ -407,8 +404,9 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCodesNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,ToOrderNum,BarCode_Prefix,BarCodesNum,ModuleGroupNum,BarCodeType,CreateDate,Creator,IsRepertory,Remark")] BarCodes barCodes)
         {
+
             if (ModelState.IsValid)
             {
                 db.Entry(barCodes).State = EntityState.Modified;
@@ -416,6 +414,7 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Index");
             }
             ViewBag.TypeList = SetTypeList();
+            ViewBag.BarCodeType = barCodes.BarCodeType;
             return View(barCodes);
         }
 
