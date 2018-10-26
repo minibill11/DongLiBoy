@@ -4,5 +4,270 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<h3>导出湿湿记录输出Excel表格</h3>
+@*引用js、加载数据*@
+<script src="~/Scripts/vue.js"></script>
+<link href="~/Scripts/Bootstraps/bootstrap-datetimepicker.min.css" rel="stylesheet" />
+<script src="~/Scripts/echarts.js"></script>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/jquery.unobtrusive-ajax.min.js"></script>
+<script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.js"></script>
+<script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.zh-CN.js"></script>
 
+<style>
+    .color-show {
+        display: flex;
+        flex-wrap: wrap;
+        min-height:70px;
+        max-height: 200px;
+        overflow: auto;
+    }
+
+    .color-box {
+        width: 25%;
+        text-align: center;
+        transition: transform .3s;
+    }
+
+    .pointCSS {
+        float: left;
+        list-style: none;
+        width: 33%;
+        line-height: 20px;
+        font-size: 12px;
+    }
+
+        .pointCSS label {
+            font-weight: normal;
+        }
+
+    .modal-dialog {
+        width: 800px;
+        margin: 60px auto;
+    }
+
+    .fontsize {
+        font-size: 20px;
+        margin: 0;
+        vertical-align: middle;
+    }
+</style>
+<h3 class="text-center">导出湿湿记录输出Excel表格</h3><hr />
+<div id="app" class="container">
+    <div class="row">
+        <div class="form-group  text-center">
+            <label class="control-label fontsize">信息点：</label>
+            <!-- 按钮触发模态框 -->
+            <button class="btn btn-default" data-toggle="modal" data-target="#myModal">选择</button>
+        </div>
+        <div class="form-group color-show">
+            <template v-for="(point,index) in pointList">
+                <li readonly="readonly" class="color-box form-control">
+                    <span>{{point}}</span>
+                    <button type="button" v-on:click="removePoint(point)" title="移除此信息点" style="border: none; float: right;"><span class="glyphicon glyphicon-remove text-danger"></span></button>
+                </li>
+            </template>
+        </div>
+        <!-- 模态框（Modal） -->
+        <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                            &times;
+                        </button>
+                        <h3 class="modal-title text-center" id="myModalLabel">
+                            请选择信息点
+                        </h3>
+                    </div>
+                    <div class="modal-body">
+                        @{int i = 0; }
+                        <ul>
+                            @foreach (var item in ViewBag.PointList)
+                            {
+                                <li class="pointCSS">
+                                    <input id="@i" class="pointValue" value="@item" type="checkbox" v-model="pointList">
+                                    <label for="@i">@item</label>
+                                </li>
+                                i++;
+                            }
+                        </ul>
+                        <div class="row"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button v-on:click="allcheck" type="button" class="btn btn-default">
+                            全选
+                        </button>
+                        <button v-on:click="confirmcheck" type="button" class="btn btn-primary" data-dismiss="modal">
+                            选择完毕
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="form-group  text-center">
+            <label class="control-label fontsize">时间点：</label>
+            <!-- 按钮触发模态框 -->
+            <button class="btn btn-default" data-toggle="modal" data-target="#myModal">选择</button>
+        </div>
+        <div class="form-group color-show">
+            <template v-for="(point,index) in pointList">
+                <li readonly="readonly" class="color-box form-control">
+                    <span>{{point}}</span>
+                    <button type="button" v-on:click="removePoint(point)" title="移除此信息点" style="border: none; float: right;"><span class="glyphicon glyphicon-remove text-danger"></span></button>
+                </li>
+            </template>
+        </div>
+        <div class="form-group">
+
+        </div>
+    </div>
+    <br />
+    <div class="row">
+        <div class="form-group">
+
+        </div>
+        <div style="float:left ;margin-left:2%">
+            <label class="form-control">选择时间段  👉</label>
+        </div>
+        <div style="float:left ;margin-left:2%;width:330px">
+            <div id="start_Date" class="input-group date" data-date="" data-link-field="start_input">
+                <div for="start_input" class="input-group-addon">开始时间</div>
+                <input id="startTime" name="startTime" class="form-control" type="text" value="" readonly>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+                <input type="hidden" id="start_input" value="" />
+            </div>
+        </div>
+        <div style="float:left ;margin-left:2%;width:330px">
+            <div id="end_Date" class="input-group date" data-date="" data-link-field="end_input">
+                <div for="end_input" class="input-group-addon">结束时间</div>
+                <input id="endTime" name="endTime" class="form-control" type="text" value="" readonly>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+                <input type="hidden" id="end_input" value="" />
+            </div>
+        </div>
+        <div style="float:left ;margin-left:2%">
+            <input class="form-control" type="button" id="btnSub" name="btnSub" value="加载时间段数据" />
+        </div>
+    </div>
+    <br />
+</div>
+
+<script>
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            pointList: [],
+            timeList:[]
+        },
+        methods: {
+            confirmcheck: function (e) {
+                console.log(this.pointList);
+            },
+            allcheck: function (e) {
+                //event.preventDefault();
+                if ($(".pointValue").length == this.pointList.length) {
+                    app.pointList = [];
+                } else {
+                    app.pointList = [];
+                    $(".pointValue").each(function (index, val) {
+                        app.pointList.push($(this).val());
+                    });
+                };
+            },
+            removePoint: function (point) {
+                removepoints = this.pointList;
+                //remove
+                removepoints.forEach(function (item, index) {
+                    if (item == point) {
+                        removepoints.splice(index, 1);
+                    }
+                });
+                console.log(this.pointList); //数组
+            },
+            submitANDclear: function (event) { //提交post内容，清空本地存储表单
+                event.preventDefault();
+                $.ajax({
+                    type: 'post',
+                    url: '/KongYaHT/KongYa/OutputTHDataToExcel',
+                    data: {
+                        //OutputTHDataToExcel(List<string> querylist, string Key, List<DateTime> Time, DateTime Begin, DateTime End)
+                        querylist: 0,
+                        Key: 0,
+                        Time: 0,
+                        Begin: "",
+                        End: 0
+                    },
+                    success: function (data) {
+                        //console.log(data);
+                        alert(data);
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                    }
+                });
+            }
+        },
+        computed: {
+
+        },
+        watch: {
+
+        }
+    });
+</script>
+<script type="text/javascript">
+    //文档加载时设置点击事件
+    $(document).ready(function () {
+        //根据时间段进行POST
+        $("#btnSub").click(function () {
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsDuring',  //请求的某个action的地址
+                data: {
+                    point: "@ViewBag.Station",
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                },
+                success: function (data) {
+                }
+            })
+        })
+    })
+
+    //时间控件
+    $("#start_Date").datetimepicker({
+        language: 'zh-CN',
+        format: 'yyyy-mm-dd hh:ii',//显示格式
+        //minView: "month",//设置只显示到月份
+        weekStart: 1, //一周从哪一天开始。0（星期日）到6（星期六）
+        todayBtn: 1,
+        autoclose: 1, //当选择一个日期之后是否立即关闭此日期时间选择器。
+        todayHighlight: 1, //今天高亮
+        startView: 2,
+        forceParse: 0,
+        pickerPosition: "bottom-left",
+        showMeridian: 1,
+        endDate: new Date()
+    }).on('changeDate', function (ev) {
+        $("#end_Date").datetimepicker('setStartDate', $("#start_input").val());
+    });
+    $("#end_Date").datetimepicker({
+        language: 'zh-CN',
+        format: 'yyyy-mm-dd hh:ii',
+        weekStart: 1,
+        todayBtn: 1,
+        autoclose: 1,
+        todayHighlight: 1,
+        startView: 2,
+        forceParse: 0,
+        pickerPosition: "bottom-left",
+        showMeridian: 1,
+        endDate: new Date()
+    }).on('changeDate', function (ev) {
+        $("#start_Date").datetimepicker('setEndDate', $("#end_input").val());
+    });
+
+</script>

@@ -72,12 +72,18 @@ namespace JianHeMESEntities.Hubs
 
                 foreach (var item in OrderList_All)
                 {
-                    if (db.Appearance.Where(c => c.OrderNum == item.OrderNum).Count(c => c.OQCCheckFinish == true) == item.Boxes)
+                    if (db.Appearance.Where(c => c.OrderNum == item.OrderNum).Count(c => c.OQCCheckFinish == true) == item.Boxes)  //包装数量＝订单数量
                     {
-                        //ExpectList.Add(item);
-                        var temp = db.Appearance.Where(c => c.OrderNum == item.OrderNum).ToList().Max(c => c.OQCCheckFT);
-                        var sub = (DateTime.Now - Convert.ToDateTime(temp)).Days > 3 ? true : false;
+                        var appearanceLastTime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).ToList().Max(c => c.OQCCheckFT);
+                        var sub = (DateTime.Now - Convert.ToDateTime(appearanceLastTime)).Days > 3 ? true : false;
                         if ( sub )
+                        {
+                            ExpectList.Add(item);
+                        }
+                    }
+                    if (db.Appearance.Count(c => c.OrderNum == item.OrderNum) !=0)
+                    {
+                        if ((DateTime.Now - Convert.ToDateTime(db.Appearance.Where(c => c.OrderNum == item.OrderNum).ToList().Max(c => c.OQCCheckFT))).Days > 30 )//包装数量<订单数量，包装最后日期是一个月以前的排除在生产管控清单外
                         {
                             ExpectList.Add(item);
                         }

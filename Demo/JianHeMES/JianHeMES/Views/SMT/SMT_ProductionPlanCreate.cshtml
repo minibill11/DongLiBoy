@@ -9,47 +9,64 @@
         text-align: center;
         vertical-align: middle;
     }
+
+    .table > tbody > tr > td > input {
+        text-align: center;
+    }
+
+    .table-bordered {
+        border: none;
+    }
+
+    .topTitle td {
+        border: none !important;
+    }
 </style>
 <script src="~/Scripts/jquery-1.11.3.js"></script>
 <script src="~/Scripts/vue.js"></script>
 <h2>@ViewBag.Title</h2>
 
 <div id="app" class="form-horizontal">
-    @*<h4>SMT_OrderInfo</h4>*@
     <hr>
-    <table class="table">
-        <tr>
-            <td colspan="7" style="border-top:none;color:green"><span>Excel内容粘贴在此处</span><textarea v-model="pasteExcel" class="form-control" style="width:130px;height:35px;resize: none;"></textarea></td>
-        </tr>
-    </table>
     <table id="para_table" class="table table-bordered">
+        <tr class="topTitle">
+            <td colspan="5" style="color:green;">
+                <span>Excel内容粘贴在此处</span>
+                <textarea v-model="pasteExcel" class="form-control" style="width:130px;height:35px;resize: none;"></textarea>
+            </td>
+            <td style="color:green;text-align:center;">
+                <span>选择日期</span>
+                <input v-model="allDate" class="form-control" type="date">
+            </td>
+            <td></td>
+        </tr>
         <tr>
             <th>产线</th>
             <th>订单号</th>
-            <th>数量</th>
-            <th>平台类型</th>
             <th>客户</th>
+            <th>平台类型</th>
+            <th>数量</th>
             <th>创建记录日期</th>
             <th align="center"><button type="button" class="btn btn-link" onclick="emptytable()">清空</button></th>
         </tr>
         <tr class="orderNum">
             <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
             <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
             <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
-            <td><input class="form-control"></td>
-            <td><input class="form-control"></td>
-            <td><input class="form-control" type="datetime"></td>
+            <td><input class="form-control everyDate" type="date"></td>
             <td align="center"><button type="button" class="btn btn-link" onclick="emptytr(this)">清除</button></td>
             @*<td><input class="check-box"  type="checkbox"></td>*@
         </tr>
         <tr class="orderNum">
             <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
             <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
+            <td><input class="form-control"></td>
             <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
-            <td><input class="form-control"></td>
-            <td><input class="form-control"></td>
-            <td><input class="form-control" type="datetime"></td>
-            <td align="center"><button type="button" class="btn btn-link" onclick="deletetr(this)">移除</button></td>
+            <td><input class="form-control everyDate" type="date"></td>
+            <td align="center"><button type="button" class="btn btn-link" onclick="deleteParentTr(this)">移除</button></td>
         </tr>
     </table>
     <table class="table">
@@ -77,14 +94,15 @@
         var tr = $("<tr class=\"orderNum\">" +
             "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
             "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
             "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
-            "<td><input class=\"form-control\"></td>" +
-            "<td><input class=\"form-control\"></td>" +
-            "<td><input class=\"form-control\" type=\"datetime\"></td>" +
-            "<td  align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deletetr(this)\">移除</button></td></tr>");
+            "<td><input class=\"form-control everyDate\" type=\"date\"></td>" +
+            "<td  align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deleteParentTr(this)\">移除</button></td></tr>");
         table.append(tr);
     };
-    function deletetr(tdobject) {
+
+    function deleteParentTr(tdobject) {
         app.okCreate = false;
         var td = $(tdobject);
         td.parents("tr").remove();
@@ -105,6 +123,10 @@
             val.firstChild.value = "";
         })
     };
+    function deletetr(tdobject) {
+        var tr = $(tdobject);
+        tr.remove();
+    };
 </script>
 <script type="text/javascript">
     var app = new Vue({ //创建Vue对象实例
@@ -115,7 +137,8 @@
             okNum: 0,
             emptyNum: 0,
             pasteExcel: "",
-            okCreate: false
+            okCreate: false,
+            allDate: ""
         },
         methods: {
             checkPost: function (event) {
@@ -228,34 +251,65 @@
                 //console.log(pasteQuantity);
                 var tableLength = $(".orderNum").length;
                 var pasteLength = pasteQuantity.length;
+                console.log(pasteQuantity)
+                console.log(tableLength);
+                console.log(pasteLength);
+                var lineNum = 1;
                 if (tableLength < pasteQuantity.length) {
                     for (var i = 0; i < (pasteLength - tableLength) ; i++) {
                         addtr();
                     };
                     $(".orderNum").each(function (index, val) {
                         if (index < pasteLength) {
-                            val.children[0].firstChild.value = pasteQuantity[index][0];
-                            val.children[1].firstChild.value = pasteQuantity[index][1];
-                            val.children[2].firstChild.value = pasteQuantity[index][2];
-                            val.children[3].firstChild.value = pasteQuantity[index][3];
-                            val.children[4].firstChild.value = pasteQuantity[index][4];
-                            val.children[5].firstChild.value = pasteQuantity[index][5];
+                            var isPlan = pasteQuantity[index][2];
+                            if (isPlan == "无计划") {
+                                deletetr(val);
+                                lineNum++;
+                            } else {
+                                var pasteLine = pasteQuantity[index][0].replace(/[^\d]/g, '');
+                                if (pasteLine == lineNum || pasteLine == "") {
+                                    val.children[0].firstChild.value = lineNum;
+                                } else {
+                                    val.children[0].firstChild.value = pasteLine;
+                                    lineNum++;
+                                }
+                                val.children[1].firstChild.value = isPlan;
+                                val.children[2].firstChild.value = pasteQuantity[index][3];
+                                val.children[3].firstChild.value = pasteQuantity[index][5];
+                                val.children[4].firstChild.value = pasteQuantity[index][8];
+                            };
                         };
                     });
                 } else {
                     emptytable();
                     $(".orderNum").each(function (index, val) {
                         if (index < pasteLength) {
-                            val.children[0].firstChild.value = pasteQuantity[index][0];
-                            val.children[1].firstChild.value = pasteQuantity[index][1];
-                            val.children[2].firstChild.value = pasteQuantity[index][2];
-                            val.children[3].firstChild.value = pasteQuantity[index][3];
-                            val.children[4].firstChild.value = pasteQuantity[index][4];
-                            val.children[5].firstChild.value = pasteQuantity[index][5];
+                            var isPlan = pasteQuantity[index][2];
+                            if (isPlan == "无计划") {
+                                deletetr(val);
+                                lineNum++;
+                            } else {
+                                var pasteLine = pasteQuantity[index][0].replace(/[^\d]/g, '');
+                                if (pasteLine == lineNum || pasteLine == "") {
+                                    val.children[0].firstChild.value = lineNum;
+                                } else {
+                                    val.children[0].firstChild.value = pasteLine;
+                                    lineNum++;
+                                }
+                                val.children[1].firstChild.value = isPlan;
+                                val.children[2].firstChild.value = pasteQuantity[index][3];
+                                val.children[3].firstChild.value = pasteQuantity[index][5];
+                                val.children[4].firstChild.value = pasteQuantity[index][8];
+                            };
                         };
                     });
                 };
                 app.pasteExcel = "";
+            },
+            allDate: function (val) {
+                $(".everyDate").each(function () {
+                    $(this).val(val);
+                });
             }
         }
     });

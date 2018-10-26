@@ -49,7 +49,7 @@ namespace JianHeMES.Controllers
             var finished = assembleRecord.Count(m => m.PQCCheckAbnormal == "正常");//3.订单已完成PQC个数
             var finishedList = assembleRecord.Where(m => m.PQCCheckAbnormal == "正常").Select(m => m.BoxBarCode).ToList(); //订单已完成PQC的条码清单
 
-             var assemblePQC_Count = assembleRecord.Count();//4.订单PQC全部记录条数
+            var assemblePQC_Count = assembleRecord.Count();//4.订单PQC全部记录条数
 
             var finisthRate = (Convert.ToDouble(finished) / modelGroupQuantity * 100).ToString("F2");//5.完成率：完成数/订单的模组数
 
@@ -127,7 +127,7 @@ namespace JianHeMES.Controllers
             foreach (var item in assembleRecordBarCodeList)
             {
                 List<Assemble> temp = assembleRecord.Where(c => c.BoxBarCode == item).ToList();
-                if (temp.Count()>=1 && temp.Count(c => c.PQCCheckFinish == true)==0)
+                if (temp.Count() >= 1 && temp.Count(c => c.PQCCheckFinish == true) == 0)
                 {
                     unfinishAndRecord_temp.AddRange(temp);
                 }
@@ -137,7 +137,7 @@ namespace JianHeMES.Controllers
             #endregion
 
 
-            var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(finishedList.ToArray()).ToList().Except(going_temp.Select(c=>c.BoxBarCode).ToArray()).ToList();//14.未开始PQC的条码清单、个数(排除已完成（包含正常异常）、正在进行)
+            var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(finishedList.ToArray()).ToList().Except(going_temp.Select(c => c.BoxBarCode).ToArray()).ToList();//14.未开始PQC的条码清单、个数(排除已完成（包含正常异常）、正在进行)
 
             string unbeginRecord = null;
             foreach (var item in unbeginRecord_temp)
@@ -150,7 +150,7 @@ namespace JianHeMES.Controllers
                 {
                     unbeginRecord = unbeginRecord + "\",\"" + item;
                 }
-                if(unbeginRecord_temp.IndexOf(item)==unbeginRecord_temp.Count()-1)
+                if (unbeginRecord_temp.IndexOf(item) == unbeginRecord_temp.Count() - 1)
                 {
                     unbeginRecord = unbeginRecord + "\"]";
                 }
@@ -165,7 +165,7 @@ namespace JianHeMES.Controllers
             #region ---------------将对象转为列矩阵JSON
             var iso = new Newtonsoft.Json.Converters.IsoDateTimeConverter();
             iso.DateTimeFormat = "yyyy-MM-dd HH:mm:ss";
-            
+
             //创建JSON对象
             JObject JsonObj = new JObject
             {
@@ -214,18 +214,18 @@ namespace JianHeMES.Controllers
                 "PQCRepairCondition,PQCCheckFinish]");
             foreach (var item in inputlist)
             {
-                OutPutJson.Add((inputlist.IndexOf(item)+1).ToString(), "["+item.Id +","+ item.OrderNum + "," + item.BarCode_Prefix + "," + 
+                OutPutJson.Add((inputlist.IndexOf(item) + 1).ToString(), "[" + item.Id + "," + item.OrderNum + "," + item.BarCode_Prefix + "," +
                     item.BoxBarCode + "," + item.AssembleBT + "," + item.AssemblePrincipal + "," + item.AssembleFT + "," + item.ModelList + "," +
-                    item.AssembleTime + "," + item.AssembleFinish + "," + item.WaterproofTestBT + "," + item.WaterproofTestPrincipal + "," + 
+                    item.AssembleTime + "," + item.AssembleFinish + "," + item.WaterproofTestBT + "," + item.WaterproofTestPrincipal + "," +
                     item.WaterproofTestFT + "," + item.WaterproofTestTime + "," + item.WaterproofAbnormal + "," + item.WaterproofMaintaince + "," +
-                    item.WaterproofTestFinish + "," + item.AssembleAdapterCardBT + "," + item.AssembleAdapterCardPrincipal + "," + 
-                    item.AssembleAdapterCardFT + "," + item.AssembleAdapterTime + "," + item.AssembleAdapterFinish + "," + 
+                    item.WaterproofTestFinish + "," + item.AssembleAdapterCardBT + "," + item.AssembleAdapterCardPrincipal + "," +
+                    item.AssembleAdapterCardFT + "," + item.AssembleAdapterTime + "," + item.AssembleAdapterFinish + "," +
                     item.AdapterCard_Power_Collection + "," + item.ViewCheckBT + "," + item.AssembleViewCheckPrincipal + "," +
-                    item.ViewCheckFT + item.ViewCheckTime + "," + item.ViewCheckAbnormal + "," + item.ViewCheckFinish + "," + 
-                    item.ElectricityCheckBT + "," + item.AssembleElectricityCheckPrincipal + "," + item.ElectricityCheckFT + "," + 
-                    item.ElectricityCheckTime + "," + item.ElectricityCheckAbnormal + "," + item.ElectricityCheckFinish + "," + 
-                    item.AssembleLineId + "," + item.AdapterCard_Power_List + "," + item.PQCCheckBT + "," + item.AssemblePQCPrincipal + "," + 
-                    item.PQCCheckFT + "," + item.PQCCheckTime + "," + item.PQCCheckAbnormal + "," + item.PQCRepairCondition + "," + item.PQCCheckFinish+"]");
+                    item.ViewCheckFT + item.ViewCheckTime + "," + item.ViewCheckAbnormal + "," + item.ViewCheckFinish + "," +
+                    item.ElectricityCheckBT + "," + item.AssembleElectricityCheckPrincipal + "," + item.ElectricityCheckFT + "," +
+                    item.ElectricityCheckTime + "," + item.ElectricityCheckAbnormal + "," + item.ElectricityCheckFinish + "," +
+                    item.AssembleLineId + "," + item.AdapterCard_Power_List + "," + item.PQCCheckBT + "," + item.AssemblePQCPrincipal + "," +
+                    item.PQCCheckFT + "," + item.PQCCheckTime + "," + item.PQCCheckAbnormal + "," + item.PQCRepairCondition + "," + item.PQCCheckFinish + "]");
             }
             return OutPutJson;
         }
@@ -366,7 +366,7 @@ namespace JianHeMES.Controllers
                 }
             }
 
-            var passed_temp = Burn_in_Record.Where(x => x.OQCCheckFinish==true).ToList();//16.已经完成OQC的条码清单、个数
+            var passed_temp = Burn_in_Record.Where(x => x.OQCCheckFinish == true).ToList();//16.已经完成OQC的条码清单、个数
             var passed = Burn_in_PutOutJson(passed_temp);
             //string abnormalStatistics = null; //17.异常信息统计
 
@@ -411,7 +411,7 @@ namespace JianHeMES.Controllers
             return View();
         }
 
-        public JObject Burn_in_PutOutJson(List<Burn_in> inputlist)  
+        public JObject Burn_in_PutOutJson(List<Burn_in> inputlist)
         {
             JObject OutPutJson = new JObject();
             OutPutJson.Add("title", "[Id,OrderNum,BarCodesNum,A,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Burn_in_OQCCheckAbnormal," +
@@ -444,7 +444,7 @@ namespace JianHeMES.Controllers
             ViewBag.DeliveryDate = order.DeliveryDate; //出货日期
 
             var modelGroupQuantity = (from m in db.OrderMgm where m.OrderNum == OrderNum select m).FirstOrDefault().Boxes;//2.订单模组数
-            var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).OrderBy(c=>c.BarCodesNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单(值为空)
+            var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).OrderBy(c => c.BarCodesNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单(值为空)
             var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == OrderNum select m).OrderBy(x => x.ModuleGroupNum).ToList();//订单校正全部记录
             var Calibration_RecordBarCodeList = Calibration_Record.Select(m => m.BarCodesNum).Distinct().ToList();//校正记录全部条码(模组号)清单(去重)
 
@@ -459,8 +459,8 @@ namespace JianHeMES.Controllers
 
             #region ---------------------一次直通记录、个数、直通率----------------------
             //---------------------一次直通记录----------------------
-            var Calibration_Record_abnormal_BoxBarCode_list = Calibration_Record.Where(c=>c.AbnormalDescription != "正常").Select(c => c.ModuleGroupNum).ToList();//异常记录(模组号)清单
-            var firstPassYield_temp = Calibration_Record.DistinctBy(c => c.ModuleGroupNum).Where(c=>c.AbnormalDescription == "正常" && c.Normal == true).ToList();//Finish记录
+            var Calibration_Record_abnormal_BoxBarCode_list = Calibration_Record.Where(c => c.AbnormalDescription != "正常").Select(c => c.ModuleGroupNum).ToList();//异常记录(模组号)清单
+            var firstPassYield_temp = Calibration_Record.DistinctBy(c => c.ModuleGroupNum).Where(c => c.AbnormalDescription == "正常" && c.Normal == true).ToList();//Finish记录
             List<CalibrationRecord> firstPassYield_expect = new List<CalibrationRecord>();//有异常记录的条码Finish记录
             foreach (var item in Calibration_Record_abnormal_BoxBarCode_list)
             {
@@ -542,9 +542,9 @@ namespace JianHeMES.Controllers
 
             #endregion
 
-            var passed_temp = Calibration_Record.Where(x => x.AbnormalDescription == "正常" || x.AbnormalDescription == null && x.Normal == true ).OrderBy(x=>x.BarCodesNum).ToList();//16.已经完成校正的条码清单、个数
+            var passed_temp = Calibration_Record.Where(x => x.AbnormalDescription == "正常" || x.AbnormalDescription == null && x.Normal == true).OrderBy(x => x.BarCodesNum).ToList();//16.已经完成校正的条码清单、个数
             List<string> passedlist = new List<string>();
-            passedlist = passed_temp.OrderBy(c=>c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+            passedlist = passed_temp.OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
             var passed = Calibration_PutOutJson(passed_temp);
 
             //var unbeginRecord_temp = orderBoxBarCodeList.Except(finishedList).ToList().Except(going_temp.Select(c => c.ModuleGroupNum)).ToList();//14.未开始校正的条码清单、个数(排除已完成（包含正常异常）、正在进行)
@@ -619,7 +619,7 @@ namespace JianHeMES.Controllers
             {
                 OutPutJson.Add((inputlist.IndexOf(item) + 1).ToString(), "[" + item.ID + "," + item.OrderNum + "," + item.ModuleGroupNum + "," +
                     item.BeginCalibration + "," + item.Operator + "," + item.FinishCalibration + "," + item.CalibrationTime + "," + item.CalibrationTimeSpan + "," +
-                    item.AbnormalDescription + ","  + item.Normal + "]");
+                    item.AbnormalDescription + "," + item.Normal + "]");
             }
             return OutPutJson;
         }
@@ -646,7 +646,7 @@ namespace JianHeMES.Controllers
             var orderBoxBarCodeList = db.BarCodes.Where(m => m.OrderNum == OrderNum).Select(m => m.BarCodesNum).ToList();//订单的所有条码清单
 
             var Appearance_Record = (from m in db.Appearance where m.OrderNum == OrderNum select m).OrderBy(x => x.BarCodesNum).ToList();//订单外观包装OQC全部记录
-            if(Appearance_Record==null)
+            if (Appearance_Record == null)
             {
                 Appearance_Record = db.Appearance.Where(c => c.ToOrderNum == OrderNum).OrderBy(c => c.BarCodesNum).ToList();
             }
@@ -829,11 +829,12 @@ namespace JianHeMES.Controllers
         #region -----------------ProductionControlHistory生产管控历史记录页面
 
 
+
+
+
         public ActionResult ProductionControlHistory()
         {
-
-
-
+            ViewBag.PlatformType = PlatformTypeList();
             return View();
         }
 
@@ -841,29 +842,19 @@ namespace JianHeMES.Controllers
         [HttpPost]
         public ActionResult ProductionControlHistory(string PlatformType)
         {
-
+            ViewBag.PlatformType = PlatformTypeList();
             JObject ProductionControlHistory = new JObject();   //创建JSON对象
             //取出数据
             using (var db = new ApplicationDbContext())
             {
                 var OrderList_All = (from m in db.OrderMgm select m).OrderBy(c => c.BarCodeCreated).ToList();
-                List<OrderMgm> OutputOrderList = new List<OrderMgm>();
-                List<OrderMgm> ExpectList = new List<OrderMgm>();
-
-                foreach (var item in OrderList_All)
+                if (PlatformType!="")
                 {
-                    if (db.Appearance.Where(c => c.OrderNum == item.OrderNum).Count() == 0)
-                    {
-                        ExpectList.Add(item);
-                    }
+                    OrderList_All = OrderList_All.Where(m => m.PlatformType == PlatformType).ToList();
                 }
-                OutputOrderList = OrderList_All.Except(ExpectList).ToList();
-
-                var OrderList_UnFinished = from m in OrderList_All where m.CompletedRate != 100 select m;
 
                 int i = 1;
-                //foreach (var item in OrderList_UnFinished.ToList())
-                foreach (var item in OutputOrderList)
+                foreach (var item in OrderList_All)
                 {
                     //存入JSON对象
                     var OrderNum = new JObject
@@ -1029,6 +1020,26 @@ namespace JianHeMES.Controllers
             ViewBag.History = ProductionControlHistory;
             return View(ProductionControlHistory);
         }
+
+
+
+        #region -----------------PlatformTypeList()取出整个OrderMgms的PlatformTypeList列表
+        private List<SelectListItem> PlatformTypeList()
+        {
+            var orders = db.OrderMgm.Select(m => m.PlatformType).Distinct().ToList();
+            var items = new List<SelectListItem>();
+            foreach (string order in orders)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = order,
+                    Value = order
+                });
+            }
+            return items;
+        }
+        #endregion
+
         #endregion
     }
 }
