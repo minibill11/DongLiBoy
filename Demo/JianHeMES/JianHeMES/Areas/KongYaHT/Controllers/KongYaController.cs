@@ -2908,6 +2908,14 @@ namespace JianHeMES.Areas.kongya.Controllers
             public DateTime RecordTime { get; set; }
         }
 
+        public class ResultTHToExcel
+        {
+            public string point { get; set; }
+            public double Tem { get; set; }
+            public double Hum { get; set; }
+            public DateTime RecordTime { get; set; }
+        }
+
         public class ResultKY
         {
             public double Pre { get; set; }
@@ -3598,89 +3606,122 @@ namespace JianHeMES.Areas.kongya.Controllers
 
 
 
-
         #region  -------------导出湿湿记录输出Excel表格方法------------------//..TODO..
         //..TODO..
         public ActionResult OutputTHDataToExcel()
         {
             ViewBag.PointList = db.THhistory.Select(m => m.DeviceName).Distinct();
 
-
-                       
             return View();
         }
 
         [HttpPost]
         public FileContentResult OutputTHDataToExcel(List<string> querylist, string Key, List<DateTime> Time, DateTime Begin, DateTime End)
         {
-            string point = ""; //温湿度信息点
+            //string point = ""; //温湿度信息点
             kongyadbEntities db = new kongyadbEntities();
-            List<string> list = null;
-            IQueryable <THhistory> queryRecords = null;
-            List<ResultTH> Resultlist = new List<ResultTH>();
+            //List<string> list = null;
+            List <THhistory> queryRecords = new List<THhistory>();
+            List<ResultTHToExcel> Resultlist = new List<ResultTHToExcel>();
 
             #region-------测试数据------
-            list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
-            string Key1 = "Timeing", Key2 = "Periods";
-            Time.Add(Convert.ToDateTime("2018-10-23 12,00"));
-            Time.Add(Convert.ToDateTime("2018-10-23 13,00"));
-            Time.Add(Convert.ToDateTime("2018-10-23 14,00"));
-            Begin = Convert.ToDateTime("2018-10-20 00,00");
-            End = DateTime.Now;
+            //list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
+            //string Key1 = "Timeing", Key2 = "Periods";
+
+            //Time.Add(Convert.ToDateTime("2018-10-23 12,00"));
+            //Time.Add(Convert.ToDateTime("2018-10-23 13,00"));
+            //Time.Add(Convert.ToDateTime("2018-10-23 14,00"));
+
+            //Begin = Convert.ToDateTime("2018-10-20 00,00");
+            //End = DateTime.Now;
 
 
             #endregion
 
-            if (querylist==null)  //全部点输出
+            #region ListString
+            //if (querylist==null)  //全部点输出
+            //{
+            //    list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
+            //    foreach (var item in list)
+            //    {
+            //        if (Key == "Timing")  //时间点输出
+            //        {
+            //            foreach (var it in Time)
+            //            {
+
+            //            }
+            //        }
+            //        else if (Key == "Periods") //时间段输出
+            //        {
+
+            //        }
+            //    }
+            //}
+            //else //按照清单输出点输出
+            //{
+            //    foreach(var item in querylist)   //按温湿度信息点清单查询
+            //    {
+
+            //    }
+            //}
+
+            #endregion
+
+            //string Point = "四楼组装40001676#3";
+            //string Key = "Timeing";
+            //DateTime dt = new DateTime(2018, 9, 1, 8, 0, 00, 0);
+            //List<DateTime> Time = new List<DateTime>();
+            //Time.Add(dt);
+            //DateTime dt1 = new DateTime(2018, 9, 1, 15, 00, 00, 0);
+            //Time.Add(dt1);
+            //DateTime Begin = new DateTime(2018, 9, 1, 0, 0, 00, 0);
+            //DateTime End = new DateTime(2018, 9, 10, 23, 59, 59, 0);
+            foreach (var Point in querylist)
             {
-                list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
-                foreach (var item in list)
+                if (Key == "Timeing")
                 {
-                    if (Key == "Timing")  //时间点输出
+                    foreach (var t in Time)
                     {
-                        foreach (var it in Time)
-                        {
-
-                        }
+                        queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End).Where(c => c.RecordTime.Value.Hour == t.Hour && c.RecordTime.Value.Minute == t.Minute));
                     }
-                    else if (Key == "Periods") //时间段输出
+                }
+                if (Key == "Periods")
+                {
+                    foreach (var t in Time)
                     {
-
+                        queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End));
                     }
                 }
             }
-            else //按照清单输出点输出
-            {
-                foreach(var item in querylist)   //按温湿度信息点清单查询
-                {
 
-                }
-            }
+            //queryRecords = queryRecords.OrderBy(c => c.RecordTime).ToList();
 
             #region   ---------------选择器------------------
-            switch (point)
-            {
-                case "一楼篮球场40004493#1":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "一楼配套加工(1)40004518#1":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004518" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-            }
+            //switch (point)
+            //{
+            //    case "一楼篮球场40004493#1":
+            //        queryRecords = from m in db.THhistory
+            //                       where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
+            //                       orderby m.id
+            //                       select m;
+            //        ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+            //        queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+            //        break;
+            //    case "一楼配套加工(1)40004518#1":
+            //        queryRecords = from m in db.THhistory
+            //                       where (m.DeviceID == "40004518" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
+            //                       orderby m.id
+            //                       select m;
+            //        ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+            //        queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+            //        break;
+            //}
+            #endregion
 
             foreach (var item in queryRecords)
             {
-                ResultTH at = new ResultTH();
+                ResultTHToExcel at = new ResultTHToExcel();
+                at.point = item.DeviceName;
                 at.Tem = Convert.ToDouble(item.Tem);
                 at.Hum = Convert.ToDouble(item.Hum);
                 at.RecordTime = Convert.ToDateTime(item.RecordTime);
@@ -3688,12 +3729,14 @@ namespace JianHeMES.Areas.kongya.Controllers
             }
             #endregion
 
-            string[] columns = { "温度(℃)", "湿度(RH%)", "记录时间" };
-            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, point, false, columns);
+            string[] columns = {"监测点", "温度(℃)", "湿度(RH%)", "记录时间" };
+            //byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, Point, false, columns);
+            //return File(filecontent, ExcelExportHelper.ExcelContentType, Point+"温湿度记录.xlsx");
+            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "全部", false, columns);
             return File(filecontent, ExcelExportHelper.ExcelContentType, "温湿度记录.xlsx");
+
         }
 
-        #endregion
 
 
         #region -----------系统通讯异常邮件通知
