@@ -65,7 +65,7 @@ namespace JianHeMES.Models
 
         [Display(Name = "防水测试时长")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
-        public TimeSpan? WaterproofTestTime { get; set; }  //防水测试时长
+        public TimeSpan? WaterproofTestTimeSpan { get; set; }  //防水测试时长
 
         [Display(Name = "异常代码")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
@@ -172,7 +172,10 @@ namespace JianHeMES.Models
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public DateTime? PQCCheckFT { get; set; }  //PQC完成时间
 
-        [Display(Name = "PQC时长")]
+        [Display(Name = "PQC时长(天)")]
+        public int PQCCheckDate { get; set; }  //PQC时长
+
+        [Display(Name = "PQC时长(时间)")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public TimeSpan? PQCCheckTime { get; set; }  //PQC时长
 

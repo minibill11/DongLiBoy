@@ -23,7 +23,7 @@ namespace JianHeMES.Controllers
             }
             if(((Users)Session["User"]).Role== "系统管理员")
             { 
-            return View(db.Users.ToList());
+            return View(db.Users.OrderBy(m=>m.Department).ToList());
             }
             return View();
         }

@@ -3618,9 +3618,7 @@ namespace JianHeMES.Areas.kongya.Controllers
         [HttpPost]
         public FileContentResult OutputTHDataToExcel(List<string> querylist, string Key, List<DateTime> Time, DateTime Begin, DateTime End)
         {
-            //string point = ""; //温湿度信息点
             kongyadbEntities db = new kongyadbEntities();
-            //List<string> list = null;
             List <THhistory> queryRecords = new List<THhistory>();
             List<ResultTHToExcel> Resultlist = new List<ResultTHToExcel>();
 
@@ -3667,6 +3665,7 @@ namespace JianHeMES.Areas.kongya.Controllers
 
             #endregion
 
+            #region-------测试数据2------
             //string Point = "四楼组装40001676#3";
             //string Key = "Timeing";
             //DateTime dt = new DateTime(2018, 9, 1, 8, 0, 00, 0);
@@ -3676,25 +3675,43 @@ namespace JianHeMES.Areas.kongya.Controllers
             //Time.Add(dt1);
             //DateTime Begin = new DateTime(2018, 9, 1, 0, 0, 00, 0);
             //DateTime End = new DateTime(2018, 9, 10, 23, 59, 59, 0);
-            foreach (var Point in querylist)
+            #endregion
+
+            if (querylist==null)  //全部监测点输出
             {
-                if (Key == "Timeing")
+                querylist= db.THhistory.Select(m => m.DeviceName).Distinct().ToList();
+                foreach (var Point in querylist)  //全部监测点输出
                 {
-                    foreach (var t in Time)
+                    if (Key == "Timeing")  //时间点输出
                     {
-                        queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End).Where(c => c.RecordTime.Value.Hour == t.Hour && c.RecordTime.Value.Minute == t.Minute));
+                        foreach (var t in Time)
+                        {
+                            queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End).Where(c => c.RecordTime.Value.Hour == t.Hour && c.RecordTime.Value.Minute == t.Minute));
+                        }
                     }
-                }
-                if (Key == "Periods")
-                {
-                    foreach (var t in Time)
+                    if (Key == "Periods")  //时间段输出
                     {
-                        queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End));
+                            queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End));
                     }
                 }
             }
-
-            //queryRecords = queryRecords.OrderBy(c => c.RecordTime).ToList();
+            else  //按选择的监测点输出
+            {
+                foreach (var Point in querylist)  
+                {
+                    if (Key == "Timeing")  //时间点输出
+                    {
+                        foreach (var t in Time)
+                        {
+                            queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End).Where(c => c.RecordTime.Value.Hour == t.Hour && c.RecordTime.Value.Minute == t.Minute));
+                        }
+                    }
+                    if (Key == "Periods")  //时间段输出
+                    {
+                            queryRecords.AddRange(db.THhistory.OrderBy(c => c.DeviceName).ThenBy(c => c.RecordTime).Where(c => c.DeviceName == Point).Where(c => c.RecordTime > Begin && c.RecordTime < End));
+                    }
+                }
+            }
 
             #region   ---------------选择器------------------
             //switch (point)
@@ -3732,11 +3749,10 @@ namespace JianHeMES.Areas.kongya.Controllers
             string[] columns = {"监测点", "温度(℃)", "湿度(RH%)", "记录时间" };
             //byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, Point, false, columns);
             //return File(filecontent, ExcelExportHelper.ExcelContentType, Point+"温湿度记录.xlsx");
-            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "全部", false, columns);
+            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "温湿度记录", false, columns);
             return File(filecontent, ExcelExportHelper.ExcelContentType, "温湿度记录.xlsx");
 
         }
-
 
 
         #region -----------系统通讯异常邮件通知
