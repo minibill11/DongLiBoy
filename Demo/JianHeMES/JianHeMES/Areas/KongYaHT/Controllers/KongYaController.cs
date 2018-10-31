@@ -3446,6 +3446,9 @@ namespace JianHeMES.Areas.kongya.Controllers
 
         #endregion
 
+
+
+        #region  -------------Excel导出帮助类---------------
         /// <summary>
         /// Excel导出帮助类
         /// </summary>
@@ -3604,9 +3607,11 @@ namespace JianHeMES.Areas.kongya.Controllers
             }
         }
 
+        #endregion
 
 
-        #region  -------------导出湿湿记录输出Excel表格方法------------------//..TODO..
+
+        #region  -------------导出温湿度记录输出Excel表格方法------------------
         //..TODO..
         public ActionResult OutputTHDataToExcel()
         {
@@ -3634,9 +3639,6 @@ namespace JianHeMES.Areas.kongya.Controllers
             //End = DateTime.Now;
 
 
-            #endregion
-
-            #region ListString
             //if (querylist==null)  //全部点输出
             //{
             //    list = db.THhistory.Select(m => m.DeviceName).ToList().Distinct().ToList();  //全部温湿度信息点清单
@@ -3663,9 +3665,6 @@ namespace JianHeMES.Areas.kongya.Controllers
             //    }
             //}
 
-            #endregion
-
-            #region-------测试数据2------
             //string Point = "四楼组装40001676#3";
             //string Key = "Timeing";
             //DateTime dt = new DateTime(2018, 9, 1, 8, 0, 00, 0);
@@ -3713,46 +3712,47 @@ namespace JianHeMES.Areas.kongya.Controllers
                 }
             }
 
-            #region   ---------------选择器------------------
-            //switch (point)
-            //{
-            //    case "一楼篮球场40004493#1":
-            //        queryRecords = from m in db.THhistory
-            //                       where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
-            //                       orderby m.id
-            //                       select m;
-            //        ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-            //        queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-            //        break;
-            //    case "一楼配套加工(1)40004518#1":
-            //        queryRecords = from m in db.THhistory
-            //                       where (m.DeviceID == "40004518" && m.NodeID == "1" && m.RecordTime > Begin && m.RecordTime < End)
-            //                       orderby m.id
-            //                       select m;
-            //        ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-            //        queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-            //        break;
-            //}
-            #endregion
+            //数据重组
+            if (queryRecords != null)
+            {
+                foreach (var item in queryRecords)
+                {
+                    ResultTHToExcel at = new ResultTHToExcel();
+                    at.point = item.DeviceName;
+                    at.Tem = Convert.ToDouble(item.Tem);
+                    at.Hum = Convert.ToDouble(item.Hum);
+                    at.RecordTime = Convert.ToDateTime(item.RecordTime);
+                    Resultlist.Add(at);
+                }
+            }
 
-            foreach (var item in queryRecords)
+            if (Resultlist.Count()>0)
+            {
+                string[] columns = { "监测点", "温度(℃)", "湿度(RH%)", "记录时间" };
+                byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "温湿度记录", false, columns);
+                return File(filecontent, ExcelExportHelper.ExcelContentType, "温湿度记录.xlsx");
+            }
+            else
             {
                 ResultTHToExcel at = new ResultTHToExcel();
-                at.point = item.DeviceName;
-                at.Tem = Convert.ToDouble(item.Tem);
-                at.Hum = Convert.ToDouble(item.Hum);
-                at.RecordTime = Convert.ToDateTime(item.RecordTime);
+                at.point = "开始时间：";
+                at.RecordTime = Begin;
                 Resultlist.Add(at);
+                ResultTHToExcel at1 = new ResultTHToExcel();
+                at1.point = "结束时间：";
+                at1.RecordTime = End;
+                Resultlist.Add(at1);
+                ResultTHToExcel at2 = new ResultTHToExcel();
+                at2.point = "此时间段内没有找到相关记录！";
+                at2.RecordTime = DateTime.Now;
+                Resultlist.Add(at2);
+                string[] columns = { "监测点", "温度(℃)", "湿度(RH%)", "记录时间" };
+                byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "温湿度记录", false, columns);
+                return File(filecontent, ExcelExportHelper.ExcelContentType, "温湿度记录.xlsx");
             }
+        }
             #endregion
 
-            string[] columns = {"监测点", "温度(℃)", "湿度(RH%)", "记录时间" };
-            //byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, Point, false, columns);
-            //return File(filecontent, ExcelExportHelper.ExcelContentType, Point+"温湿度记录.xlsx");
-            byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "温湿度记录", false, columns);
-            return File(filecontent, ExcelExportHelper.ExcelContentType, "温湿度记录.xlsx");
-
-        }
 
 
         #region -----------系统通讯异常邮件通知
@@ -3812,5 +3812,6 @@ namespace JianHeMES.Areas.kongya.Controllers
 
 
         #endregion
+
     }
 }

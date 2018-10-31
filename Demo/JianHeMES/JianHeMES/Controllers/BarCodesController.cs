@@ -217,7 +217,7 @@ namespace JianHeMES.Controllers
             {
                     if (orderMgm.BarCodeCreated==1)
                 {
-                    return Content("<script>alert('此订单已经创建过条码，不能重复创建！！');window.location.href='..';</script>");
+                    return Content("<script>alert('此订单已经创建过条码，不能重复创建！');window.location.href='..';</script>");
                 }
             
                 BarCodes aBarCode= new BarCodes() ;

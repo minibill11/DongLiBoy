@@ -17,13 +17,61 @@ namespace JianHeMES.Controllers
         // GET: Users
         public ActionResult Index()
         {
+            ViewBag.Department = GetDepartmentList();
+            ViewBag.Role = GetRoleList();
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
-            if(((Users)Session["User"]).Role== "系统管理员")
-            { 
-            return View(db.Users.OrderBy(m=>m.Department).ToList());
+            //if(((Users)Session["User"]).Role== "系统管理员")
+            //{
+            //    return View(db.Users.OrderBy(m => m.Department).ToList());
+            //}
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult Index( string UserName, string Department/*,int UserAuthorize*/, string Role/*, int LineNum*/, string Description,int UserNum = 0, int PageIndex = 0)
+        {
+            ViewBag.Department = GetDepartmentList();
+            ViewBag.Role = GetRoleList();
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "系统管理员")
+            {
+                var userlist = db.Users.OrderBy(m=>m.Department).ToList();
+
+                if (UserNum!=0)
+                {
+                    userlist = userlist.OrderBy(m => m.Department).Where(m => m.UserNum == UserNum).ToList();
+                }
+                if (UserName!="")
+                {
+                    userlist = userlist.OrderBy(m => m.Department).Where(m => m.UserName.Contains(UserName)).ToList();
+                }
+                if (Department != "")
+                {
+                    userlist = userlist.Where(m => m.Department == Department).ToList();
+                }
+                //if (!String.IsNullOrEmpty(UserAuthorize.ToString()))
+                //{
+                //    userlist = userlist.OrderBy(m => m.Department).Where(m => m.UserAuthorize == UserAuthorize).ToList();
+                //}
+                if (Role != "")
+                {
+                    userlist = userlist.OrderBy(m => m.Department).Where(m => m.Role == Role).ToList();
+                }
+                //if (!String.IsNullOrEmpty(LineNum.ToString()))
+                //{
+                //    userlist = userlist.OrderBy(m => m.Department).Where(m => m.LineNum == LineNum).ToList();
+                //}
+                if (Description != "")
+                {
+                    userlist = userlist.OrderBy(m => m.Department).Where(m => m.Description.Contains(Description)).ToList();
+                }
+                return View(userlist);
             }
             return View();
         }
@@ -225,6 +273,57 @@ namespace JianHeMES.Controllers
             Session.Clear();
             return RedirectToAction("Index", "CalibrationRecords");
         }
+
+
+        #region ---------------------------------------GetDepartmentList()取出部门列表
+        private List<SelectListItem> GetDepartmentList()
+        {
+            var departmentlist = db.Users.Select(m => m.Department).Distinct().ToList();
+            var items = new List<SelectListItem>();
+            foreach (string department in departmentlist)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = department,
+                    Value = department
+                });
+            }
+            return items;
+        }
+        #endregion
+
+        #region ---------------------------------------GetRoleList()取出角色列表
+        private List<SelectListItem> GetRoleList()
+        {
+            var rolelist = db.Users.Select(m => m.Role).Distinct().ToList();
+            var items = new List<SelectListItem>();
+            foreach (string role in rolelist)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = role,
+                    Value = role
+                });
+            }
+            return items;
+        }
+        #endregion
+
+
+        #region ---------------------------------------分页
+        private static readonly int PAGE_SIZE = 10;
+
+        private int GetPageCount(int recordCount)
+        {
+            int pageCount = recordCount / PAGE_SIZE;
+            if (recordCount % PAGE_SIZE != 0)
+            {
+                pageCount += 1;
+            }
+            return pageCount;
+        }
+        #endregion
+
 
     }
 }
