@@ -56,6 +56,7 @@
 
     #shelter {
         box-shadow: 0px 3px 5px #888888;
+        display:none;
     }
 
     #fixed_table #fix_head {
@@ -164,7 +165,7 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="(item, index) in marqueeList">
+            <tr v-for="(item, index) in sortmarqueeList">
                 <td v-on:click="orderDetail(item.OrderNum,item.Id)">{{item.OrderNum}}</td>
                 <td>{{item.Quantity}}个</td>
                 <td>{{item.PlatformType}}</td>
@@ -173,12 +174,12 @@
                 <td>{{item.ActualProductionTime}}</td>
                 <td v-on:click="Detail(item.OrderNum,'Assemble')" v-bind:style="(item.Assemble_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Assemble_Finish_Rate}}<span v-show="item.AssembleRecord_Count"><br />({{item.Assemble_Finish}}/{{item.Quantity}})</span> </td>
                 <td v-on:click="Detail(item.OrderNum,'Assemble')" v-bind:style="(item.Assemble_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Assemble_Pass_Rate}}<span v-show="item.AssembleRecord_Count"><br />({{item.Assemble_Finish}}/{{item.AssembleRecord_Count}})</span></td>
-                <td v-on:click="Detail(item.OrderNum,'Burn_in')" v-bind:style="(item.Burn_in_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Burn_in_Finish_Rate}}<span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Finish}}/{{item.Quantity}})</span></td>
-                <td v-on:click="Detail(item.OrderNum,'Burn_in')" v-bind:style="(item.Burn_in_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Burn_in_Pass_Rate}}<span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Finish}}/{{item.Burn_in_Count}})</span></td>
-                <td v-on:click="Detail(item.OrderNum,'Calibration')" v-bind:style="(item.Calibration_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Calibration_Finish_Rate}}<span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Quantity}})</span></td>
-                <td v-on:click="Detail(item.OrderNum,'Calibration')" v-bind:style="(item.Calibration_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Calibration_Pass_Rate}}<span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Calibration_Count}})</span></td>
-                <td v-on:click="Detail(item.OrderNum,'Appearance')" v-bind:style="(item.Appearances_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Appearances_Finish_Rate}}<span v-show="item.Appearances_Count"><br />({{item.Appearances_Finish}}/{{item.Quantity}})</span></td>
-                <td v-on:click="Detail(item.OrderNum,'Appearance')" v-bind:style="(item.Appearances_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Appearances_Pass_Rate}}<span v-show="item.Appearances_Count"><br />({{item.Appearances_Finish}}/{{item.Appearances_Count}})</span></td>
+                <td v-on:click="Detail(item.OrderNum,'Burn_in')" v-bind:style="(item.Burn_in_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Burn_in_Finish_Rate}}<span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Finish}}/{{item.Burn_in_Count}})</span></td>
+                <td v-on:click="Detail(item.OrderNum,'Burn_in')" v-bind:style="(item.Burn_in_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Burn_in_Pass_Rate}}<span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Finish}}/{{item.Burn_in_Record_Count}})</span></td>
+                <td v-on:click="Detail(item.OrderNum,'Calibration')" v-bind:style="(item.Calibration_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Calibration_Finish_Rate}}<span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Calibration_Count}})</span></td>
+                <td v-on:click="Detail(item.OrderNum,'Calibration')" v-bind:style="(item.Calibration_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Calibration_Pass_Rate}}<span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Calibration_Record_Count}})</span></td>
+                <td v-on:click="Detail(item.OrderNum,'Appearance')" v-bind:style="(item.Appearances_Finish_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Appearances_Finish_Rate}}<span v-show="item.Appearances_Count"><br />({{item.Appearances_Finish}}/{{item.Appearances_Count}})</span></td>
+                <td v-on:click="Detail(item.OrderNum,'Appearance')" v-bind:style="(item.Appearances_Pass_Rate.split('.')[0])=='100'?bgcolor:''">{{item.Appearances_Pass_Rate}}<span v-show="item.Appearances_Count"><br />({{item.Appearances_Finish}}/{{item.Appearances_Record_Count}})</span></td>
                 <td>{{item.ActualFinishTime}}</td>
                 <td style="white-space:nowrap;" v-if="item.TotalTime.length==4">{{item.TotalTime[0]+"天"+item.TotalTime[1]+"时"+item.TotalTime[2]+"分"+item.TotalTime[3]+"秒"}}</td>
                 <td style="white-space:nowrap;" v-else-if="item.TotalTime.length==3">{{item.TotalTime[0]+"时"+item.TotalTime[1]+"分"+item.TotalTime[2]+"秒"}}</td>
@@ -201,12 +202,15 @@
             marqueeList: [],
             bgcolor: "background-color:rgba(97, 207, 52, 0.37)"
         },
+        computed: {
+            sortmarqueeList() {
+                return sortByActualProductionTime(this.marqueeList,"ActualProductionTime")
+            }
+        },
         created: function () {
             viewbagJson = JSON.parse(this.viewbagval);
             console.log(viewbagJson)
             for (index in viewbagJson) {
-                //console.log(index);
-                //console.log(viewbagJson[index]);
                 var totalTimeList = [];
                 if (viewbagJson[index].TotalTime == "") {
                     var totalTime = "";
@@ -256,10 +260,13 @@
                     AssembleRecord_Count: viewbagJson[index].AssembleRecord_Count,
                     Burn_in_Finish: viewbagJson[index].Burn_in_Finish,
                     Burn_in_Count: viewbagJson[index].Burn_in_Count,
+                    Burn_in_Record_Count: viewbagJson[index].Burn_in_Record_Count,
                     Calibration_Finish: viewbagJson[index].Calibration_Finish,
                     Calibration_Count: viewbagJson[index].Calibration_Count,
+                    Calibration_Record_Count: viewbagJson[index].Calibration_Record_Count,
                     Appearances_Finish: viewbagJson[index].Appearances_Finish,
-                    Appearances_Count: viewbagJson[index].Appearances_Count
+                    Appearances_Count: viewbagJson[index].Appearances_Count,
+                    Appearances_Record_Count: viewbagJson[index].Appearances_Record_Count
                 });
             }
         },
@@ -287,6 +294,15 @@
             });
         }
     })
+
+    function sortByActualProductionTime(array, key) {
+        return array.sort(function (a, b) {
+            var x = a[key];
+            var y = b[key];
+            return ((x < y) ? -1 : ((x > y)?1:0))
+        })
+    }
+
 </script>
 <script>
     $(function () {
@@ -312,14 +328,13 @@
             'width': testDiv.width() + "px",
             'overflow': 'hidden'
         });
-        //set target table width equal source table width
         $("#fixed_table_wrap,#fixed_table").css({ 'width': sourceTableWidth + "px" });
         //only clone tr html and change thead tr id attr
         //var targetHead = sourceTableHead.clone().attr('id', 'fix_head');
         //targetHead.appendTo('#fixed_table thead');
         //mark target table thead td width,height equal source table thead td width,height
         //$("#table_head th").each(function (index, value) {
-        //    //var tempWidth = $(value).outerWidth();
+        //    //var tempWidth = $(value).outerWidth();//不能小数
         //    //var tempHeight = $(value).outerHeight();
         //    var tempWidth = $(value)[0].getBoundingClientRect().width;
         //    var tempHeight = $(value)[0].getBoundingClientRect().height;
@@ -362,7 +377,7 @@
                 tempTop = 0;
             }
             fixTopDiv.css({ 'top': tempTop + "px", 'width': baseWidth + "px" });
-            //control  show or hide
+            //control show or hide
             if (scroll_top > 0) {
                 if (!fixTopDiv.is(':visible')) {
                     fixTopDiv.show();

@@ -793,7 +793,6 @@ namespace JianHeMES.Controllers
             }
             else
             {
-                //return RedirectToAction("PQCCheckF", new { assemble.Id });
                 return RedirectToAction("AssembleIndex");
             }
 
@@ -823,7 +822,6 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
 
-        //public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BoxBarCode,PQCCheckBT,PQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCCheckFinish")] Assemble assemble)
         public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTimeSpan,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
@@ -831,23 +829,16 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-            //assemble = db.Assemble.FirstOrDefault(u => u.Id == assemble.Id);
             if (assemble.PQCCheckFT == null)
             {
                 assemble.PQCCheckFT = DateTime.Now;
-                //var BC = assemble.PQCCheckBT.Value;
-                //var FC = assemble.PQCCheckFT.Value;
-                //var CT = FC - BC;
-                //assemble.PQCCheckTime = CT;
                 assemble.PQCCheckTime = assemble.PQCCheckFT.Value.Subtract(assemble.PQCCheckBT.Value).Duration();
-                if (assemble.PQCCheckTime.Value.Days>0)
+                if (assemble.PQCCheckTime.Value.Days>0)  //时间和天数分开两个字段存储
                 {
                     assemble.PQCCheckDate = assemble.PQCCheckTime.Value.Days;
                     assemble.PQCCheckTime = new TimeSpan(0,assemble.PQCCheckTime.Value.Hours, assemble.PQCCheckTime.Value.Minutes, assemble.PQCCheckTime.Value.Seconds);
                 }
                 assemble.AssembleLineId = Convert.ToInt16(Request["AssembleLineId"]);
-                //assemble.PQCCheckAbnormal = Convert.ToInt16(Request["PQCCheckAbnormal"]);
-                //assemble.PQCCheckAbnormal = Request["PQCCheckAbnormal"];
                 if (assemble.PQCCheckAbnormal == null)
                 {
                     assemble.PQCCheckAbnormal = "正常";
@@ -861,7 +852,6 @@ namespace JianHeMES.Controllers
                 if (abnormal && repair)
                 {
                     assemble.PQCCheckFinish = true;
-                    //assemble.AssembleTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
                 }
                 else assemble.PQCCheckFinish = false;
             }
@@ -889,17 +879,12 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            //CalibrationRecordVM.AllCalibrationRecord = null;
             ViewBag.Display = "display:none";//隐藏View基本情况信息
             ViewBag.Legend = "display:none";//隐藏图例
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.PQCNormal = PQCNormalList();
             ViewBag.NotDo = null;
-
             return View();
-
-            //return View(db.Assemble.ToList());
         }
 
         [HttpPost]
@@ -909,37 +894,26 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            //IQueryable<Assemble> Allassembles = null;
             List<Assemble> Allassembles = new List<Assemble>();
             List<Assemble> AllassemblesList = new List<Assemble>();
             if (String.IsNullOrEmpty(orderNum))
             {
                 ////调出全部记录      
-                //Allassembles = from m in db.Assemble
-                //               select m;
                 Allassembles = db.Assemble.ToList();
             }
             else
             {
                 //筛选出对应orderNum所有记录
-                //Allassembles = from m in db.Assemble
-                //               where (m.OrderNum == orderNum)
-                //               select m;
                 Allassembles = db.Assemble.Where(c => c.OrderNum == orderNum).ToList();
                 if (Allassembles.Count() == 0)
                 {
                     var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == orderNum).ToList();
-                    //..TODO..待优化
                     foreach (var item in barcodelist)
                     {
                         Allassembles.AddRange(db.Assemble.Where(c => c.BoxBarCode == item.BarCodesNum));
                     }
                 }
             }
-            //ViewData["Finished"] = from m in Allassembles where (m.PQCCheckAbnormal == "正常") select m;
-            //ViewData["CheckedNotFinished"] = null;
-            //ViewData["CheckedNotFinished"] = null;
 
             //统计校正结果正常的模组数量
             var assemble_Normal_Count = Allassembles.Where(m => m.PQCCheckAbnormal == "正常").Count();
@@ -1019,12 +993,12 @@ namespace JianHeMES.Controllers
             //    assembles = assembles.Where(s => s.AbnormalDescription.Contains(searchString));
             //}
 
+            #region   ----------计算总时长和平均时长------------
             //取出对应orderNum对应组装中PQC时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.Assemble
                                                  where (m.OrderNum == orderNum)
                                                  //orderby m.PQCCheckTime
                                                  select m.PQCCheckTime;
-
             //计算校正总时长  TotalTimeSpan
             TimeSpan TotalTimeSpan = new TimeSpan();
             if (Allassembles.Where(x => x.PQCCheckAbnormal == "正常").Count() != 0)
@@ -1036,7 +1010,29 @@ namespace JianHeMES.Controllers
                         TotalTimeSpan = TotalTimeSpan.Add(m.Value).Duration();
                     }
                 }
-                ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                int days = 0;
+                if (db.Assemble.Where(m => m.OrderNum == orderNum).ToList().Sum(c => c.PQCCheckDate) > 0)
+                {
+                    days = db.Assemble.Where(m => m.OrderNum == orderNum).ToList().Sum(c => c.PQCCheckDate);
+                    TotalTimeSpan = new TimeSpan(TotalTimeSpan.Days + days, TotalTimeSpan.Hours, TotalTimeSpan.Minutes, TotalTimeSpan.Seconds);
+                }
+
+                if (TotalTimeSpan.Hours > 0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else if (TotalTimeSpan.Hours == 0 && TotalTimeSpan.Minutes>0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else if (TotalTimeSpan.Hours == 0 && TotalTimeSpan.Minutes == 0 && TotalTimeSpan.Seconds > 0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else
+                {
+                    ViewBag.TotalTimeSpan = "";
+                }
             }
             else
             {
@@ -1051,14 +1047,33 @@ namespace JianHeMES.Controllers
             if (Order_CR_valid_Count != 0)
             {
                 AvgTimeSpanInSecond = TotalTimeSpanSecond / Order_CR_valid_Count;
-                int AvgTimeSpanMinute = AvgTimeSpanInSecond / 60;
-                int AvgTimeSpanSecond = AvgTimeSpanInSecond % 60;
-                ViewBag.AvgTimeSpan = AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                int tem = 0;
+                int AvgTimeSpanHour = AvgTimeSpanInSecond / 3600;
+                tem = AvgTimeSpanInSecond % 3600;
+                int AvgTimeSpanMinute = tem / 60;
+                int AvgTimeSpanSecond = tem % 60;
+                if(AvgTimeSpanHour>0)
+                {
+                    ViewBag.AvgTimeSpan = AvgTimeSpanHour + "时" + AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                }
+                else if(AvgTimeSpanHour == 0 && AvgTimeSpanMinute >0)
+                {
+                    ViewBag.AvgTimeSpan = AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                }
+                else if (AvgTimeSpanHour == 0 && AvgTimeSpanMinute == 0 && AvgTimeSpanSecond>0)
+                {
+                    ViewBag.AvgTimeSpan = AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                }
+                else
+                {
+                    ViewBag.AvgTimeSpan = "";//向View传递计算平均用时
+                }
             }
             else
             {
                 ViewBag.AvgTimeSpan = "暂时没有已完成组装PQC的模组";//向View传递计算平均用时
             }
+            #endregion
 
             //列出记录
             AllassemblesList = Allassembles.ToList();
@@ -1084,11 +1099,6 @@ namespace JianHeMES.Controllers
                         item.AdapterCard_Power_List = item.AdapterCard_Power_List + it.BarCodesNum + ",";
                     }
                 }
-                //item.ModelCollections.AddRange(list.ToList());
-                //string modelCollectionsString = JsonConvert.SerializeObject(modelCollectionsList);
-                //var itemId = item.Id;
-                //var modifya = AllassemblesList.Where(m => m.Id == itemId).ToList().First();
-                //modifya.ModelCollections.Add(modelCollectionsString);
             }
 
             //读出订单中模组总数量

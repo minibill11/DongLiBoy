@@ -7,7 +7,6 @@
 <script src="~/Scripts/highcharts.js"></script>
 <script src="~/Scripts/highcharts-3d.js"></script>
 <script src="~/Scripts/modules/exporting.js"></script>
-
 @*引入EasyUI框架*@
 <script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
 <script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
@@ -15,10 +14,8 @@
 <link rel="stylesheet" type="text/css" href="~/Content/icon.css">
 <script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
 <meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-
 @*引入Vue.js框架*@
 <script src="~/Scripts/vue.js"></script>
-
 @*引入Bootstrap框架*@
 <link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
 <script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
@@ -53,30 +50,30 @@
 {
     @Html.AntiForgeryToken()
     <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
-        <p>
+        <p id="queryColumn">
             <span>订单号：@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")</span>
             <span class="hidden-xs">老化状态：@Html.DropDownList("OQCNormal", (List<SelectListItem>)ViewBag.OQCNormal, "全部")</span>
             <span class="hidden-xs">完成状态：@Html.DropDownList("FinishStatus", (List<SelectListItem>)ViewBag.FinishStatus, "全部")</span>
-            <span class="hidden-xs">模组条码号：<input type="text" name="BoxBarCode" /></span>
-            <span class="hidden-xs">描述:<input type="text" name="SearchString" /></span>
+            <span class="hidden-xs">模组条码号：<input type="text" name="BoxBarCode" v-model="BoxBarCode" /></span>
+            <span class="hidden-xs">描述:<input type="text" name="SearchString" v-model="SearchString" /></span>
             <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
-            <input type="submit" id="searchButton" value="查找" />
+            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
         </p>
     </form>
     <br />
 }
 
 <div class="container">
-    <div class="row">
-        <div id="details" style="@ViewBag.Display">
+    <div id="query" class="row">
+        <div style="@ViewBag.Display">
             <div class="col-md-6">
                 <div class="row">
-                    <h4>订单<span id="title" v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组老化基本情况 </h4>
+                    <h4>订单<span v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组老化基本情况 </h4>
                     订单的模组总量：@ViewBag.Quantity，经过老化数量：@ViewBag.RecordCount<br />
-                    直通数量：@ViewBag.NormalCount，有异常记录数量：@ViewBag.AbnormalCount，完成率：<span id="Rate">{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
+                    直通数量：@ViewBag.NormalCount，有异常记录数量：@ViewBag.AbnormalCount，完成率：<span>{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
                     老化总时长：@ViewBag.TotalTimeSpan<br />
                     平均老化时长：@ViewBag.AvgTimeSpan<br />
-                    查询时间：<span id="Querytime">{{message}}</span>   @*输出查询时间*@
+                    查询时间：<span>{{message}}</span>   @*输出查询时间*@
                     <hr />
                 </div>
                 <div class="row">
@@ -117,24 +114,12 @@
 </div>
 
 <script type="text/javascript">
-    var app = new Vue({
-        el: '#Querytime',    //与div中的id名对应
+    var query = new Vue({
+        el: '#query',    //与div中的id名对应
         data: {
-            message: new Date().toLocaleString()  //输出查询时间
-        }
-    })
-    var app2 = new Vue({     //悬停显示内容<span v-bind:title="floatmessage">内容</span>
-        el: '#title',
-        data: {
+            message: new Date().toLocaleString(),  //输出查询时间
             floatmessage: '订单号'+'@ViewBag.orderNum',
-        }
-    })
-
-    var app3 = new Vue ({
-        el:'#Rate',
-        data:{
             Quantity:@ViewBag.Quantity,
-            NormalCount:@ViewBag.NormalCount,
             FinishCount:@ViewBag.Finish,
         },
         computed:{
@@ -142,21 +127,7 @@
                 return (this.FinishCount/this.Quantity*100).toFixed(1)
             }
         }
-    })
-
-
-    var CalibrationRecordsViewModel = {
-        orderNum:'',
-        Quantity: 0,
-        Count: 0,
-        NeverFinish: 0,
-        OrderList:[]
-    }
-
-    CalibrationRecordsViewModel.orderNum = '@ViewBag.orderNum';
-    CalibrationRecordsViewModel.Quantity=@ViewBag.Quantity;
-    CalibrationRecordsViewModel.Count=@ViewBag.NormalCount;
-
+    });
 
     Highcharts.chart('container2', {
         chart: {
@@ -305,6 +276,32 @@
 </div>
 @section scripts {
     <script>
+        var queryColumn = new Vue ({
+            el:'#queryColumn',
+            data:{
+                BoxBarCode:"",
+                lookup:true,
+                SearchString:"",
+            },
+            watch:{
+                BoxBarCode:function(val){
+                    if($("#OrderNum").val()==""&&this.BoxBarCode==""&&this.SearchString==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                },
+                SearchString:function(val){
+                    if($("#OrderNum").val()==""&&this.BoxBarCode==""&&this.SearchString==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                }
+            }
+        });
+    </script>
+    <script>
         function submitForm(pagenumber) {
             pagenumber = parseInt(pagenumber, 10);
             $('#PageIndex').val(pagenumber - 1);
@@ -321,6 +318,14 @@
                 submitForm($(this).text());
             });
 
+        });
+
+        $("#OrderNum").change(function (val) {
+            if(val.target.value == ""&&queryColumn.BoxBarCode==""&&queryColumn.SearchString==""){
+                queryColumn.lookup = true;
+            }else{
+                queryColumn.lookup = false;
+            };
         });
     </script>
 }

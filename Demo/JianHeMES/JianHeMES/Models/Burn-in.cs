@@ -27,10 +27,12 @@ namespace JianHeMES.Models
 
         [Display(Name = "完成时间")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
-        public DateTime? OQCCheckFT { get; set; } 
+        public DateTime? OQCCheckFT { get; set; }
 
-        [Display(Name = "OQC时长"),DataType(DataType.DateTime)]//时长超过24小时溢出
-        //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
+        [Display(Name = "OQC时长(天)")]
+        public int OQCCheckDate { get; set; }
+
+        [Display(Name = "OQC时长"),DataType(DataType.DateTime)]
         public TimeSpan? OQCCheckTime { get; set; }
 
         [Display(Name = "老化用时")]

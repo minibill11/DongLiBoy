@@ -259,7 +259,7 @@ namespace JianHeMES.Controllers
 
             var Burn_in_OQC_Count = Burn_in_Record.Count();//4.订单OQC全部记录条数
 
-            var finisthRate = (Convert.ToDouble(finished) / modelGroupQuantity * 100).ToString("F2");//5.完成率：完成数/订单的模组数
+            var finisthRate = (Convert.ToDouble(finished) / Burn_in_RecordBarCodeList.Count() * 100).ToString("F2");//5.完成率：完成数/订单的模组数
 
             var passRate = (Convert.ToDouble(finished) / Burn_in_OQC_Count * 100).ToString("F2");//6.合格率：完成数/记录数
 
@@ -453,7 +453,7 @@ namespace JianHeMES.Controllers
 
             var Calibration_Count = Calibration_Record.Count();//4.订单校正全部记录条数
 
-            var finisthRate = (Convert.ToDouble(finished) / modelGroupQuantity * 100).ToString("F2");//5.完成率：完成数/订单的模组数
+            var finisthRate = (Convert.ToDouble(finished) / Calibration_RecordBarCodeList.Count() * 100).ToString("F2");//5.完成率：完成数/订单的模组数
 
             var passRate = (Convert.ToDouble(finished) / Calibration_Count * 100).ToString("F2");//6.合格率：完成数/记录数
 
@@ -657,7 +657,7 @@ namespace JianHeMES.Controllers
 
             var Appearance_OQC_Count = Appearance_Record.Count();//4.订单外观包装OQC全部记录条数
 
-            var finisthRate = (Convert.ToDouble(finished) / modelGroupQuantity * 100).ToString("F2");//5.完成率：完成数/订单的模组数
+            var finisthRate = (Convert.ToDouble(finished) / Appearance_RecordBarCodeList.Count() * 100).ToString("F2");//5.完成率：完成数/订单的模组数
 
             var passRate = (Convert.ToDouble(finished) / Appearance_OQC_Count * 100).ToString("F2");//6.合格率：完成数/记录数
 
@@ -829,9 +829,6 @@ namespace JianHeMES.Controllers
         #region -----------------ProductionControlHistory生产管控历史记录页面
 
 
-
-
-
         public ActionResult ProductionControlHistory()
         {
             ViewBag.PlatformType = PlatformTypeList();
@@ -845,6 +842,7 @@ namespace JianHeMES.Controllers
             ViewBag.PlatformType = PlatformTypeList();
             JObject ProductionControlHistory = new JObject();   //创建JSON对象
             //取出数据
+            int i = 1;
             using (var db = new ApplicationDbContext())
             {
                 var OrderList_All = (from m in db.OrderMgm select m).OrderBy(c => c.BarCodeCreated).ToList();
@@ -853,7 +851,6 @@ namespace JianHeMES.Controllers
                     OrderList_All = OrderList_All.Where(m => m.PlatformType == PlatformType).ToList();
                 }
 
-                int i = 1;
                 foreach (var item in OrderList_All)
                 {
                     //存入JSON对象
@@ -906,13 +903,15 @@ namespace JianHeMES.Controllers
                     #region--------------------老化部分
                     //--------------------老化部分
                     var Burn_in_Record = (from m in db.Burn_in where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有老化记录
+                    int Burn_in_Record_Count = Burn_in_Record.Select(m => m.BarCodesNum).Distinct().ToList().Count();
                     if (Burn_in_Record.Count() > 0)
                     {
                         Decimal Burn_in_Normal = Burn_in_Record.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化正常个数
                         //Decimal Burn_in_FirstPass = Burn_in_Record.Where(m => m.OQCCheckFinish == true && m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化工序直通个数
                         Decimal Burn_in_Finish = Burn_in_Record.Count(m => m.OQCCheckFinish == true); //完成老化工序的个数
                         OrderNum.Add("Burn_in_Finish", Convert.ToInt32(Burn_in_Finish));
-                        OrderNum.Add("Burn_in_Count", Burn_in_Record.Count());
+                        OrderNum.Add("Burn_in_Record_Count", Burn_in_Record.Count());
+                        OrderNum.Add("Burn_in_Count", Burn_in_Record_Count);
                         //计算老化完成率、合格率
                         if (Burn_in_Finish == 0)
                         {
@@ -921,7 +920,7 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
                             OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count() * 100).ToString("F2") + "%");
                         }
                     }
@@ -934,12 +933,18 @@ namespace JianHeMES.Controllers
 
                     #region---------------------校正部分
                     //---------------------校正部分
-                    var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有校正记录
+                    var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == item.OrderNum && m.RepetitionCalibration == false select m).ToList();//查出OrderNum的所有校正记录
+                    var Calibration_Record_Count = Calibration_Record.Select(m => m.BarCodesNum).Distinct().Count();//条码记录去重
+                    if (Calibration_Record_Count<=1)
+                    {
+                        Calibration_Record_Count = Calibration_Record.Count();
+                    }
                     if (Calibration_Record.Count() > 0)
                     {
                         Decimal Calibration_Normal = Calibration_Record.Where(m => m.Normal == true).Count();//校正正常个数
                         OrderNum.Add("Calibration_Finish", Convert.ToInt32(Calibration_Normal));
-                        OrderNum.Add("Calibration_Count", Calibration_Record.Count());
+                        OrderNum.Add("Calibration_Record_Count", Calibration_Record.Count());
+                        OrderNum.Add("Calibration_Count", Calibration_Record_Count);
                         //计算校正完成率、合格率
                         if (Calibration_Normal == 0)
                         {
@@ -948,7 +953,7 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / Calibration_Record_Count * 100).ToString("F2") + "%");
                             OrderNum.Add("Calibration_Pass_Rate", (Calibration_Normal / Calibration_Record.Count() * 100).ToString("F2") + "%");
                         }
                     }
@@ -961,13 +966,17 @@ namespace JianHeMES.Controllers
 
                     #region---------------------外观包装部分
                     //---------------------外观包装部分
-                    var Appearances_Record = (from m in db.Appearance where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有外观包装记录
+                    //var Appearances_Record = (from m in db.Appearance where m.OrderNum == item.OrderNum select m).OrderBy(m=>m.BarCodesNum).ToList();//查出OrderNum的所有外观包装记录
+                    var Appearances_Record = db.Appearance.Where(m => m.OrderNum == item.OrderNum).OrderBy(m => m.BarCodesNum).ToList();
+                    List<string> Appearances_Record_Count = Appearances_Record.Select(m => m.BarCodesNum).Distinct().ToList();//条码记录去重后个数
+                    //HashSet<string> Appearances_Record_Count2 = new HashSet<string>(Appearances_Record_Count);
                     if (Appearances_Record.Count() > 0)
                     {
                         //Decimal Appearances_Normal = Appearances_Record.Where(m => m.Appearance_OQCCheckAbnormal == "正常").Count();//外观包装正常个数
                         Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
                         OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
-                        OrderNum.Add("Appearances_Count", Appearances_Record.Count());
+                        OrderNum.Add("Appearances_Record_Count", Appearances_Record.Count());
+                        OrderNum.Add("Appearances_Count", Appearances_Record_Count.Count());
                         //计算外观包装完成率、合格率
                         if (Appearances_Finish == 0)
                         {
@@ -976,19 +985,22 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
-                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
+                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count.Count() * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
+                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");//完成数/记录条数
                         }
                     }
                     else
                     {
                         //使用库存出库订单
                         Appearances_Record = db.Appearance.Where(c => c.ToOrderNum == item.OrderNum).ToList();
+                        Appearances_Record_Count = Appearances_Record.Select(m => m.BarCodesNum).Distinct().ToList();//条码记录去重
+                        //Appearances_Record_Count2 = new HashSet<string>(Appearances_Record_Count);
                         if (Appearances_Record.Count() > 0)
                         {
                             Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
                             OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
-                            OrderNum.Add("Appearances_Count", Appearances_Record.Count());
+                            OrderNum.Add("Appearances_Record_Count", Appearances_Record.Count());
+                            OrderNum.Add("Appearances_Count", Appearances_Record_Count.Count());
                             OrderNum.Remove("ActualProductionTime");
                             OrderNum.Add("ActualProductionTime", Appearances_Record.Min(c => c.OQCCheckBT).ToString()); //取出最早记录的包装OQCCheckBT值
                             //计算外观包装完成率、合格率
@@ -999,8 +1011,8 @@ namespace JianHeMES.Controllers
                             }
                             else
                             {
-                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
-                                OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
+                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count.Count() * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
+                                OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");//完成数/记录条数
                             }
 
 
@@ -1017,11 +1029,139 @@ namespace JianHeMES.Controllers
                     i++;
                 }
             }
+
             ViewBag.History = ProductionControlHistory;
             return View(ProductionControlHistory);
         }
 
+        #region -----------------JSON格式化重新排序
 
+        /// <summary>
+        /// JSON格式化重新排序
+        /// </summary>
+        /// <param name="jobj">原始JSON JToken.Parse(string json);</param>
+        /// <param name="obj">初始值Null</param>
+        /// <returns></returns>
+        public static string SortJson(JToken jobj, JToken obj)
+        {
+            if (obj == null)
+            {
+                obj = new JObject();
+            }
+            List<JToken> list = jobj.ToList<JToken>();
+            if (jobj.Type == JTokenType.Object)//非数组
+            {
+                List<string> listsort = new List<string>();
+                foreach (var item in list)
+                {
+                    string name = JProperty.Load(item.CreateReader()).Name;
+                    listsort.Add(name);
+                }
+                listsort.Sort();
+                List<JToken> listTemp = new List<JToken>();
+                foreach (var item in listsort)
+                {
+                    listTemp.Add(list.Where(p => JProperty.Load(p.CreateReader()).Name == item).FirstOrDefault());
+                }
+                list = listTemp;
+                //list.Sort((p1, p2) => JProperty.Load(p1.CreateReader()).Name.GetAnsi() - JProperty.Load(p2.CreateReader()).Name.GetAnsi());
+
+                foreach (var item in list)
+                {
+                    JProperty jp = JProperty.Load(item.CreateReader());
+                    if (item.First.Type == JTokenType.Object)
+                    {
+                        JObject sub = new JObject();
+                        (obj as JObject).Add(jp.Name, sub);
+                        SortJson(item.First, sub);
+                    }
+                    else if (item.First.Type == JTokenType.Array)
+                    {
+                        JArray arr = new JArray();
+                        if (obj.Type == JTokenType.Object)
+                        {
+                            (obj as JObject).Add(jp.Name, arr);
+                        }
+                        else if (obj.Type == JTokenType.Array)
+                        {
+                            (obj as JArray).Add(arr);
+                        }
+                        SortJson(item.First, arr);
+                    }
+                    else if (item.First.Type != JTokenType.Object && item.First.Type != JTokenType.Array)
+                    {
+                        (obj as JObject).Add(jp.Name, item.First);
+                    }
+                }
+            }
+            else if (jobj.Type == JTokenType.Array)//数组
+            {
+                foreach (var item in list)
+                {
+                    List<JToken> listToken = item.ToList<JToken>();
+                    List<string> listsort = new List<string>();
+                    foreach (var im in listToken)
+                    {
+                        string name = JProperty.Load(im.CreateReader()).Name;
+                        listsort.Add(name);
+                    }
+                    listsort.Sort();
+                    List<JToken> listTemp = new List<JToken>();
+                    foreach (var im2 in listsort)
+                    {
+                        listTemp.Add(listToken.Where(p => JProperty.Load(p.CreateReader()).Name == im2).FirstOrDefault());
+                    }
+                    list = listTemp;
+
+                    listToken = list;
+                    // listToken.Sort((p1, p2) => JProperty.Load(p1.CreateReader()).Name.GetAnsi() - JProperty.Load(p2.CreateReader()).Name.GetAnsi());
+                    JObject item_obj = new JObject();
+                    foreach (var token in listToken)
+                    {
+                        JProperty jp = JProperty.Load(token.CreateReader());
+                        if (token.First.Type == JTokenType.Object)
+                        {
+                            JObject sub = new JObject();
+                            (obj as JObject).Add(jp.Name, sub);
+                            SortJson(token.First, sub);
+                        }
+                        else if (token.First.Type == JTokenType.Array)
+                        {
+                            JArray arr = new JArray();
+                            if (obj.Type == JTokenType.Object)
+                            {
+                                (obj as JObject).Add(jp.Name, arr);
+                            }
+                            else if (obj.Type == JTokenType.Array)
+                            {
+                                (obj as JArray).Add(arr);
+                            }
+                            SortJson(token.First, arr);
+                        }
+                        else if (item.First.Type != JTokenType.Object && item.First.Type != JTokenType.Array)
+                        {
+                            if (obj.Type == JTokenType.Object)
+                            {
+                                (obj as JObject).Add(jp.Name, token.First);
+                            }
+                            else if (obj.Type == JTokenType.Array)
+                            {
+                                item_obj.Add(jp.Name, token.First);
+                            }
+                        }
+                    }
+                    if (obj.Type == JTokenType.Array)
+                    {
+                        (obj as JArray).Add(item_obj);
+                    }
+
+                }
+            }
+            string ret = obj.ToString(Formatting.None);
+            return ret;
+        }
+
+        #endregion
 
         #region -----------------PlatformTypeList()取出整个OrderMgms的PlatformTypeList列表
         private List<SelectListItem> PlatformTypeList()

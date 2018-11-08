@@ -212,25 +212,29 @@ namespace JianHeMES.Controllers
             //}
             ViewBag.OrderList = GetOrderList();
             var ordernum = db.BarCodes.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum).ToList().FirstOrDefault();
+            
             //找不到订单
             if (ordernum==null)
             {
                 ModelState.AddModelError("", "找不到此条码号，请检查订单号或联系PC部门是否已经创建此订单和条码！");
                 return View(calibrationRecord);
             }
+            
             //订单和条码都正确
             if (ordernum.OrderNum == calibrationRecord.OrderNum)//检查条码是否属于此订单
             {
+                
                 //如果有正在校正并没有正常完成的记录，打开此记录
                 if ( db.CalibrationRecord.Where(c=> c.OrderNum == calibrationRecord.OrderNum && c.BarCodesNum == calibrationRecord.BarCodesNum && c.BeginCalibration!=null && c.FinishCalibration==null).Count()>0)//检查是否有正在校正并没有正常完成的记录
                 {   
                     var record = db.CalibrationRecord.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum && c.BeginCalibration != null && c.FinishCalibration == null).FirstOrDefault();
                     return RedirectToAction("FinishCal", new { record.ID });
                 }
-                //找开已经完成校正的记录，是否重复校正？并写明原因
+                
+                //找到已经完成校正的记录，是否重复校正？并写明原因
                 else if (db.CalibrationRecord.Where(c =>c.OrderNum==calibrationRecord.OrderNum && c.BarCodesNum==calibrationRecord.BarCodesNum && c.Normal == true && c.BeginCalibration != null && c.FinishCalibration != null).Count() > 0) //已经校正完成
                 {   
-                    if (calibrationRecord.RepetitionCalibration==true)
+                    if (calibrationRecord.RepetitionCalibration==true)//重复校正已打钩
                     {
                         calibrationRecord.Operator = ((Users)Session["User"]).UserName;
                         calibrationRecord.BeginCalibration = DateTime.Now;
@@ -241,15 +245,21 @@ namespace JianHeMES.Controllers
                         }
                         return RedirectToAction("FinishCal", new { calibrationRecord.ID });
                     }
-                    else
+                    else //重复校正没有打钩
                     {
-                        ModelState.AddModelError("", "此模组条码已经通过校正了！是否重复校正？");//..TODO..
+                        ModelState.AddModelError("", "此模组条码已经通过校正了！是否重复校正？");
                         return View(calibrationRecord);
                     }
                 }
+                
                 //如果没有正常的校正记录，新建记录，保存记录
                 else
                 {
+                    if(calibrationRecord.RepetitionCalibration == true)  //重复校正已打钩
+                    {
+                        ModelState.AddModelError("", "此模组条码从未进行过校正！不能进行\"重复校正\"工作,请取消\"是否重复校正\"选项钩\"？");
+                        return View(calibrationRecord);
+                    }
                     calibrationRecord.Operator = ((Users)Session["User"]).UserName;
                     calibrationRecord.BeginCalibration = DateTime.Now;
                     if (ModelState.IsValid)

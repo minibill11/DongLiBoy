@@ -8,7 +8,6 @@
 <script src="~/Scripts/highcharts.js"></script>
 <script src="~/Scripts/highcharts-3d.js"></script>
 <script src="~/Scripts/modules/exporting.js"></script>
-
 @*引入EasyUI框架*@
 <script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
 <script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
@@ -16,98 +15,72 @@
 <link rel="stylesheet" type="text/css" href="~/Content/icon.css">
 <script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
 <meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-
 @*引入Vue.js框架*@
-<script src="~/Scripts/vue.js"></script>           
-
+<script src="~/Scripts/vue.js"></script>
 @*引入Bootstrap框架*@
 <link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
 <script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
 
 <h3 class="text-center">@ViewBag.Title</h3>
-<br class="hidden-xs"/>
+<br class="hidden-xs" />
 <div class="text-center">
     @*<p class="text-success text-center btn btn-default hidden-xs">
-        @Html.RouteLink("订单信息", "Default", new { controller = "OrderInformations", Action = "Index" })
-    </p>*@
+            @Html.RouteLink("订单信息", "Default", new { controller = "OrderInformations", Action = "Index" })
+        </p>*@
     <p class="text-success text-center btn btn-default">
         @Html.ActionLink("开始校正工作", "CreateCal")
     </p>
 </div>
-<br/>
+<br />
 
-@using (Html.BeginForm("Index", "CalibrationRecords", FormMethod.Post, new { id = "searchForm" ,@class="text-center"}))
+@using (Html.BeginForm("Index", "CalibrationRecords", FormMethod.Post, new { id = "searchForm", @class = "text-center" }))
 {
     @Html.AntiForgeryToken()
-<form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center"> 
-    <p>
-        <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")</span>
-        @*订单号：<input type="text" name="orderNum"/>*@
-        <span class="hidden-xs">模组号：<input type="text" name="moduleGroupNum" /></span>
-        <span class="hidden-xs">描述:<input type="text" name="SearchString" /></span>
-        <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
-        <input type="submit" id="searchButton" value="查找" />
-    </p>
-</form>
-<br/>
+    <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
+        <p id="queryColumn">
+            <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")</span>
+            @*订单号：<input type="text" name="orderNum"/>*@
+            <span class="hidden-xs">模组号：<input type="text" name="moduleGroupNum" v-model="moduleGroupNum" /></span>
+            <span class="hidden-xs">描述:<input type="text" name="SearchString" v-model="SearchString" /></span>
+            <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
+            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
+        </p>
+    </form>
+    <br />
 }
 
-<div class="container">
+<div id="query" class="container">
     <div class="row">
-        <div id="details" style="@ViewBag.Display">
+        <div style="@ViewBag.Display">
             <div class="col-md-4">
-                <h4>订单<span id="title" v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组校正基本情况 </h4>
+                <h4>订单<span v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组校正基本情况 </h4>
                 订单的模组总量：@ViewBag.Quantity，经过校正数量：@ViewBag.RecordCount<br />
-                正常数量：@ViewBag.NormalCount，异常数量：@ViewBag.AbnormalCount，完成率：<span id="Rate">{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
-                校正总时长：@ViewBag.TotalTimeSpan<br/>
-                平均校正时长：@ViewBag.AvgTimeSpan<br/>
-                查询时间：<span id="Querytime">{{message}}</span>   @*输出查询时间*@
+                正常数量：@ViewBag.NormalCount，异常数量：@ViewBag.AbnormalCount，完成率：<span>{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
+                校正总时长：@ViewBag.TotalTimeSpan<br />
+                平均校正时长：@ViewBag.AvgTimeSpan<br />
+                查询时间：<span>{{message}}</span>   @*输出查询时间*@
             </div>
             @*<div id="main_pie" class="col-md-3" style="width: 375px;height:250px;"></div>*@
-            <div id="container2" class="col-md-4"  style="width: auto;height:300px;"></div>
+            <div id="container2" class="col-md-4" style="width: auto;height:300px;"></div>
         </div>
     </div>
 </div>
 
-<script type="text/javascript" >
-    var app = new Vue({
-        el: '#Querytime',    //与div中的id名对应
+<script type="text/javascript">
+    var query = new Vue({
+        el: '#query',    //与div中的id名对应
         data: {
-            message: new Date().toLocaleString()  //输出查询时间
-        }
-    })
-    var app2 = new Vue({     //悬停显示内容<span v-bind:title="floatmessage">内容</span>
-        el: '#title',
-        data: {
+            message: new Date().toLocaleString(),  //输出查询时间
             floatmessage: '订单号'+'@ViewBag.orderNum',
-        }
-    })
-
-    var app3 = new Vue ({
-        el:'#Rate',
-        data:{
             Quantity:@ViewBag.Quantity,
             NormalCount:@ViewBag.NormalCount,
         },
         computed:{
             FinishRate: function (){
                 return (this.NormalCount/this.Quantity*100).toFixed(1)
-            }}
-    })
-
-
-    var CalibrationRecordsViewModel = {
-        orderNum:'',
-        Quantity: 0,
-        Count: 0,
-        NeverFinish: 0,
-        OrderList:[]
-    }
-
-    CalibrationRecordsViewModel.orderNum = '@ViewBag.orderNum';
-    CalibrationRecordsViewModel.Quantity=@ViewBag.Quantity;
-    CalibrationRecordsViewModel.Count=@ViewBag.NormalCount;
-
+            }
+        }
+    });
 
     Highcharts.chart('container2', {
         chart: {
@@ -149,11 +122,11 @@
             ]
         }]
     });
-  </script>
+</script>
 
 <hr style="@ViewBag.Display" />
 
-<br class=""/>
+<br class="" />
 
 <div class="" style="@ViewBag.Display">
     <h4> 订单 @ViewBag.orderNum 详细校正记录：</h4>
@@ -177,8 +150,14 @@
             @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].FinishCalibration)
         </th>
         @*<th>
-            @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].CalibrationTime)
-        </th>*@
+                @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].CalibrationTime)
+            </th>*@
+        <th>
+            @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].RepetitionCalibration)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].RepetitionCalibrationCause)
+        </th>
         <th>
             @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].CalibrationTimeSpan)
         </th>
@@ -192,61 +171,67 @@
             @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].Operator)
         </th>
         @*<th>
-        @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].CalibrationTime)
-    </th>*@
+                @Html.DisplayNameFor(model => model.AllCalibrationRecord[0].CalibrationTime)
+            </th>*@
 
         <th></th>
     </tr>
 
-@if (Model != null)
-{
-    foreach (var item in Model.AllCalibrationRecord)
+    @if (Model != null)
     {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.OrderNum)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.BarCodesNum)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.ModuleGroupNum)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.BeginCalibration)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.FinishCalibration)
-            </td>
-            @*<td>
-                    @Html.DisplayFor(modelItem => item.CalibrationTime)
-                </td>*@
-            <td>
-                @Html.DisplayFor(modelItem => item.CalibrationTimeSpan)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Normal)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.AbnormalDescription)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Operator)
-            </td>
+        foreach (var item in Model.AllCalibrationRecord)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OrderNum)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.BarCodesNum)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ModuleGroupNum)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.BeginCalibration)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.FinishCalibration)
+                </td>
+                @*<td>
+                        @Html.DisplayFor(modelItem => item.CalibrationTime)
+                    </td>*@
+                <td>
+                    @Html.DisplayFor(modelItem => item.RepetitionCalibration)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.RepetitionCalibrationCause)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.CalibrationTimeSpan)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Normal)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.AbnormalDescription)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Operator)
+                </td>
 
-            @*<td>
-                    @Html.DisplayFor(modelItem => item.CalibrationTime)
-                </td>*@
+                @*<td>
+                        @Html.DisplayFor(modelItem => item.CalibrationTime)
+                    </td>*@
 
-            <td>
-                @Html.ActionLink("编辑", "Edit1", new { id = item.ID }) |
-                @Html.ActionLink("详细", "Details", new { id = item.ID }) @*|*@
-                @*@Html.ActionLink("删除", "Delete", new { id=item.ID })*@
-            </td>
-        </tr>
+                <td>
+                    @Html.ActionLink("编辑", "Edit1", new { id = item.ID }) |
+                    @Html.ActionLink("详细", "Details", new { id = item.ID }) @*|*@
+                    @*@Html.ActionLink("删除", "Delete", new { id=item.ID })*@
+                </td>
+            </tr>
+        }
+
     }
-
-}
 </table>
 
 @*-----------------------分页功能----------------------------------------------------------------------------------------*@
@@ -267,6 +252,32 @@
 </div>
 @section scripts {
     <script>
+        var queryColumn = new Vue ({
+            el:'#queryColumn',
+            data:{
+                moduleGroupNum:"",
+                lookup:true,
+                SearchString:"",
+            },
+            watch:{
+                moduleGroupNum:function(val){
+                    if($("#orderNum").val()==""&&this.moduleGroupNum==""&&this.SearchString==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                },
+                SearchString:function(val){
+                    if($("#orderNum").val()==""&&this.moduleGroupNum==""&&this.SearchString==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                }
+            }
+        });
+    </script>
+    <script>
         function submitForm(pagenumber) {
             pagenumber = parseInt(pagenumber, 10);
             $('#PageIndex').val(pagenumber - 1);
@@ -284,8 +295,15 @@
             });
 
         });
+        $("#orderNum").change(function (val) {
+            if(val.target.value == ""&&queryColumn.moduleGroupNum==""&&queryColumn.SearchString==""){
+                queryColumn.lookup = true;
+            }else{
+                queryColumn.lookup = false;
+            };
+        });
     </script>
-    }
+}
 
 
 

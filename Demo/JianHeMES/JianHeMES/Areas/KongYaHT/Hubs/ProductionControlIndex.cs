@@ -146,12 +146,14 @@ namespace JianHeMESEntities.Hubs
                     #region--------------------老化部分
                     //--------------------老化部分
                     var Burn_in_Record = (from m in db.Burn_in where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有老化记录
-                    if(Burn_in_Record.Count()>0)
+                    int Burn_in_Record_Count = Burn_in_Record.Select(m => m.BarCodesNum).Distinct().Count();
+                    if (Burn_in_Record.Count()>0)
                     {
                         Decimal Burn_in_Normal = Burn_in_Record.Where(m => m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化正常个数
                         //Decimal Burn_in_FirstPass = Burn_in_Record.Where(m => m.OQCCheckFinish == true && m.Burn_in_OQCCheckAbnormal == "正常").Count();//老化工序直通个数
                         Decimal Burn_in_Finish = Burn_in_Record.Count(m => m.OQCCheckFinish == true); //完成老化工序的个数
                         OrderNum.Add("Burn_in_Finish", Convert.ToInt32(Burn_in_Finish));
+                        OrderNum.Add("Burn_in_Record_Count", Burn_in_Record_Count);
                         OrderNum.Add("Burn_in_Count", Burn_in_Record.Count());
                         //计算老化完成率、合格率
                         if (Burn_in_Finish == 0)
@@ -161,7 +163,7 @@ namespace JianHeMESEntities.Hubs
                         }
                         else
                         {
-                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes*100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
                             OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count()*100).ToString("F2") + "%");
                         }
                     }
@@ -174,11 +176,13 @@ namespace JianHeMESEntities.Hubs
 
                     #region---------------------校正部分
                     //---------------------校正部分
-                    var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有校正记录
-                    if(Calibration_Record.Count()>0)
+                    var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == item.OrderNum && m.RepetitionCalibration == false select m).ToList();//查出OrderNum的所有校正记录
+                    int Calibration_Record_Count = Calibration_Record.Select(m => m.BarCodesNum).Distinct().Count();
+                    if (Calibration_Record.Count()>0)
                     {
                         Decimal Calibration_Normal = Calibration_Record.Where(m => m.Normal == true).Count();//校正正常个数
                         OrderNum.Add("Calibration_Finish", Convert.ToInt32(Calibration_Normal));
+                        OrderNum.Add("Calibration_Record_Count", Calibration_Record_Count);
                         OrderNum.Add("Calibration_Count", Calibration_Record.Count());
                         //计算校正完成率、合格率
                         if (Calibration_Normal == 0)
@@ -188,7 +192,7 @@ namespace JianHeMESEntities.Hubs
                         }
                         else
                         {
-                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes*100).ToString("F2") + "%");
+                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / Calibration_Record_Count * 100).ToString("F2") + "%");
                             OrderNum.Add("Calibration_Pass_Rate", (Calibration_Normal / Calibration_Record.Count()*100).ToString("F2") + "%");
                         }
                     }
@@ -202,12 +206,14 @@ namespace JianHeMESEntities.Hubs
                     #region---------------------外观包装部分
                     //---------------------外观包装部分
                     var Appearances_Record = (from m in db.Appearance where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有外观包装记录
-                    if(Appearances_Record.Count()>0)
+                    int Appearances_Record_Count = Appearances_Record.Select(m => m.BarCodesNum).Distinct().Count();
+                    if (Appearances_Record.Count()>0)
                     {
                         //Decimal Appearances_Normal = Appearances_Record.Where(m => m.Appearance_OQCCheckAbnormal == "正常").Count();//外观包装正常个数
                         Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
                         OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
-                        OrderNum.Add("Appearances_Count", Appearances_Record.Count());
+                        OrderNum.Add("Appearances_Record_Count", Appearances_Record.Count());
+                        OrderNum.Add("Appearances_Count", Appearances_Record_Count);
                         //计算外观包装完成率、合格率
                         if (Appearances_Finish == 0)
                         {
@@ -216,8 +222,8 @@ namespace JianHeMESEntities.Hubs
                         }
                         else
                         {
-                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes*100).ToString("F2") + "%");
-                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count()*100).ToString("F2") + "%");
+                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count * 100).ToString("F2") + "%");
+                            OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
                         }
                     }
                     else  
@@ -228,7 +234,8 @@ namespace JianHeMESEntities.Hubs
                         {
                             Decimal Appearances_Finish = Appearances_Record.Where(m => m.OQCCheckFinish == true).Count();//外观包装完成个数
                             OrderNum.Add("Appearances_Finish", Convert.ToInt32(Appearances_Finish));
-                            OrderNum.Add("Appearances_Count", Appearances_Record.Count());
+                            OrderNum.Add("Appearances_Record_Count", Appearances_Record.Count());
+                            OrderNum.Add("Appearances_Count", Appearances_Record_Count);
                             OrderNum.Remove("ActualProductionTime");
                             OrderNum.Add("ActualProductionTime", Appearances_Record.Min(c => c.OQCCheckBT).ToString()); //取出最早记录的包装OQCCheckBT值
                             //计算外观包装完成率、合格率
@@ -239,7 +246,7 @@ namespace JianHeMESEntities.Hubs
                             }
                             else
                             {
-                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
+                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count * 100).ToString("F2") + "%");
                                 OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
                             }
 
@@ -259,6 +266,7 @@ namespace JianHeMESEntities.Hubs
                 }
 
             }
+            
             //广播发送JSON数据
             ProductionControlIndex_hubContext.Clients.All.sendProductionControlIndex(ProductionControlIndex);
         }

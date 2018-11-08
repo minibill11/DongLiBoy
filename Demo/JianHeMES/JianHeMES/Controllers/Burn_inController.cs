@@ -84,7 +84,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region ---------------------------------------老化首页
+        #region ---------------------------------------老化首页 Index
         // GET: Burn_in
         public async Task<ActionResult> Index()
         {
@@ -111,8 +111,6 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            //var AllBurn_inRecords = db.Burn_in as IQueryable<Burn_in>;
             List<Burn_in> AllBurn_inRecords = new List<Burn_in>();
             List<Burn_in> AllBurn_inRecordsList = null;
             if (String.IsNullOrEmpty(OrderNum))
@@ -125,9 +123,6 @@ namespace JianHeMES.Controllers
             else
             {
                 //筛选出对应orderNum所有记录
-                //AllBurn_inRecords = from m in db.Burn_in
-                //                    where (m.OrderNum == OrderNum)
-                //                    select m;
                 AllBurn_inRecords = db.Burn_in.Where(c => c.OrderNum == OrderNum).ToList();
                 if (AllBurn_inRecords.Count() == 0)
                 {
@@ -148,7 +143,6 @@ namespace JianHeMES.Controllers
             if (BoxBarCode != "")
             {
                 AllBurn_inRecords = AllBurn_inRecords.Where(x => x.BarCodesNum == BoxBarCode).ToList();
-                //Allassembles = from m in Allassembles where (m.BoxBarCode == BoxBarCode) select m;
             }
             #endregion
 
@@ -156,12 +150,10 @@ namespace JianHeMES.Controllers
             //正常、异常记录筛选
             if (OQCNormal == "异常")
             {
-                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition != "正常") select m;
                 AllBurn_inRecords = AllBurn_inRecords.Where(c => c.Burn_in_OQCCheckAbnormal !=null).ToList();
             }
             else if (OQCNormal == "正常")
             {
-                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.RepairCondition == "正常") select m;
                 AllBurn_inRecords = AllBurn_inRecords.Where(c => c.Burn_in_OQCCheckAbnormal == null).ToList();
             }
             #endregion
@@ -170,12 +162,10 @@ namespace JianHeMES.Controllers
             //完成、未完成记录筛选
             if (FinishStatus == "完成")
             {
-                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT != null) select m;
                 AllBurn_inRecords = AllBurn_inRecords.Where(c => c.OQCCheckFT != null).ToList();
             }
             else if (FinishStatus == "未完成")
             {
-                //AllBurn_inRecords = from m in AllBurn_inRecords where (m.OQCCheckFT == null) select m;
                 AllBurn_inRecords = AllBurn_inRecords.Where(c => c.OQCCheckFT == null).ToList();
             }
             #endregion
@@ -217,45 +207,102 @@ namespace JianHeMES.Controllers
             #endregion
 
 
+            #region   ----------计算总时长和平均时长------------
+
             //取出对应orderNum校正时长所有记录
-            IQueryable<TimeSpan?> TimeSpanList = from m in db.Burn_in
-                                                 where (m.OrderNum == OrderNum)
-                                                 orderby m.OQCCheckTime
-                                                 select m.OQCCheckTime;
+            var recordlist = db.Burn_in.Where(m => m.OrderNum == OrderNum).ToList();
             //计算老化总时长
-            TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
+            TimeSpan TotalTimeSpan = new TimeSpan();
             if (AllBurn_inRecords.Where(x => x.RepairCondition == "正常").Count() != 0)    //Burn_in_OQCCheckAbnormal的值是1为正常
             {
-                foreach (var m in TimeSpanList)
+                foreach (var m in recordlist)
                 {
-                    if (m != null)
+                    if (m.OQCCheckTime!= null)
                     {
-                        TotalTimeSpan = TotalTimeSpan.Add(m.Value).Duration();
+                        TotalTimeSpan = TotalTimeSpan.Add(m.OQCCheckTime.Value);
                     }
                 }
-                ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                var days = recordlist.Sum(c => c.OQCCheckDate);
+                if(days>0)
+                {
+                    TotalTimeSpan = new TimeSpan(TotalTimeSpan.Days + days, TotalTimeSpan.Hours, TotalTimeSpan.Minutes, TotalTimeSpan.Seconds);
+                }
+
+                if (TotalTimeSpan.Days > 0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Days.ToString() + "天" + TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else if (TotalTimeSpan.Days == 0 && TotalTimeSpan.Hours > 0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else if (TotalTimeSpan.Days == 0 && TotalTimeSpan.Hours == 0 && TotalTimeSpan.Minutes > 0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else if (TotalTimeSpan.Days == 0 && TotalTimeSpan.Hours == 0 && TotalTimeSpan.Minutes == 0 && TotalTimeSpan.Seconds > 0)
+                {
+                    ViewBag.TotalTimeSpan = TotalTimeSpan.Seconds.ToString() + "秒";
+                }
+                else
+                {
+                    ViewBag.AvgTimeSpan = "";
+                }
             }
             else
             {
-                ViewBag.TotalTimeSpan = "暂时没有已完成老化的模组";
+                if (recordlist.Count()>0)
+                {
+                    ViewBag.TotalTimeSpan = "";
+                }
+                else
+                {
+                    ViewBag.TotalTimeSpan = "暂时没有已完成老化的模组";
+                }
             }
 
             //计算平均用时
-            TimeSpan AvgTimeSpan = DateTime.Now - DateTime.Now;
             int Order_CR_valid_Count = AllBurn_inRecords.Where(x => x.OQCCheckTime != null).Count();
-            int TotalTimeSpanSecond = Convert.ToInt32(TotalTimeSpan.Hours.ToString()) * 3600 + Convert.ToInt32(TotalTimeSpan.Minutes.ToString()) * 60 + Convert.ToInt32(TotalTimeSpan.Seconds.ToString());
+            //int TotalTimeSpanSecond = Convert.ToInt32(TotalTimeSpan.Hours.ToString()) * 3600 + Convert.ToInt32(TotalTimeSpan.Minutes.ToString()) * 60 + Convert.ToInt32(TotalTimeSpan.Seconds.ToString());
+            int TotalTimeSpanSecond = Convert.ToInt32(TotalTimeSpan.TotalSeconds);
             int AvgTimeSpanInSecond = 0;
             if (Order_CR_valid_Count != 0)
             {
                 AvgTimeSpanInSecond = TotalTimeSpanSecond / Order_CR_valid_Count;
-                int AvgTimeSpanMinute = AvgTimeSpanInSecond / 60;
-                int AvgTimeSpanSecond = AvgTimeSpanInSecond % 60;
-                ViewBag.AvgTimeSpan = AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                int tem = 0;
+                int AvgTimeSpanHour = AvgTimeSpanInSecond / 3600;
+                tem = AvgTimeSpanInSecond % 3600;
+                int AvgTimeSpanMinute = tem / 60;
+                int AvgTimeSpanSecond = tem % 60;
+                if (AvgTimeSpanHour > 0)
+                {
+                    ViewBag.AvgTimeSpan = AvgTimeSpanHour + "时" + AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                }
+                else if (AvgTimeSpanHour == 0 && AvgTimeSpanMinute > 0)
+                {
+                    ViewBag.AvgTimeSpan = AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                }
+                else if (AvgTimeSpanHour == 0 && AvgTimeSpanMinute == 0 && AvgTimeSpanSecond > 0)
+                {
+                    ViewBag.AvgTimeSpan = AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+                }
+                else
+                {
+                    ViewBag.AvgTimeSpan = "";
+                }
             }
             else
             {
-                ViewBag.AvgTimeSpan = "暂时没有已完成校正的模组";//向View传递计算平均用时
+                if (recordlist.Count() > 0)
+                {
+                    ViewBag.AvgTimeSpan = "";
+                }
+                else
+                {
+                    ViewBag.AvgTimeSpan = "暂时没有已完成老化的模组";  //向View传递计算平均用时
+                }
             }
+            #endregion
 
             //列出记录
             AllBurn_inRecordsList = AllBurn_inRecords.ToList();
@@ -299,9 +346,7 @@ namespace JianHeMES.Controllers
             ViewBag.OrderNumList = GetOrderNumList();
 
             return View(AllBurn_inRecords);
-            //return View(AllBurn_inRecordsList);
         }
-
         #endregion
 
 
@@ -649,13 +694,16 @@ namespace JianHeMES.Controllers
             if (burn_in.OQCCheckFT == null)
             {
                 burn_in.OQCCheckFT = DateTime.Now;
-                //var BT = burn_in.OQCCheckBT.Value;
-                //var FT = burn_in.OQCCheckFT.Value;
-                //var CT = FT - BT;
                 var CT = burn_in.OQCCheckFT.Value - burn_in.OQCCheckBT.Value;
-                //burn_in.OQCCheckTime = CT;
-                //burn_in.OQCCheckTime = new TimeSpan(CT.Days,CT.Hours,CT.Minutes,CT.Seconds);
-                //burn_in.OQCCheckTime = (DateTime.Now-burn_in.OQCCheckBT).Value;
+                if (CT.Days > 0)  //老化时长超过1天
+                {
+                    burn_in.OQCCheckDate = CT.Days;
+                    burn_in.OQCCheckTime = new TimeSpan(CT.Hours, CT.Minutes, CT.Seconds);
+                }
+                else    //老化时长不超过1天
+                {
+                    burn_in.OQCCheckTime = CT;
+                }
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                 burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
                 if (burn_in.Burn_in_OQCCheckAbnormal == null)
@@ -1110,8 +1158,17 @@ namespace JianHeMES.Controllers
                 var burn_in = (from x in burn_in_List where (x.BarCodesNum == item && x.OQCCheckFT == null) select x).FirstOrDefault();
                 burn_in.OQCCheckFT = DateTime.Now;
                 var CT = burn_in.OQCCheckFT.Value - burn_in.OQCCheckBT.Value;
-                burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                if(CT.Days>0)  //老化时长超过1天
+                {
+                    burn_in.OQCCheckDate = CT.Days;
+                    burn_in.OQCCheckTime = new TimeSpan(CT.Hours,CT.Minutes,CT.Seconds);
+                }
+                else    //老化时长不超过1天
+                {
+                    burn_in.OQCCheckTime = CT;
+                }
                 burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
+                burn_in.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "时" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
                 if (burn_in.Burn_in_OQCCheckAbnormal == null)
                 {
                     burn_in.Burn_in_OQCCheckAbnormal = "正常";

@@ -13,10 +13,8 @@
 <link rel="stylesheet" type="text/css" href="~/Content/icon.css">
 <script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
 <meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-
 @*引入Vue.js框架*@
 <script src="~/Scripts/vue.js"></script>
-
 @*引入Bootstrap框架*@
 <link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
 <script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
@@ -82,32 +80,32 @@
 {
     @Html.AntiForgeryToken()
     <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
-        <p class="col-md-12">
+        <p class="col-md-12" id="queryColumn">
             订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")
             @*<select id="PQCNormal" name="PQCNormal">
-            <option value="">全部</option>
-            <option value="正常">正常</option>
-            <option value="异常">异常</option>
-        </select>*@
-            <span class="hidden-xs">模组条码号:<input type="text" name="BoxBarCode" /></span>
+                    <option value="">全部</option>
+                    <option value="正常">正常</option>
+                    <option value="异常">异常</option>
+                </select>*@
+            <span class="hidden-xs">模组条码号:<input type="text" v-model="BoxBarCode" name="BoxBarCode" /></span>
             <span class="hidden-xs">PQC工位：@Html.DropDownList("PQCNormal", (List<SelectListItem>)ViewBag.PQCNormal, "全部")</span>
-            <span class="hidden-xs">备注:<input type="text" name="Remark" /></span>
+            <span class="hidden-xs">备注:<input type="text" v-model="Remark" name="Remark" /></span>
             @*订单号：<input type="text" name="orderNum"/>
-        描述:<input type="text" name="SearchString" />*@
+                描述:<input type="text" name="SearchString" />*@
             <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
-            <input type="submit" id="searchButton" value="查找" />
+            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
         </p>
     </form>
 }
 
 <div class="container" style="@ViewBag.Display">
-    <div class="row">
+    <div id="query" class="row">
         <div id="details">
             <div class="col-md-6">
                 <div class="row">
-                    <h4>订单<span id="title" v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组组装基本情况 </h4>
+                    <h4>订单<span v-bind:title="floatmessage"> @ViewBag.orderNum </span>模组组装基本情况 </h4>
                     订单的模组总量：@ViewBag.Quantity，经过组装次数：@ViewBag.RecordCount<br />
-                    正常数量：@ViewBag.NormalCount，异常次数：@ViewBag.AbnormalCount，完成率：<span id="Rate">{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
+                    正常数量：@ViewBag.NormalCount，异常次数：@ViewBag.AbnormalCount，完成率：<span>{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
                     组装总时长：@ViewBag.TotalTimeSpan<br />
                     平均组装时长：@ViewBag.AvgTimeSpan<br />
                     查询时间：<span id="Querytime">{{message}}</span>   @*输出查询时间*@
@@ -164,44 +162,20 @@
 </div>
 
 <script type="text/javascript">
-    var app = new Vue({
-        el: '#Querytime',    //与div中的id名对应
+    var query = new Vue({
+        el: '#query',    //与div中的id名对应
         data: {
-            message: new Date().toLocaleString()  //输出查询时间
-        }
-    })
-    var app2 = new Vue({     //悬停显示内容<span v-bind:title="floatmessage">内容</span>
-        el: '#title',
-        data: {
+            message: new Date().toLocaleString(),  //输出查询时间
             floatmessage: '订单号'+'@ViewBag.orderNum',
-        }
-    })
-
-    var app3 = new Vue ({
-        el:'#Rate',
-        data:{
             Quantity:@ViewBag.Quantity,
             NormalCount:@ViewBag.NormalCount,
         },
         computed:{
             FinishRate: function (){
                 return (this.NormalCount/this.Quantity*100).toFixed(1)
-            }}
-    })
-
-
-    var CalibrationRecordsViewModel = {
-        orderNum:'',
-        Quantity: 0,
-        Count: 0,
-        NeverFinish: 0,
-        OrderList:[]
-    }
-
-    CalibrationRecordsViewModel.orderNum = '@ViewBag.orderNum';
-    CalibrationRecordsViewModel.Quantity=@ViewBag.Quantity;
-    CalibrationRecordsViewModel.Count=@ViewBag.NormalCount;
-
+            }
+        }
+    });
 
     Highcharts.chart('container2', {
         chart: {
@@ -272,22 +246,13 @@
 
 <div class="col-md-12" style="height:10px"></div>
 <table class="table">
-    @*表头*@
     <tr>
-        @*组装表头*@
         <th>
             @Html.DisplayNameFor(model => model.OrderNum)
         </th>
         <th>
             @Html.DisplayNameFor(model => model.BoxBarCode)
         </th>
-        @*<th>
-                @Html.DisplayNameFor(model => model.ModelCollections)
-            </th>*@
-        @*<th>
-                @Html.DisplayNameFor(model => model.ModelList)
-            </th>*@
-
         <th>组装工位</th>
         <th>防水测试工位</th>
         <th>电源、转接卡工位</th>
@@ -296,116 +261,6 @@
         <th>PQC工位</th>
         <th>编辑</th>
 
-
-        @*<th>
-                @Html.DisplayNameFor(model => model.AssembleBT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssemblePrincipal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleFT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleFinish)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofTestBT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofTestPrincipal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofTestFT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofTestTimeSpan)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofAbnormal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofMaintaince)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.WaterproofTestFinish)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleAdapterCardBT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleAdapterCardPrincipal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleAdapterCardFT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleAdapterTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleAdapterFinish)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ViewCheckBT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleViewCheckPrincipal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ViewCheckFT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ViewCheckTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ViewCheckAbnormal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ViewCheckFinish)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ElectricityCheckBT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleElectricityCheckPrincipal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ElectricityCheckFT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ElectricityCheckTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ElectricityCheckAbnormal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ElectricityCheckFinish)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PQCCheckBT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssemblePQCPrincipal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AssembleLineId)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PQCCheckFT)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PQCCheckTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PQCCheckAbnormal)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PQCCheckFinish)
-            </th>
-            <th></th>*@
     </tr>
 
     @if (Model != null)
@@ -1037,6 +892,32 @@
 
 @section scripts {
     <script>
+        var queryColumn = new Vue ({
+            el:'#queryColumn',
+            data:{
+                BoxBarCode:"",
+                lookup:true,
+                Remark:"",
+            },
+            watch:{
+                BoxBarCode:function(val){
+                    if($("#orderNum").val()==""&&this.BoxBarCode==""&&this.Remark==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                },
+                Remark:function(val){
+                    if($("#orderNum").val()==""&&this.BoxBarCode==""&&this.Remark==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                }
+            }
+        });
+    </script>
+    <script>
 
         function submitForm(pagenumber) {
             pagenumber = parseInt(pagenumber, 10);
@@ -1053,6 +934,14 @@
                 submitForm($(this).text());
             });
 
+        });
+
+        $("#orderNum").change(function (val) {
+            if(val.target.value == ""&&queryColumn.BoxBarCode==""&&queryColumn.Remark==""){
+                queryColumn.lookup = true;
+            }else{
+                queryColumn.lookup = false;
+            };
         });
     </script>
 }
