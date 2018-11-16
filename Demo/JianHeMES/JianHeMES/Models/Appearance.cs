@@ -34,6 +34,10 @@ namespace JianHeMES.Models
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public DateTime? OQCCheckFT { get; set; }
 
+        [Display(Name = "OQC时长(天)")]
+        //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
+        public int OQCCheckDate { get; set; }
+
         [Display(Name = "OQC时长")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public TimeSpan? OQCCheckTime { get; set; }

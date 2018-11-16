@@ -75,7 +75,7 @@ namespace JianHeMESEntities.Hubs
                     if (db.Appearance.Where(c => c.OrderNum == item.OrderNum).Count(c => c.OQCCheckFinish == true) == item.Boxes)  //包装数量＝订单数量
                     {
                         var appearanceLastTime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).ToList().Max(c => c.OQCCheckFT);
-                        var sub = (DateTime.Now - Convert.ToDateTime(appearanceLastTime)).Days > 3 ? true : false;
+                        var sub = (DateTime.Now - Convert.ToDateTime(appearanceLastTime)).Days > 4 ? true : false;
                         if ( sub )
                         {
                             ExpectList.Add(item);
@@ -114,6 +114,7 @@ namespace JianHeMESEntities.Hubs
                     var totaltime = finishtime - beginttime;
                     OrderNum.Add("ActualFinishTime", finishtime.ToString());
                     OrderNum.Add("TotalTime", totaltime.ToString());
+
                     #region-------------------组装部分
                     //-------------------组装部分
                     var AssembleRecord = (from m in db.Assemble where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有组装记录
@@ -258,6 +259,11 @@ namespace JianHeMESEntities.Hubs
                             OrderNum.Add("Appearances_Pass_Rate", "--%");
                         }
                     }
+                    #endregion
+
+                    #region---------------------AOD特采部分
+                    var AOD_Description = db.OrderMgm.Where(c => c.OrderNum == item.OrderNum).ToList().FirstOrDefault().AOD_Description;
+                    OrderNum.Add("AOD_Description", AOD_Description);
                     #endregion
 
 

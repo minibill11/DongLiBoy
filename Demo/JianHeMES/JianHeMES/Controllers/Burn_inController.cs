@@ -86,7 +86,7 @@ namespace JianHeMES.Controllers
 
         #region ---------------------------------------老化首页 Index
         // GET: Burn_in
-        public async Task<ActionResult> Index()
+        public ActionResult Index()
         {
             if (Session["User"] == null)
             {
@@ -525,7 +525,7 @@ namespace JianHeMES.Controllers
                     burn_in.OQCCheckBT = DateTime.Now;
                     burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                     db.Burn_in.Add(burn_in);
-                    db.SaveChanges();
+                    await db.SaveChangesAsync();
                     return RedirectToAction("Burn_in_B");
                 }
                 else
@@ -556,7 +556,7 @@ namespace JianHeMES.Controllers
                         burn_in.OQCCheckBT = DateTime.Now;
                         burn_in.OQCPrincipal = ((Users)Session["User"]).UserName;
                         db.Burn_in.Add(burn_in);
-                        db.SaveChanges();
+                        await db.SaveChangesAsync();
                         return RedirectToAction("Burn_in_F", new { burn_in.Id });
                     }
                     else
@@ -983,7 +983,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Burn_in_Batch_F(string OrderNum, List<string> BarCodesNumList)
+        public ActionResult Burn_in_Batch_F(string OrderNum, List<string> BarCodesNumList)
         {
 
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.

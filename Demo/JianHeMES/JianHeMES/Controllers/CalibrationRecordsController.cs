@@ -56,7 +56,7 @@ namespace JianHeMES.Controllers
                 //调出全部记录      
                 //AllCalibrationRecords = from m in db.CalibrationRecord
                 //                        select m;
-                AllCalibrationRecords = db.CalibrationRecord.ToList();
+                AllCalibrationRecords = await db.CalibrationRecord.ToListAsync();
             }
             else
             {
@@ -64,10 +64,10 @@ namespace JianHeMES.Controllers
                 //AllCalibrationRecords = from m in db.CalibrationRecord
                 //                        where (m.OrderNum == orderNum)
                 //                        select m;
-                AllCalibrationRecords = db.CalibrationRecord.Where(c => c.OrderNum == orderNum).ToList();
+                AllCalibrationRecords = await db.CalibrationRecord.Where(c => c.OrderNum == orderNum).ToListAsync();
                 if (AllCalibrationRecords.Count() == 0)
                 {
-                    var barcodelist = db.BarCodes.Where(c => c.ToOrderNum == orderNum).ToList();
+                    var barcodelist =await db.BarCodes.Where(c => c.ToOrderNum == orderNum).ToListAsync();
 
                     foreach (var item in barcodelist)
                     {

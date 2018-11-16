@@ -66,7 +66,7 @@ namespace JianHeMES.Controllers
 
         #region --------------------外观首页---------
         // GET: Appearances
-        public async Task<ActionResult> Index()
+        public ActionResult Index()
         {
             if (Session["User"] == null)
             {
@@ -589,7 +589,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
+        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckDate,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
         {
             if (Session["User"] == null)
             {
@@ -603,7 +603,13 @@ namespace JianHeMES.Controllers
                 var FT = appearance.OQCCheckFT.Value;
                 var CT = FT - BT;
                 appearance.OQCCheckTime = CT;
-                appearance.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                appearance.OQCCheckTimeSpan = CT.Days.ToString() + "天" + CT.Hours.ToString() + "小时"+ CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                if(CT.Days>0)
+                {
+                    appearance.OQCCheckDate = CT.Days;
+                    appearance.OQCCheckTime = new TimeSpan(CT.Hours,CT.Minutes,CT.Seconds);
+                }
+
                 if (appearance.Appearance_OQCCheckAbnormal == null)
                 {
                     appearance.Appearance_OQCCheckAbnormal = "正常";

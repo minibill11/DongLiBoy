@@ -4,6 +4,10 @@
     ViewBag.Title = "订单详细情况";
 }
 <style>
+    body {
+        overflow-y: scroll;
+    }
+
     .titleRow div {
         font-size: 17px;
         padding: 10px;
@@ -16,10 +20,14 @@
     .table > tbody > tr > th, .table > tbody > tr > td {
         font-size: 16px;
     }
+
+    #AOD_Description {
+        display: inline-block;
+    }
 </style>
+<script src="~/Scripts/vue.js"></script>
 <script src="~/Scripts/jquery-1.11.3.js"></script>
-<h2>@ViewBag.Title</h2>
-<h4>OrderMgm</h4>
+<h3>@ViewBag.Title</h3>
 <hr />
 <div class="row titleRow">
     <div class="col-md-3">
@@ -73,6 +81,20 @@
         @Html.DisplayFor(model => model.DeliveryDate)
     </div>
 </div>
+<div class="row titleRow">
+    <div class="col-md-3">
+        <span>
+            @Html.DisplayNameFor(model => model.IsRepertory)
+        </span>：
+        @Html.DisplayFor(model => model.IsRepertory)
+    </div>
+    <div class="col-md-3">
+        <span>
+            @Html.DisplayNameFor(model => model.IsAOD)
+        </span>：
+        @Html.DisplayFor(model => model.IsAOD)
+    </div>
+</div>
 <hr />
 <table class="table table-bordered">
     <colgroup>
@@ -91,17 +113,11 @@
             </span>：
             <span id="createdBarcode">@Html.DisplayFor(model => model.BarCodeCreated, new { id = "BarCodeCreated" })</span>
         </td>
-        <td colspan="3">
+        <td colspan="5">
             <span>
                 @Html.DisplayNameFor(model => model.OrderCreateDate)
             </span>：
             @Html.DisplayFor(model => model.OrderCreateDate, new { id = "BarCodeCreator" })
-        </td>
-        <td colspan="2">
-            <span>
-                @Html.DisplayNameFor(model => model.IsRepertory)
-            </span>：
-            @Html.DisplayFor(model => model.IsRepertory, new { id = "BarCodeCreator" })
         </td>
     </tr>
     <tr>
@@ -142,41 +158,199 @@
         <td>@Html.DisplayFor(model => model.AdapterCard, new { id = "AdapterCard" })</td>
         <td>@Html.DisplayFor(model => model.AdapterCardMore, new { id = "AdapterCardMore" })</td>
     </tr>
+    @if (Model.IsAOD == true)
+    {
+        <tr>
+            <td style="padding:8px 5px;">转为特采订单原因：</td>
+            <td colspan="3"><span>@Html.DisplayFor(model => model.AOD_Description)</span></td>
+            <td colspan="1">转单人：<span>@Html.DisplayFor(model => model.AODConverter)</span></td>
+            <td colspan="2">转单时间：<span>@Html.DisplayFor(model => model.AODConvertDate)</span></td>
+        </tr>
+    }
+
 </table>
-<br />
-@Html.ActionLink("修改", "Edit", new { id = Model.ID }, new { @class = "btn btn-default" })
-@Html.RouteLink("根据订单创建全部条码", "Default", new { Controller = "BarCodes", Action = "CreateBarCodes", id = Model.ID }, new { @class = "btn btn-default" })
-<br />
-<br />
-&nbsp;&nbsp;
-@Html.ActionLink("返回", "Index", new { @class = "btn btn-default" })
+<hr />
+<div class="row" id="app">
+    <div class="col-md-4 form-group">
+        @if (Model.BarCodeCreated != 1)
+        {
+            @Html.RouteLink("根据订单创建全部条码", "Default", new { Controller = "BarCodes", Action = "CreateBarCodes", id = Model.ID }, new { @class = "btn btn-default" })
+        }
+        @Html.ActionLink("修改", "Edit", new { id = Model.ID }, new { @class = "btn btn-default" })
+
+        &nbsp;&nbsp;
+        @Html.ActionLink("返回", "Index", new { @class = "btn btn-default" })
+    </div>
+    <div class="col-md-4 form-group">
+        @if (Model.BarCodeCreated == 1)
+        {
+            if (Model.IsAOD == false)
+            {
+                <div v-show="changeAOD" class="text-center">
+                    <button class="btn btn-default" v-on:click="changeAOD=!changeAOD">转为特产订单</button>
+                </div>
+                <div v-show="!changeAOD" class="text-center">
+                    <form action="/OrderMgms/AODConvert" method="post">
+                        <p class="text-success">请输入转为特采订单原因</p>
+                        <input type="hidden" value="@Model.ID" name="id" />
+                        @Html.TextAreaFor(model => model.AOD_Description, new { @class = "form-control" })<br />
+                        <button class="btn btn-default">确认转为特采订单</button>
+                        <button class="btn btn-default" v-on:click="changeAOD=!changeAOD">取消</button>
+                    </form>
+                </div>
+                <br />
+            }
+            if (Model.IsAOD == true)
+            {
+                <button class="btn btn-warning" v-on:click="selectFile">选择文件</button>
+                <button class="btn btn-primary" v-on:click="postFile">上传</button>
+                <button class="btn btn-default" v-on:click="showIMG=!showIMG">显示特采单照片</button>
+                <p id="filecontent" class="text-primary" style="margin-left:10px;font-size:17px;margin:0"></p>
+            }
+        }
+    </div>
+    <div class="col-md-4 form-group">
+        @*@if (Model.IsAOD == true)
+        {
+            <div class="text-left">
+                <p class="text-success">转为特采订单原因:</p>
+                <div>@Html.DisplayFor(model => model.AOD_Description)</div>
+            </div>
+        }*@
+        @if (Model.BarCodeCreated == 1 && Model.IsAOD == true)
+        {
+            <form id="download" action="/OrderMgms/GetPDF" method="post">
+                <input type="text" name="ordernum" value="@Model.OrderNum" class="hidden" />
+                <input type="submit" class="btn-default btn" value="下载pdf" />
+            </form>
+        }
+        </div>
+        
+    <div class="col-md-12 form-group">
+        @if (Model.BarCodeCreated == 1 && Model.IsAOD == true)
+            {
+            <div class="row text-center" v-show="previewIMG">
+                <p class="text-info">图片预览</p>
+                <img src="" id="imgPreview" style="width:80%;height:80%;" alt="预览图片加载失败..." />
+            </div>
+            <hr />
+            <div class="row text-center" v-show="showIMG">
+                <p class="text-info">特采订单</p>
+                <img src="/OrderMgms/GetImg?ordernum=@Model.OrderNum" id="imgReturn" alt="该特采订单照片尚未上传！" />
+            </div>
+        }
+    </div>
+</div>
+
+<form id="uploadForm" enctype="multipart/form-data" method="post" style="display:none">
+    <input type="hidden" value="@Model.ID" name="id" />
+    <input type="text" name="ordernum" value="@Model.OrderNum" class="hidden" />
+    <input type="file" id="uploadfile" name="uploadfile" accept="image/png,image/jpeg,image/gif,application/pdf" />
+</form>
 <script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            changeAOD: true,
+            showIMG: false,
+            previewIMG: false,
+        },
+        methods: {
+            selectFile: function () {
+                $("#uploadfile").click();
+            },
+            postFile: function () {
+                var form = document.getElementById('uploadForm'),
+          formData = new FormData(form);
+                $.ajax({
+                    url: "/OrderMgms/UploadFile",
+                    type: "post",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (res) {
+                        if (res) { alert("上传成功！"); }
+                        //console.log(res);
+                        $("#imgReturn").attr("src", "/OrderMgms/GetImg" + "?ordernum=" + "@Model.OrderNum");
+                        $("#filecontent").text("");
+                        app.previewIMG = false;
+                        app.showIMG = true;
+                    },
+                    error: function (err) {
+                        alert("上传失败", err);
+                    }
+                })
+            }
+        }
+    });
+    $("#uploadfile").change(function () {
+        $("#imgPreview").attr("src", URL.createObjectURL($(this)[0].files[0]));
+        $("#filecontent").text($(this)[0].files[0].name);
+        app.previewIMG = true;
+    });
+</script>
+
+@*----------------------测试pdf-----------------------*@
+
+@*@if (Model.IsAOD == true)
+    {
+        <img src="/OrderMgms/GetPDF" width="96" height="22" alt="正在加载..." />
+        <br />
+    }*@
+
+@*//引入插件中相关的文件以及jquery文件*@
+@*<link href="~/Scripts/pdf.js/web/viewer.css" rel="stylesheet" />
+    <link rel="resource" href="~/Scripts/pdf.js/web/locale/locale.properties">
+    <script src="~/Scripts/pdf.js/build/pdf.js"></script>
+    <script src="~/Scripts/pdf.js/web/debugger.js"></script>
+    <script src="~/Scripts/pdf.js/web/viewer.js"></script>
+    <script src="~/Scripts/pdf.js/build/pdf.worker.js"></script>*@
+
+@*<div class="main">
+        @{Html.RenderPartial("preview_pdf");}
+    </div>
+    <div>
+        <el-table-column fixed="right" label="操作">
+            <template slot-scope="scope">
+                <el-button type="text" size="small" onclick="previewInfo(scope.$index, scope.row)">预览</el-button>
+            </template>
+        </el-table-column>
+    </div>*@
+@*//使用 iframe来显示pdf*@
+@*<div v-show="isshowpdf">
+        <el-button type="success" onclick="backToList">返回</el-button>
+        <iframe :src="pdfurls" height="730" width="100%"></iframe>
+    </div>*@
+
+
+@*----------------------测试pdf-----------------------*@
+
+@*<textarea id="AODdescription">
+    </textarea>*@
+
+
+<script>
+    @* ----------------------测试pdf-----------------------*@
+
+    //页面加载的时候打开pdf文件
+    //$(window).load(function () {
+    //    PDFViewerApplication.open("../Images/特采订单.pdf");
+    //});
+    //previewInfo: function(index, row) {
+    //    if (index > 3 || index == 0) {
+    //        return this.$message("未找到对应的pdf文件！");
+    //    }
+    //    let url = "../../../uploads/123_" + index + ".pdf";
+    //    this.pdfurls = "/lib/pdf/web/viewer.html?file=" + url;
+    //    this.isshowpdf = true;
+    //};
+    @* ----------------------测试pdf-----------------------*@
+
     $(function () {
         if ($("#createdBarcode").text() == 1) {
             $("#createdBarcode").text("是")
         } else {
             $("#createdBarcode").text("否")
-        }
+        };
     })
 </script>
-
-@*<div class="col-md-4">
-        <span>
-            @Html.DisplayNameFor(model => model.BarCode_Prefix)
-        </span>：
-        @Html.DisplayFor(model => model.BarCode_Prefix, new { id = "BarCodeCreator" })
-    </div>
-    <div class="col-md-4">
-        <span>
-            @Html.DisplayNameFor(model => model.CompletedRate)
-        </span>：
-        @Html.DisplayFor(model => model.CompletedRate)
-    </div>*@
-@*@Html.ActionLink("根据订单创建全部条码", "CreateBarCodes", "BarCodes", new
-    {
-        OrderNum = Model.OrderNum,
-        Boxes = Model.Boxes,
-        Models = Model.Models + Model.ModelsMore,
-        Powers = Model.Powers + Model.PowersMore,
-        AdapterCard = Model.AdapterCard + Model.AdapterCardMore,
-    }, new { @class = "btn btn-default", @method = "post" })*@

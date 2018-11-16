@@ -1025,6 +1025,12 @@ namespace JianHeMES.Controllers
                     }
                     #endregion
 
+                    #region---------------------AOD特采部分
+                    var AOD_Description = db.OrderMgm.Where(c => c.OrderNum == item.OrderNum).ToList().FirstOrDefault().AOD_Description;
+                    OrderNum.Add("AOD_Description", AOD_Description);
+                    #endregion
+
+
                     ProductionControlHistory.Add(i.ToString(), OrderNum);
                     i++;
                 }

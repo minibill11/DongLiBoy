@@ -527,7 +527,7 @@ namespace JianHeMES.Controllers
                 {
                     viewResult.View.Render(viewContext, sw);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     throw;
                 }
@@ -573,7 +573,7 @@ namespace JianHeMES.Controllers
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 System.Web.HttpContext.Current.Response.Write("文件下载时出现错误!");
             }

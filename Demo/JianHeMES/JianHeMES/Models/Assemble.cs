@@ -50,7 +50,6 @@ namespace JianHeMES.Models
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public Boolean AssembleFinish { get; set; }  //是否已经完成组装
 
-
         //防水测试部分
         [Display(Name = "开始时间")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
