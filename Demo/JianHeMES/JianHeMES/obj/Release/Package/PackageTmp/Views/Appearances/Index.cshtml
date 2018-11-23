@@ -1,0 +1,310 @@
+﻿@model IEnumerable<JianHeMES.Models.Appearance>
+
+@{
+    ViewBag.Title = "外观包装信息查询";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script src="~/Scripts/highcharts.js"></script>
+<script src="~/Scripts/highcharts-3d.js"></script>
+<script src="~/Scripts/modules/exporting.js"></script>
+@*引入EasyUI框架*@
+<script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
+<script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
+<link rel="stylesheet" type="text/css" href="~/Content/easyui.css">
+<link rel="stylesheet" type="text/css" href="~/Content/icon.css">
+<script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
+<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
+@*引入Vue.js框架*@
+<script src="~/Scripts/vue.js"></script>
+@*引入Bootstrap框架*@
+<link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
+<script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
+
+<h3 class="text-center">@ViewBag.Title</h3>
+<style>
+    #notdo {
+        width: 200px;
+        height: 100px;
+        overflow: auto;
+        padding: 0px 15px;
+        margin: 0px 50px;
+        border: none;
+    }
+</style>
+<br />
+<div class="text-center">
+    <p class="text-success text-center btn btn-default">
+        @Html.ActionLink("开始外观包装工作", "Appearance_B")
+    </p>
+</div>
+<br />
+
+@using (Html.BeginForm("Index", "Appearances", FormMethod.Post, new { id = "searchForm", @class = "text-center" }))
+{
+    @Html.AntiForgeryToken()
+    <form asp-controller="Appearances" asp-action="Index" method="post" class="text-center">
+        <p id="queryColumn">
+            <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")</span>
+            @*订单号：<input type="text" name="orderNum"/>*@
+            <span class="hidden-xs">条码号：<input type="text" name="BoxBarCode" v-model="BoxBarCode" /></span>
+            <span class="hidden-xs">外观包装状态：@Html.DropDownList("AppearancesNormal", (List<SelectListItem>)ViewBag.AppearancesNormal, "全部")</span>
+            <span class="hidden-xs">描述:<input type="text" name="SearchString" v-model="SearchString" /></span>
+            <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
+            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
+        </p>
+    </form>
+    <br />
+}
+
+<div class="container">
+    <div class="row">
+        <div id="query" style="@ViewBag.Display">
+            <div class="col-md-4">
+                <h4>订单<span v-bind:title="floatmessage"> @ViewBag.orderNum </span>外观包装基本情况 </h4>
+                订单的模组总量：@ViewBag.Quantity，经过外观包装数量：@ViewBag.RecordCount<br />
+                正常数量：@ViewBag.NormalCount，异常数量：@ViewBag.AbnormalCount，完成率：<span>{{FinishRate}}</span>% <br />  @*@ViewData["FinishRate"]%。*@
+                外观包装用时:@ViewBag.TotalTime <br />
+                @*外观包装总时长：@ViewBag.TotalTimeSpan<br />
+                    平均外观包装时长：@ViewBag.AvgTimeSpan<br />*@
+                查询时间：<span>{{message}}</span>   @*输出查询时间*@
+                <hr />
+                @if (ViewBag.NotDo != null && ViewBag.NotDo.Count != 0)
+                {
+                    <p>未进行外观包装模组 @ViewBag.NotDoCount 个：</p>
+                    <div id="notdo" class="form-control">
+                        @foreach (var item in ViewBag.NotDo)
+                        {
+                            @item.ToString()<br />
+                        }
+                    </div>
+                }
+            </div>
+            @*<div id="main_pie" class="col-md-3" style="width: 375px;height:250px;"></div>*@
+            <div id="container2" class="col-md-4" style="width: auto;height:300px;"></div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var query = new Vue({
+        el: '#query',    //与div中的id名对应
+        data: {
+            message: new Date().toLocaleString(),  //输出查询时间
+            floatmessage: '订单号'+'@ViewBag.orderNum',
+            Quantity:@ViewBag.Quantity,
+            NormalCount:@ViewBag.NormalCount,
+        },
+        computed:{
+            FinishRate: function (){
+                return (this.NormalCount/this.Quantity*100).toFixed(1)
+            }
+        }
+    });
+
+    Highcharts.chart('container2', {
+        chart: {
+            type: 'pie',
+            options3d: {
+                enabled: true,
+                alpha: 30,
+                beta: 0
+            }
+        },
+        title: {
+            text: '订单 @ViewBag.orderNum 基本情况'
+        },
+        tooltip: {
+            pointFormat: '<b>{point.percentage:.1f}%</b>'//'{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                depth: 35,
+                dataLabels: {
+                    enabled: true,
+                    formatter:function(){           // '{point.name}'
+                        if(this.percentage >0 )
+                        { return this.point.name;}
+                        else if (this.percentage >=100 )
+                        { return '已全部完成';}
+                    }
+                }
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: '',
+            data: [
+                ['已完成 @ViewBag.NormalCount 块',@ViewBag.NormalCount],
+                ['未完成 @ViewBag.NeverFinish 块',@ViewBag.NeverFinish]
+            ]
+        }]
+    });
+</script>
+
+<hr style="@ViewBag.Display" />
+
+<br class="" />
+
+<div class="" style="@ViewBag.Display">
+    <h4> 订单 @ViewBag.orderNum 详细外观包装记录：</h4>
+</div>
+
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.OrderNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.BarCodesNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ModuleGroupNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckBT)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCPrincipal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckFT)
+        </th>
+        @*<th>
+            @Html.DisplayNameFor(model => model.OQCCheckTime)
+        </th>*@
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckTimeSpan)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Appearance_OQCCheckAbnormal)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.RepairCondition)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.OQCCheckFinish)
+        </th>
+        <th></th>
+    </tr>
+    @if (Model != null)
+    {
+        foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OrderNum)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.BarCodesNum)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ModuleGroupNum)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OQCCheckBT)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OQCPrincipal)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OQCCheckFT)
+                </td>
+                @*<td>
+                    @Html.DisplayFor(modelItem => item.OQCCheckTime)
+                </td>*@
+                <td>
+                    @Html.DisplayFor(modelItem => item.OQCCheckTimeSpan)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Appearance_OQCCheckAbnormal)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.RepairCondition)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OQCCheckFinish)
+                </td>
+                <td>
+                    @*@Html.ActionLink("编辑", "Edit", new { id = item.Id }) |*@
+                    @Html.ActionLink("详细", "Details", new { id = item.Id }) @*|
+                        @Html.ActionLink("删除", "Delete", new { id = item.Id })*@
+                </td>
+            </tr>
+        }
+    }
+</table>
+
+@*-----------------------分页功能----------------------------------------------------------------------------------------*@
+<div class="text-center">
+    <div id="pagebar">
+        @for (var i = 0; i < ViewBag.PageCount; i++)
+        {
+            if (i == ViewBag.PageIndex)
+            {
+                <span style="font-size:25px" class="currentpagenumber">  @(i + 1)  </span>
+            }
+            else
+            {
+                <a class="pagenumber" style="font-size:20px" href="javascript:;">  @(i + 1)  </a>
+            }
+        }
+    </div>
+</div>
+@section scripts {
+    <script>
+        var queryColumn = new Vue ({
+            el:'#queryColumn',
+            data:{
+                BoxBarCode:"",
+                lookup:true,
+                SearchString:"",
+            },
+            watch:{
+                BoxBarCode:function(val){
+                    if($("#orderNum").val()==""&&this.BoxBarCode==""&&this.SearchString==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                },
+                SearchString:function(val){
+                    if($("#orderNum").val()==""&&this.BoxBarCode==""&&this.SearchString==""){
+                        this.lookup = true;
+                    }else{
+                        this.lookup = false;
+                    };
+                }
+            }
+        });
+    </script>
+    <script>
+        function submitForm(pagenumber) {
+            pagenumber = parseInt(pagenumber, 10);
+            $('#PageIndex').val(pagenumber - 1);
+            $('#searchForm').submit();
+        }
+
+        $(function () {
+
+            $('#searchButton').click(function () {
+                submitForm($('#pagebar .currentpagenumber').text());
+            });
+
+            $('#pagebar .pagenumber').click(function () {
+                submitForm($(this).text());
+            });
+
+        });
+        $("#orderNum").change(function (val) {
+            if(val.target.value == ""&&queryColumn.BoxBarCode==""&&queryColumn.SearchString==""){
+                queryColumn.lookup = true;
+            }else{
+                queryColumn.lookup = false;
+            };
+        });
+    </script>
+}
+
+

@@ -1,0 +1,388 @@
+﻿@model JianHeMES.Models.Burn_in
+
+@{
+    ViewBag.Title = "批量结束老化";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+
+<h2 class="hidden-xs">@ViewBag.Title</h2>
+<h4 class="visible-xs text-center">批量结束老化</h4>
+<script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/vue.js"></script>
+<style>
+    .color-show {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .color-box {
+        width: 50%;
+        text-align: center;
+        transition: transform .3s;
+    }
+
+    /*.green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }*/
+</style>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <h4 class="hidden-xs">老化完成工作</h4>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            <div class="col-md-6">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.DropDownListFor(model => model.OrderNum,
+ ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "form-control" })
+                    @*@Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control" } })*@
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="col-md-6"></div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-6">
+                <label class="control-label col-md-4" for="content">输入模块条码</label>
+                <div class="col-md-8">
+                    <input type="text" class="form-control" placeholder="请输入模块条码" v-model.trim="newTask" id="content" style="display:inline;text-transform:uppercase">
+                    <button class="btn btn-default" v-on:click="addTask">添加</button>
+                    <br /><span v-show="prompt" style="color: red;">不能输入相同条码</span>
+                </div>
+                <div class="form-group"><div class="col-md-12"></div></div>
+                <div class="col-md-8 col-md-offset-4">
+                    <button class="btn btn-default" style="color:dodgerblue" v-on:click="inspect">检查条码</button>
+                    @*<input type="submit" value="完成老化" class="btn btn-default" v-on:click="clearTask" />*@
+                    <input type="button" value="完成老化" class="btn btn-default" v-on:click="submitANDclearTask" v-show="beginShow" />
+                </div>
+                <div class="form-group"><div class="col-md-12"></div></div>
+                <hr />
+                <label class="control-label col-md-4 hidden-xs">模块条码清单:</label>
+                <label class="control-label text-center visible-xs">模块条码清单</label>
+                <div class="col-md-8 hidden-xs" style="height:450px;overflow:auto">
+                    <div class="form-group color-show">
+                        <template v-for="(task,index) in tasks">
+                            <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control">
+                                <span>{{task}}</span>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;">✗</button>
+                            </li>
+                        </template>
+                    </div>
+                </div>
+                <div class="col-md-8 visible-xs">
+                    <div class="form-group color-show">
+                        <template v-for="(task,index) in tasks">
+                            <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control" style="font-size:12px; padding:7px 5px">
+                                <span>{{task}}</span>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;padding:0">✗</button>
+                            </li>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 hidden-xs" style="height:550px;overflow:auto">
+                <table class="table">
+                    <tr>
+                        <th>条码号</th>
+                        <th>是否在订单中</th>
+                        <th>在其他订单号中</th>
+                        <th>是否可以完成老化</th>
+                        <th>开始时间</th>
+                        <th>完成时间</th>
+                        <th>老化状态</th>
+                    </tr>
+                    <tr v-for="list in returnList">
+                        <td>{{list.BarcodeList}}</td>
+                        <td>{{list.BarcodeInOrder}}</td>
+                        <td>{{list.BarcodeInOtherOrder}}</td>
+                        <td>{{list.BarcodeComfirm}}</td>
+                        <td>{{list.BarcodeBeginTime}}</td>
+                        <td>{{list.BarcodeFinishTime}}</td>
+                        <td>{{list.BarcodeStatus}}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="visible-xs" style="font-size:12px">
+                <table class="table">
+                    <tr>
+                        <th>条码号</th>
+                        <th>是否可以老化</th>
+                        <th>老化状态</th>
+                    </tr>
+                    <tr v-for="list in returnList">
+                        <td>{{list.BarcodeList}}</td>
+                        <td>{{list.BarcodeComfirm}}</td>
+                        <td>{{list.BarcodeStatus}}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        @*<span class="glyphicon glyphicon-ok green"></span>
+            <span class="glyphicon glyphicon-remove red"></span>
+            <span class="badge pull-right">✓</span>
+            <span class="badge pull-right">✗</span>*@
+        <div class="col-md-4" style="display:none">
+            <textarea autofocus="autofocus" cols="5" id="BarCodesNum" name="BarCodesNum" rows="15" class="form-control" v-model="tasks"></textarea>
+            @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+        </div>
+        <div class="form-group"><div class="col-md-12"></div></div>
+    </div>
+}
+<div>
+    @Html.ActionLink("返回", "Index")
+</div>
+
+<script type="text/javascript">
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            tasks: [],
+            newTask: "", //input默认值
+            same: true,
+            prompt: false,
+            beginShow: false,
+            returnList: [],
+            okList: []
+        },
+        methods: {
+            addTask: function (event) {
+                event.preventDefault();
+                this.beginShow = false;
+                this.prompt = false;
+                sames = app.same;
+                if (app.newTask != "") {
+                    app.newTask = app.newTask.toUpperCase();
+                    app.tasks.forEach(function (item, index) {
+                        if (app.newTask == item) {
+                            console.log(index);
+                            sames = false;
+                            app.prompt = true;
+                            app.newTask = "";
+                        }
+                    });
+                    if (sames) { //没有相同数据才允许添加
+                        app.tasks.push(app.newTask);
+                        app.newTask = "";
+                        $("#content").focus();
+                        console.log(app.tasks); //数组
+                    }
+                }
+            },
+            removeTask: function (task) { //删除条码，重新排序数组，焦点回到input，保存删除后的数据
+                this.beginShow = false;
+                this.prompt = false;
+                //指向Vue实例中的tasks
+                removetasks = this.tasks;
+                //remove
+                removetasks.forEach(function (item, index) {
+                    if (item == task) {
+                        removetasks.splice(index, 1);
+                    }
+                });
+                console.log(app.tasks); //数组
+                $("#content").focus();
+            },
+            submitANDclearTask: function (event) { //提交post内容，清空本地存储表单
+                event.preventDefault();
+                $.ajax({
+                    type: 'post',
+                    url: '/Burn_in/Burn_in_Batch_Finish',
+                    data: {
+                        OrderNum: $("#OrderNum").val(),
+                        BarCodesNumList: app.tasks
+                    },
+                    success: function (data) {
+                        //console.log(data);
+                        app.beginShow = false;
+                        app.tasks = [];
+                        app.returnList = [];
+                        app.okList = [];
+                        alert(data);
+                        $("#content").focus();
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert("批量完成老化失败");
+                        $("#content").focus();
+                    }
+                });
+            },
+            inspect: function (event) {
+                event.preventDefault();
+                this.prompt = false;
+                //var cut = this.NumList.substr(0, this.NumList.length - 1).split("\n");
+                //console.log(JSON.stringify(app.tasks));
+                $.ajax({
+                    type: 'post',
+                    url: '/Burn_in/CheckBarCodesList_F',
+                    data: {
+                        OrderNum: $("#OrderNum").val(),
+                        BarCodesNumList: app.tasks
+                    },
+                    success: function (data) {
+                        //console.log(data);
+                        app.returnList = [];
+                        app.okList = [];
+                        for (var i = 0; i < data[0].BarcodeList.length; i++) {
+                            if (data[0].BarcodeComfirm[i] == "Yes") {
+                                app.okList.push(data[0].BarcodeList[i])
+                            };
+                            app.returnList.push({
+                                BarcodeList: data[0].BarcodeList[i],
+                                BarcodeInOrder: data[0].BarcodeInOrder[i],
+                                BarcodeInOtherOrder: data[0].BarcodeInOtherOrder[i][0],
+                                BarcodeComfirm: data[0].BarcodeComfirm[i],
+                                BarcodeBeginTime: data[0].BarcodeBeginTime[i],
+                                BarcodeFinishTime: data[0].BarcodeFinishTime[i],
+                                BarcodeStatus: data[0].BarcodeStatus[i]
+                            });
+                        };
+                        if (app.returnList.length == app.okList.length) {
+                            app.beginShow = true;
+                        };
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert("请输入条码");
+                        $("#content").focus();
+                    }
+                });
+            }
+        },
+        computed: {
+
+        },
+        watch: {
+
+        }
+    });
+</script>
+<script>
+    var localOrder = localStorage.getItem('Order');
+    if (localOrder != null) {
+        $("#OrderNum").val(localOrder);
+    }
+    $("#OrderNum").change(function (val) {
+        localStorage.setItem('Order', val.target.value);
+        $("#content").select();
+    })
+    $("#content").focus();
+</script>
+
+
+
+
+
+
+
+
+@*@using (Html.BeginForm())
+    {
+        @Html.AntiForgeryToken()
+
+        <div class="form-horizontal">
+            <h4>Burn_in</h4>
+            <hr />
+            @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+            @Html.HiddenFor(model => model.Id)
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OQCCheckBT, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OQCCheckBT, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OQCCheckBT, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OQCPrincipal, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OQCPrincipal, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OQCPrincipal, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OQCCheckFT, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OQCCheckFT, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OQCCheckFT, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OQCCheckTime, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OQCCheckTime, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OQCCheckTime, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OQCCheckTimeSpan, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.OQCCheckTimeSpan, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.OQCCheckTimeSpan, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Burn_in_OQCCheckAbnormal, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.Burn_in_OQCCheckAbnormal, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.Burn_in_OQCCheckAbnormal, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.RepairCondition, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    @Html.EditorFor(model => model.RepairCondition, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.RepairCondition, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OQCCheckFinish, htmlAttributes: new { @class = "control-label col-md-2" })
+                <div class="col-md-10">
+                    <div class="checkbox">
+                        @Html.EditorFor(model => model.OQCCheckFinish)
+                        @Html.ValidationMessageFor(model => model.OQCCheckFinish, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-2 col-md-10">
+                    <input type="submit" value="Save" class="btn btn-default" />
+                </div>
+            </div>
+        </div>
+    }
+
+    <div>
+        @Html.ActionLink("Back to List", "Index")
+    </div>*@
