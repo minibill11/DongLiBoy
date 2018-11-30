@@ -108,19 +108,40 @@ namespace JianHeMESEntities.Hubs
                         { "PlanCompleteTime", item.PlanCompleteTime.ToString() },
                     };
 
-                    var beginttime = db.Assemble.Where(c=>c.OrderNum==item.OrderNum).Min(c => c.PQCCheckBT);//取出订单开始装配生产的PQCCheckBT值
+                    DateTime? beginttime = new DateTime();
+                    beginttime = db.Assemble.Where(c=>c.OrderNum==item.OrderNum).Min(c => c.PQCCheckBT);//取出订单开始装配生产的PQCCheckBT值
+                    if (beginttime == null)
+                    {
+                        beginttime = db.Burn_in.Where(c => c.OrderNum == item.OrderNum).Min(c => c.OQCCheckBT);//取出订单开始老化调试的OQCCheckBT值
+                        if(beginttime == null)
+                        {
+                            beginttime = db.CalibrationRecord.Where(c => c.OrderNum == item.OrderNum).Min(c => c.BeginCalibration);//取出订单开始校正的BeginCalibration值
+                            if (beginttime == null)
+                            {
+                                beginttime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Min(c => c.OQCCheckBT);//取出订单开始包装电检检查的OQCCheckBT值
+                            }
+                        }
+                    }
+                    if (beginttime!=null)
+                    {
+                        OrderNum.Add("ActualProductionTime", beginttime.ToString());
+                    }
+                    else
+                    {
+                        OrderNum.Add("ActualProductionTime", "未开始");
+                    }
                     var finishtime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Max(c => c.OQCCheckFT);//取出最后包装记录的OQCCheckFT值
 
                     var totaltime = finishtime - beginttime;
                     OrderNum.Add("ActualFinishTime", finishtime.ToString());
                     OrderNum.Add("TotalTime", totaltime.ToString());
 
+
                     #region-------------------组装部分
                     //-------------------组装部分
                     var AssembleRecord = (from m in db.Assemble where m.OrderNum == item.OrderNum select m).ToList();//查出OrderNum的所有组装记录
                     if (AssembleRecord.Count()>0)
                     {
-                        OrderNum.Add("ActualProductionTime", AssembleRecord.Min(c => c.PQCCheckBT).ToString());
                         Decimal Assemble_Normal = AssembleRecord.Where(m => m.PQCCheckFinish == true).Count();//组装PQC完成个数
                         OrderNum.Add("Assemble_Finish", Convert.ToInt32(Assemble_Normal));
                         OrderNum.Add("AssembleRecord_Count", AssembleRecord.Count());
@@ -138,7 +159,6 @@ namespace JianHeMESEntities.Hubs
                     }
                     else
                     {
-                        OrderNum.Add("ActualProductionTime", "未开始");
                         OrderNum.Add("Assemble_Finish_Rate", "--%");
                         OrderNum.Add("Assemble_Pass_Rate", "--%");
                     }
@@ -270,7 +290,6 @@ namespace JianHeMESEntities.Hubs
                     ProductionControlIndex.Add(i.ToString(), OrderNum);
                     i++;
                 }
-
             }
             
             //广播发送JSON数据

@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Mvc;
 using JianHeMES.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using WebGrease.Css.Extensions;
 
 namespace JianHeMES.Controllers
@@ -1145,6 +1146,104 @@ namespace JianHeMES.Controllers
         }
 
         #endregion
+        
+
+        #region    --------------------查询订单已完成、未完成、未开始条码
+        [HttpPost]
+        public ActionResult Assemblechecklist(string orderNum,string station)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            List<Assemble> Allassembles = new List<Assemble>();//订单全部组装记录
+            List<string> NotDoList = new List<string>();//未开始做条码清单
+            List<string> NeverFinish = new List<string>();//未完成条码清单
+            List<string> FinishList = new List<string>();//已完成条码清单
+            JObject stationResult = new JObject();//输出结果JObject
+            if (!String.IsNullOrEmpty(orderNum) && !String.IsNullOrEmpty(station))
+            {
+                //调出订单对应全部记录      
+                Allassembles = db.Assemble.Where(c => c.OrderNum == orderNum).OrderBy(c=>c.BoxBarCode).ToList();
+            }
+            //调出订单所有条码清单
+            List<string> barcodelist = db.BarCodes.Where(c => c.OrderNum == orderNum).OrderBy(c=>c.BarCodesNum).Select(c=>c.BarCodesNum).ToList();
+            List<string> recordlist = new List<string>();
+            if(Allassembles==null)
+            {
+                stationResult.Add("NotDoList", JsonConvert.SerializeObject(barcodelist));
+                stationResult.Add("NeverFinish", JsonConvert.SerializeObject(NeverFinish));
+                stationResult.Add("FinishList", JsonConvert.SerializeObject(FinishList));
+            }
+            else
+            {
+                #region   ---------------选择器------------------
+                switch (station)
+                {
+                    case "AssembleStation": //
+                        recordlist = Allassembles.Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未开始做条码清单
+                        NotDoList = barcodelist.Except(recordlist).ToList();
+                        //已完成条码清单
+                        FinishList = Allassembles.Where(c => c.OrderNum == orderNum && c.AssembleFinish == true).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未完成条码清单
+                        NeverFinish = Allassembles.Where(c => c.OrderNum == orderNum && c.AssembleFinish==false).Select(c => c.BoxBarCode).Distinct().ToList().Except(FinishList).ToList();
+                        break;
+                    case "WaterproofTest": //
+                        recordlist = Allassembles.Where(c => c.OrderNum == orderNum && c.WaterproofTestBT!=null).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未开始做条码清单
+                        NotDoList = barcodelist.Except(recordlist).ToList();
+                        //已完成条码清单
+                        FinishList = Allassembles.Where(c => c.OrderNum == orderNum && c.WaterproofTestFinish == true).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未完成条码清单
+                        NeverFinish = Allassembles.Where(c => c.OrderNum == orderNum && c.WaterproofTestFinish == false).Select(c => c.BoxBarCode).Distinct().ToList().Except(FinishList).ToList();
+                        break;
+                    case "AssembleAdapterCard": //
+                        recordlist = Allassembles.Where(c => c.OrderNum == orderNum && c.AssembleAdapterCardBT!=null).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未开始做条码清单
+                        NotDoList = barcodelist.Except(recordlist).ToList();
+                        //已完成条码清单
+                        FinishList = Allassembles.Where(c => c.OrderNum == orderNum && c.AssembleAdapterFinish == true).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未完成条码清单
+                        NeverFinish = Allassembles.Where(c => c.OrderNum == orderNum && c.AssembleAdapterFinish == false).Select(c => c.BoxBarCode).Distinct().ToList().Except(FinishList).ToList();
+                        break;
+                    case "ViewCheck": //
+                        recordlist = Allassembles.Where(c => c.OrderNum == orderNum && c.ViewCheckBT!=null).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未开始做条码清单
+                        NotDoList = barcodelist.Except(recordlist).ToList();
+                        //已完成条码清单
+                        FinishList = Allassembles.Where(c => c.OrderNum == orderNum && c.ViewCheckFinish == true).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未完成条码清单
+                        NeverFinish = Allassembles.Where(c => c.OrderNum == orderNum && c.ViewCheckFinish == false).Select(c => c.BoxBarCode).Distinct().ToList().Except(FinishList).ToList();
+                        break;
+                    case "ElectricityCheck": //
+                        recordlist = Allassembles.Where(c => c.OrderNum == orderNum && c.ElectricityCheckBT!=null).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未开始做条码清单
+                        NotDoList = barcodelist.Except(recordlist).ToList();
+                        //已完成条码清单
+                        FinishList = Allassembles.Where(c => c.OrderNum == orderNum && c.ElectricityCheckFinish == true).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未完成条码清单
+                        NeverFinish = Allassembles.Where(c => c.OrderNum == orderNum && c.ElectricityCheckFinish == false).Select(c => c.BoxBarCode).Distinct().ToList().Except(FinishList).ToList();
+                        break;
+                    case "PQCCheck": //
+                        recordlist = Allassembles.Where(c => c.OrderNum == orderNum && c.PQCCheckBT!=null).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未开始做条码清单
+                        NotDoList = barcodelist.Except(recordlist).ToList();
+                        //已完成条码清单
+                        FinishList = Allassembles.Where(c => c.OrderNum == orderNum && c.PQCCheckFinish == true).Select(c => c.BoxBarCode).Distinct().ToList();
+                        //未完成条码清单
+                        NeverFinish = Allassembles.Where(c => c.OrderNum == orderNum && c.PQCCheckFinish == false).Select(c => c.BoxBarCode).Distinct().ToList().Except(FinishList).ToList();
+                        break;
+                }
+                #endregion
+                stationResult.Add("NotDoList", JsonConvert.SerializeObject(NotDoList));
+                stationResult.Add("NeverFinish", JsonConvert.SerializeObject(NeverFinish));
+                stationResult.Add("FinishList", JsonConvert.SerializeObject(FinishList));
+            }
+            return Content(JsonConvert.SerializeObject(stationResult));
+        }
+        #endregion
+
 
         #region --------------------检查条码是否存在
         [HttpPost]

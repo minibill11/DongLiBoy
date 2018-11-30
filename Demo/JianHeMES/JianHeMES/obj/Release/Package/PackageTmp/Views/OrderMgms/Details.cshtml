@@ -44,6 +44,8 @@
 </style>
 <script src="~/Scripts/vue.js"></script>
 <script src="~/Scripts/jquery-1.11.3.js"></script>
+<script src="~/Scripts/imgJS/exif.js"></script>
+<script src="~/Scripts/imgJS/uploadImage.js"></script>
 <h3>@ViewBag.Title</h3>
 <hr />
 <div class="row titleRow">
@@ -220,7 +222,7 @@
             {
                 <button class="btn btn-warning" v-on:click="selectFile">选择文件</button>
                 <button class="btn btn-primary" v-on:click="postFile">上传</button>
-                <button class="btn btn-default" v-on:click="showIMG=!showIMG,previewIMG=false" v-show="('@ViewBag.Directory'=='Exists'&&'@ViewBag.Picture'=='Exists')?true:false">显示特采单照片</button>
+                <button class="btn btn-default" v-on:click="showIMG=!showIMG" v-show="( '@ViewBag.Picture'=='Exists')?true:false">显示特采单照片</button>
                 <p id="filecontent" class="text-primary" style="margin-left:10px;font-size:17px;margin:0"></p>
             }
         }
@@ -228,24 +230,31 @@
     <div class="col-md-4 form-group">
         @if (Model.BarCodeCreated == 1 && Model.IsAOD == true)
         {
-            <button v-on:click="showModal" class="btn btn-default" v-show="('@ViewBag.Directory'=='Exists'&&'@ViewBag.PDf'=='Exists')?true:false">查看pdf文档</button>
+            <button v-on:click="showModal" class="btn btn-default" v-show="('@ViewBag.PDf'=='Exists')?true:false">查看pdf文档</button>
             <button id="showModal" class="btn btn-default hidden" data-toggle="modal" data-target="#myModal"></button>
-            <div class="btn btn-default">
+            @*<div class="btn btn-default" v-show="('@ViewBag.PDf'=='Exists')?true:false">
                 @Html.ActionLink("直接查看pdf文档", "preview_pdf", new { ordernum = Model.OrderNum }, new { Target = "_blank" })
-            </div>
-
+            </div>*@
         }
     </div>
     <div class="col-md-12 form-group">
         @if (Model.BarCodeCreated == 1 && Model.IsAOD == true)
             {
             <div class="row text-center" v-show="previewIMG">
-                <p class="text-info">图片预览</p>
-                <img src="" id="imgPreview" style="width:80%;height:80%;" alt="只能预览图片文件..." />
+                <p class="text-info">待上传图片预览</p>
+                <img src="" id="imgPreview" style="width:40%;" alt="只能预览图片文件..." />
+                <br />
+                <hr />
             </div>
             <div class="row text-center" v-show="showIMG">
-                <p class="text-info">特采订单</p>
-                <img src="/OrderMgms/GetImg?ordernum=@Model.OrderNum" style="max-width:90%;max-height:90%;" id="imgReturn" alt="该特采订单照片尚未上传！" />
+                <h4>特采订单已存在图片</h4>
+                @if (ViewBag.jpgjson != null)
+                {
+                    foreach (var it in ViewBag.jpgjson)
+                    {
+                        <img src="/AOD_Files/@Model.OrderNum/@it.Value" style="width:80%;" /><br /><br />
+                    }
+                }
             </div>
         }
     </div>
@@ -270,11 +279,12 @@
         </div>
     </div>
 </div>
+
 <div id="setA"></div>
 <form id="uploadForm" enctype="multipart/form-data" method="post" style="display:none">
     <input type="hidden" value="@Model.ID" name="id" />
     <input type="text" name="ordernum" value="@Model.OrderNum" class="hidden" />
-    <input type="file" id="uploadfile" name="uploadfile" accept="image/png,image/jpeg,image/gif,application/pdf" />
+    <input type="file" id="uploadfile" name="uploadfile" accept="image/jpeg,application/pdf" />
 </form>
 <script>
     var app = new Vue({
@@ -288,9 +298,7 @@
         mounted: function () {
             var fileInput = $('#uploadfile').get(0).files[0];
             if (fileInput) {
-                //var reg = /(\.png|\.jpg|\.bmp|\.gif)$/;
-                //console.log(reg.test(fileInput.name))
-                $("#filecontent").text(fileInput.name);
+                $('#uploadfile').replaceWith('<input type="file" id="uploadfile" name="uploadfile" accept="image/jpeg,application/pdf" />');
             };
         },
         methods: {
@@ -310,11 +318,8 @@
                         contentType: false,
                         success: function (res) {
                             if (res) { alert("上传成功！"); }
-                            //console.log(res);
-                            $("#imgReturn").attr("src", "/OrderMgms/GetImg" + "?ordernum=" + "@Model.OrderNum");
-                            $("#filecontent").text("");
-                            app.previewIMG = false;
-                            app.showIMG = true;
+                            //$("#imgReturn").attr("src", "/OrderMgms/GetImg" + "?ordernum=" + "@Model.OrderNum");
+                            window.location.reload();
                         },
                         error: function (err) {
                             alert("上传失败", err);
@@ -328,11 +333,12 @@
                 $.ajax({
                     url: "/OrderMgms/GetPDF",
                     type: "post",
+                    cache: false,
                     data: {
                         ordernum: '@Model.OrderNum',
                     },
                     success: function (address) {
-                        $("#setA").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\AOD_Files\\' + '@Model.OrderNum\\' + '@Model.OrderNum' + '_AOD.pdf" target="pdfIframe" style="display:none"></a>');
+                        $("#setA").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\AOD_Files\\' + '@Model.OrderNum\\' + '@Model.OrderNum' + '_AOD.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
                         document.getElementById("temporary").click();
                         $("#temporary").remove();
                         $("#pdfIframe").css({ "height": $(window).height() - 60 })//.attr("src", "");
@@ -355,8 +361,6 @@
         };
     })
     $("#uploadfile").change(function () {
-        $("#imgPreview").attr("src", URL.createObjectURL($(this)[0].files[0]));
-        $("#filecontent").text($(this)[0].files[0].name);
-        app.previewIMG = true;
+        selectFileImage(this)
     });
 </script>

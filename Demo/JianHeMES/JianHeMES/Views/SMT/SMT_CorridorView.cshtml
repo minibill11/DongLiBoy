@@ -1,0 +1,172 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+    body, .container, .body-content {
+        width: 336px;
+        height: 1008px;
+        margin: 0;
+        padding: 0;
+        border: 1px solid #555;
+        background-color:#000;
+        color:#fff;
+    }
+
+    .container {
+        padding: 5px 10px;
+    }
+
+    .navbar, footer {
+        display: none;
+    }
+    h3{
+        margin:10px 0;
+    }
+    hr{
+        display:none;
+    }
+    .table > tbody > tr > th, .table > tbody > tr > td {
+        text-align: center;
+        vertical-align: middle;
+        font-size: 12px;
+        padding: 2px;
+    }
+
+    ul {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+        white-space: nowrap;
+    }
+
+    .tablebottom th,.tablebottom td,.tablefirth{
+        border-bottom:1px solid #fff !important;
+    }
+    .tablefirth{
+        border-left:1px solid #fff !important;
+    }
+    .tableright td:last-child,.tablefirth{
+        border-right:1px solid #fff !important;
+    }
+    .tabletop th{
+        border:1px solid #fff !important;
+    }
+</style>
+
+<div id="app" class="form-group">
+    <div v-for="(item, index) in lineDataList">
+        <div v-if="index==lineNum" class="text-center">
+            <img src="~/Images/LOGO.jpg" style="width:100%" />
+            <h3>SMT生产信息</h3>
+            <h4><span>产线{{index+1}} 状态：</span><span>{{item.LineStatus}}</span></h4>
+            <h4>正在生产订单：<span>{{item.LineDoingOrder}}</span></h4>
+            <table class="table table-bordered">
+                <tr class="tabletop">
+                    <th colspan="4">今天生产订单</th>
+                </tr>
+                <tr class="tabletop" >
+                    <th>订单号</th>
+                    <th colspan="3">订单信息</th>
+                </tr>
+                <template v-for="(val,i) in item.LineTodayFinishOrder" >
+                        <tr class="tableright">
+                            <td rowspan="4" class="tablefirth">{{val}}</td>
+                            <td>生产数量</td>
+                            <td>良品</td>
+                            <td>不良品</td>
+                        </tr>
+                        <tr class="tableright">
+                            <td>{{item.normalQuantity[i-1]}}</td>
+                            <td>{{item.LineTodayFinishOrderNormal[i]}}</td>
+                            <td>{{item.LineTodayFinishOrderAbnormal[i]}}</td>
+                        </tr>
+                        <tr class="tableright">
+                            <td>订单数量</td>
+                            <td>不良率</td>
+                            <td>完成率</td>
+                        </tr>
+                        <tr class="tablebottom tableright">
+                            <td>{{item.OrderQuantity[i]}}</td>
+                            <td>{{item.OrderAbnormalRate[i-1]}}</td>
+                            <td>{{item.OrderTotalFinishRate[i-1]}}</td>
+                        </tr>
+                </template>
+            </table>
+            <h4>产线累计生产数量：{{item.LineTotalQuantity}} 个</h4>
+            <br />
+            <div class="row" style="position:relative;">
+                <div class="col-xs-6 text-center">
+                <b>今日计划订单</b>
+                    <ul>
+                        <li v-for="i in item.LinePlanOrder">{{i}}</li>
+                    </ul>
+                </div>
+                <div class="col-xs-6 text-right" style="position:relative;bottom:0px;right:0px">
+                    <p>班组：{{item.Team}}</p>
+                    <p>组长：{{item.GroupLeader}}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="setForm"></div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            lineDataList: [],
+            lineNum:0,
+        },
+        methods: {
+        }
+    })
+</script>
+
+@section scripts {
+    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        $(function () {
+            var mypush = $.connection.SMT;
+            mypush.client.sendSMT_ProductionInfo = function (SMT_ProductionInfo) {
+                console.log(SMT_ProductionInfo);
+                app.lineDataList = [];
+                console.log(Object.keys(SMT_ProductionInfo).length)
+
+                for (index in SMT_ProductionInfo) {
+                    var normal = SMT_ProductionInfo[index].LineTodayFinishOrderNormal;
+                    var abnormal = SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal;
+                    var OrderQuantity = SMT_ProductionInfo[index].OrderQuantity;
+                    var OrderQuantityList = [];
+                    var OrderAbnormalRateList = [];
+                    var OrderTotalFinishRateList = [];
+                    for (item in normal) {
+                        var normalCount = normal[item] + abnormal[item];
+                        OrderQuantityList.push(normalCount);
+                        OrderAbnormalRateList.push(((abnormal[item] / normalCount) * 100).toFixed(2) + "%")
+                        OrderTotalFinishRateList.push(((normalCount / parseInt(OrderQuantity[item])) * 100).toFixed(2) + "%");
+                    };
+                    app.lineDataList.push({
+                        LineDoingOrder: SMT_ProductionInfo[index].LineDoingOrder,
+                        LineTodayFinishOrder: SMT_ProductionInfo[index].LineTodayFinishOrder,
+                        LineTodayFinishOrderNormal: SMT_ProductionInfo[index].LineTodayFinishOrderNormal,
+                        LineTodayFinishOrderAbnormal: SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal,
+                        LineTotalQuantity: SMT_ProductionInfo[index].LineTotalQuantity,
+                        LinePlanOrder: SMT_ProductionInfo[index].LinePlanOrder,
+                        Team: SMT_ProductionInfo[index].Team,
+                        GroupLeader: SMT_ProductionInfo[index].GroupLeader,
+                        LineStatus: SMT_ProductionInfo[index].LineStatus,
+                        OrderQuantity: SMT_ProductionInfo[index].OrderQuantity,
+
+                        normalQuantity: OrderQuantityList,
+                        OrderAbnormalRate: OrderAbnormalRateList,
+                        OrderTotalFinishRate: OrderTotalFinishRateList
+                    });
+                }
+            };
+            //启动
+            $.connection.hub.start();
+        });
+    </script>
+}

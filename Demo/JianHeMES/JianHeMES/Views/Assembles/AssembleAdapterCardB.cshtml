@@ -3,15 +3,58 @@
 @{
     ViewBag.Title = "转接卡、电源组装开始";
 }
+<style>
+    input, textarea, select {
+        max-width: 215px;
+    }
 
+    .barcodeFrame {
+        width: 200px;
+        height: 200px;
+        border: 1px solid #555;
+        overflow: auto;
+        padding: 5px;
+    }
+
+        .barcodeFrame ul {
+            list-style: none;
+            padding: 0;
+        }
+
+    .frameW p {
+        margin: 10px 0;
+    }
+
+    @@media screen and (min-width:992px) {
+        .leftform {
+            border-right: 1px solid #555;
+            padding: 80px 40px 0 0;
+            min-height: 500px;
+        }
+
+        .barcodeFrame {
+            height: 400px;
+        }
+    }
+
+    @@media screen and (min-width:768px) {
+        .frameW {
+            text-align: center;
+            padding-right: 0;
+        }
+
+        .barcodeFrame {
+            margin: 0 auto;
+        }
+    }
+</style>
 <h2>@ViewBag.Title</h2>
 
 
 @using (Html.BeginForm())
 {
     @Html.AntiForgeryToken()
-
-    <div class="form-horizontal">
+    <div id="app" class="form-horizontal">
         <h4>开始组装转接卡、电源</h4>
         <hr />
         @Html.ValidationSummary(true, "", new { @class = "text-danger" })
@@ -42,40 +85,134 @@
         @Html.HiddenFor(model => model.PQCCheckAbnormal, new { @class = "control-label col-md-2" })
         @Html.HiddenFor(model => model.PQCCheckFinish, new { @class = "control-label col-md-2" })
 
+        <div class="col-md-4 leftform">
+            @*<div class="form-group">
+                    @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                    <div class="col-md-8">
+                        @Html.DropDownListFor(model => model.OrderNum,
+                ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "form-control" })
+                        @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                    </div>
+                </div>*@
+            <div class="form-group">
+                @Html.LabelFor(model => model.BoxBarCode, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.BoxBarCode, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus" } })
+                    @Html.ValidationMessageFor(model => model.BoxBarCode, "", new { @class = "text-danger" })
+                </div>
+            </div>
 
-
-
-        <div class="form-group">
-            @Html.LabelFor(model => model.BoxBarCode, htmlAttributes: new { @class = "control-label col-md-2" })
-            <div class="col-md-10">
-                @Html.EditorFor(model => model.BoxBarCode, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus" } })
-                @Html.ValidationMessageFor(model => model.BoxBarCode, "", new { @class = "text-danger" })
+            <div class="form-group">
+                @Html.LabelFor(model => model.Remark, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.TextAreaFor(model => model.Remark, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.Remark, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input type="submit" value="开始组装转接卡、电源" class="btn btn-default" />
+                </div>
             </div>
         </div>
-
-        <div class="form-group">
-            @Html.LabelFor(model => model.Remark, htmlAttributes: new { @class = "control-label col-md-2" })
-            <div class="col-md-10">
-                @Html.TextAreaFor(model => model.Remark, new { @class = "form-control" })
-                @Html.ValidationMessageFor(model => model.Remark, "", new { @class = "text-danger" })
+        <div class="col-md-8 " style="padding:0">
+            <div class="col-md-4 col-sm-4 frameW text-danger">
+                <p>未开始 {{NotDoList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:indianred">
+                    <ul>
+                        <li v-for="item in NotDoList">{{item}}</li>
+                    </ul>
+                </div>
             </div>
-        </div>
-
-
-
-
-        <div class="form-group">
-            <div class="col-md-offset-2 col-md-10">
-                <input type="submit" value="开始组装转接卡、电源" class="btn btn-default" />
+            <div class="col-md-4 col-sm-4 frameW text-info">
+                <p>未完成 {{NeverFinish.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:cornflowerblue">
+                    <ul>
+                        <li v-for="item in NeverFinish">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-success">
+                <p>已完成 {{FinishList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:forestgreen">
+                    <ul>
+                        <li v-for="item in FinishList">{{item}}</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 }
 
-<div>
+<div class="clearfix"></div>
+<div class="row col-md-12">
     @Html.ActionLink("返回", "AssembleIndex")
 </div>
-
-@section Scripts {
-    @Scripts.Render("~/bundles/jqueryval")
-}
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            NotDoList: [],
+            NeverFinish: [],
+            FinishList: []
+        }
+    })
+</script>
+<script>
+    var localOrder = localStorage.getItem('Order');
+    if (localOrder != null) {
+        $("#OrderNum").val(localOrder);
+        getInfo($("#OrderNum").val());
+    }
+    $("#OrderNum").change(function (val) {
+        localStorage.setItem('Order', val.target.value);
+        getInfo(val.target.value);
+        $("#BoxBarCode").select();
+    })
+    $("#BoxBarCode").select();
+    //$("#BarCodesNum").keyup(function (val) {
+    //    console.log(val.target.value)
+    //})
+    function getInfo(oNum) {
+        $.ajax({
+            url: "/Assembles/Assemblechecklist",
+            type: "post",
+            data: {
+                orderNum: oNum,
+                station: 'AssembleAdapterCard'
+            },
+            success: function (data) {
+                console.log(data)
+                var allJson = JSON.parse(data);
+                for (var i in allJson) {
+                    var iJson = JSON.parse(allJson[i]);
+                    var iDiv = $('#' + i);
+                    if (i == "NotDoList") {
+                        app.NotDoList = [];
+                        for (var j in iJson) {
+                            app.NotDoList.push(iJson[j]);
+                        }
+                    };
+                    if (i == "NeverFinish") {
+                        app.NeverFinish = [];
+                        for (var j in iJson) {
+                            app.NeverFinish.push(iJson[j]);
+                        }
+                    };
+                    if (i == "FinishList") {
+                        app.FinishList = [];
+                        for (var j in iJson) {
+                            app.FinishList.push(iJson[j]);
+                        }
+                    };
+                }
+            },
+            error: function (err) {
+                alert("获取订单信息失败")
+            }
+        });
+    }
+</script>
+@*@section Scripts {
+        @Scripts.Render("~/bundles/jqueryval")
+    }*@

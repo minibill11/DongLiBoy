@@ -236,7 +236,6 @@ namespace JianHeMESEntities.Controllers
                 {            
                     ViewBag.Picture = "Exists";
                 }
-
                 int i = 1;
                 foreach (var item in filesInfo)
                 {
@@ -277,8 +276,13 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-                //设置条码生成状态为0，表示未生成订单条码
-                orderMgm.BarCodeCreated = 0;
+            if(db.OrderMgm.Count(c=>c.OrderNum==orderMgm.OrderNum)>0)
+            {
+                ModelState.AddModelError("", "此订单号已存在，如订单信息有误，请进入订单详情修改信息！");
+                return View(orderMgm);
+            }
+            //设置条码生成状态为0，表示未生成订单条码
+            orderMgm.BarCodeCreated = 0;
                 if (ModelState.IsValid)
                 {
                     db.OrderMgm.Add(orderMgm);
@@ -410,51 +414,37 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region --------------------上传文件方法
+        #region --------------------上传文件(jpg、pdf)方法
         [HttpPost]
         public ActionResult UploadFile(int id, string ordernum)
         {
             if (Request.Files.Count > 0)
             {
                 HttpPostedFileBase file = Request.Files["uploadfile"];
-                //if (file.FileName.Substring(file.FileName.Length - 3, 3).ToLower() == "jpg" || file.FileName.Substring(file.FileName.Length - 3, 3).ToLower() == "png" || file.FileName.Substring(file.FileName.Length - 3, 3).ToLower() == "bmp")
-                //{
-                //    Image img = Image.FromStream(file.InputStream);
-                //    img.RotateFlip(0);
-                //    Bitmap bitmap = (Bitmap)Image.FromStream(file.InputStream);
-                //}
                 var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
-
                 string ReName = ordernum + "_AOD";
-
                 if (Directory.Exists(@"D:\MES_Data\AOD_Files\" + ordernum + "\\") == false)//如果不存在就创建订单文件夹
                 {
                     Directory.CreateDirectory(@"D:\MES_Data\AOD_Files\" + ordernum + "\\");
                 }
                 List<FileInfo> fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\AOD_Files\" + ordernum + "\\");
-                //file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + fileType);
-
-                ////上传是检查是否有重复文件
-                //List<FileInfo> jpgfileInfos = fileInfos.Where(c => c.Name.Substring(file.FileName.Length - 4, 4) == ".jpg").ToList();
-                List<FileInfo> temp = fileInfos.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) ==".jpg").ToList();
-                int count = fileInfos.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").Count();
-                file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + (count + 1) + fileType);
-                //string lastfilename = ReName + fileType;
-                //bool has = fileInfos.Where(c => c.Name == lastfilename).Count() > 0 ? true : false;
-                //if (has)
-                //{
-                //    file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + "-(1)" + fileType);
-                //}
-                //else
-                //{
-                //    file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + fileType);
-                //}
+                //List<FileInfo> test_temp = fileInfos.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) ==".jpg").ToList();
+                //文件为jpg类型
+                if(fileType==".jpg")
+                {
+                    int jpg_count = fileInfos.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").Count();
+                    file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + (jpg_count + 1) + fileType);
+                }
+                //文件为pdf类型,直接存储或替换原文件
+                else
+                {
+                    file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + fileType);
+                }
                 OrderMgm orderMgm = db.OrderMgm.Find(id);
                 if (orderMgm == null)
                 {
                     return View(orderMgm);
                 }
-
                 if (ModelState.IsValid)
                 {
                     db.Entry(orderMgm).State = EntityState.Modified;
@@ -467,7 +457,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region --------------------获取pdf文件
+        #region --------------------获取特采订单pdf文件
         [HttpPost]
         public ActionResult GetPDF(string ordernum)
         {
@@ -492,35 +482,13 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region --------------------读取特采订单图片预览
-
+        #region --------------------获取特采订单图片预览
+        [HttpPost]
         public ActionResult GetImg(string ordernum)
         {
-            List<FileInfo> filesInfo = new List<FileInfo>();
-            string directory = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\";
-            filesInfo = GetAllFilesInDirectory(directory);
-
-            //string strPath = "";
-            //if (filesInfo.Where(c => c.FullName.Substring(c.FullName.Length - 3, 3) == "png").Count() > 0)
-            //{
-            //    strPath = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\" + ordernum + "_AOD.png";
-            //}
-            //if (filesInfo.Where(c => c.FullName.Substring(c.FullName.Length - 3, 3) == "bmp").Count() > 0)
-            //{
-            //    strPath = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\" + ordernum + "_AOD.bmp";
-            //}
-            //if (filesInfo.Where(c => c.FullName.Substring(c.FullName.Length - 3, 3) == "jpg").Count() > 0)
-            //{
-            //    strPath = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\" + ordernum + "_AOD.jpg";
-            //}
-            //Image img = Image.FromFile(@strPath);
-            //MemoryStream ms = new MemoryStream();
-            //img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
-            //return File(ms.ToArray(), "image/jpeg");
-
+            List<FileInfo> filesInfo = GetAllFilesInDirectory(@"D:\\MES_Data\\AOD_Files\\" + ordernum + "\\");
             filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
             JObject json = new JObject();
-
             int i = 1;
             foreach (var item in filesInfo)
             {
@@ -528,17 +496,12 @@ namespace JianHeMESEntities.Controllers
                 i++;
             }
             ViewBag.jpgjson = json;
-            
-            //foreach (var item in filesInfo)
-            //{
-            //    json.Add(item.Name, item.FullName);
-            //}
-            //ViewBag.jpgjson = json;
+            //return Json(json, JsonRequestBehavior.AllowGet);
             return Content(json.ToString());
         }
         #endregion
 
-        #region --------------------查看pdf文档页
+        #region --------------------查看特采订单pdf文档页面
         public ActionResult preview_pdf(string ordernum)
         {
             List<FileInfo> filesInfo = new List<FileInfo>();

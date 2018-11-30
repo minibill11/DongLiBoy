@@ -115,7 +115,6 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-
         #region---------------------订单管理
 
         // GET: SMT订单信息管理
@@ -611,6 +610,14 @@ namespace JianHeMES.Controllers
                 }
                 return View(fc);
             }
+        }
+        #endregion
+
+
+        #region------------------走廊显示屏
+        public ActionResult SMT_CorridorView()
+        {
+            return View();
         }
         #endregion
 

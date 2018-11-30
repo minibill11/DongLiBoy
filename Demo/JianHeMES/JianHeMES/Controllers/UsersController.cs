@@ -267,7 +267,17 @@ namespace JianHeMES.Controllers
             ModelState.AddModelError("", "登录出错，请检查员工编号及密码是否有误！");
             return View(user);
         }
-
+        [HttpPost]
+        public ActionResult loginCheck(Users user)
+        {
+            var item = db.Users.FirstOrDefault(u => u.UserNum == user.UserNum && u.PassWord == user.PassWord);
+            if (item != null)
+            {
+                Session["User"] = item;
+                return Content("success");
+            }
+            return Content("error");
+        }
         public ActionResult Logoff()
         {
             Session.Clear();

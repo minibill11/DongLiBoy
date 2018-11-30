@@ -12,6 +12,7 @@ using System.Web.Routing;
 using System.Collections;
 using Newtonsoft.Json.Linq;
 using System.Web.Helpers;
+using Newtonsoft.Json;
 
 namespace JianHeMES.Controllers
 {
@@ -1246,6 +1247,51 @@ namespace JianHeMES.Controllers
         //}
         #endregion
 
+        #endregion
+
+
+        #region    --------------------查询订单已完成、未完成、未开始条码
+        [HttpPost]
+        public ActionResult Burn_inChecklist(string orderNum)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            List<Burn_in> AllBurn_in = new List<Burn_in>();//订单全部包装记录
+            List<string> NotDoList = new List<string>();//未开始做条码清单
+            List<string> NeverFinish = new List<string>();//未完成条码清单
+            List<string> FinishList = new List<string>();//已完成条码清单
+            JObject stationResult = new JObject();//输出结果JObject
+            if (!String.IsNullOrEmpty(orderNum))
+            {
+                //调出订单对应全部记录      
+                AllBurn_in = db.Burn_in.Where(c => c.OrderNum == orderNum).OrderBy(c => c.BarCodesNum).ToList();
+            }
+            //调出订单所有条码清单
+            List<string> barcodelist = db.BarCodes.Where(c => c.OrderNum == orderNum).OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+            List<string> recordlist = new List<string>();
+            if (AllBurn_in == null)
+            {
+                stationResult.Add("NotDoList", JsonConvert.SerializeObject(barcodelist));
+                stationResult.Add("NeverFinish", JsonConvert.SerializeObject(NeverFinish));
+                stationResult.Add("FinishList", JsonConvert.SerializeObject(FinishList));
+            }
+            else
+            {
+                recordlist = AllBurn_in.Select(c => c.BarCodesNum).Distinct().ToList();
+                //未开始做条码清单
+                NotDoList = barcodelist.Except(recordlist).ToList();
+                //已完成条码清单
+                FinishList = AllBurn_in.Where(c=>c.OQCCheckFinish == true).Select(c => c.BarCodesNum).Distinct().ToList();
+                //未完成条码清单
+                NeverFinish = AllBurn_in.Where(c=>c.OQCCheckFinish == false).Select(c => c.BarCodesNum).Distinct().ToList().Except(FinishList).ToList();
+                stationResult.Add("NotDoList", JsonConvert.SerializeObject(NotDoList));
+                stationResult.Add("NeverFinish", JsonConvert.SerializeObject(NeverFinish));
+                stationResult.Add("FinishList", JsonConvert.SerializeObject(FinishList));
+            }
+            return Content(JsonConvert.SerializeObject(stationResult));
+        }
         #endregion
 
 
