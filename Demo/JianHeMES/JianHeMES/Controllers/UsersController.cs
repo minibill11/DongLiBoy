@@ -281,7 +281,7 @@ namespace JianHeMES.Controllers
         public ActionResult Logoff()
         {
             Session.Clear();
-            return RedirectToAction("Index", "CalibrationRecords");
+            return RedirectToAction("Index", "Home");
         }
 
 

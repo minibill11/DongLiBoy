@@ -50,7 +50,7 @@ namespace JianHeMES.Controllers
                 ViewBag.Status = ProductionLineStatus();
                 return View();
             }
-            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
+            return Content("<script>alert('对不起，您不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
         }
 
         [HttpPost]

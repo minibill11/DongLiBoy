@@ -51,7 +51,10 @@ namespace JianHeMES.Models
         public DbSet<SMT_ProductionData> SMT_ProductionData { get; set; }
 
         public DbSet<SMT_OrderInfo> SMT_OrderInfo { get; set; }
-        
+
+        public DbSet<Personnel_daily> Personnel_daily { get; set; }
+
+
         public object BarCode { get; internal set; }
         public Task TNews { get; internal set; }
 

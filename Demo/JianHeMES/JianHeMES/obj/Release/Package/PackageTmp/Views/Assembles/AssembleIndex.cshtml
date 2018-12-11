@@ -3,21 +3,9 @@
 @{
     ViewBag.Title = "组装信息查询";
 }
-<script src="~/Scripts/highcharts.js"></script>
-<script src="~/Scripts/highcharts-3d.js"></script>
-<script src="~/Scripts/modules/exporting.js"></script>
-@*引入EasyUI框架*@
-<script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
-<script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
-<link rel="stylesheet" type="text/css" href="~/Content/easyui.css">
-<link rel="stylesheet" type="text/css" href="~/Content/icon.css">
-<script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
-<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
-@*引入Vue.js框架*@
-<script src="~/Scripts/vue.js"></script>
-@*引入Bootstrap框架*@
-<link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
-<script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>
+@Scripts.Render("~/Scripts/highcharts")
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 
 <style type="text/css">
     /*手型指针*/
@@ -50,6 +38,27 @@
         padding: 0px 15px;
         border: none;
     }
+
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    .dropdown-menu > li > a {
+        padding: 3px 10px;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 150px;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+            width: 135px;
+        }
+        .selectpicker {
+            font-size: 13px;
+        }
+    }
 </style>
 
 <h2 class="text-center">@ViewBag.Title</h2>
@@ -81,19 +90,13 @@
     @Html.AntiForgeryToken()
     <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
         <p class="col-md-12" id="queryColumn">
-            订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")
-            @*<select id="PQCNormal" name="PQCNormal">
-                    <option value="">全部</option>
-                    <option value="正常">正常</option>
-                    <option value="异常">异常</option>
-                </select>*@
-            <span class="hidden-xs">模组条码号:<input type="text" v-model="BoxBarCode" name="BoxBarCode" /></span>
-            <span class="hidden-xs">PQC工位：@Html.DropDownList("PQCNormal", (List<SelectListItem>)ViewBag.PQCNormal, "全部")</span>
-            <span class="hidden-xs">备注:<input type="text" v-model="Remark" name="Remark" /></span>
-            @*订单号：<input type="text" name="orderNum"/>
-                描述:<input type="text" name="SearchString" />*@
+            <span> 订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })</span>
+            <span class="hidden-xs">模组条码号:<input type="text" class="form-control" style="display:inline;width:150px;" name="BoxBarCode" /></span>
+            <span class="hidden-xs">PQC工位：@Html.DropDownList("PQCNormal", (List<SelectListItem>)ViewBag.PQCNormal, "全部", new { @class = "form-control", style = "display:inline; width: 80px" })</span>
+            <span class="hidden-xs">备注:<input type="text" class="form-control" style="display:inline;width:150px;" name="Remark" /></span>
             <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
-            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
+            <input type="button" id="searchcButton" class="btn btn-default" value="查找" />
+            <input type="submit" id="searchButton" class="btn btn-default hidden" value="查找" />
         </p>
     </form>
 }
@@ -874,74 +877,53 @@
 
 
 @*-----------------------分页功能----------------------------------------------------------------------------------------*@
-    <div class="text-center">
-        <div id="pagebar">
-            @for (var i = 0; i < ViewBag.PageCount; i++)
+<div class="text-center">
+    <div id="pagebar">
+        @for (var i = 0; i < ViewBag.PageCount; i++)
+        {
+            if (i == ViewBag.PageIndex)
             {
-                if (i == ViewBag.PageIndex)
-                {
-                    <span style="font-size:25px" class="currentpagenumber">  @(i + 1)  </span>
-                }
-                else
-                {
-                    <a class="pagenumber" style="font-size:20px" href="javascript:;">  @(i + 1)  </a>
-                }
+                <span style="font-size:25px" class="currentpagenumber">  @(i + 1)  </span>
             }
-        </div>
+            else
+            {
+                <a class="pagenumber" style="font-size:20px" href="javascript:;">  @(i + 1)  </a>
+            }
+        }
     </div>
-    @section scripts {
-        <script>
-            var queryColumn = new Vue({
-                el: '#queryColumn',
-                data: {
-                    BoxBarCode: "",
-                    lookup: true,
-                    Remark: "",
-                },
-                watch: {
-                    BoxBarCode: function (val) {
-                        if ($("#orderNum").val() == "" && this.BoxBarCode == "" && this.Remark == "") {
-                            this.lookup = true;
-                        } else {
-                            this.lookup = false;
-                        };
-                    },
-                    Remark: function (val) {
-                        if ($("#orderNum").val() == "" && this.BoxBarCode == "" && this.Remark == "") {
-                            this.lookup = true;
-                        } else {
-                            this.lookup = false;
-                        };
-                    }
-                }
-            });
-        </script>
-        <script>
-
-            function submitForm(pagenumber) {
-                pagenumber = parseInt(pagenumber, 10);
-                $('#PageIndex').val(pagenumber - 1);
-                $('#searchForm').submit();
+</div>
+@section scripts {
+    <script>
+        var queryColumn = new Vue({
+            el: '#queryColumn',
+            data: {
+            },
+            watch: {
             }
-            $(function () {
+        });
+    </script>
+    <script>
 
-                $('#searchButton').click(function () {
-                    submitForm($('#pagebar .currentpagenumber').text());
-                });
-
-                $('#pagebar .pagenumber').click(function () {
-                    submitForm($(this).text());
-                });
-
+        function submitForm(pagenumber) {
+            pagenumber = parseInt(pagenumber, 10);
+            $('#PageIndex').val(pagenumber - 1);
+            $('#searchForm').submit();
+        }
+        $(function () {
+            $('.selectpicker').selectpicker();
+            $('#searchButton').click(function () {
+                submitForm($('#pagebar .currentpagenumber').text());
             });
 
-            $("#orderNum").change(function (val) {
-                if (val.target.value == "" && queryColumn.BoxBarCode == "" && queryColumn.Remark == "") {
-                    queryColumn.lookup = true;
-                } else {
-                    queryColumn.lookup = false;
-                };
+            $('#pagebar .pagenumber').click(function () {
+                submitForm($(this).text());
             });
-        </script>
-    }
+            $("#searchcButton").click(function(event){
+                if($("#orderNum").val()!=""){
+                    $("#searchButton").click();
+                }
+            })
+        });
+    </script>
+}
 

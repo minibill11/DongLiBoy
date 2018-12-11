@@ -90,6 +90,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //一楼   一楼配套加工(5)    40004518   5        2018-8-9新增
             //一楼   一楼配套加工(6)    40004518   6        2018-8-9新增
             //四楼   四楼小间距装配     40004518   7        2018-8-28从40001676转到40004518
+            //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
             //三楼   烤箱房             40001676   6
             //三楼   插件               40001676   9
             //三楼   面罩               40001676   10
@@ -97,6 +98,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   烤箱房             40001676   1
             //四楼   老化               40001676   2
             //四楼   组装               40001676   3
+            //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
             //四楼   线材               40001676   4
             //四楼   四楼老化调试       40001676   5
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
@@ -189,6 +191,17 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
 
+                //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
+                case "四楼喷墨房1号": //四楼   四楼小间距装配   40004518   7        2018-8-28从40001676转到40004518
+                    firstRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004518" && m.NodeID == "7" && m.DeviceName== "四楼喷墨房1号40004518#7")
+                                    orderby m.id descending
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
+                    firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
+                    break;
+
+
                 case "三楼烤箱房":
                     firstRecords = (from m in db.THhistory
                                    where (m.DeviceID == "40001676" && m.NodeID == "6")
@@ -245,6 +258,16 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
+                case "四楼喷墨房2号":
+                    firstRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40001676" && m.NodeID == "3" &&m.DeviceName== "四楼喷墨房2号40001676#3")
+                                    orderby m.id descending
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
+                    firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+
                 case "四楼线材":
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40001676" && m.NodeID == "4")
@@ -399,6 +422,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //一楼   一楼配套加工5      40004518   5        2018-8-9新增
             //一楼   一楼配套加工6      40004518   6        2018-8-9新增
             //四楼   四楼小间距装配     40004518   7        2018-8-28从40001676转到40004518
+            //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
             //三楼   烤箱房             40001676   6
             //三楼   插件               40001676   9
             //三楼   面罩               40001676   10
@@ -406,6 +430,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   烤箱房             40001676   1
             //四楼   老化               40001676   2
             //四楼   组装               40001676   3
+            //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
             //四楼   线材               40001676   4
             //四楼   四楼老化调试       40001676   5
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
@@ -527,6 +552,19 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
+                case "四楼喷墨房1号40004518#7":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004518" && m.NodeID == "7" &&m.DeviceName== "四楼喷墨房1号40004518#7" && m.RecordTime < left)
+                                    orderby m.id descending
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
 
                 case "三楼烤箱房40001676#6":
                     queryRecords = (from m in db.THhistory
@@ -612,6 +650,8 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
+
                 case "四楼线材40001676#4":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime < left)
@@ -822,6 +862,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //一楼   一楼配套加工5      40004518   5        2018-8-9新增
             //一楼   一楼配套加工6      40004518   6        2018-8-9新增
             //四楼   四楼小间距装配     40004518   7        2018-8-28从40001676转到40004518
+            //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
             //三楼   烤箱房             40001676   6
             //三楼   插件               40001676   9
             //三楼   面罩               40001676   10
@@ -829,6 +870,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   烤箱房             40001676   1
             //四楼   老化               40001676   2
             //四楼   组装               40001676   3
+            //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
             //四楼   线材               40001676   4
             //四楼   四楼老化调试       40001676   5
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
@@ -949,6 +991,19 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
+                case "四楼喷墨房1号40004518#7":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004518" && m.NodeID == "7" && m.DeviceName== "四楼喷墨房1号40004518#7" && m.RecordTime > right)
+                                    orderby m.id
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
 
                 case "三楼烤箱房40001676#6":
                     queryRecords = (from m in db.THhistory
@@ -1034,6 +1089,20 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
+                case "四楼喷墨房2号40001676#3":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40001676" && m.NodeID == "3" && m.DeviceName == "四楼喷墨房2号40001676#3" && m.RecordTime > right)
+                                    orderby m.id
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+
                 case "四楼线材40001676#4":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime > right)
@@ -1244,6 +1313,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //一楼   一楼配套加工5      40004518   5        2018-8-9新增
             //一楼   一楼配套加工6      40004518   6        2018-8-9新增
             //四楼   四楼小间距装配     40004518   7        2018-8-28从40001676转到40004518
+            //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
             //三楼   烤箱房             40001676   6
             //三楼   插件               40001676   9
             //三楼   面罩               40001676   10
@@ -1251,6 +1321,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   烤箱房             40001676   1
             //四楼   老化               40001676   2
             //四楼   组装               40001676   3
+            //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
             //四楼   线材               40001676   4
             //四楼   四楼老化调试       40001676   5
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
@@ -1371,6 +1442,19 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
+                case "四楼喷墨房1号40004518#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "7" && m.DeviceName== "四楼喷墨房1号40004518#7" && m.RecordTime  > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
 
                 case "三楼烤箱房40001676#6":
                     queryRecords = from m in db.THhistory
@@ -1456,6 +1540,20 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
+                case "四楼喷墨房2号40001676#3":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "3" && m.DeviceName== "四楼喷墨房2号40001676#3" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+
                 case "四楼线材40001676#4":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
@@ -2946,11 +3044,13 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   烤箱房             40001676   1
             //四楼   老化               40001676   2
             //四楼   组装               40001676   3
+            //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
             //四楼   线材               40001676   4
             //四楼   四楼老化调试       40001676   5
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
             //四楼   四楼老化调试3号    40004493   5        2018-8-1新增
             //四楼   4#四楼仓库         40004493   3        2018-8-1新增
+            //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
             //五楼   SMT               
             //五楼   SMT               
             //五楼   SMT               
@@ -3085,6 +3185,16 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房2号      40001676   3　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
+                case "四楼喷墨房2号40001676#3":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "3" && m.DeviceName== "四楼喷墨房2号40001676#3" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+
                 case "四楼线材40001676#4":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
@@ -3125,6 +3235,16 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
+                case "四楼喷墨房1号40004518#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "7" && m.DeviceName== "四楼喷墨房1号40004518#7" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+
                 case "4#四楼仓库40004493#3":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40004493" && m.NodeID == "3" && m.RecordTime > begin && m.RecordTime < end)

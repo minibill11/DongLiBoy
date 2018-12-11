@@ -333,7 +333,11 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
+            if (calibrationRecord.AbnormalDescription == "正常")
+            {
+                ModelState.AddModelError("", "模组校正结果是正常的，请在“正常”后面打勾。");
+                return View(calibrationRecord);
+            }
             if (calibrationRecord.FinishCalibration == null)
             {
                 calibrationRecord.FinishCalibration = DateTime.Now;
@@ -341,10 +345,18 @@ namespace JianHeMES.Controllers
                 var BC = calibrationRecord.BeginCalibration.Value;
                 var FC = calibrationRecord.FinishCalibration.Value;
                 var CT = FC - BC;
-                calibrationRecord.CalibrationTime = CT;
-                calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                if (CT.Days > 0)
+                {
+                    //calibrationRecord.CalibrationDate = CT.Days;
+                    calibrationRecord.CalibrationTime = new TimeSpan(CT.Hours, CT.Minutes, CT.Seconds);
+                    calibrationRecord.CalibrationTimeSpan = CT.Days.ToString() + "天" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                }
+                else
+                {
+                    calibrationRecord.CalibrationTime = CT;
+                    calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                }
             }
-
             if (ModelState.IsValid)
             {
                 db.Entry(calibrationRecord).State = EntityState.Modified;
@@ -516,9 +528,10 @@ namespace JianHeMES.Controllers
                 //未开始做条码清单
                 NotDoList = barcodelist.Except(recordlist).ToList();
                 //已完成条码清单
-                FinishList = AllCalibrationRecord.Where(c => c.OrderNum == orderNum && c.Normal == true).Select(c => c.BarCodesNum).Distinct().ToList();
+                FinishList = AllCalibrationRecord.Where(c => c.OrderNum == orderNum && c.Normal == true).Select(c => c.BarCodesNum + "   " + c.ModuleGroupNum).Distinct().ToList();
                 //未完成条码清单
-                NeverFinish = AllCalibrationRecord.Where(c => c.OrderNum == orderNum && c.Normal == false).Select(c => c.BarCodesNum).Distinct().ToList().Except(FinishList).ToList();
+                NeverFinish = AllCalibrationRecord.Where(c => c.OrderNum == orderNum && c.Normal == false).Select(c => c.BarCodesNum + "   " + c.ModuleGroupNum).Distinct().ToList().Except(FinishList).ToList();
+
                 stationResult.Add("NotDoList", JsonConvert.SerializeObject(NotDoList));
                 stationResult.Add("NeverFinish", JsonConvert.SerializeObject(NeverFinish));
                 stationResult.Add("FinishList", JsonConvert.SerializeObject(FinishList));

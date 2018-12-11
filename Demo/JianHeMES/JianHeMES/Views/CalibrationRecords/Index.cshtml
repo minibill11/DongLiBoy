@@ -5,22 +5,30 @@
     ViewBag.Title = "校正信息查询";
 }
 @Scripts.Render("~/Scripts/highcharts")
-@*<script src="~/Scripts/highcharts.js"></script>
-<script src="~/Scripts/highcharts-3d.js"></script>
-<script src="~/Scripts/modules/exporting.js"></script>*@
-@*引入EasyUI框架*@
-@*<script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
-<script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
-<link rel="stylesheet" type="text/css" href="~/Content/easyui.css">
-<link rel="stylesheet" type="text/css" href="~/Content/icon.css">
-<script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
-<meta http-equiv="content-type" content="text/html;charset=UTF-8" />*@
-@*引入Vue.js框架*@
-@*<script src="~/Scripts/vue.js"></script>*@
-@*引入Bootstrap框架*@
-@*<link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
-<script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>*@
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+<style>
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
 
+    .dropdown-menu > li > a {
+        padding: 3px 10px;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 150px;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+            width: 135px;
+        }
+        .selectpicker {
+            font-size: 13px;
+        }
+    }
+</style>
 <h3 class="text-center">@ViewBag.Title</h3>
 <br class="hidden-xs" />
 <div class="text-center">
@@ -38,12 +46,13 @@
     @Html.AntiForgeryToken()
     <form asp-controller="CalibrationRecords" asp-action="Index" method="post" class="text-center">
         <p id="queryColumn">
-            <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")</span>
+            <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })</span>
             @*订单号：<input type="text" name="orderNum"/>*@
-            <span class="hidden-xs">模组号：<input type="text" name="moduleGroupNum" v-model="moduleGroupNum" /></span>
-            <span class="hidden-xs">描述:<input type="text" name="SearchString" v-model="SearchString" /></span>
+            <span class="hidden-xs">模组号：<input type="text" name="moduleGroupNum" class="form-control" style="display:inline;width:150px;"  /></span>
+            <span class="hidden-xs">描述:<input type="text" name="SearchString" class="form-control" style="display:inline;width:150px;" /></span>
             <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
-            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
+            <input type="button" id="searchcButton" class="btn btn-default" value="查找" />
+            <input type="submit" id="searchButton" class="btn btn-default hidden" value="查找" />
         </p>
     </form>
     <br />
@@ -224,7 +233,16 @@
                     </td>*@
 
                 <td>
-                    @Html.ActionLink("编辑", "Edit", new { id = item.ID }) |
+                    @{
+                        var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+                        var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role;
+                        var UserDepartment = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Department;
+                    }
+                    @if ((UserDepartment == "装配一部" && UserName == "段勇")|| UserRole=="系统管理员")
+                    {
+                        @Html.ActionLink("编辑", "Edit", new { id = item.ID })
+                    }
+                    @*|*@
                     @Html.ActionLink("详细", "Details", new { id = item.ID }) @*|*@
                     @*@Html.ActionLink("删除", "Delete", new { id=item.ID })*@
                 </td>
@@ -255,25 +273,8 @@
         var queryColumn = new Vue({
             el: '#queryColumn',
             data: {
-                moduleGroupNum: "",
-                lookup: true,
-                SearchString: "",
             },
             watch: {
-                moduleGroupNum: function (val) {
-                    if ($("#orderNum").val() == "" && this.moduleGroupNum == "" && this.SearchString == "") {
-                        this.lookup = true;
-                    } else {
-                        this.lookup = false;
-                    };
-                },
-                SearchString: function (val) {
-                    if ($("#orderNum").val() == "" && this.moduleGroupNum == "" && this.SearchString == "") {
-                        this.lookup = true;
-                    } else {
-                        this.lookup = false;
-                    };
-                }
             }
         });
     </script>
@@ -285,7 +286,7 @@
         }
 
         $(function () {
-
+            $('.selectpicker').selectpicker();
             $('#searchButton').click(function () {
                 submitForm($('#pagebar .currentpagenumber').text());
             });
@@ -295,13 +296,11 @@
             });
 
         });
-        $("#orderNum").change(function (val) {
-            if (val.target.value == "" && queryColumn.moduleGroupNum == "" && queryColumn.SearchString == "") {
-                queryColumn.lookup = true;
-            } else {
-                queryColumn.lookup = false;
-            };
-        });
+        $("#searchcButton").click(function(event){
+            if($("#orderNum").val()!=""){
+                $("#searchButton").click();
+            }
+        })
     </script>
 }
 

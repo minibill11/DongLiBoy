@@ -4,22 +4,9 @@
     ViewBag.Title = "外观包装信息查询";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<script src="~/Scripts/highcharts.js"></script>
-<script src="~/Scripts/highcharts-3d.js"></script>
-<script src="~/Scripts/modules/exporting.js"></script>
-@*引入EasyUI框架*@
-@*<script type="text/javascript" src="~/Scripts/jquery-1.11.3.js"></script>
-<script type="text/javascript" src="~/Scripts/jquery.easyui.min.js"></script>
-<link rel="stylesheet" type="text/css" href="~/Content/easyui.css">
-<link rel="stylesheet" type="text/css" href="~/Content/icon.css">
-<script src="~/Scripts/locale/easyui-lang-zh_CN.js"></script>
-<meta http-equiv="content-type" content="text/html;charset=UTF-8" />*@
-@*引入Vue.js框架*@
-@*<script src="~/Scripts/vue.js"></script>*@
-@*引入Bootstrap框架*@
-@*<link rel="stylesheet" href="~/Scripts/bootstrap.min.css" />
-<script type="text/javascript" src="~/Scripts/bootstrap-paginator.js"></script>*@
-
+@Scripts.Render("~/Scripts/highcharts")
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 <h3 class="text-center">@ViewBag.Title</h3>
 <style>
     #notdo {
@@ -29,6 +16,26 @@
         padding: 0px 15px;
         margin: 0px 50px;
         border: none;
+    }
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    .dropdown-menu > li > a {
+        padding: 3px 10px;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 150px;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+            width: 135px;
+        }
+        .selectpicker {
+            font-size: 13px;
+        }
     }
 </style>
 <br />
@@ -44,13 +51,13 @@
     @Html.AntiForgeryToken()
     <form asp-controller="Appearances" asp-action="Index" method="post" class="text-center">
         <p id="queryColumn">
-            <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部")</span>
-            @*订单号：<input type="text" name="orderNum"/>*@
-            <span class="hidden-xs">条码号：<input type="text" name="BoxBarCode" v-model="BoxBarCode" /></span>
-            <span class="hidden-xs">外观包装状态：@Html.DropDownList("AppearancesNormal", (List<SelectListItem>)ViewBag.AppearancesNormal, "全部")</span>
-            <span class="hidden-xs">描述:<input type="text" name="SearchString" v-model="SearchString" /></span>
+            <span>订单号：@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })</span>
+            <span class="hidden-xs">条码号：<input type="text" class="form-control" style="display:inline;width:150px;" name="BoxBarCode" /></span>
+            <span class="hidden-xs">外观包装状态：@Html.DropDownList("AppearancesNormal", (List<SelectListItem>)ViewBag.AppearancesNormal, "全部",  new { @class = "form-control", style = "display:inline; width: 80px" })</span>
+            <span class="hidden-xs">描述:<input type="text" class="form-control" style="display:inline;width:150px;" name="SearchString" /></span>
             <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
-            <input v-bind:disabled="lookup" type="submit" id="searchButton" value="查找" />
+            <input type="button" id="searchcButton" class="btn btn-default" value="查找" />
+            <input type="submit" id="searchButton" class="btn btn-default hidden" value="查找" />
         </p>
     </form>
     <br />
@@ -172,8 +179,8 @@
             @Html.DisplayNameFor(model => model.OQCCheckFT)
         </th>
         @*<th>
-            @Html.DisplayNameFor(model => model.OQCCheckTime)
-        </th>*@
+                @Html.DisplayNameFor(model => model.OQCCheckTime)
+            </th>*@
         <th>
             @Html.DisplayNameFor(model => model.OQCCheckTimeSpan)
         </th>
@@ -212,8 +219,8 @@
                     @Html.DisplayFor(modelItem => item.OQCCheckFT)
                 </td>
                 @*<td>
-                    @Html.DisplayFor(modelItem => item.OQCCheckTime)
-                </td>*@
+                        @Html.DisplayFor(modelItem => item.OQCCheckTime)
+                    </td>*@
                 <td>
                     @Html.DisplayFor(modelItem => item.OQCCheckTimeSpan)
                 </td>
@@ -254,28 +261,11 @@
 </div>
 @section scripts {
     <script>
-        var queryColumn = new Vue ({
-            el:'#queryColumn',
-            data:{
-                BoxBarCode:"",
-                lookup:true,
-                SearchString:"",
+        var queryColumn = new Vue({
+            el: '#queryColumn',
+            data: {
             },
-            watch:{
-                BoxBarCode:function(val){
-                    if($("#orderNum").val()==""&&this.BoxBarCode==""&&this.SearchString==""){
-                        this.lookup = true;
-                    }else{
-                        this.lookup = false;
-                    };
-                },
-                SearchString:function(val){
-                    if($("#orderNum").val()==""&&this.BoxBarCode==""&&this.SearchString==""){
-                        this.lookup = true;
-                    }else{
-                        this.lookup = false;
-                    };
-                }
+            watch: {
             }
         });
     </script>
@@ -287,7 +277,7 @@
         }
 
         $(function () {
-
+            $('.selectpicker').selectpicker();
             $('#searchButton').click(function () {
                 submitForm($('#pagebar .currentpagenumber').text());
             });
@@ -295,14 +285,11 @@
             $('#pagebar .pagenumber').click(function () {
                 submitForm($(this).text());
             });
-
-        });
-        $("#orderNum").change(function (val) {
-            if(val.target.value == ""&&queryColumn.BoxBarCode==""&&queryColumn.SearchString==""){
-                queryColumn.lookup = true;
-            }else{
-                queryColumn.lookup = false;
-            };
+            $("#searchcButton").click(function(event){
+                if($("#orderNum").val()!=""){
+                    $("#searchButton").click();
+                }
+            })
         });
     </script>
 }

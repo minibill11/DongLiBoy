@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("JianHeMES")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("健和光电")]
 [assembly: AssemblyProduct("JianHeMES")]
-[assembly: AssemblyCopyright("版权所有(C) Microsoft 2018")]
+[assembly: AssemblyCopyright("版权所有(C) 健和光电 - 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

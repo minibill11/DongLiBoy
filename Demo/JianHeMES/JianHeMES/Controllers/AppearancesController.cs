@@ -436,7 +436,7 @@ namespace JianHeMES.Controllers
             var appearanceRecord = db.Appearance.Where(u => u.BarCodesNum == appearance.BarCodesNum).ToList();
             appearance.OQCCheckBT = DateTime.Now;
             appearance.OQCPrincipal = ((Users)Session["User"]).UserName;
-            //增加模组箱体号到外观记录中
+            //从条码表中读取模组箱体号，增加模组箱体号到外观记录中
             appearance.ModuleGroupNum = (from m in db.BarCodes where m.BarCodesNum == appearance.BarCodesNum select m).FirstOrDefault().ModuleGroupNum;
             var barcoderecord = db.BarCodes.FirstOrDefault(c => c.BarCodesNum == appearance.BarCodesNum);
 
