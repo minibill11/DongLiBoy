@@ -71,8 +71,12 @@ namespace JianHeMES.Models
         [Display(Name = "异常描述")]
         public string AbnormalDescription { get; set; }
 
-        [Display(Name = "校正时长")]
+        [Display(Name ="校正时长(天)")]
+        public int CalibrationDate { get; set; }
+
+        [Display(Name = "校正时长(时间)")]
         public TimeSpan? CalibrationTime { get; set; }
+
         [Display(Name = "校正用时")]
         public string CalibrationTimeSpan { get; set; }
 

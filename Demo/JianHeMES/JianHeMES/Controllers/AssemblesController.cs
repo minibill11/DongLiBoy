@@ -712,7 +712,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal,Remark")] Assemble assemble)
+        public ActionResult PQCCheckB([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,PQCCheckBT,AssemblePQCPrincipal,RepetitionPQCCheck,RepetitionPQCCheckCause,Remark")] Assemble assemble)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             if (Session["User"] == null)
@@ -720,6 +720,30 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
+            ////验证此条码是否已经完成PQC
+            //int finisthcount = db.Assemble.Where(c => c.BoxBarCode == assemble.BoxBarCode && c.PQCCheckAbnormal == "正常" && c.RepetitionPQCCheck == false).Count();
+            ////2.未完成，“重复”打钩，因为没有已完成PQC记录，提示不能打钩
+            //if (finisthcount == 0 && assemble.RepetitionPQCCheck == true)
+            //{
+            //    ModelState.AddModelError("", "该模组条码未完成PQC,不能进行重复PQC打钩！");
+            //    return View(assemble);
+            //}
+
+            ////3.已完成PQC,，“重复”不打钩，提示“重复”要打钩
+            //if (finisthcount > 0 && assemble.RepetitionPQCCheck == false)
+            //{
+            //    ModelState.AddModelError("", "该模组条码可能未完成或重复PQC未打钩！");
+            //    return View(assemble);
+            //}
+            ////1.未完成，“重复”不打钩，使用原来的方法操作,和4.已完成，“重复”打钩,使用原来的方法操作，再加上对RepetitioPQCCheck修改为true,RepetitionPQCCheckCause增加内容
+            ////if (finisthcount==0 && assemble.RepetitionPQCCheck == false || finisthcount>0 && assemble.RepetitionPQCCheck == true)
+            ////{
+            ////}
+            ////1.未完成，“重复”不打钩，使用原来的方法操作
+            ////2.未完成，“重复”打钩，因为没有已完成PQC记录，提示不能打钩
+            ////3.已完成，“重复”不打钩，提示“重复”要打钩
+            ////4.已完成，“重复”打钩,使用原来的方法操作，再加上对RepetitioPQCCheck修改为true,RepetitionPQCCheckCause增加内容
+ 
             //在BarCodes条码表中找不到此条码号
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == assemble.BoxBarCode) == null)
             {
@@ -751,7 +775,6 @@ namespace JianHeMES.Controllers
                     ModelState.AddModelError("", "该模组条码不属于所选订单，请选择正确的订单号！");
                     return View(assemble);
                 }
-
             }
             //在Assembles组装记录表中找到对应BoxBarCode的记录，如果记录中没有完成的，准备在Assembles组装记录表中新建记录，如果有正常记录将提示不能重复进行QC
             else if (db.Assemble.Count(u => u.BoxBarCode == assemble.BoxBarCode) >= 1)
@@ -768,7 +791,6 @@ namespace JianHeMES.Controllers
                             return RedirectToAction("PQCCheckF", new { assemble.Id });
                         }
                     }
-
                     if (assemble.OrderNum == db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum)
                     {
                         assemble.OrderNum = db.BarCodes.Where(u => u.BarCodesNum == assemble.BoxBarCode).FirstOrDefault().OrderNum;
@@ -823,7 +845,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
 
-        public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTimeSpan,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish,Remark")] Assemble assemble)
+        public ActionResult PQCCheckF([Bind(Include = "Id,OrderNum,BarCode_Prefix,BoxBarCode,BarCode_Prefix,AssembleBT,AssembleFT,AssembleTime,AssembleFinish,WaterproofTestBT,WaterproofTestFT,WaterproofTestTimeSpan,WaterproofAbnormal,WaterproofMaintaince,WaterproofTestFinish,AssembleAdapterCardBT,AssembleAdapterCardFT,AssembleAdapterTime,AssembleAdapterFinish,ViewCheckBT,ViewCheckFT,ViewCheckTime,ViewCheckAbnormal,ViewCheckFinish,ElectricityCheckBT,ElectricityCheckFT,ElectricityCheckTime,ElectricityCheckAbnormal,ElectricityCheckFinish,PQCCheckBT,AssemblePQCPrincipal,AssembleLineId,PQCCheckFT,PQCCheckTime,PQCCheckAbnormal,PQCRepairCondition,PQCCheckFinish,RepetitionPQCCheck,RepetitionPQCCheckCause,Remark")] Assemble assemble)
         {
             if (Session["User"] == null)
             {

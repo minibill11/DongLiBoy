@@ -23,17 +23,53 @@ namespace JianHeMES.Controllers
             return View();
         }
 
-        public ActionResult b_a_list()
+        //public ActionResult b_a_list()   //没老化就包装
+        //{
+        //    string ordernum = "2018-YA403-4";
+        //    var list = mesdb.BarCodes.Where(c => c.OrderNum == ordernum).ToList();
+        //    List<string> barcodeslist = new List<string>();
+        //    var appearancefinistlist = mesdb.Appearance.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+        //    var burn_in = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+        //    var result = appearancefinistlist.Except(burn_in).ToList();
+        //    ViewBag.resultlist = result;
+        //    return View(result);
+        //}
+
+        public ActionResult b_a_list()   //老化未完成　就校正
         {
             string ordernum = "2018-YA403-4";
             var list = mesdb.BarCodes.Where(c => c.OrderNum == ordernum).ToList();
-            List<string> barcodeslist = new List<string>();
-            var appearancefinistlist = mesdb.Appearance.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
-            var burn_in = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
-            var result = appearancefinistlist.Except(burn_in).ToList();
+            List<string> barcodeslist = mesdb.BarCodes.Where(c=>c.OrderNum==ordernum).Select(c=>c.BarCodesNum).ToList();
+            //var appearancefinistlist = mesdb.Appearance.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+            //老化已完成
+            var burn_infinish = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).OrderBy(c=>c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+            //老化未开始
+            var burn_in_nverebegin = barcodeslist.Except(mesdb.Burn_in.Where(c=>c.OrderNum==ordernum).Select(c=>c.BarCodesNum).ToList()).ToList();
+            //老化正在进行，未完成217个
+            var burn_in_neverfinish = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == false).OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+
+            //校正完成
+            var calibrationlist=mesdb.CalibrationRecord.Where(c => c.OrderNum == ordernum && c.Normal==true).OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+
+            //校正除去老化已完成
+            var result = calibrationlist.Except(burn_infinish).Except(burn_in_nverebegin).ToList();//38个
+
+            //result = result.Intersect(burn_in_nverebegin).ToList();
+            //for (int i=0;i< result.Count; i++)
+            //{
+            //    var tem = result[i];
+            //    if (mesdb.CalibrationRecord.Where(c => c.BarCodesNum == tem).Count() == 0)
+            //    {
+            //        result.RemoveAt(i);
+            //    }
+            //}
+            ViewBag.burn_in_finish = burn_infinish;
+            ViewBag.calibrationlist = calibrationlist;
+            ViewBag.burn_in_neverfinish = burn_in_neverfinish;
             ViewBag.resultlist = result;
             return View(result);
         }
+
 
         [HttpPost]
         public ActionResult b_a_list(string ordernum)

@@ -8,6 +8,7 @@ using System.Web.Optimization;
 using System.Web.Routing;
 using JianHeMES.Models;
 using JianHeMES.Migrations;
+using System.Web.Http;
 
 namespace JianHeMES
 {
@@ -17,6 +18,7 @@ namespace JianHeMES
         {
             Database.SetInitializer(new MigrateDatabaseToLatestVersion<ApplicationDbContext, Configuration>());
             AreaRegistration.RegisterAllAreas();
+            GlobalConfiguration.Configure(App_Start.WebApiConfig.Register);
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             //启用压缩

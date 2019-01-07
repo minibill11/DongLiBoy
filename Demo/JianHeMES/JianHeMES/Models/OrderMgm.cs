@@ -94,6 +94,8 @@ namespace JianHeMES.Models
         [DataType(DataType.DateTime)]
         public DateTime? OrderCreateDate { get; set; }
 
+
+        //修改为Module模组条码
         [Display(Name = "条码是否已经生成")]
         public int? BarCodeCreated { get; set; }
 
@@ -103,6 +105,41 @@ namespace JianHeMES.Models
 
         [Display(Name = "条码生成者")]
         public string BarCodeCreator { get; set; }
+
+        //模块条码
+        [Display(Name = "条码是否已经生成")]
+        public int? ModulePieceBarCodeCreated { get; set; }
+
+        [Display(Name = "条码生成日期")]
+        [DataType(DataType.DateTime)]
+        public DateTime? ModulePieceBarCodeCreateDate { get; set; }
+
+        [Display(Name = "条码生成者")]
+        public string ModulePieceBarCodeCreator { get; set; }
+
+        //电源条码
+        [Display(Name = "条码是否已经生成")]
+        public int? PowerBarCodeCreated { get; set; }
+
+        [Display(Name = "条码生成日期")]
+        [DataType(DataType.DateTime)]
+        public DateTime? PowerBarCodeCreateDate { get; set; }
+
+        [Display(Name = "条码生成者")]
+        public string PowerBarCodeCreator { get; set; }
+
+        //转接卡条码
+        [Display(Name = "条码是否已经生成")]
+        public int? AdapterCardBarCodeCreated { get; set; }
+
+        [Display(Name = "条码生成日期")]
+        [DataType(DataType.DateTime)]
+        public DateTime? AdapterCardBarCodeCreateDate { get; set; }
+
+        [Display(Name = "条码生成者")]
+        public string AdapterCardBarCodeCreator { get; set; }
+
+
 
         [Display(Name = "完工率")]
         public float? CompletedRate { get; set; }

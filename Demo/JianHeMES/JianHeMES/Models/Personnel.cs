@@ -53,8 +53,11 @@ namespace JianHeMES.Models
 
         //当日离职人数＝当日离职正式工人数-当日离职劳务工人数
 
-        [Display(Name = "本月待离职人数")]
+        [Display(Name = "当月待离职正式工人数")]
         public int Resigned_that_month { get; set; }
+
+        [Display(Name = "当月待离职劳务工人数")]
+        public int Resigned_workers_that_month { get; set; }
 
         [Display(Name = "日期")]
         public DateTime? Date { get; set; }
@@ -64,5 +67,29 @@ namespace JianHeMES.Models
 
     }
 
+    //public class Personnel_daily_header
+    //{
+    //    [Key]
+    //    public int Id { get; set; }
+
+    //    [Display(Name = "排序序号")]
+    //    public int orderBy { get; set; }
+
+    //    [Display(Name = "部门")]
+    //    public string Department { get; set; }
+
+    //    [Display(Name = "负责人")]
+    //    public string Principal { get; set; }
+
+    //    [Display(Name = "编制人数")]
+    //    public int Aurhorized_personnel { get; set; }
+
+    //    [Display(Name = "刚需人数")]
+    //    public int Need_personnel { get; set; }
+
+    //    [Display(Name = "日期")]
+    //    public DateTime? Date { get; set; }
+
+    //}
 
 }

@@ -254,7 +254,6 @@ namespace JianHeMES.Controllers
 
         public ActionResult SMT_ProductionPlan()
         {
-            //ViewBag.OrderList = db.SMT_OrderInfo.Where(c=>c.Status!=true).ToList();
             var records = db.SMT_ProductionPlan.OrderBy(c=>c.LineNum).Where(c=>DbFunctions.DiffDays(c.CreateDate,DateTime.Now)<=0).ToList();
             return View(records);
         }
@@ -265,10 +264,9 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 ViewBag.Status = ProductionLineStatus();
-                //ViewBag.OrderList = db.SMT_OrderInfo.Where(c => c.Status != true).ToList();
                 return View();
             }
             return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
@@ -295,7 +293,6 @@ namespace JianHeMES.Controllers
                         SMT_OrderInfoCheck_result.Add(item.OrderNum, "此产线可以做订单计划");
                     }
                 }
-                //return Content(SMT_OrderInfoCheck_result.ToString());
                 return Json(SMT_OrderInfoCheck_result.ToString(), JsonRequestBehavior.AllowGet);
             }
             return View(records);
@@ -507,10 +504,215 @@ namespace JianHeMES.Controllers
 
 
         #region------------------生产信息
-        // GET: SMT总览表
-        public ActionResult SMT_ProductionInfo()
+
+        public ActionResult SMT_ProductionInfo_old()
         {
             return View();
+        }
+
+
+            // GET: SMT总览表
+            public ActionResult SMT_ProductionInfo()
+        {
+            //SMT生产数据
+            JObject LineData = new JObject();
+            //SMT生产线号
+            var LineNumList = db.SMT_ProductionLineInfo.OrderBy(d => d.LineNum).Select(c => c.LineNum).Distinct().ToList();
+            JObject LineOrderDetails = new JObject();
+            //今天全部计划生产的订单清单
+            var PlanProductionOrderNumList = db.SMT_ProductionPlan.Where(c => c.CreateDate.Value.Year == DateTime.Now.Year && c.CreateDate.Value.Month == DateTime.Now.Month && c.CreateDate.Value.Day == DateTime.Now.Day).ToList();
+            //今天全部生产记录清单
+            var TodayProductionData = db.SMT_ProductionData.Where(c => c.ProductionDate.Value.Year == DateTime.Now.Year && c.ProductionDate.Value.Month == DateTime.Now.Month && c.ProductionDate.Value.Day == DateTime.Now.Day).ToList();
+            //foreach每条生产线
+            foreach (var linenum in LineNumList)
+            {
+                //取出今天本生产线的计划订单清单
+                List<string> planOrderNumList = PlanProductionOrderNumList.Where(c => c.LineNum == linenum).Select(c => c.OrderNum).ToList();
+                //foreach本生产线的每个计划订单号
+                foreach (var planorder in planOrderNumList)
+                {
+                    //今天良品
+                    int todayNormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault()==null?0: TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().NormalCount;
+                    //今天不良品
+                    int todayAbnormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().AbnormalCount;
+                    //订单总良品
+                    int orderNormalcount = 0;
+                    if(db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count()>0)
+                    {
+                        orderNormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.NormalCount);
+                    }
+                    //订单总不良品
+                    int orderAbnormalcount = 0;
+                    if(db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count()>0)
+                    {
+                        orderAbnormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.AbnormalCount);
+                    }
+                    //订单日计划
+                    int todayPlanQuantity = PlanProductionOrderNumList.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
+                    //订单数量
+                    int orderQuantity = db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
+                    //产线信息
+                    var lineInfo = db.SMT_ProductionLineInfo.Where(c => c.LineNum == linenum).FirstOrDefault();
+
+                    //建一个List装一行信息
+                    List<string> detailInfor_planorder = new List<string>();
+                    //往List填写“平台”信息
+                    detailInfor_planorder.Add(db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? "" : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().PlatformType);
+                    //往List填写“订单数量”信息
+                    detailInfor_planorder.Add(orderQuantity==0?"": orderQuantity.ToString());
+                    //往List填写“日计划数量”信息
+                    detailInfor_planorder.Add(todayPlanQuantity.ToString());
+                    //往List填写“日生产完成数量”信息
+                    detailInfor_planorder.Add((todayNormalcount + todayAbnormalcount).ToString());
+                    //往List填写“日生产完成率”信息
+                    detailInfor_planorder.Add(((todayNormalcount + todayAbnormalcount) * 100 / todayPlanQuantity).ToString("F2")+"%");
+                    //往List填写“不良品”信息
+                    detailInfor_planorder.Add(todayAbnormalcount.ToString());
+                    //往List填写“良品”信息
+                    detailInfor_planorder.Add(todayNormalcount.ToString());
+                    //往List填写“不良率”信息
+                    detailInfor_planorder.Add(todayAbnormalcount + todayNormalcount == 0?"0.00%": (todayAbnormalcount * 100 / (todayAbnormalcount + todayNormalcount)).ToString("F2") + "%");
+                    //往List填写“总良品”信息
+                    detailInfor_planorder.Add(orderNormalcount.ToString());
+                    //往List填写“总不良品”信息
+                    detailInfor_planorder.Add(orderAbnormalcount.ToString());
+                    //往List填写“总不良品率”信息
+                    detailInfor_planorder.Add(orderNormalcount + orderAbnormalcount == 0?"0.00%": (orderAbnormalcount * 100 / (orderNormalcount + orderAbnormalcount)).ToString("F2") + "%");
+                    //往List填写“累计数量”信息
+                    detailInfor_planorder.Add((orderNormalcount + orderAbnormalcount).ToString());
+                    //往List填写“订单完成率”信息
+                    detailInfor_planorder.Add(orderQuantity==0? "0.00%": ((orderNormalcount + orderAbnormalcount) * 100 / orderQuantity).ToString("F2") + "%");
+                    //往List填写“班组”信息
+                    detailInfor_planorder.Add(lineInfo.Team);
+                    //往List填写“组长”信息
+                    detailInfor_planorder.Add(lineInfo.GroupLeader);
+                    //往List填写“状态”信息
+
+                    if (TodayProductionData.Where(c => c.OrderNum == planorder).Count()>0)
+                    {
+                        var subtime = DateTime.Now.Subtract(Convert.ToDateTime(TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().ProductionDate));
+                        if (subtime.TotalMinutes>5)
+                        {
+                            detailInfor_planorder.Add("待生产");
+                        }
+                        else
+                        {
+                            detailInfor_planorder.Add("生产中");
+                        }
+                    }
+                    else
+                    {
+                        detailInfor_planorder.Add("待生产");
+                    }
+                    LineOrderDetails.Add(planorder, JsonConvert.SerializeObject(detailInfor_planorder));
+                }
+                LineData.Add(linenum.ToString(), JsonConvert.SerializeObject(LineOrderDetails));
+                LineOrderDetails = new JObject();
+            }
+            ViewBag.json = LineData;
+            return View();
+        }
+
+
+        [HttpPost]
+        public ActionResult SMT_ProductionInfo(string getdata)
+        {
+            //SMT生产数据
+            JObject LineData = new JObject();
+            //SMT生产线号
+            var LineNumList = db.SMT_ProductionLineInfo.OrderBy(d => d.LineNum).Select(c => c.LineNum).Distinct().ToList();
+            JObject LineOrderDetails = new JObject();
+            //今天全部计划生产的订单清单
+            var PlanProductionOrderNumList = db.SMT_ProductionPlan.Where(c => c.CreateDate.Value.Year == DateTime.Now.Year && c.CreateDate.Value.Month == DateTime.Now.Month && c.CreateDate.Value.Day == DateTime.Now.Day).ToList();
+            //今天全部生产记录清单
+            var TodayProductionData = db.SMT_ProductionData.Where(c => c.ProductionDate.Value.Year == DateTime.Now.Year && c.ProductionDate.Value.Month == DateTime.Now.Month && c.ProductionDate.Value.Day == DateTime.Now.Day).ToList();
+            //foreach每条生产线
+            foreach (var linenum in LineNumList)
+            {
+                //取出今天本生产线的计划订单清单
+                List<string> planOrderNumList = PlanProductionOrderNumList.Where(c => c.LineNum == linenum).Select(c => c.OrderNum).ToList();
+                //foreach本生产线的每个计划订单号
+                foreach (var planorder in planOrderNumList)
+                {
+                    //今天良品
+                    int todayNormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().NormalCount;
+                    //今天不良品
+                    int todayAbnormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().AbnormalCount;
+                    //订单总良品
+                    int orderNormalcount = 0;
+                    if (db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count() > 0)
+                    {
+                        orderNormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.NormalCount);
+                    }
+                    //订单总不良品
+                    int orderAbnormalcount = 0;
+                    if (db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count() > 0)
+                    {
+                        orderAbnormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.AbnormalCount);
+                    }
+                    //订单日计划
+                    int todayPlanQuantity = PlanProductionOrderNumList.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
+                    //订单数量
+                    int orderQuantity = db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
+                    //产线信息
+                    var lineInfo = db.SMT_ProductionLineInfo.Where(c => c.LineNum == linenum).FirstOrDefault();
+
+                    //建一个List装一行信息
+                    List<string> detailInfor_planorder = new List<string>();
+                    //往List填写“平台”信息
+                    detailInfor_planorder.Add(db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? "" : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().PlatformType);
+                    //往List填写“订单数量”信息
+                    detailInfor_planorder.Add(orderQuantity == 0 ? "" : orderQuantity.ToString());
+                    //往List填写“日计划数量”信息
+                    detailInfor_planorder.Add(todayPlanQuantity.ToString());
+                    //往List填写“日生产完成数量”信息
+                    detailInfor_planorder.Add((todayNormalcount + todayAbnormalcount).ToString());
+                    //往List填写“日生产完成率”信息
+                    detailInfor_planorder.Add(((todayNormalcount + todayAbnormalcount) * 100 / todayPlanQuantity).ToString("F2") + "%");
+                    //往List填写“不良品”信息
+                    detailInfor_planorder.Add(todayAbnormalcount.ToString());
+                    //往List填写“良品”信息
+                    detailInfor_planorder.Add(todayNormalcount.ToString());
+                    //往List填写“不良率”信息
+                    detailInfor_planorder.Add(todayAbnormalcount + todayNormalcount == 0 ? "0.00%" : (todayAbnormalcount * 100 / (todayAbnormalcount + todayNormalcount)).ToString("F2") + "%");
+                    //往List填写“总良品”信息
+                    detailInfor_planorder.Add(orderNormalcount.ToString());
+                    //往List填写“总不良品”信息
+                    detailInfor_planorder.Add(orderAbnormalcount.ToString());
+                    //往List填写“总不良品率”信息
+                    detailInfor_planorder.Add(orderNormalcount + orderAbnormalcount == 0 ? "0.00%" : (orderAbnormalcount * 100 / (orderNormalcount + orderAbnormalcount)).ToString("F2") + "%");
+                    //往List填写“累计数量”信息
+                    detailInfor_planorder.Add((orderNormalcount + orderAbnormalcount).ToString());
+                    //往List填写“订单完成率”信息
+                    detailInfor_planorder.Add(orderQuantity == 0 ? "0.00%" : ((orderNormalcount + orderAbnormalcount) * 100 / orderQuantity).ToString("F2") + "%");
+                    //往List填写“班组”信息
+                    detailInfor_planorder.Add(lineInfo.Team);
+                    //往List填写“组长”信息
+                    detailInfor_planorder.Add(lineInfo.GroupLeader);
+                    //往List填写“状态”信息
+
+                    if (TodayProductionData.Where(c => c.OrderNum == planorder).Count() > 0)
+                    {
+                        var subtime = DateTime.Now.Subtract(Convert.ToDateTime(TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().ProductionDate));
+                        if (subtime.TotalMinutes > 5)
+                        {
+                            detailInfor_planorder.Add("待生产");
+                        }
+                        else
+                        {
+                            detailInfor_planorder.Add("生产中");
+                        }
+                    }
+                    else
+                    {
+                        detailInfor_planorder.Add("待生产");
+                    }
+                    LineOrderDetails.Add(planorder, JsonConvert.SerializeObject(detailInfor_planorder));
+                }
+                LineData.Add(linenum.ToString(), JsonConvert.SerializeObject(LineOrderDetails));
+                LineOrderDetails = new JObject();
+            }
+            return Content(JsonConvert.SerializeObject(LineData));
         }
 
         //产线看板页面
@@ -529,6 +731,7 @@ namespace JianHeMES.Controllers
         // GET: SMT产线未段工位输入操作
         public ActionResult SMT_Operator()
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
             if (Session["User"] == null)
             {
@@ -542,80 +745,42 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        //public ActionResult SMT_Operator(string OrderNum, int LineNum, string Result)
         public ActionResult SMT_Operator(FormCollection fc)
         {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            SMT_ProductionData productiondata = new SMT_ProductionData();
+            productiondata.OrderNum = fc["OrderNum"];
+            productiondata.LineNum = Convert.ToInt32(fc["LineNum"]);
+            productiondata.Operator = ((Users)Session["User"]).UserName;
+            productiondata.NormalCount = Convert.ToInt32(fc["normalQ"]);
+            productiondata.AbnormalCount = Convert.ToInt32(fc["abnormalQ"]);
+            productiondata.BeginTime = Convert.ToDateTime(fc["begintime"]);
+            productiondata.EndTime = Convert.ToDateTime(fc["endtime"]);
+            productiondata.Result = Convert.ToBoolean(fc["result"]);
+            productiondata.BarcodeNum = fc["barcodeNum"];
+            productiondata.ProductionDate = DateTime.Now;
+            if (ModelState.IsValid)
+            {
+                db.SMT_ProductionData.Add(productiondata);
+                db.SaveChanges();
+            }
+            return Content("<script>alert('保存成功！');window.location.href='../SMT/SMT_Operator';</script>");
 
-            string ordernum = fc["OrderNum"];
-            int linenum = Convert.ToInt32(fc["LineNum"]);
-            bool result = Convert.ToBoolean(fc["Result"]);
-            if(linenum != ((Users)Session["User"]).LineNum)
-            {
-                return Content("您不是产线"+linenum+"的操作员，不能在"+linenum+"产线上操作！");
-            }
-            var datarecord = db.SMT_ProductionData.Where(c => DbFunctions.DiffDays(c.ProductionDate, DateTime.Now) == 0 && c.LineNum == linenum && c.OrderNum == ordernum).ToList().FirstOrDefault();
-            if (datarecord != null)  //订单已有当天的生产记录
-            {
-                datarecord.ProductionDate = DateTime.Now;
-                if (result == true)
-                {
-                    datarecord.NormalCount++;
-                    db.Entry(datarecord).State = EntityState.Modified;
-                    db.SaveChanges();
-                    return Content("订单" + ordernum + "良品数已增加一个！");
-                }
-                else
-                {
-                    datarecord.AbnormalCount++;
-                    db.Entry(datarecord).State = EntityState.Modified;
-                    db.SaveChanges();
-                    return Content("订单" + ordernum + "不良品数已增加一个！");
-                }
-            }
-            else //订单没有当天生产记录
-            {
-                var order = db.SMT_OrderInfo.Where(c => c.OrderNum == ordernum).ToList().FirstOrDefault();
-                if (order == null)
-                {
-                    return Content("订单" + ordernum + "还没有创建，请联系SMT看板管理员！");
-                }
-                else if (order!=null && order.Status==true)
-                {
-                    return Content("订单" + ordernum + "已经生产完成，请确认订单是否正确或联系SMT看板管理员！");
-                }
-                else if (order != null && order.Status == false)
-                {
-                    SMT_ProductionData newdata = new SMT_ProductionData
-                    {
-                        LineNum = ((Users)Session["User"]).LineNum,
-                        OrderNum = ordernum,
-                        ProductionDate = DateTime.Now,
-                        NormalCount = 0,
-                        AbnormalCount = 0
-                    };
-                    if (result == true)
-                    {
-                        newdata.NormalCount++;
-                        db.SMT_ProductionData.Add(newdata);
-                        db.SaveChanges();
-                        return Content("订单" + ordernum + "今天的生产记录已经创建，良品数已增加一个！");
-                    }
-                    else
-                    {
-                        newdata.AbnormalCount++;
-                        db.SMT_ProductionData.Add(newdata);
-                        db.SaveChanges();
-                        return Content("订单" + ordernum + "今天的生产记录已经创建，不良品数已增加一个！");
-                    }
-                }
-                return View(fc);
-            }
         }
-        #endregion
+
+        [HttpPost]
+        public ActionResult SMT_Operator_getBeginTime(string ordernum,int linenum)   //history.go(-1);
+        {
+            var record = db.SMT_ProductionData.Where(c => c.OrderNum == ordernum && c.LineNum == linenum && c.EndTime.Value.Year==DateTime.Now.Year && c.EndTime.Value.Month == DateTime.Now.Month && c.EndTime.Value.Day == DateTime.Now.Day).OrderByDescending(c => c.Id).FirstOrDefault();
+            string lastrecordendtime = record == null ? "" : record.EndTime.ToString();
+            return Content(lastrecordendtime);
+        }
+
+       #endregion
 
 
         #region------------------走廊显示屏
-        public ActionResult SMT_CorridorView()
+            public ActionResult SMT_CorridorView()
         {
             return View();
         }
@@ -759,6 +924,23 @@ namespace JianHeMES.Controllers
                     Value = "SMT看板管理员"
                 }
             };
+        }
+        #endregion
+
+        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
+        private List<SelectListItem> GetOrderList()
+        {
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var items = new List<SelectListItem>();
+            foreach (string order in orders)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = order,
+                    Value = order
+                });
+            }
+            return items;
         }
         #endregion
 

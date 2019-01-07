@@ -156,6 +156,7 @@ namespace JianHeMES.Models
         public Boolean ElectricityCheckFinish { get; set; } //电检是否完成
 
 
+
         //PQC部分
         [Display(Name = "开始时间")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
@@ -188,6 +189,12 @@ namespace JianHeMES.Models
         [Display(Name = "PQC是否完成")]
         //[Required(AllowEmptyStrings = true, ErrorMessage = "能为空")]
         public Boolean PQCCheckFinish { get; set; } //PQC是否完成
+
+        [Display(Name = "是否重复PQC")]
+        public Boolean RepetitionPQCCheck { get; set; }
+
+        [Display(Name = "重复原因")]
+        public string RepetitionPQCCheckCause { get; set; }
 
         [Display(Name = "备注")]
         public string Remark { get; set; } //PQC是否完成

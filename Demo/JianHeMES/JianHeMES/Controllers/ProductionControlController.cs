@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using OfficeOpenXml.FormulaParsing.Excel.Functions.Text;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
@@ -87,11 +88,28 @@ namespace JianHeMES.Controllers
                     {
                         OrderNum.Add("ActualProductionTime", "未开始");
                     }
-                    var finishtime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Max(c => c.OQCCheckFT);//取出最后包装记录的OQCCheckFT值
 
-                    var totaltime = finishtime - beginttime;
+
+                    //var finishtime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Max(c => c.OQCCheckFT);//取出最后包装记录的OQCCheckFT值
+                    //var totaltime = finishtime - beginttime;
+                    //OrderNum.Add("ActualFinishTime", finishtime.ToString());
+                    //OrderNum.Add("TotalTime", totaltime.ToString());
+                    //完成时间
+                    int modelGroupQuantity = OrderList_All.Where(c => c.OrderNum == item.OrderNum).FirstOrDefault().Boxes;//订单模组数量
+                    DateTime? finishtime = new DateTime();
+                    if (db.Appearance.Count(c => c.OrderNum == item.OrderNum && c.OQCCheckFinish == true) == modelGroupQuantity)
+                    {
+                        finishtime = db.Appearance.Where(c => c.OrderNum == item.OrderNum).Max(c => c.OQCCheckFT);
+                    }
+                    else
+                    {
+                        finishtime = null;
+                    }
+                    var totaltime = finishtime == null ? "" : (finishtime - beginttime).ToString();
                     OrderNum.Add("ActualFinishTime", finishtime.ToString());
-                    OrderNum.Add("TotalTime", totaltime.ToString());
+                    OrderNum.Add("TotalTime", totaltime);
+
+
 
                     #region-------------------组装部分
                     //-------------------组装部分
@@ -117,6 +135,32 @@ namespace JianHeMES.Controllers
                     {
                         OrderNum.Add("Assemble_Finish_Rate", "--%");
                         OrderNum.Add("Assemble_Pass_Rate", "--%");
+                    }
+                    #endregion
+
+                    #region-------------------FQC部分
+                    var FinalQC_Record = db.FinalQC.Where(c => c.OrderNum == item.OrderNum).ToList();
+                    if (FinalQC_Record.Count > 0)
+                    {
+                        Decimal FinalQC_Finish = FinalQC_Record.Where(c => c.FQCCheckFinish == true && c.RepetitionFQCCheck == false).Count();
+                        OrderNum.Add("FinalQC_Finish", Convert.ToInt32(FinalQC_Finish)); //FQC完成个数
+                        OrderNum.Add("FinalQC_Record_Count", FinalQC_Record.Count);      //FQC记录个数
+                        OrderNum.Add("FinalQC_Spot_Count", FinalQC_Record.Select(c => c.BarCodesNum).Distinct().Count());      //FQC抽检个数 
+                        if (FinalQC_Finish == 0)
+                        {
+                            OrderNum.Add("FinalQC_Finish_Rate", "0%"); //FQC完成率
+                            OrderNum.Add("FinalQC_Pass_Rate", "0%");   //FQC合格率
+                        }
+                        else
+                        {
+                            OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / FinalQC_Record.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2") + "%");  //FQC完成率
+                            OrderNum.Add("FinalQC_Pass_Rate", (FinalQC_Finish / FinalQC_Record.Count() * 100).ToString("F2") + "%");                                          //FQC合格率
+                        }
+                    }
+                    else
+                    {
+                        OrderNum.Add("FinalQC_Finish_Rate", "--%");  //FQC完成率
+                        OrderNum.Add("FinalQC_Pass_Rate", "--%");    //FQC合格率
                     }
                     #endregion
 
@@ -619,6 +663,97 @@ namespace JianHeMES.Controllers
 
 
 
+        #region-------------------FQC详情页面
+        [HttpPost]
+        public ActionResult FinalQC(string OrderNum)
+        {
+
+            JObject JsonObj = new JObject();
+
+            var ordernum_info = db.OrderMgm.Where(c => c.OrderNum == OrderNum).FirstOrDefault();
+            //对应订单记录集合
+            var FinalQC_Record_List = db.FinalQC.Where(c => c.OrderNum == OrderNum).ToList();
+            //异常记录集合
+            var FQC_Abnormal_record = FinalQC_Record_List.Where(c => c.FinalQC_FQCCheckAbnormal != "正常").ToList();
+            //直通记录个数
+            List<FinalQC> FirstPassYield_record_list = new List<FinalQC>();
+            var barcodesnumlist = FinalQC_Record_List.Select(c => c.BarCodesNum).Distinct().ToList();
+            foreach (var item in barcodesnumlist)
+            {
+                if(FinalQC_Record_List.Where(c=>c.BarCodesNum == item).Count()==1)
+                {
+                    var record = FinalQC_Record_List.Where(c => c.BarCodesNum == item).FirstOrDefault();
+                    if(record.FQCCheckFinish == true && record.RepetitionFQCCheck ==false)
+                    {
+                        FirstPassYield_record_list.Add(record);
+                    }
+                }
+            }
+            //异常工时
+
+            //抽检完成率、合格率
+            Decimal FinalQC_Finish = FinalQC_Record_List.Where(c => c.FQCCheckFinish == true && c.RepetitionFQCCheck == false).Count();
+            if (FinalQC_Record_List.Count > 0)
+            {
+                //JsonObj.Add("FinalQC_Finish", Convert.ToInt32(FinalQC_Finish)); //FQC完成个数
+                //JsonObj.Add("FinalQC_Record_Count", FinalQC_Record_List.Count);      //FQC记录个数
+                //JsonObj.Add("FinalQC_Spot_Count", FinalQC_Record_List.Select(c => c.BarCodesNum).Distinct().Count());      //FQC抽检个数 
+                if (FinalQC_Finish == 0)
+                {
+                    JsonObj.Add("FinalQC_Finish_Rate", "0%"); //10.FQC完成率
+                    JsonObj.Add("FinalQC_Pass_Rate", "0%");   //11.FQC合格率
+                    JsonObj.Add("FirstPassYield_Rate", "0%"); //12.直通率
+                }
+                else
+                {
+                    JsonObj.Add("FinalQC_Finish_Rate", (FinalQC_Finish / FinalQC_Record_List.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2") + "%");  //10.FQC完成率
+                    JsonObj.Add("FinalQC_Pass_Rate", (FinalQC_Finish / FinalQC_Record_List.Count() * 100).ToString("F2") + "%");                                          //11.FQC合格率
+                    JsonObj.Add("FirstPassYield_Rate", ((Decimal)FirstPassYield_record_list.Count / FinalQC_Finish *100).ToString("F2")+"%");                             //12.直通率
+
+                }
+            }
+            else
+            {
+                JsonObj.Add("FinalQC_Finish_Rate", "--%");  //10.FQC完成率
+                JsonObj.Add("FinalQC_Pass_Rate", "--%");    //11.FQC合格率
+                JsonObj.Add("FirstPassYield_Rate", "--%");  //12.直通率
+
+            }
+            //正在进行FQC条码清单
+            var going_list = FinalQC_Record_List.Where(c => c.FQCCheckBT != null && c.FQCCheckFT == null).ToList();
+            JsonObj.Add("going_list_Count", going_list.Count);  
+            //已经完成FQC条码清单
+            var passed_list = FinalQC_Record_List.Where(c => c.FQCCheckFinish == true && c.RepetitionFQCCheck == false).ToList();
+            JsonObj.Add("passed_list_Count", going_list.Count);
+            //异常记录清单
+            JsonObj.Add("abnormalList_Count", FQC_Abnormal_record.Count);
+
+
+            JsonObj.Add("OrderNum", OrderNum);   //1.订单号
+            JsonObj.Add("PlatformType",ordernum_info.PlatformType);    //2.平台类型
+            JsonObj.Add("DeliveryDate", ordernum_info.DeliveryDate);   //3.出货日期
+            JsonObj.Add("Boxes", ordernum_info.Boxes);   //4.模组数
+            JsonObj.Add("FQC_Abnormal_Count", FQC_Abnormal_record.Count);   //5.异常记录次数
+            JsonObj.Add("FQC_Finish_Count", FinalQC_Record_List.Where(c => c.FQCCheckFinish == true && c.RepetitionFQCCheck == false).Count());   //6.已完成FQC次数
+            JsonObj.Add("FQC_Record_Count", FinalQC_Record_List.Count);  //7.总FQC次数
+            JsonObj.Add("FirstPassYieldCount", FirstPassYield_record_list.Count);      //8.直通记录个数 
+            ViewBag.going_list = going_list;  //正在进行FQC条码清单
+            ViewBag.passed_list = passed_list;   //已经完成FQC条码清单
+            ViewBag.abnormalList = FQC_Abnormal_record;    //异常记录清单
+            //JsonObj.Add("going_list",JsonConvert.SerializeObject(going_list));  //正在进行FQC条码清单
+            //JsonObj.Add("passed_list", JsonConvert.SerializeObject(passed_list));  //已经完成FQC条码清单
+            //JsonObj.Add("abnormalList",JsonConvert.SerializeObject(FQC_Abnormal_record));  //异常记录清单
+            //JsonObj.Add("Abnormal_time",);  //9.异常工时
+            ViewBag.JsonObj = JsonObj;
+            return View();
+        }
+
+
+
+        #endregion
+
+
+
 
         #region -----------------调试老化OQC详情页面
         [HttpPost]
@@ -832,10 +967,10 @@ namespace JianHeMES.Controllers
             var Calibration_Record = (from m in db.CalibrationRecord where m.OrderNum == OrderNum select m).OrderBy(x => x.ModuleGroupNum).ToList();//订单校正全部记录
             var Calibration_RecordBarCodeList = Calibration_Record.Select(m => m.BarCodesNum).Distinct().ToList();//校正记录全部条码(模组号)清单(去重)
 
-            var finished = Calibration_Record.Count(m => m.Normal == true);//3.订单已完成校正个数
+            var finished = Calibration_Record.Count(m => m.Normal == true && m.RepetitionCalibration==false);//3.订单已完成校正个数
             var finishedList = Calibration_Record.Where(m => m.Normal == true).Select(m => m.ModuleGroupNum).ToList(); //订单已完成校正的条码(模组号)清单
 
-            var Calibration_Count = Calibration_Record.Count();//4.订单校正全部记录条数
+            var Calibration_Count = Calibration_Record.Where(c=>c.RepetitionCalibration==false).Count();//4.订单校正全部记录条数
 
             var finisthRate = (Convert.ToDouble(finished) / Calibration_RecordBarCodeList.Count() * 100).ToString("F2");//5.完成率：完成数/订单的模组数
 

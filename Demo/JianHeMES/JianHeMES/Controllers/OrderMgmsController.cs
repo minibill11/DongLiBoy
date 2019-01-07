@@ -152,7 +152,7 @@ namespace JianHeMESEntities.Controllers
 
             //直通个数
             var assemble_NotFirstPassYield = assembleRecord.Where(c=>c.PQCCheckFinish == false).Select(c=>c.BoxBarCode).Distinct().ToList();
-            var assemble_PassYield = assembleRecord.Where(c=>c.PQCCheckFinish == true).Select(c => c.BoxBarCode).ToList();
+            var assemble_PassYield = assembleRecord.Where(c=>c.PQCCheckFinish == true && c.RepetitionPQCCheck==false).Select(c => c.BoxBarCode).ToList();
             var assemble_FirstPassYield = assemble_PassYield.Except(assemble_NotFirstPassYield).ToList();//直通条码记录
             var assemble_FirstPassYieldCount = assemble_FirstPassYield.Count();//直通个数
             ProductionDetailsJson.Add("AssembleFirstPassYieldCount", assemble_FirstPassYieldCount.ToString());//直通个数
@@ -175,7 +175,7 @@ namespace JianHeMESEntities.Controllers
             //异常工时
 
             //完成率
-            var assemble_finished = assembleRecord.Count(m => m.PQCCheckFinish == true);//订单已完成PQC个数
+            var assemble_finished = assembleRecord.Count(m => m.PQCCheckFinish == true && m.RepetitionPQCCheck==false);//订单已完成PQC个数
             var assemble_finishedList = assembleRecord.Where(m => m.PQCCheckFinish == true).Select(m => m.BoxBarCode).ToList(); //订单已完成PQC的条码清单
             var assemble_assemblePQC_Count = assembleRecord.Count();//订单PQC全部记录条数
             if(assemble_finished==0)
@@ -193,6 +193,77 @@ namespace JianHeMESEntities.Controllers
             }
 
             #endregion
+
+
+            #region----------订单在FQC的统计数据
+            var FinalQCRecord = db.FinalQC.Where(c => c.OrderNum == orderMgm.OrderNum).ToList();//订单在组装的全部记录
+            //开始时间 
+            var FinalQC_begintime = FinalQCRecord.Min(c => c.FQCCheckBT);
+            ProductionDetailsJson.Add("FinalQCBeginTime", FinalQC_begintime.ToString());//开始时间
+
+            //最后时间
+            var FinalQC_endtime = FinalQCRecord.Max(c => c.FQCCheckFT);
+            ProductionDetailsJson.Add("FinalQCEndTime", FinalQC_endtime.ToString());//最后时间
+
+            //完成时间
+            DateTime? FinalQC_finishtime = new DateTime();
+            if (FinalQCRecord.Count(c => c.FQCCheckFinish == true) == modelGroupQuantity)
+            {
+                FinalQC_finishtime = FinalQC_endtime;
+            }
+            else
+            {
+                FinalQC_finishtime = null;
+            }
+            ProductionDetailsJson.Add("FinalQCFinishTime", FinalQC_finishtime.ToString());//完成时间
+
+            //作业时长
+            var FinalQC_newtime = FinalQC_endtime - FinalQC_begintime;//目前时长
+            ProductionDetailsJson.Add("FinalQCNewTime", FinalQC_newtime.ToString());//目前时长
+
+            //直通个数
+            var FinalQC_NotFirstPassYield = FinalQCRecord.Where(c => c.FQCCheckFinish == false).Select(c => c.BarCodesNum).Distinct().ToList();
+            var FinalQC_PassYield = FinalQCRecord.Where(c => c.FQCCheckFinish == true && c.RepetitionFQCCheck==false).Select(c => c.BarCodesNum).ToList();
+            var FinalQC_FirstPassYield = FinalQC_PassYield.Except(FinalQC_NotFirstPassYield).ToList();//直通条码记录
+            var FinalQC_FirstPassYieldCount = FinalQC_FirstPassYield.Count();//直通个数
+            ProductionDetailsJson.Add("FinalQCFirstPassYieldCount", FinalQC_FirstPassYieldCount.ToString());//直通个数
+            if (FinalQC_FirstPassYieldCount == 0)
+            {
+                ProductionDetailsJson.Add("FinalQCFirstPassYield_Rate", "");//直通率
+            }
+            else
+            {
+                var FinalQC_FirstPassYield_Rate = (Convert.ToDouble(FinalQC_FirstPassYieldCount) / modelGroupQuantity * 100).ToString("F2");//直通率：直通数/模组数
+                ProductionDetailsJson.Add("FinalQCFirstPassYield_Rate", FinalQC_FirstPassYield_Rate);//直通率
+            }
+
+            //正常个数
+            int FinalQC_PassYieldCount = FinalQC_PassYield.Count();
+            ProductionDetailsJson.Add("FinalQCPassYieldCount", FinalQC_PassYieldCount.ToString());//正常个数
+
+            //有效工时
+            //异常个数
+            //异常工时
+
+            //完成率
+            var FinalQC_finished = FinalQCRecord.Count(m => m.FQCCheckFinish == true && m.RepetitionFQCCheck==false);//订单已完成PQC个数
+            var FinalQC_finishedList = FinalQCRecord.Where(m => m.FQCCheckFinish == true).Select(m => m.BarCodesNum).ToList(); //订单已完成PQC的条码清单
+            var FinalQC_Count = FinalQCRecord.Count();//订单PQC全部记录条数
+            if (FinalQC_finished == 0)
+            {
+                ProductionDetailsJson.Add("FinalQCFinisthRate", "");//完成率
+                ProductionDetailsJson.Add("FinalQCPassRate", "");//合格率
+            }
+            else
+            {
+                var FinalQC_finisthRate = (Convert.ToDouble(FinalQC_finished) / modelGroupQuantity * 100).ToString("F2");//完成率：完成数/订单的模组数
+                ProductionDetailsJson.Add("FinalQCFinisthRate", FinalQC_finisthRate);//完成率
+                //合格率
+                var passRate = (Convert.ToDouble(FinalQC_finished) / FinalQC_Count * 100).ToString("F2");//合格率：完成数/记录数
+                ProductionDetailsJson.Add("FinalQCPassRate", passRate);//合格率
+            }
+            #endregion
+
 
             #region----------订单在老化的统计数据
             var burn_inRecord = db.Burn_in.Where(c => c.OrderNum == orderMgm.OrderNum).ToList();//订单在老化的全部记录
@@ -264,6 +335,7 @@ namespace JianHeMESEntities.Controllers
             }
             #endregion
 
+
             #region----------订单在校正的统计数据
             var calibrationRecord = db.CalibrationRecord.Where(c => c.OrderNum == orderMgm.OrderNum).ToList();//订单在校正的全部记录
             //开始时间 
@@ -332,6 +404,7 @@ namespace JianHeMESEntities.Controllers
                 ProductionDetailsJson.Add("CalibrationPassRate", calibration_PassRate);
             }
             #endregion
+
 
             #region----------订单在外观包装的统计数据
             var appearanceRecord = db.Appearance.Where(c => c.OrderNum == orderMgm.OrderNum).ToList();//订单在包装的全部记录

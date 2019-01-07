@@ -54,6 +54,8 @@ namespace JianHeMES.Models
 
         public DbSet<Personnel_daily> Personnel_daily { get; set; }
 
+        public DbSet<FinalQC> FinalQC { get;set; }
+
 
         public object BarCode { get; internal set; }
         public Task TNews { get; internal set; }

@@ -98,34 +98,6 @@ namespace JianHeMES.Models
 
     }
 
-    //public class SMT_User
-    //{
-    //    [Key]
-    //    public int Id { get; set; }
-
-    //    [Display(Name = "帐号")]
-    //    public string User { get; set; }
-
-    //    [Display(Name = "姓名")]
-    //    public string Name { get; set; }
-
-    //    [Display(Name = "密码")]
-    //    public string PassWord { get; set; }
-
-    //    [Display(Name = "产线")]
-    //    public int LineNum { get; set; }
-
-    //    [Display(Name = "角色")]
-    //    public string Role { get; set; }
-
-    //    [Display(Name = "描述")]
-    //    public string Description { get; set; }
-
-    //    public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
-    //    public virtual List<SMT_ProcutionLineInfo> SMT_ProcutionLineInfo { get; set; }
-    //    public virtual List<SMT_ProductionData> SMT_ProductionData { get; set; }
-
-    //}
 
     public class SMT_ProductionData
     {
@@ -138,14 +110,33 @@ namespace JianHeMES.Models
         [Display(Name = "订单")]
         public string OrderNum { get; set; }
 
+
+
         [Display(Name = "良品数量")]
         public int NormalCount { get; set; }
 
-        [Display(Name = "良品数量")]
+        [Display(Name = "不良品数量")]
         public int AbnormalCount { get; set; }
+
+        [Display(Name = "开始时间"), DataType(DataType.DateTime)]
+        public DateTime? BeginTime { get; set; }
+
+        [Display(Name = "结束时间"), DataType(DataType.DateTime)]
+        public DateTime? EndTime { get; set; }
+
+
+        [Display(Name = "订单")]
+        public string BarcodeNum { get; set; }
+
+        [Display(Name = "产品状态")]
+        public bool Result { get; set; }
 
         [Display(Name = "日期"),DataType(DataType.DateTime)]
         public DateTime? ProductionDate { get; set; }
+
+        [Display(Name ="操作员")]
+        public string Operator { get; set; }
+
 
         public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
         public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }

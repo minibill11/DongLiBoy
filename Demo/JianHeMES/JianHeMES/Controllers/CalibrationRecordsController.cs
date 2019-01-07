@@ -335,8 +335,7 @@ namespace JianHeMES.Controllers
             }
             if (calibrationRecord.AbnormalDescription == "正常")
             {
-                ModelState.AddModelError("", "模组校正结果是正常的，请在“正常”后面打勾。");
-                return View(calibrationRecord);
+                calibrationRecord.Normal = true;
             }
             if (calibrationRecord.FinishCalibration == null)
             {
@@ -347,7 +346,7 @@ namespace JianHeMES.Controllers
                 var CT = FC - BC;
                 if (CT.Days > 0)
                 {
-                    //calibrationRecord.CalibrationDate = CT.Days;
+                    calibrationRecord.CalibrationDate = CT.Days;
                     calibrationRecord.CalibrationTime = new TimeSpan(CT.Hours, CT.Minutes, CT.Seconds);
                     calibrationRecord.CalibrationTimeSpan = CT.Days.ToString() + "天" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
                 }

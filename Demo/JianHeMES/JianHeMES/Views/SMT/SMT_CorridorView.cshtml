@@ -13,7 +13,7 @@
     }
 
     #app {
-        margin: 0px 10px;
+        margin: 0px 3px;
     }
 
     .navbar, footer {
@@ -31,8 +31,8 @@
     .table > tbody > tr > th, .table > tbody > tr > td {
         text-align: center;
         vertical-align: middle;
-        font-size: 13px;
-        padding: 6px 2px;
+        font-size: 10px;
+        padding: 3px 1px;
     }
 
     ul {
@@ -44,80 +44,92 @@
 </style>
 <img src="~/Images/LOGO.jpg" style="width:100%" />
 <div id="app" class="form-group">
-    <div v-for="(item, index) in lineDataList">
-        <div v-if="index==lineNum" class="text-center">
-            <h3>SMT生产信息</h3>
-            <h4><span>产线{{index+1}} 状态：</span><span>{{item.LineStatus}}</span></h4>
-            <h4>正在生产订单：<span>{{item.LineDoingOrder}}</span></h4>
+    <br />
+    <div v-for="(item,index) in smtLineData">
+        <div v-if="index==lineNum">
+            <p style="font-size:18px;float:left">SMT生产信息</p><span style="float:right">{{nowtime}}</span>
+            <template v-for="(val,i) in item">
+                <table v-if="i==0" class="table table-bordered">
+                    <tr>
+                        <td>生产线:</td>
+                        <td>SMT{{val[0]}}线</td>
+                        <td>班组长:</td>
+                        <td>{{val[15]}}</td>
+                        <td>生产状态:</td>
+                        <td>{{val[17]}}</td>
+                    </tr>
+                </table>
+
+                <span v-if="i==0" style="width:100px;height:15px">正在生产订单：</span>
+                <span v-if="i>0" style="display:inline-block;width:100px;height:15px"></span>
+                <li v-if="val[17]=='生产中'" style="display:inline">{{val[1]}}<br /></li>
+            </template>
+            <br />
             <table class="table table-bordered">
                 <tr>
-                    <th colspan="4">今天生产订单</th>
+                    <td colspan="5" class="text-center">今天生产订单</td>
                 </tr>
-                <tr>
-                    <th>订单号</th>
-                    <th>订单数量</th>
-                    <th>生产数量</th>
-                    <th>完成率</th>
-                </tr>
-                <tr v-for="(val,i) in item.LineTodayFinishOrder">
-                    <td>{{val}}</td>
-                    <td>{{item.OrderQuantity[i]}}</td>
-                    <td>{{item.normalQuantity[i-1]}}</td>
-                    <td>{{item.OrderTotalFinishRate[i-1]}}</td>
-                </tr>
-                @*<template v-for="(val,i) in item.LineTodayFinishOrder" >
-                            <tr>
-                                <td rowspan="4">{{val}}</td>
-                                <td>生产数量</td>
-                                <td>良品</td>
-                                <td>不良品</td>
-                            </tr>
-                            <tr>
-                                <td>{{item.normalQuantity[i-1]}}</td>
-                                <td>{{item.LineTodayFinishOrderNormal[i]}}</td>
-                                <td>{{item.LineTodayFinishOrderAbnormal[i]}}</td>
-                            </tr>
-                            <tr>
-                                <td>订单数量</td>
-                                <td>不良率</td>
-                                <td>完成率</td>
-                            </tr>
-                            <tr>
-                                <td>{{item.OrderQuantity[i]}}</td>
-                                <td>{{item.OrderAbnormalRate[i-1]}}</td>
-                                <td>{{item.OrderTotalFinishRate[i-1]}}</td>
-                            </tr>
-                    </template>*@
+                <template v-for="(val,i) in item">
+                    <tr>
+                        <td rowspan="3">{{val[1]}}</td>
+                        <td>订单总数量:</td>
+                        <td>{{val[3]}}</td>
+                        <td>累计完成数量:</td>
+                        <td>{{val[13]}}</td>
+                    </tr>
+                    <tr>
+                        <td>日计划生产数量:</td>
+                        <td>{{val[4]}}</td>
+                        <td>日生产完成数量:</td>
+                        <td>{{val[5]}}</td>
+                    </tr>
+                    <tr>
+                        <td>日生产完成率:</td>
+                        <td>{{val[6]}}</td>
+                        <td>订单完成率:</td>
+                        <td>{{val[14]}}</td>
+                    </tr>
+                </template>
             </table>
-            <h4>产线累计生产数量：{{item.LineTotalQuantity}} 个</h4>
-            <br />
-            <div class="row" style="position:relative;">
-                <div class="col-xs-6 text-center">
-                    <b>今日计划订单</b>
-                    <ul>
-                        <li v-for="i in item.LinePlanOrder">{{i}}</li>
-                    </ul>
-                </div>
-                <div class="col-xs-6 text-right" style="position:relative;bottom:0px;right:0px">
-                    <p>班组：{{item.Team}}</p>
-                    <p>组长：{{item.GroupLeader}}</p>
-                </div>
-            </div>
         </div>
     </div>
 </div>
-<div id="setForm"></div>
 
 <script>
     var app = new Vue({
         el: "#app",
         data: {
-            lineDataList: [],
+            smtLineData: [],
             lineNum: 0,
+            nowtime: ""
+        },
+        created: function () {
+            setInterval(function () {
+                app.nowtime = new Date().Format("yyyy-MM-dd hh:mm:ss");
+            }, 1000);
+        },
+        watch: {
         },
         methods: {
         }
-    })
+    });
+    Date.prototype.Format = function (fmt) {
+        var o = {
+            "M+": this.getMonth() + 1,
+            "d+": this.getDate(),
+            "h+": this.getHours(),
+            "m+": this.getMinutes(),
+            "s+": this.getSeconds(),
+            "q+": Math.floor((this.getMonth() + 3) / 3),
+            "S": this.getMilliseconds()
+        };
+        if (/(y+)/.test(fmt))
+            fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+        for (var k in o)
+            if (new RegExp("(" + k + ")").test(fmt))
+                fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+        return fmt;
+    }
 </script>
 
 @section scripts {
@@ -127,40 +139,26 @@
         $(function () {
             var mypush = $.connection.SMT;
             mypush.client.sendSMT_ProductionInfo = function (SMT_ProductionInfo) {
-                console.log(SMT_ProductionInfo);
-                app.lineDataList = [];
-                console.log(Object.keys(SMT_ProductionInfo).length)
-
-                for (index in SMT_ProductionInfo) {
-                    var normal = SMT_ProductionInfo[index].LineTodayFinishOrderNormal;
-                    var abnormal = SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal;
-                    var OrderQuantity = SMT_ProductionInfo[index].OrderQuantity;
-                    var OrderQuantityList = [];
-                    var OrderAbnormalRateList = [];
-                    var OrderTotalFinishRateList = [];
-                    for (item in normal) {
-                        var normalCount = normal[item] + abnormal[item];
-                        OrderQuantityList.push(normalCount);
-                        OrderAbnormalRateList.push(((abnormal[item] / normalCount) * 100).toFixed(2) + "%")
-                        OrderTotalFinishRateList.push(((normalCount / parseInt(OrderQuantity[item])) * 100).toFixed(2) + "%");
+                //console.log(SMT_ProductionInfo);
+                app.smtLineData = [];
+                var linedata = SMT_ProductionInfo;
+                for (var line in linedata) {
+                    var ordernumdata = JSON.parse(linedata[line]);
+                    var lineArr = [];
+                    var oneline = [];
+                    for (var order in ordernumdata) {
+                        oneline = []
+                        oneline.push(line);
+                        var itemdata = JSON.parse(ordernumdata[order])
+                        oneline.push(order);
+                        for (var item in itemdata) {
+                            oneline.push(itemdata[item]);
+                        }
+                        lineArr.push(oneline);
                     };
-                    app.lineDataList.push({
-                        LineDoingOrder: SMT_ProductionInfo[index].LineDoingOrder,
-                        LineTodayFinishOrder: SMT_ProductionInfo[index].LineTodayFinishOrder,
-                        LineTodayFinishOrderNormal: SMT_ProductionInfo[index].LineTodayFinishOrderNormal,
-                        LineTodayFinishOrderAbnormal: SMT_ProductionInfo[index].LineTodayFinishOrderAbnormal,
-                        LineTotalQuantity: SMT_ProductionInfo[index].LineTotalQuantity,
-                        LinePlanOrder: SMT_ProductionInfo[index].LinePlanOrder,
-                        Team: SMT_ProductionInfo[index].Team,
-                        GroupLeader: SMT_ProductionInfo[index].GroupLeader,
-                        LineStatus: SMT_ProductionInfo[index].LineStatus,
-                        OrderQuantity: SMT_ProductionInfo[index].OrderQuantity,
-
-                        normalQuantity: OrderQuantityList,
-                        OrderAbnormalRate: OrderAbnormalRateList,
-                        OrderTotalFinishRate: OrderTotalFinishRateList
-                    });
-                }
+                    app.smtLineData.push(lineArr);
+                };
+                console.log(app.smtLineData);
             };
             //启动
             $.connection.hub.start();

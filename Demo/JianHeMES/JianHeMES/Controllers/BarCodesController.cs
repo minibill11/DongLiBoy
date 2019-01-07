@@ -181,6 +181,7 @@ namespace JianHeMES.Controllers
 
         #region --------------------创建条码
 
+        //TODO 修改为生成模组条码
         public ActionResult CreateBarCodes(int? id)
         {
             if (Session["User"] == null)
@@ -205,8 +206,10 @@ namespace JianHeMES.Controllers
             return RedirectToAction("Index", "BarCodes");
 
         }
+
+
+         //创建模组、模块、电源、转接卡条码
         [HttpPost]
-        //TODO...创建订单条码前缀
         public ActionResult CreateBarCodes(OrderMgm orderMgm)
         {
             if (Session["User"] == null)
@@ -311,11 +314,217 @@ namespace JianHeMES.Controllers
                 //return View("Index",db.BarCodes.Where(m=>m.OrderNum== orderMgm.OrderNum).ToList());
                 return View("Index", barcodes);
             }
-
             return RedirectToAction("Index", "BarCodes");
-
         }
 
+
+        //创建模组条码
+        [HttpPost]
+        public ContentResult CreateModuleGroupBarCodes(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return Content("<script>alert('用户未登录，订单的模块条码创建失败！');history.go(-1);</script>");
+            }
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
+            {
+                OrderMgm orderMgm = db.OrderMgm.Find(id);
+                if (orderMgm == null)
+                {
+                    return Content("<script>alert('此订单不存在！');history.go(-1);</script>");
+                }
+                if (orderMgm.BarCodeCreated == 1)
+                {
+                    return Content("<script>alert('此订单的模组已经创建过条码，不能重复创建！');history.go(-1);</script>");
+                }
+
+                List<BarCodes> barcodeslist = new List<BarCodes>();
+                BarCodes aBarCode = new BarCodes();
+                aBarCode.OrderNum = orderMgm.OrderNum;
+                aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                aBarCode.BarCodeType = "模组";
+                aBarCode.Creator = ((Users)Session["User"]).UserName;
+                aBarCode.CreateDate = DateTime.Now;
+
+                //生成模组条码
+                for (int i = 1; i <= orderMgm.Boxes; i++)
+                {
+                    aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
+                    barcodeslist.Add(aBarCode);
+                }
+                db.BarCodes.AddRange(barcodeslist);
+                db.SaveChanges();
+
+                //修改订单的模组条码生成状态为1，表示已经生成.修改订单中的条码创建人
+                orderMgm.BarCodeCreated = 1;
+                orderMgm.BarCodeCreateDate = DateTime.Now;
+                orderMgm.BarCodeCreator = ((Users)Session["User"]).UserName;
+                if (ModelState.IsValid)
+                {
+                    db.Entry(orderMgm).State = EntityState.Modified;
+                    db.SaveChanges();
+                }
+                return Content("<script>alert('订单的模组条码创建成功！');history.go(-1);</script>");
+            }
+            return Content("<script>alert('订单的模组条码创建失败！');history.go(-1);</script>");
+        }
+
+        //创建模块条码
+        [HttpPost]
+        public ContentResult CreateModulePieceBarCodes(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return Content("<script>alert('用户未登录，订单的模块条码创建失败！');</script>");
+            }
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
+            {
+                OrderMgm orderMgm = db.OrderMgm.Find(id);
+                if (orderMgm == null)
+                {
+                    return Content("<script>alert('此订单不存在！');history.go(-1);</script>");
+                }
+                if (orderMgm.ModulePieceBarCodeCreated == 1)
+                {
+                    return Content("<script>alert('此订单的模块已经创建过条码，不能重复创建！');history.go(-1);</script>");
+                }
+
+                List<BarCodes> barcodeslist = new List<BarCodes>();
+
+                //生成模块条码
+                for (int i = 1; i <= orderMgm.Models; i++)
+                {
+                    BarCodes aBarCode = new BarCodes();
+                    aBarCode.OrderNum = orderMgm.OrderNum;
+                    aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                    aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                    aBarCode.BarCodeType = "模块";
+                    aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
+                    aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "B" + i.ToString("00000");
+                    barcodeslist.Add(aBarCode);
+                }
+                db.BarCodes.AddRange(barcodeslist);
+                db.SaveChanges();
+
+                //修改订单的模块条码生成状态为1，表示已经生成.修改订单中的条码创建人
+                orderMgm.ModulePieceBarCodeCreated = 1;
+                orderMgm.ModulePieceBarCodeCreateDate = DateTime.Now;
+                orderMgm.ModulePieceBarCodeCreator = ((Users)Session["User"]).UserName;
+                if (ModelState.IsValid)
+                {
+                    db.Entry(orderMgm).State = EntityState.Modified;
+                    db.SaveChanges();
+                }
+                return Content("<script>alert('订单的模块条码创建成功！');window.location.href='../OrderMgms/Details/" + id+"';</script>");
+            }
+            return Content("<script>alert('订单的模块条码创建失败！');history.go(-1);</script>");
+        }
+
+        //创建电源条码
+        [HttpPost]
+        public ContentResult CreatePowerBarCodes(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return Content("<script>alert('用户未登录，订单的电源条码创建失败！');history.go(-1);</script>");
+            }
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
+            {
+                OrderMgm orderMgm = db.OrderMgm.Find(id);
+                if (orderMgm == null)
+                {
+                    return Content("<script>alert('此订单不存在！');history.go(-1);</script>");
+                }
+                if (orderMgm.PowerBarCodeCreated == 1)
+                {
+                    return Content("<script>alert('此订单的电源已经创建过条码，不能重复创建！');history.go(-1);</script>");
+                }
+
+                List<BarCodes> barcodeslist = new List<BarCodes>();
+
+                //生成电源条码
+                for (int i = 1; i <= orderMgm.Powers; i++)
+                {
+                    BarCodes aBarCode = new BarCodes();
+                    aBarCode.OrderNum = orderMgm.OrderNum;
+                    aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                    aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                    aBarCode.BarCodeType = "电源";
+                    aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
+                    aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "C" + i.ToString("00000");
+                    barcodeslist.Add(aBarCode);
+                }
+                db.BarCodes.AddRange(barcodeslist);
+                db.SaveChanges();
+
+                //修改订单的电源条码生成状态为1，表示已经生成.修改订单中的条码创建人
+                orderMgm.PowerBarCodeCreated = 1;
+                orderMgm.PowerBarCodeCreateDate = DateTime.Now;
+                orderMgm.PowerBarCodeCreator = ((Users)Session["User"]).UserName;
+                if (ModelState.IsValid)
+                {
+                    db.Entry(orderMgm).State = EntityState.Modified;
+                    db.SaveChanges();
+                }
+                return Content("<script>alert('订单的电源条码创建成功！');window.location.href='../OrderMgms/Details/" + id + "';</script>");
+            }
+            return Content("<script>alert('订单的电源条码创建失败！');history.go(-1);</script>");
+        }
+
+        //创建转接卡条码
+        [HttpPost]
+        public ContentResult CreateAdapterCardBarCodes(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return Content("<script>alert('用户未登录，订单的转接卡条码创建失败！');history.go(-1);</script>");
+            }
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC打标员")
+            {
+                OrderMgm orderMgm = db.OrderMgm.Find(id);
+                if (orderMgm == null)
+                {
+                    return Content("<script>alert('此订单不存在！');history.go(-1);</script>");
+                }
+                if (orderMgm.AdapterCardBarCodeCreated == 1)
+                {
+                    return Content("<script>alert('此订单的转接卡已经创建过条码，不能重复创建！');history.go(-1);</script>");
+                }
+
+                List<BarCodes> barcodeslist = new List<BarCodes>();
+
+                //生成电源条码
+                for (int i = 1; i <= orderMgm.AdapterCard; i++)
+                {
+                    BarCodes aBarCode = new BarCodes();
+                    aBarCode.OrderNum = orderMgm.OrderNum;
+                    aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                    aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                    aBarCode.BarCodeType = "转接卡";
+                    aBarCode.Creator = ((Users)Session["User"]).UserName;
+                    aBarCode.CreateDate = DateTime.Now;
+                    aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "D" + i.ToString("00000");
+                    barcodeslist.Add(aBarCode);
+                }
+                db.BarCodes.AddRange(barcodeslist);
+                db.SaveChanges();
+
+                //修改订单的电源条码生成状态为1，表示已经生成.修改订单中的条码创建人
+                orderMgm.AdapterCardBarCodeCreated = 1;
+                orderMgm.AdapterCardBarCodeCreateDate = DateTime.Now;
+                orderMgm.AdapterCardBarCodeCreator = ((Users)Session["User"]).UserName;
+                if (ModelState.IsValid)
+                {
+                    db.Entry(orderMgm).State = EntityState.Modified;
+                    db.SaveChanges();
+                }
+                return Content("<script>alert('订单的转接卡条码创建成功！');window.location.href='../OrderMgms/Details/" + id + "';</script>");
+            }
+            return Content("<script>alert('订单的转接卡条码创建失败！');history.go(-1);</script>");
+        }
         #endregion
 
         #region --------------------Details页
