@@ -374,7 +374,7 @@ namespace JianHeMESEntities.Controllers
             }
             else
             {
-                var calibration_FirstPassYield_Rate = (Convert.ToDouble(calibration_FirstPassYieldCount) / calibrationRecord.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2");//直通率：直通数/模组数
+                var calibration_FirstPassYield_Rate = (calibration_FirstPassYieldCount / calibrationRecord.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2");//直通率：直通数/模组数
                 ProductionDetailsJson.Add("CalibrationFirstPassYield_Rate", calibration_FirstPassYield_Rate);//直通率
             }
 
@@ -397,10 +397,10 @@ namespace JianHeMESEntities.Controllers
             }
             else
             {
-                var calibration_finisthRate = (Convert.ToDouble(calibration_finished) / calibrationRecord.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2");//完成率：完成数/订单的模组数
+                var calibration_finisthRate = (calibration_finished / calibrationRecord.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2");//完成率：完成数/订单的模组数
                 ProductionDetailsJson.Add("CalibrationFinisthRate", calibration_finisthRate);
                 //合格率
-                var calibration_PassRate = (Convert.ToDouble(calibration_finished) / calibration_Count * 100).ToString("F2");//合格率：完成数/记录数
+                var calibration_PassRate = (calibration_finished / calibration_Count * 100).ToString("F2");//合格率：完成数/记录数
                 ProductionDetailsJson.Add("CalibrationPassRate", calibration_PassRate);
             }
             #endregion
@@ -508,6 +508,8 @@ namespace JianHeMESEntities.Controllers
                 }
             ViewBag.jpgjson = json;
             }
+
+
             return View(orderMgm);
         }
         #endregion
@@ -520,7 +522,7 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC组长")
             {
                 return View();
 
@@ -566,7 +568,7 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员")
+            if (((Users)Session["User"]).Role == "经理" && ((Users)Session["User"]).Department == "PC部" || ((Users)Session["User"]).Role == "系统管理员" || ((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "PC组长")
             {
                 if (id == null)
                 {

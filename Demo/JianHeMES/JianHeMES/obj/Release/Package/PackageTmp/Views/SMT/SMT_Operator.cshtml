@@ -1,7 +1,7 @@
-﻿@{
+﻿@model JianHeMES.Models.SMT_ProductionPlan
+@{
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-@model JianHeMES.Models.FinalQC
 <link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
 <script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 @*引用js、加载数据*@
@@ -9,10 +9,18 @@
 <script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.js"></script>
 <script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.zh-CN.js"></script>
 <style>
-    /*body {
-        background-color: #dff0d8;
-        color: #555;
-    }*/
+    .table > tbody > tr > th {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .table > tbody > tr > td > input {
+        text-align: center;
+    }
+
+    .table-bordered {
+        border: none;
+    }
 
     .selectpicker {
         border: 1px solid #ccc;
@@ -25,206 +33,247 @@
     .bootstrap-select > .btn, .bootstrap-select.form-control:not([class*="col-"]), input, select {
         max-width: 260px;
     }
+
+    .borderFlicker {
+        animation: myanimate 1s;
+    }
+
+    @@keyframes myanimate {
+        0% {
+            border-color: #ccc;
+        }
+
+        25% {
+            border-color: red;
+        }
+
+        50% {
+            border-color: #ccc;
+        }
+
+        75% {
+            border-color: red;
+        }
+
+        100% {
+            border-color: #ccc;
+        }
+    }
 </style>
-@using (Html.BeginForm("SMT_Operator", "SMT", FormMethod.Post))
-{
-    @Html.AntiForgeryToken()
-    <div id="app" class="form-horizontal">
-        <h3>SMT产线信息录入</h3>
-        <hr />
-        <div class="col-md-5">
-            <div class="form-group">
-                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
-                <div class="col-md-8">
-                    @Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
-                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="control-label col-md-4" for="LineNum">产线号</label>
-                <div class="col-md-8">
-                    <select id="LineNum" name="LineNum" class="form-control">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                        <option value="6">6</option>
-                        <option value="7">7</option>
-                        <option value="8">8</option>
-                        <option value="9">9</option>
-                        <option value="10">10</option>
-                        <option value="11">11</option>
-                        <option value="12">12</option>
-                        <option value="13">13</option>
-                        <option value="14">14</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="control-label col-md-4" for="normalQ">良品数量</label>
-                <div class="col-md-8">
-                    <input class="form-control text-box single-line" id="normalQ" name="normalQ" type="number">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="control-label col-md-4" for="abnormalQ">不良品数量</label>
-                <div class="col-md-8">
-                    <input class="form-control text-box single-line" id="abnormalQ" name="abnormalQ" type="number">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="control-label col-md-4" for="start_Date">开始时间</label>
-                <div class="col-md-8">
-                    <div style="float:left ;">
-                        <div id="start_Date" class="input-group date" data-date="" data-link-field="begintime">
-                            <input id="startDateTime" class="form-control" type="text" value="" style="width:180px;" readonly>
-                            <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
-                            <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
-                            <input type="hidden" id="begintime" name="begintime" value="" />
-                        </div>
-                        <input type="button" value="获取上次结束时间" v-on:click="getBeginTime" class="form-control" />
-                    </div>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="control-label col-md-4" for="end_Date">结束时间</label>
-                <div class="col-md-8">
-                    <div style="float:left ;">
-                        <div id="end_Date" class="input-group date" data-date="" data-link-field="endtime">
-                            <input id="endDateTime" class="form-control" type="text" value="" style="width:180px;" readonly>
-                            <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
-                            <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
-                            <input type="hidden" id="endtime" name="endtime" value="" />
-                        </div>
-                    </div>
-                </div>
-            </div>
+<h2>SMT产线信息录入</h2>
 
-            @*<div class="form-group">
-                    <label class="control-label col-md-4" for="result">产品状态</label>
-                    <div class="col-md-8">
-                        <input class="form-control text-box single-line" id="result" name="result"  type="text" value="">
-                    </div>
-                </div>
-                <div class="form-group">
-                    @Html.LabelFor(model => model.barcodeNum, htmlAttributes: new { @class = "control-label col-md-4" })
-                    <div class="col-md-8">
-                        @Html.EditorFor(model => model.barcodeNum, new { htmlAttributes = new { @class = "form-control", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')" } })
-                        @Html.ValidationMessageFor(model => model.barcodeNum, "", new { @class = "text-danger" })
-                    </div>
-                </div>*@
+<div id="app" class="form-horizontal">
+    <hr>
+    <table id="para_table" class="table table-bordered">
+        <colgroup>
+            <col width="90" />
+            <col width="100" />
+            <col width="90" />
+            <col width="90" />
+            <col width="100" />
+            <col width="100" />
+            <col width="30" />
+        </colgroup>
+        <tr>
+            <th>产线号</th>
+            <th>订单号</th>
+            <th>良品数量</th>
+            <th>不良品数量</th>
+            <th>开始时间</th>
+            <th>结束时间</th>
+            <th align="center"><button type="button" class="btn btn-link" v-on:click="emptytable">清空</button></th>
+        </tr>
+        <tr class="orderNum">
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td>
+                <select class="form-control">
+                    <option value="">全部</option>
+                    
+                    <option>2017-TEST-1</option>
+                    <option>2018-abc22-2</option>
+                    <option>2018-abc33-3</option>
+                    <option>2018-def12-3</option>
+                    <option>2018-def12-3</option>
+                    <option>2018-vvc12-3</option>
+                    <option>2018-vcv12-3</option>
+                    <option>2018-GA122-3</option>
+                </select>
+                @*@Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, "选择订单号", new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })*@
+            </td>
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
+            <td><input type="text" value="" class="start_datetime form-control"></td>
+            <td><input type="text" value="" class="end_datetime form-control"></td>
+            <td align="center"><button type="button" class="btn btn-link" v-on:click="emptytr($event)">清除</button></td>
+        </tr>
+    </table>
+    <table class="table">
+        <tr>
+            <td colspan="6" style="text-align:center;border-top:none;"><button class="btn btn-primary" v-on:click="newAddtr">增加一行</button></td>
+        </tr>
+    </table>
 
-            <div class="form-group">
-                <div class="col-md-offset-4 col-md-8">
-                    <button onclick="return inputMsg()" class="btn btn-default" type="submit">输入信息</button>
-                </div>
-            </div>
-            @**@
+    <div class="form-group">
+        <div class="col-md-12">
+            <input value="输入信息" v-on:click="checkPost" class="btn btn-default" type="button">
         </div>
     </div>
-    <br />
-}
+</div>
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
 
-<div class="clearfix"></div>
-@*<div class="row col-md-12">
-        @Html.ActionLink("返回", "Index")
-    </div>*@
-<script>
-    var app = new Vue({
-        el: "#app",
+<script type="text/javascript">
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
         data: {
+            okNum: 0,
+            emptyNum: 0,
+            userName: "@UserName",
         },
         methods: {
-            getBeginTime: function () {
-                $.ajax({
-                    url: "/SMT/SMT_Operator_getBeginTime/",
-                    type: "post",
-                    data: {
-                        ordernum: $("#OrderNum").val(),
-                        linenum: $("#LineNum").val(),
-                        //OrderNum: "",
-                        //LineNum: "",
-                        //normalQ: "",
-                        //abnormalQ: "",
-                        //begintime: "",
-                        //endtime: "",
-                        //result: "",
-                        //barcodeNum: ""
-                    },
-                    success: function (data) {
-                        //alert("获取成功");
-                        if (data == "") {
-                            alert("今天没有记录");
+            checkPost: function (event) {
+                //event.preventDefault();
+                var lstmodel = new Array();
+                app.emptyNum = 0;
+                app.okNum = 0;
+                $(".orderNum").each(function (index, val) {
+                    if (val.children[0].firstChild.value != ""
+                        || val.children[1].firstChild.value != ""
+                        || val.children[2].firstChild.value != ""
+                        || val.children[3].firstChild.value != ""
+                        || val.children[4].firstChild.value != ""
+                        || val.children[5].firstChild.value != "") {
+                        if (val.children[0].firstChild.value != ""
+                        && val.children[1].firstChild.value != ""
+                        && val.children[2].firstChild.value != ""
+                        && val.children[3].firstChild.value != ""
+                        && val.children[4].firstChild.value != ""
+                        && val.children[5].firstChild.value != "") {
+                            lstmodel.push({
+                                LineNum: val.children[0].firstChild.value,
+                                OrderNum: val.children[1].firstChild.value,
+                                NormalCount: val.children[2].firstChild.value,
+                                AbnormalCount: val.children[3].firstChild.value,
+                                BeginTime: val.children[4].firstChild.value,
+                                EndTime: val.children[5].firstChild.value,
+                                Operator: app.userName,
+                                ProductionDate: "@DateTime.Now",
+                            });
+                            app.okNum++;
                         } else {
-                            $("#startDateTime").val(data);
-                            $("#begintime").val(data);
-                        }
-                    },
-                    error: function (err) {
-                        alert("获取失败");
-                    }
+                            $(val.children).each(function (i, v) {
+                                if (v.firstChild.value == "" && v.firstChild.type != "button") {
+                                    $(v).children("input,select").addClass("borderFlicker");
+                                    setTimeout(() =>$(v).children("input,select").removeClass("borderFlicker"), 1000);
+                                }
+                            });
+                        };
+                    } else {
+                        app.emptyNum++;//空行+1
+                    };
                 });
+                //总行数减去空行，等于数据行，且不为0条，则post内容
+                if (($(".orderNum").length - app.emptyNum) == app.okNum && app.okNum != 0) {
+                    console.log(JSON.stringify(lstmodel));
+                    $.ajax({
+                        type: 'post',
+                        url: "/SMT/SMT_Operator/",
+                        type: 'POST',
+                        data: JSON.stringify(lstmodel),
+                        contentType: 'application/json;charset=utf-8', //上传后直接是List，不需要反序列化，直接向后台传对象集合
+                        async: false,
+                        datatype: 'json',
+                        cache: false,
+                        success: function (data) {
+                            if (data == "保存成功") {
+                                alert(data);
+                                window.location.href = '../SMT/SMT_Operator';
+                            } else {
+                                alert(data);
+                            }
+                        },
+                        error: function (err) {
+                            alert(err);
+                        }
+                    });
+                };
+            },
+            loadDate: function () {
+                $(".start_datetime").datetimepicker({
+                    language: 'zh-CN',
+                    format: 'yyyy-mm-dd hh:ii',//显示格式
+                    todayHighlight: 1,//今天高亮
+                    todayBtn: 1,
+                    startView: 2,
+                    forceParse: 0,
+                    showMeridian: 1,
+                    autoclose: 1,//选择后自动关闭
+                    endDate: new Date()
+                }).on('changeDate', function (ev) {
+                    $(this).parent().next().children("input").datetimepicker('setStartDate', $(this).val());
+                });
+                $(".end_datetime").datetimepicker({
+                    language: 'zh-CN',
+                    format: 'yyyy-mm-dd hh:ii',//显示格式
+                    todayHighlight: 1,//今天高亮
+                    todayBtn: 1,
+                    startView: 2,
+                    forceParse: 0,
+                    showMeridian: 1,
+                    autoclose: 1,//选择后自动关闭
+                    endDate: new Date()
+                }).on('changeDate', function (ev) {
+                    $(this).parent().prev().children("input").datetimepicker('setEndDate', $(this).val());
+                });
+            },
+            emptytable: function () {
+                var tr = $(".orderNum")
+                tr.each(function (index, val) {
+                    $(val).children("td").each(function (i, v) {
+                        v.firstChild.value = "";
+                    })
+                });
+            },
+            emptytr: function (event) {
+                var td = $(event.target);
+                td.parents("tr").children("td").each(function (index, val) {
+                    val.firstChild.value = "";
+                })
+            },
+            addtr: function () {
+                var tr = $("<tr class=\"orderNum\">" +
+                    "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
+                    "<td><select class=\"form-control\">" +
+                            "<option value=\"\">全部</option>" +
+                            "<option>2017-TEST-1</option>" +
+                            "<option>2018-abc22-2</option>" +
+                            "<option>2018-abc33-3</option>" +
+                            "<option>2018-def12-3</option>" +
+                            "<option>2018-def12-3</option>" +
+                            "<option>2018-vvc12-3</option>" +
+                            "<option>2018-vcv12-3</option>" +
+                            "<option>2018-GA122-3</option>" +
+                        "</select></td>" +
+                    "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
+                    "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
+                    "<td><input type=\"text\" value=\"\" class=\"start_datetime form-control\"></td>" +
+                    "<td><input type=\"text\" value=\"\" class=\"end_datetime form-control\"></td>" +
+                    "<td align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deleteParentTr(this)\">移除</button></td></tr>");
+                $("#para_table").append(tr);
+            },
+            newAddtr: function () {
+                this.$options.methods.addtr();
+                this.$options.methods.loadDate();
             }
         },
-        created: function () {
-
-        },
         mounted: function () {
-            $("#start_Date").datetimepicker({
-                language: 'zh-CN',
-                format: 'yyyy-mm-dd hh:ii',//显示格式
-                //minView: "month",//设置只显示到月份
-                weekStart: 1, //一周从哪一天开始。0（星期日）到6（星期六）
-                todayBtn: 1,
-                autoclose: 1, //当选择一个日期之后是否立即关闭此日期时间选择器。
-                todayHighlight: 1, //今天高亮
-                startView: 2,
-                forceParse: 0,
-                pickerPosition: "bottom-left",
-                showMeridian: 1,
-                endDate: new Date()
-            }).on('changeDate', function (ev) {
-                $("#end_Date").datetimepicker('setStartDate', $("#begintime").val());
-            });
-            $("#end_Date").datetimepicker({
-                language: 'zh-CN',
-                format: 'yyyy-mm-dd hh:ii',
-                weekStart: 1,
-                todayBtn: 1,
-                autoclose: 1,
-                todayHighlight: 1,
-                startView: 2,
-                forceParse: 0,
-                pickerPosition: "bottom-left",
-                showMeridian: 1,
-                endDate: new Date()
-            }).on('changeDate', function (ev) {
-                $("#start_Date").datetimepicker('setEndDate', $("#endtime").val());
-            });
-
-            var localOrder = localStorage.getItem('Order');
-            if (localOrder != null) {
-                $("#OrderNum").val(localOrder);
+            for (var i = 1; i < 8; i++) {
+                this.$options.methods.addtr();
             };
-            $("#OrderNum").change(function (val) {
-                localStorage.setItem('Order', val.target.value);
-            });
-            var LineIdNum = localStorage.getItem('LineId');
-            if (LineIdNum != null) {
-                $("#LineNum").val(LineIdNum);
-            };
-            $("#LineNum").change(function (val) {
-                localStorage.setItem('LineId', val.target.value);
-            });
-            $("#normalQ").select();
+            this.$options.methods.loadDate();
         }
     });
-    function inputMsg() {
-        if ($("#OrderNum").val() == "" || $("#LineNum").val() == "" || $("#normalQ").val() == "" || $("#abnormalQ").val() == "" || $("#begintime").val() == "" || $("#endtime").val() == "") {
-            return false;
-        } else {
-            return true;
-        };
+    function deleteParentTr(tdobject) {
+        var td = $(tdobject);
+        td.parents("tr").remove();
     };
 </script>

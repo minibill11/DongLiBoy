@@ -93,15 +93,15 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
             ViewBag.Display = "display:none";//隐藏View基本情况信息
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.OQCNormal = OQCNormalList();
             ViewBag.FinishStatus = FinishStatusList();
+            ViewBag.Overtime = "";
+            ViewBag.Overtime2 = "";
             ViewBag.Finish = null;
             ViewBag.NotDo = null;
             return View();
-
         }
 
         [HttpPost]
@@ -307,6 +307,65 @@ namespace JianHeMES.Controllers
 
             //列出记录
             AllBurn_inRecordsList = AllBurn_inRecords.ToList();
+
+            #region
+            //查出完成老化工序后，超过三天还没有进入包装工序的条码记录清单
+            //[{"18AA99999A0002","超多久没有进入包装"},{"18AA99999A0002","超多久没有进入包装"}]
+            //JObject OvertimeNeverAppearance = new JObject();
+            //var AllBurn_inRecords_BarcodesNum_List = AllBurn_inRecordsList.Select(c => c.BarCodesNum).ToList();
+            //var AppearanceRecordByOrderNum = db.Appearance.Where(c => c.OrderNum == OrderNum).ToList();
+            //foreach(var item in AllBurn_inRecords_BarcodesNum_List)
+            //{
+            //    int Appearance_Record_Count_by_BarcodesNum = AppearanceRecordByOrderNum.Count(c => c.BarCodesNum == item);//此模组（item）的包装记录数
+            //    if(Appearance_Record_Count_by_BarcodesNum==0)  //包装无记录时进入if
+            //    {
+            //        var Burn_in_MaxFT = AllBurn_inRecordsList.Where(c => c.BarCodesNum == item).Max(c => c.OQCCheckFT);  //取出此模组（item）老化的最大完成时间
+            //        var SubTime = DateTime.Now - Burn_in_MaxFT; //求（现在-此模组（item）老化的最大完成时间）的值SubTime
+            //        if (Burn_in_MaxFT !=null && SubTime.Value.TotalMinutes > 4320)  //如果SubTime大于4320分钟（3天:3*24*60）
+            //        {
+            //            OvertimeNeverAppearance.Add(item, "此模组"+Burn_in_MaxFT.ToString()+"完成老化后，已经超过" +  SubTime.Value.Days+ "天"+ SubTime.Value.Hours + "小时"+ SubTime.Value.Minutes + "分还没有进入包装工序！");
+            //        }
+            //    }
+            //}
+            //ViewBag.Overtime = OvertimeNeverAppearance;
+
+            //1.查老化的记录（类型是list < burn_in >）
+            //2.取出条码清单（list<string>）
+            //3.创建一个JObject实体，用于记录超时信息（类型是JObject，格式是[{“以条码号为键”,”超时信息为值”},{“”,””}]）例如：[{“18AA99999A00002”,”此模组在2019-1-4 10:00:00完成老化，已经超过4天5小时未进入包装工序！”}，]
+            //4.调出订单在包装的全部记录（List<appearance>）
+            //5.在包装的全部记录中，通过foreach条码清单（list<string>），统计包装中有多少条记录
+            //6.如果记录数==0，则进入计算时间差程序，并判定时间是否>3天，如果大于3天，则进入记录超时程序
+            //7.输出ViewBag.Overtime给前端
+
+    #endregion
+
+            var BarcodesNumListByOrderNum = AllBurn_inRecords.Select(c => c.BarCodesNum).ToList();//1和2
+            JObject BorcodesNumOvertimeList = new JObject();//3
+            var AppearanceRecordByOrderNum = db.Appearance.Where(c => c.OrderNum == OrderNum).ToList();//4
+            foreach(var item in BarcodesNumListByOrderNum)
+            {
+                int AppearanceRecord_count = AppearanceRecordByOrderNum.Count(c => c.BarCodesNum == item);
+                if(AppearanceRecord_count==0)
+                {
+                    var Burn_in_MaxFT = AllBurn_inRecords.Where(c => c.BarCodesNum == item).FirstOrDefault().OQCCheckFT;
+                    var SubTime = DateTime.Now - Burn_in_MaxFT;
+                    if (Burn_in_MaxFT != null && SubTime.Value.TotalMinutes > 4320) //3天：3*24*60
+                    {
+                        BorcodesNumOvertimeList.Add(item,"此模组在" + Burn_in_MaxFT.ToString() +"完成老化,已经超过" + SubTime.Value.Days +"天" + SubTime.Value.Hours + "小时" + SubTime.Value.Minutes + "分未进入包装工序！");
+                    }
+                }
+            }
+            ViewBag.Overtime = BorcodesNumOvertimeList;
+            //ArrayList re2 = new ArrayList();
+            //foreach (var item in BorcodesNumOvertimeList)
+            //{
+            //    string[] dd = new string[2];
+            //    dd[0] = item.Key;
+            //    dd[1] = item.Value.ToString();
+            //    re2.Add(dd);
+            //}
+            //ViewBag.Overtime2 = re2.ToString();
+
             //计算已经完成OQC的数量
             var Finish_Count = AllBurn_inRecords.Count(c => c.OQCCheckFinish == true);
 

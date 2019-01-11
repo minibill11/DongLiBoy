@@ -56,7 +56,7 @@ namespace JianHeMES.Controllers
                 }
             }
             //根据首次或重复FQC筛选
-            if(repetition!="")
+            if (repetition != "")
             {
                 if (repetition == "首次FQC")
                 {
@@ -68,7 +68,7 @@ namespace JianHeMES.Controllers
                 }
             }
             //根据备注内容筛选
-            if (Remark!="")
+            if (Remark != "")
             {
                 resultlist = resultlist.Where(c => c.Remark != null && c.Remark.Contains(Remark)).ToList();
             }
@@ -76,7 +76,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        
+
         #region ----------FinalQC_B方法
 
         public ActionResult FinalQC_B()
@@ -101,6 +101,8 @@ namespace JianHeMES.Controllers
         public async Task<ActionResult> FinalQC_B([Bind(Include = "Id,OrderNum,BarCodesNum,FQCCheckBT,FQCPrincipal,FQCCheckFT,FQCCheckDate,FQCCheckTime,FQCCheckTimeSpan,FinalQC_FQCCheckAbnormal,RepetitionFQCCheck,RepetitionFQCCheckCause,FQCCheckFinish,Remark")] FinalQC finalQC)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
+
             //1.判断条码是否存在
             //var aaa = db.BarCodes.Where(c => c.BarCodesNum == finalQC.BarCodesNum).Count();
             if (db.BarCodes.Where(c => c.BarCodesNum == finalQC.BarCodesNum).Count() == 0)
@@ -109,94 +111,91 @@ namespace JianHeMES.Controllers
                 return View(finalQC);
             }
             //2.判断条码跟订单号是否相符
-            if (finalQC.OrderNum!= db.BarCodes.Where(c => c.BarCodesNum == finalQC.BarCodesNum).FirstOrDefault().OrderNum)
+            if (finalQC.OrderNum != db.BarCodes.Where(c => c.BarCodesNum == finalQC.BarCodesNum).FirstOrDefault().OrderNum)
             {
-                ModelState.AddModelError("", "条码号不属于"+ finalQC.OrderNum + "订单，应该属于"+ db.BarCodes.Where(c => c.BarCodesNum == finalQC.BarCodesNum).FirstOrDefault().OrderNum + "订单！");
+                ModelState.AddModelError("", "条码号不属于" + finalQC.OrderNum + "订单，应该属于" + db.BarCodes.Where(c => c.BarCodesNum == finalQC.BarCodesNum).FirstOrDefault().OrderNum + "订单！");
                 return View(finalQC);
             }
 
+            //创建一个集合存放此条码对应的记录
+            var fqc_recordlist = db.FinalQC.Where(c => c.BarCodesNum == finalQC.BarCodesNum).ToList();
+
             //3.判断PQC是否已经完成,如果PQC已完成，允许进行FQC
-            if(db.Assemble.Where(c => c.BoxBarCode == finalQC.BarCodesNum && c.PQCCheckFinish == true && c.RepetitionPQCCheck==false).Count()==1)
+            if (fqc_recordlist.Count() > 0)
             {
                 //FQC判断1.有记录已完成，要求“重复”打钩，2.有异常记录未通过FQC，“重复”不能打钩，3.有记录，有开始时间，没有完成时间，4，没有记录
 
                 //统计此条码在FinalQC表中的记录个数，如果Fqc_record_count=0，则直接创建记录。
                 //如果>0，创建一个集合存放此条码对应的记录
-                   //检查是否有记录是有开始时间没有完成时间，有则打开记录。如果没有，接着做下面的检查
-                   //检查是否已经有首次FinalQC完成，如果没有，按首次FinalQC进行，“重复FQC”选项不能勾选，如果勾选上了，输出错误提示“此模组尝未进行FQC工作，不能进行“重复FQC”工作，请取消“重复FQC”选项勾！”
-                   //检查如果此条码首次FinalQC已经完成，则按重复FinalQC进行，“重复FQC”选项要求要被勾选上，如果没有勾选上，输出错误提示“此模组已经完成FQC工作，只能进行“重复FQC”工作，请勾上“重复FQC”选项勾！”
+                //检查是否有记录是有开始时间没有完成时间，有则打开记录。如果没有，接着做下面的检查
+                //检查是否已经有首次FinalQC完成，如果没有，按首次FinalQC进行，“重复FQC”选项不能勾选，如果勾选上了，输出错误提示“此模组尝未进行FQC工作，不能进行“重复FQC”工作，请取消“重复FQC”选项勾！”
+                //检查如果此条码首次FinalQC已经完成，则按重复FinalQC进行，“重复FQC”选项要求要被勾选上，如果没有勾选上，输出错误提示“此模组已经完成FQC工作，只能进行“重复FQC”工作，请勾上“重复FQC”选项勾！”
 
                 //统计此条码在FinalQC表中的记录个数
                 int fqc_record_count = db.FinalQC.Where(c => c.BarCodesNum == finalQC.BarCodesNum).Count();
-                if(fqc_record_count==0)  //(1).无记录，直接创建
+
+
+                //(1).有不完整的记录（有开始时间没有完成时间）
+                if (fqc_recordlist.Where(c => c.FQCCheckBT != null && c.FQCCheckFT == null).Count() > 0)
                 {
-                    finalQC.FQCPrincipal = ((Users)Session["User"]).UserName;
-                    finalQC.FQCCheckBT = DateTime.Now;
-                    if (ModelState.IsValid)
+                    return RedirectToAction("FinalQC_F", new { fqc_recordlist.Where(c => c.FQCCheckBT != null && c.FQCCheckFT == null).FirstOrDefault().Id });
+                }
+
+                //(2).有记录，FQC异常，未完成FQC，创建一条新记录（不允许勾选“重复FQC”）
+                else if (fqc_recordlist.Where(c => c.FQCCheckFinish == true).Count() == 0)
+                {
+                    if (finalQC.RepetitionFQCCheck == false)  //重复FQC要求不能勾上
                     {
-                        db.FinalQC.Add(finalQC);
-                        await db.SaveChangesAsync();
-                        return RedirectToAction("FinalQC_F", new { finalQC.Id });
+                        finalQC.FQCPrincipal = ((Users)Session["User"]).UserName;
+                        finalQC.FQCCheckBT = DateTime.Now;
+                        if (ModelState.IsValid)
+                        {
+                            db.FinalQC.Add(finalQC);
+                            await db.SaveChangesAsync();
+                            return RedirectToAction("FinalQC_F", new { finalQC.Id });
+                        }
+                    }
+                    else  //重复FQC未勾上，提示错误
+                    {
+                        ModelState.AddModelError("", "此模组未完成FQC工作，不能进行“重复FQC”工作，请取消“重复FQC”选项勾！");
+                        return View(finalQC);
                     }
                 }
-                else  //条码对应的记录数>0
+
+                //(3).检查是否已经有首次FinalQC完成，如果首次FQC已完成，进入重复FQC
+                else  //首次FQC已完成，应该进入重复FQC
                 {
-                    //创建一个集合存放此条码对应的记录
-                    var fqc_recordlist = db.FinalQC.Where(c => c.BarCodesNum == finalQC.BarCodesNum).ToList();
-                    //(2).有不完整的记录（有开始时间没有完成时间）
-                    if(fqc_recordlist.Where(c => c.FQCCheckBT != null && c.FQCCheckFT == null).Count()>0)
+                    if (finalQC.RepetitionFQCCheck == true)  //重复FQC已经勾上
                     {
-                        return RedirectToAction("FinalQC_F", new { fqc_recordlist.Where(c => c.FQCCheckBT != null && c.FQCCheckFT == null).FirstOrDefault().Id });
+                        finalQC.FQCPrincipal = ((Users)Session["User"]).UserName;
+                        finalQC.FQCCheckBT = DateTime.Now;
+                        if (ModelState.IsValid)
+                        {
+                            db.FinalQC.Add(finalQC);
+                            await db.SaveChangesAsync();
+                            return RedirectToAction("FinalQC_F", new { finalQC.Id });
+                        }
                     }
-
-                    //(3).有记录，FQC异常，未完成FQC，创建一条新记录（不允许勾选“重复FQC”）
-                    if(fqc_recordlist.Where(c=>c.FQCCheckFinish==true).Count()==0)
+                    else  //重复FQC未勾上，提示错误
                     {
-                        if (finalQC.RepetitionFQCCheck == false)  //重复FQC要求不能勾上
-                        {
-                            finalQC.FQCPrincipal = ((Users)Session["User"]).UserName;
-                            finalQC.FQCCheckBT = DateTime.Now;
-                            if (ModelState.IsValid)
-                            {
-                                db.FinalQC.Add(finalQC);
-                                await db.SaveChangesAsync();
-                                return RedirectToAction("FinalQC_F", new { finalQC.Id });
-                            }
-                        }
-                        else  //重复FQC未勾上，提示错误
-                        {
-                            ModelState.AddModelError("", "此模组未完成FQC工作，不能进行“重复FQC”工作，请取消“重复FQC”选项勾！");
-                            return View(finalQC);
-                        }
-
-                    }
-
-                    //(4).检查是否已经有首次FinalQC完成，如果首次FQC已完成，应该进入重复FQC
-                    if (fqc_recordlist.Where(c=>c.FQCCheckFinish==true && c.RepetitionFQCCheck==false).Count()>0)　　//首次FQC已完成，应该进入重复FQC
-                    {
-                        if(finalQC.RepetitionFQCCheck==true)  //重复FQC已经勾上
-                        {
-                            finalQC.FQCPrincipal = ((Users)Session["User"]).UserName;
-                            finalQC.FQCCheckBT = DateTime.Now;
-                            if (ModelState.IsValid)
-                            {
-                                db.FinalQC.Add(finalQC);
-                                await db.SaveChangesAsync();
-                                return RedirectToAction("FinalQC_F", new { finalQC.Id });
-                            }
-                        }
-                        else  //重复FQC未勾上，提示错误
-                        {
-                            ModelState.AddModelError("", "此模组已完成FQC工作，只能进行“重复FQC”工作，请勾上“重复FQC”选项勾！");
-                            return View(finalQC);
-                        }
+                        ModelState.AddModelError("", "此模组已完成FQC工作，只能进行“重复FQC”工作，请勾上“重复FQC”选项勾！");
+                        return View(finalQC);
                     }
                 }
             }
-            else
+            else //.无记录，直接创建
             {
-                ModelState.AddModelError("", finalQC.BarCodesNum + "未完成PQC" );
-                return View(finalQC);
+                finalQC.FQCPrincipal = ((Users)Session["User"]).UserName;
+                finalQC.FQCCheckBT = DateTime.Now;
+                if (ModelState.IsValid)
+                {
+                    db.FinalQC.Add(finalQC);
+                    await db.SaveChangesAsync();
+                    return RedirectToAction("FinalQC_F", new { finalQC.Id });
+                }
+
+                //ModelState.AddModelError("", finalQC.BarCodesNum + "已完成PQC" );
+                //return View(finalQC);
             }
             return View(finalQC);
         }
@@ -236,7 +235,7 @@ namespace JianHeMES.Controllers
             //时长保留时分秒部分存储在FQCCheckTime中
             finalQC.FQCCheckTime = new TimeSpan(finalQC.FQCCheckTime.Value.Hours, finalQC.FQCCheckTime.Value.Minutes, finalQC.FQCCheckTime.Value.Seconds);
 
-            if(finalQC.FinalQC_FQCCheckAbnormal!="正常")
+            if (finalQC.FinalQC_FQCCheckAbnormal != "正常")
             {
                 finalQC.FQCCheckFinish = false;
             }

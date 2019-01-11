@@ -314,6 +314,11 @@ namespace JianHeMES.Controllers
                         db.SaveChanges();
                     }
                 }
+                //if (ModelState.IsValid)
+                //{
+                //    db.SMT_ProductionPlan.AddRange(orders);
+                //    db.SaveChanges();
+                //}
                 return RedirectToAction("SMT_ProductionPlan");
             }
             return View(records);
@@ -729,7 +734,88 @@ namespace JianHeMES.Controllers
 
         #region------------------生产操作(数据)
         // GET: SMT产线未段工位输入操作
+
         public ActionResult SMT_Operator()
+        {
+            ViewBag.OrderNumList = GetTodayPlanOrderNumList();//向View传递OrderNum订单号列表.
+            //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role != "SMT组长" || ((Users)Session["User"]).Role != "系统管理员")
+            {
+                return View();
+            }
+            return Content("对不起，您的不能进入产线操作，请联系SMT看板管理员！");
+        }
+
+
+        [HttpPost]
+        public ActionResult SMT_Operator(List<SMT_ProductionData> SMT_ProductionDataList)
+        {
+            ViewBag.OrderNumList = GetTodayPlanOrderNumList();//向View传递OrderNum订单号列表.
+            List<SMT_ProductionData> result = new List<SMT_ProductionData>();
+            foreach(var item in SMT_ProductionDataList)
+            {
+                var count = db.SMT_ProductionPlan.Where(c => c.OrderNum == item.OrderNum && c.LineNum == item.LineNum && c.CreateDate.Value.Year == DateTime.Now.Year && c.CreateDate.Value.Month == DateTime.Now.Month && c.CreateDate.Value.Day == DateTime.Now.Day).Count();
+                if (count == 0)
+                {
+                    return Content("订单"+item.OrderNum + "没有在产线" + item.LineNum + "做生产计划！");
+                }
+                else
+                {
+                    result.Add(item);
+                }
+            }
+            if (ModelState.IsValid)
+            {
+                db.SMT_ProductionData.AddRange(result);
+                db.SaveChanges();
+            }
+            return Content("保存成功");//跳转到../SMT/SMT_Operator
+        }
+
+
+        //[HttpPost]
+        //public ActionResult SMT_Operator(FormCollection fc)
+        //{
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+        //    SMT_ProductionData productiondata = new SMT_ProductionData();
+        //    productiondata.OrderNum = fc["OrderNum"];
+        //    productiondata.LineNum = Convert.ToInt32(fc["LineNum"]);
+        //    productiondata.Operator = ((Users)Session["User"]).UserName;
+        //    productiondata.NormalCount = Convert.ToInt32(fc["normalQ"]);
+        //    productiondata.AbnormalCount = Convert.ToInt32(fc["abnormalQ"]);
+        //    productiondata.BeginTime = Convert.ToDateTime(fc["begintime"]);
+        //    productiondata.EndTime = Convert.ToDateTime(fc["endtime"]);
+        //    productiondata.Result = Convert.ToBoolean(fc["result"]);
+        //    productiondata.BarcodeNum = fc["barcodeNum"];
+        //    productiondata.ProductionDate = DateTime.Now;
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.SMT_ProductionData.Add(productiondata);
+        //        db.SaveChanges();
+        //    }
+        //    return Content("<script>alert('保存成功！');window.location.href='../SMT/SMT_Operator';</script>");
+        //}
+
+
+
+
+
+        [HttpPost]
+        public ActionResult SMT_Operator_DataCheck() 
+        {
+            string result = "";
+
+
+            return Content(result);
+        }
+
+
+
+        public ActionResult SMT_Operator1()
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
@@ -745,7 +831,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult SMT_Operator(FormCollection fc)
+        public ActionResult SMT_Operator1(FormCollection fc)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             SMT_ProductionData productiondata = new SMT_ProductionData();
@@ -764,7 +850,7 @@ namespace JianHeMES.Controllers
                 db.SMT_ProductionData.Add(productiondata);
                 db.SaveChanges();
             }
-            return Content("<script>alert('保存成功！');window.location.href='../SMT/SMT_Operator';</script>");
+            return Content("<script>alert('保存成功！');window.location.href='../SMT/SMT_Operator';</script>");//history.go(-1);
 
         }
 
@@ -775,7 +861,6 @@ namespace JianHeMES.Controllers
             string lastrecordendtime = record == null ? "" : record.EndTime.ToString();
             return Content(lastrecordendtime);
         }
-
        #endregion
 
 
@@ -944,44 +1029,62 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-
-
-        /// <summary>
-        /// 对象转换成json
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="jsonObject">需要格式化的对象</param>
-        /// <returns>Json字符串</returns>
-        public static string DataContractJsonSerialize<T>(T jsonObject)
+        #region --------------------GetTodayPlanOrderNumList() 取出今天SMT计划的所有OrderNum订单号列表
+        private List<SelectListItem> GetTodayPlanOrderNumList()
         {
-            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
-            string json = null;
-            using (MemoryStream ms = new MemoryStream()) //定义一个stream用来存发序列化之后的内容
+            var date = DateTime.Now;
+            var orders = db.SMT_ProductionPlan.Where(c=>c.CreateDate.Value.Year==date.Year && c.CreateDate.Value.Month == date.Month && c.CreateDate.Value.Day == date.Day).OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            var items = new List<SelectListItem>();
+            foreach (string order in orders)
             {
-                serializer.WriteObject(ms, jsonObject);
-                json = Encoding.UTF8.GetString(ms.GetBuffer()); //将stream读取成一个字符串形式的数据，并且返回
-                ms.Close();
+                items.Add(new SelectListItem
+                {
+                    Text = order,
+                    Value = order
+                });
             }
-            return json;
+            return items;
         }
+        #endregion
 
-        /// <summary>
-        /// json字符串转换成对象
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="json">要转换成对象的json字符串</param>
-        /// <returns></returns>
-        public static T DataContractJsonDeserialize<T>(string json)
-        {
-            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
-            T obj = default(T);
-            using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(json)))
-            {
-                obj = (T)serializer.ReadObject(ms);
-                ms.Close();
-            }
-            return obj;
-        }
+
+
+        ///// <summary>
+        ///// 对象转换成json
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <param name="jsonObject">需要格式化的对象</param>
+        ///// <returns>Json字符串</returns>
+        //public static string DataContractJsonSerialize<T>(T jsonObject)
+        //{
+        //    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
+        //    string json = null;
+        //    using (MemoryStream ms = new MemoryStream()) //定义一个stream用来存发序列化之后的内容
+        //    {
+        //        serializer.WriteObject(ms, jsonObject);
+        //        json = Encoding.UTF8.GetString(ms.GetBuffer()); //将stream读取成一个字符串形式的数据，并且返回
+        //        ms.Close();
+        //    }
+        //    return json;
+        //}
+
+        ///// <summary>
+        ///// json字符串转换成对象
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <param name="json">要转换成对象的json字符串</param>
+        ///// <returns></returns>
+        //public static T DataContractJsonDeserialize<T>(string json)
+        //{
+        //    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
+        //    T obj = default(T);
+        //    using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+        //    {
+        //        obj = (T)serializer.ReadObject(ms);
+        //        ms.Close();
+        //    }
+        //    return obj;
+        //}
 
     }
 }

@@ -41,23 +41,25 @@ namespace JianHeMES.Controllers
 
 
         [HttpPost]
-        public async Task<ActionResult> Index(string orderNum, string moduleGroupNum, string searchString, int PageIndex = 0)
+        public async Task<ActionResult> Index(string orderNum, string moduleGroupNum,string barcodenum, string searchString, int PageIndex = 0)
         {
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            //IQueryable<CalibrationRecord> AllCalibrationRecords = null;
             List<CalibrationRecord> AllCalibrationRecords = new List<CalibrationRecord>();
 
             //检查orderNum和searchString是否为空
-            if (orderNum == "")
+            if (String.IsNullOrEmpty(orderNum))
             {
-                //调出全部记录      
-                //AllCalibrationRecords = from m in db.CalibrationRecord
-                //                        select m;
-                AllCalibrationRecords = await db.CalibrationRecord.ToListAsync();
+                if (!String.IsNullOrEmpty(barcodenum))
+                {
+                    AllCalibrationRecords = await db.CalibrationRecord.Where(c => c.BarCodesNum == barcodenum).ToListAsync();
+                }
+                else
+                {
+                    return Content("<script>alert('请选择查询的条码！');history.go(-1);</script>");//history.go(-1);//window.location.href='../SMT/SMT_Operator';
+                }
             }
             else
             {
@@ -76,6 +78,14 @@ namespace JianHeMES.Controllers
                     }
                 }
             }
+
+            #region-------------按条码号条件查询
+            if(!String.IsNullOrEmpty(barcodenum))
+            {
+                AllCalibrationRecords = AllCalibrationRecords.Where(c => c.BarCodesNum == barcodenum).ToList();
+            }
+            #endregion
+
             #region-------------按描述条件查询
             if (!String.IsNullOrEmpty(searchString))
             {   //从调出的记录中筛选含searchString内容的记录
@@ -142,6 +152,10 @@ namespace JianHeMES.Controllers
             CalibrationRecordVM.Order_MG_Quantity = (from m in db.OrderInformation
                                                      where (m.OrderNum == orderNum)
                                                      select m.ModuleGroupQuantity).FirstOrDefault();
+            if(CalibrationRecordVM.Order_MG_Quantity==0)
+            {
+                CalibrationRecordVM.Order_MG_Quantity = (from m in db.OrderMgm where m.OrderNum==orderNum select m.Boxes).FirstOrDefault();//db.OrderMgm.Where(c => c.OrderNum == orderNum).FirstOrDefault().Boxes;
+            }
             //将模组总数量、正常的模组数量、未完成校正模组数量、订单号信息传递到View页面
             ViewBag.Quantity = CalibrationRecordVM.Order_MG_Quantity;
             ViewBag.NormalCount = CalibrationRecordVM.Order_CR_Normal_Count;
@@ -170,7 +184,6 @@ namespace JianHeMES.Controllers
                                                                             .Take(PAGE_SIZE).ToList();
             ViewBag.PageIndex = PageIndex;
             ViewBag.PageCount = pageCount;
-
 
             //将分页后的结果转成JSON数据           
             //var data0 = CalibrationRecordVM.AllCalibrationRecord.OrderByDescending(m => m.BeginCalibration)

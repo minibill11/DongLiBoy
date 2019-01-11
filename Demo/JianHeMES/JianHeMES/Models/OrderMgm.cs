@@ -26,7 +26,7 @@ namespace JianHeMES.Models
         public string CustomerName { get; set; }
 
         [Required]
-        [Display(Name = "订单日期")]
+        [Display(Name = "下单日期")]
         [DataType(DataType.Date)]
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
         public DateTime ContractDate { get; set; }

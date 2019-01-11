@@ -53,6 +53,9 @@ namespace JianHeMES.Controllers
                 {
                     OrderList_All = OrderList_All.Where(m => m.PlatformType == PlatformType).ToList();
                 }
+                //把2017-TEST-1放入排除清单中
+                OrderList_All = OrderList_All.Where(c => c.OrderNum != "2017-TEST-1").ToList();
+                //----------------------------------------------------------------------------------
 
                 foreach (var item in OrderList_All)
                 {
@@ -153,8 +156,9 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / FinalQC_Record.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2") + "%");  //FQC完成率
-                            OrderNum.Add("FinalQC_Pass_Rate", (FinalQC_Finish / FinalQC_Record.Count() * 100).ToString("F2") + "%");                                          //FQC合格率
+                            //OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / FinalQC_Record.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2") + "%");  //FQC完成率
+                            OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / item.Boxes * 100).ToString("F2") + "%");  //FQC抽检比例
+                            OrderNum.Add("FinalQC_Pass_Rate", (FinalQC_Finish / FinalQC_Record.Count() * 100).ToString("F2") + "%"); //FQC合格率
                         }
                     }
                     else
@@ -184,7 +188,8 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
+                            //OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes * 100).ToString("F2") + "%");
                             OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count() * 100).ToString("F2") + "%");
                         }
                     }
@@ -217,7 +222,8 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / Calibration_Record_Count * 100).ToString("F2") + "%");
+                            //OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / Calibration_Record_Count * 100).ToString("F2") + "%");
+                            OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes * 100).ToString("F2") + "%");
                             OrderNum.Add("Calibration_Pass_Rate", (Calibration_Normal / Calibration_Record.Count() * 100).ToString("F2") + "%");
                         }
                     }
@@ -249,7 +255,8 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count.Count() * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
+                            //OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count.Count() * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
+                            OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
                             OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");//完成数/记录条数
                         }
                     }
@@ -275,7 +282,8 @@ namespace JianHeMES.Controllers
                             }
                             else
                             {
-                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count.Count() * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
+                                //OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count.Count() * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
+                                OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");//完成数/条码记录去重后个数
                                 OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");//完成数/记录条数
                             }
 

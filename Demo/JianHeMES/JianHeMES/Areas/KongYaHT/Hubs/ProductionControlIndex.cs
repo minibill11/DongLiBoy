@@ -549,7 +549,8 @@ namespace JianHeMESEntities.Hubs
                     }
                     else
                     {
-                        OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / FinalQC_Record.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2") + "%");  //FQC完成率
+                        //OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / FinalQC_Record.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2") + "%");  //FQC完成率
+                        OrderNum.Add("FinalQC_Finish_Rate", (FinalQC_Finish / item.Boxes * 100).ToString("F2") + "%");  //FQC比例
                         OrderNum.Add("FinalQC_Pass_Rate", (FinalQC_Finish / FinalQC_Record.Count() * 100).ToString("F2") + "%");                                        //FQC合格率
                     }
                 }
@@ -572,6 +573,7 @@ namespace JianHeMESEntities.Hubs
                     OrderNum.Add("Burn_in_Finish", Convert.ToInt32(Burn_in_Finish));
                     OrderNum.Add("Burn_in_Record_Count", Burn_in_Record_Count);
                     OrderNum.Add("Burn_in_Count", Burn_in_Record.Count());
+                    OrderNum.Add("Burn_in_Doing_Count", Burn_in_Record.Where(c=>c.OQCCheckBT!=null && c.OQCCheckFT==null).Count());//正在老化个数
                     //计算老化完成率、合格率
                     if (Burn_in_Finish == 0)
                     {
@@ -580,7 +582,8 @@ namespace JianHeMESEntities.Hubs
                     }
                     else
                     {
-                        OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
+                        //OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
+                        OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes * 100).ToString("F2") + "%");
                         OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count() * 100).ToString("F2") + "%");
                     }
                 }
@@ -609,7 +612,8 @@ namespace JianHeMESEntities.Hubs
                     }
                     else
                     {
-                        OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / Calibration_Record_Count * 100).ToString("F2") + "%");
+                        //OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / Calibration_Record_Count * 100).ToString("F2") + "%");
+                        OrderNum.Add("Calibration_Finish_Rate", (Calibration_Normal / item.Boxes * 100).ToString("F2") + "%");
                         OrderNum.Add("Calibration_Pass_Rate", (Calibration_Normal / Calibration_Record.Count() * 100).ToString("F2") + "%");
                     }
                 }
@@ -639,7 +643,8 @@ namespace JianHeMESEntities.Hubs
                     }
                     else
                     {
-                        OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count * 100).ToString("F2") + "%");
+                        //OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / Appearances_Record_Count * 100).ToString("F2") + "%");
+                        OrderNum.Add("Appearances_Finish_Rate", (Appearances_Finish / item.Boxes * 100).ToString("F2") + "%");
                         OrderNum.Add("Appearances_Pass_Rate", (Appearances_Finish / Appearances_Record.Count() * 100).ToString("F2") + "%");
                     }
                 }
