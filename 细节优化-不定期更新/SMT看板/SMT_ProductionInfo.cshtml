@@ -16,7 +16,54 @@
     }*/
 </style>
 <h2 class="text-center">SMT生产信息</h2>
+
 <div id="app" class="form-group">
+    @* 新表格表头 *@
+    <div id="test" class="form-group">
+        <table class="table table-bordered">
+            <tr>
+                <th colspan="6">PC</th>
+                <th rowspan="2">小样进度</th>
+                <th rowspan="2">线别</th>
+                <th colspan="2">今天产量</th>
+                <th colspan="5">统计</th>
+            </tr>
+            <tr>
+                <th>订单号</th>
+                <th>平台</th>
+                <th>模块数</th>
+                <th>制程要求</th>
+                <th>标准要求</th>
+                <th>产能</th>
+                <th>良品(PCS)</th>
+                <th>不良品(PCS)</th>
+                <th>完成率</th>
+                <th>合格率</th>
+                <th>开始时间</th>
+                <th>结束时间</th>
+                <th>生产用时</th>
+            </tr>
+            <template v-for="(val,index) in smtLineData_new">
+                <template v-for="(v,i) in val">
+                    <tr v-if="i==0">
+                        <td v-bind:rowspan="val.length" v-for="(item,index) in v" v-if="index>=0&&index<=6">{{item}}</td>
+                        <td v-for="(item,index) in v" v-if="index>6&&index<10">{{item}}</td>
+                        @*<td v-bind:rowspan="val.length" v-for="(item,index) in v" v-if="index>10">{{item}}</td>*@
+                        <td v-bind:rowspan="val.length" v-for="(item,index) in v" v-if="index>10">{{item}}</td>
+                        <td v-bind:rowspan="val.length" v-for="(item,index) in v" v-if="index==10">{{item}}</td>
+                        <td v-bind:rowspan="val.length"></td>
+                        <td v-bind:rowspan="val.length"></td>
+                    </tr>
+                    <tr v-else>
+                        <td v-for="(item,index) in v" v-if="index>6&&index<10">{{item}}</td>
+                    </tr>
+                </template>
+            </template>
+        </table>
+    </div>
+    <hr />
+
+    @*//分割线*@
     <span style="float:right;margin:0 5px 3px 0">{{nowtime}}</span>
     <table class="table table-bordered">
         <colgroup>
@@ -95,6 +142,7 @@
         el: "#app",
         data: {
             smtLineData: [],
+            smtLineData_new: [],
             nowtime: ""
         },
         created: function () {
@@ -104,7 +152,6 @@
             }, 1000);
         },
         methods: {
-
         }
     });
     Date.prototype.Format = function (fmt) {
@@ -132,7 +179,6 @@
         $(function () {
             var mypush = $.connection.SMT;
             mypush.client.sendSMT_ProductionInfo = function (SMT_ProductionInfo) {
-                //console.log(SMT_ProductionInfo);
                 app.smtLineData = [];
                 var linedata = SMT_ProductionInfo;
                 for (var line in linedata) {
@@ -151,8 +197,45 @@
                     };
                     app.smtLineData.push(lineArr);
                 };
-                console.log(app.smtLineData);
+                //console.log(app.smtLineData);
             };
+
+            var mypush2 = $.connection.SMT;
+            mypush2.client.sendSMT_ProductionInfo_new = function (SMT_ProductionInfo_new) {
+                app.smtLineData_new = [];
+                var linedata = SMT_ProductionInfo_new;
+                for (var line in linedata) {
+                    var ordernumdata = JSON.parse(linedata[line]);
+                    var lineArr = [];
+                    var oneline = [];
+                    var count = 0;//模块数
+                    var normal = 0;//良品数
+                    var abnormal = 0;//不良品数
+                    for (var order in ordernumdata) {
+                        oneline = []
+                        oneline.push(line);
+                        var itemdata = JSON.parse(ordernumdata[order])
+                        for (var item in itemdata) {
+                            oneline.push(itemdata[item]);
+                            if (item == "NormalCount") {
+                                normal += itemdata[item];
+                            };
+                            if (item == "AbnormalCount") {
+                                abnormal += itemdata[item];
+                            };
+                            if (item == "Models") {
+                                count == itemdata[item];
+                            };
+                        };
+                        lineArr.push(oneline);
+                    };
+                    app.smtLineData_new.push(lineArr);
+                    app.smtLineData_new[app.smtLineData_new.length - 1][0].push(((normal + abnormal) * 100 / count).toFixed(2) + "%");
+                    app.smtLineData_new[app.smtLineData_new.length - 1][0].push((normal * 100 / (normal + abnormal)).toFixed(2) + "%");
+                }
+                //console.log(app.smtLineData_new);
+            };
+
             //启动
             $.connection.hub.start();
         });

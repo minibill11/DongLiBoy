@@ -33,11 +33,14 @@
         font-weight: 500;
     }
     /*高亮黄色*/
+    .datagrid-view1 > .datagrid-body > .datagrid-body-inner > .datagrid-btable > tbody > .datagrid-row td:nth-child(3),
     .datagrid-view1 > .datagrid-body > .datagrid-body-inner > .datagrid-btable > tbody > .datagrid-row td:nth-child(4),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(3),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(4),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(16),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(17),
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(18) {
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(18),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(19) {
         background-color: rgba(255, 255, 0, 0.8);
     }
 
@@ -68,16 +71,21 @@
 </style>
 <br />
 <span class="btn btn-default">@Html.ActionLink("提交日报信息", "Create")</span>
-<span class="btn btn-default">@Html.RouteLink("人事日报表2", "Default", new { controller = "Personnel", Action = "Daily2" })</span>
+@*<span class="btn btn-default">@Html.RouteLink("人事日报表2", "Default", new { controller = "Personnel", Action = "Daily2" })</span>*@
 <br />
 <div id="app">
     <br />
     <div id="title" class="text-center">
-        <span style="font-size:20px">人事日报</span>
+        <span style="font-size:20px" v-bind:title="floatmessage">人事日报</span>
         <span style="float:right;">日期：<input type="date" name="date" v-model="SearchDate" /></span>
     </div>
     <table id="tableData" class="easyui-datagrid" toolbar="#title" style="width:100%;"></table>
+    <form id="getForm" action="/Personnel/GetExcelFile" method="post" style="display:none" @*target="_blank"*@>
+        <input type="text" id="postDepartment" name="department" />
+        <input type="date" name="date" v-model="SearchDate" />
+    </form>
 </div>
+
 @{
     var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
     var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role;
@@ -86,6 +94,7 @@
     var app = new Vue({
         el: "#app",
         data: {
+            floatmessage: "黄色背景是统计或架构信息；汇总人数 = 正式人数 + 劳务工人数 + 当日入职正式工人数 + 当日入职劳务工人数；当前缺口人数 = 刚需人数 - 汇总人数（如果减出来是负数，那就不纳入合计）；本周入职人数：是部门从星期一到星期五入职的总人数（正式+劳务）；当月入职人数：是部门从本月的1号到本月的最后一天的入职人数总和（显示的数值是今天入职人数和1号之后的入职人数总和）；当月离职正式工人数: 是部门这个月的离职人数总和（显示的数值是今天离职人数和1号之后的离职人数总和）；当月离职劳务工人数: 是部门这个月的离职人数总和（显示的数值是今天离职人数和1号之后的离职人数总和）；当月待离职正式工人数: 是部门这个月的待离职人数总和（显示的数值是今天待离职人数和1号之后的待离职人数总和）；当月待离职劳务工人数: 是部门这个月的待离职人数总和（显示的数值是今天待离职人数和1号之后的待离职人数总和）",
             SearchDate: "",
             isRecord: true,
             userName: "@UserName",
@@ -116,7 +125,18 @@
                 nowrap: false,
                 striped: true,
                 frozenColumns: [[
-                    { field: 'Department', title: '部门', align: 'center', width: 75 },
+                    {
+                        field: 'Department', title: '部门', align: 'center', width: 75,
+                        formatter: function (value, row, index) {
+                            if (value == "合计") {
+                                return value;
+                            } else {
+                                var aLink = "<a href='javascript:void(0)' onclick='postExcel(&apos;" + value + "&apos;)'>" + value + "</a>";
+                                return aLink;
+                            };
+
+                        }
+                    },
                     { field: 'Principal', title: '负责人', align: 'center', width: 42 },
                     { field: 'Aurhorized_personnel', title: '编制', align: 'center', width: 29 },
                     {
@@ -141,7 +161,7 @@
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Today_on_board_workers', title: '当日入职<br />临时工人数', align: 'center', rowspan: 3, width: 62,
+                        field: 'Today_on_board_workers', title: '当日入职<br />劳务工人数', align: 'center', rowspan: 3, width: 62,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
@@ -163,10 +183,23 @@
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Month_dimission', title: '当月<br />离职人数', align: 'center', rowspan: 3, width: 52,
+                        field: 'Month_dimission_employees', title: '当月离职<br />正式工人数', align: 'center', rowspan: 3, width: 61,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
-                    { field: 'Resigned_that_month', title: '当月<br />待离职人数', align: 'center', rowspan: 3, width: 66 },
+                    {
+                        field: 'Month_dimission_workers', title: '当月离职<br />劳务工人数', align: 'center', rowspan: 3, width: 61,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Resigned_that_month', title: '当月待离职<br />正式工人数', align: 'center', rowspan: 3, width: 63,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+
+                    },
+                    {
+                        field: 'Resigned_workers_that_month', title: '当月待离职<br />劳务工人数', align: 'center', rowspan: 3, width: 63,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+
                     { field: 'Date', title: '时间', align: 'center', rowspan: 3, width: 70 },
                     {
                         field: 'Reporter', title: '上报人', align: 'center', rowspan: 3, width: 46,
@@ -246,7 +279,7 @@
                         $('#tableData').datagrid('appendRow', {
                             //第1部分
                             Department: '合计',
-                            Principal: '/',
+                            Principal: ' ',
                             Aurhorized_personnel: '<span>' + compute("Aurhorized_personnel") + '</span>',
                             Need_personnel: '<span>' + compute("Need_personnel") + '</span>',
                             Employees_personnel: '<span>' + compute("Employees_personnel") + '</span>',
@@ -271,8 +304,10 @@
                             //第4部分
                             Week_total: '<span>' + compute("Week_total") + '</span>',
                             Month_on_board: '<span>' + compute("Month_on_board") + '</span>',
-                            Month_dimission: '<span>' + compute("Month_dimission") + '</span>',
+                            Month_dimission_employees: '<span>' + compute("Month_dimission_employees") + '</span>',
+                            Month_dimission_workers: '<span>' + compute("Month_dimission_workers") + '</span>',
                             Resigned_that_month: '<span>' + compute("Resigned_that_month") + '</span>',
+                            Resigned_workers_that_month: '<span>' + compute("Resigned_workers_that_month") + '</span>',
                             //Reporter: '',
                             //Rate: '<span class="subtotal">' + ((compute("TotalOrderScore") / compute("TotalTrailCount")) * 100).toFixed(2) + '</span>'
                         });
@@ -366,5 +401,28 @@
             total += (parseFloat(rows[i][colName]) <= 0 ? 0 : parseFloat(rows[i][colName]));
         };
         return total;
+    };
+    //下载excel
+    function postExcel(value) {
+        $.ajax({
+            url: "/Personnel/GetExcelFile",
+            type: "post",
+            data: {
+                department: value,
+                date: app.SearchDate,
+            },
+            success: function (data) {
+                if (data == "下载失败") {
+                    alert('此部门今天的人员动态信息文件尚未上传，无文件可下载！');
+                } else {
+                    $("#postDepartment").val(value);
+                    $("#getForm").submit();
+                    $("#postDepartment").val("");
+                }
+            },
+            error: function (err) {
+                alert("下载excel表格失败")
+            }
+        });
     };
 </script>
