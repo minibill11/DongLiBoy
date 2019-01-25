@@ -22,8 +22,8 @@
         border: none !important;
     }
 </style>
-<script src="~/Scripts/jquery-1.11.3.js"></script>
-<script src="~/Scripts/vue.js"></script>
+@*<script src="~/Scripts/jquery-1.11.3.js"></script>
+    <script src="~/Scripts/vue.js"></script>*@
 <h2>@ViewBag.Title</h2>
 
 <div id="app" class="form-horizontal">
@@ -39,14 +39,16 @@
                 <input v-model="allDate" class="form-control" type="date">
             </td>
             <td></td>
+            <td></td>
         </tr>
         <tr>
             <th>产线</th>
             <th>订单号</th>
-            <th>客户</th>
-            <th>平台类型</th>
-            <th>数量</th>
+            <th>工作内容</th>
+            <th>计划产能</th>
+            <th>计划数量</th>
             <th>创建记录日期</th>
+            <th>备注</th>
             <th align="center"><button type="button" class="btn btn-link" onclick="emptytable()">清空</button></th>
         </tr>
         <tr class="orderNum">
@@ -56,6 +58,7 @@
             <td><input class="form-control"></td>
             <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
             <td><input class="form-control everyDate" type="date"></td>
+            <td><input class="form-control"></td>
             <td align="center"><button type="button" class="btn btn-link" onclick="emptytr(this)">清除</button></td>
             @*<td><input class="check-box"  type="checkbox"></td>*@
         </tr>
@@ -66,6 +69,7 @@
             <td><input class="form-control"></td>
             <td><input class="form-control" type="number" onkeyup="value=value.replace(/[^\d]/g,'')"></td>
             <td><input class="form-control everyDate" type="date"></td>
+            <td><input class="form-control"></td>
             <td align="center"><button type="button" class="btn btn-link" onclick="deleteParentTr(this)">移除</button></td>
         </tr>
     </table>
@@ -98,6 +102,7 @@
             "<td><input class=\"form-control\"></td>" +
             "<td><input class=\"form-control\" type=\"number\" onkeyup=\"value=value.replace(/[^\\d]/g,'')\"></td>" +
             "<td><input class=\"form-control everyDate\" type=\"date\"></td>" +
+            "<td><input class=\"form-control\"></td>" +
             "<td  align=\"center\"><button type=\"button\" class=\"btn btn-link\" onclick=\"deleteParentTr(this)\">移除</button></td></tr>");
         table.append(tr);
     };
@@ -138,7 +143,8 @@
             emptyNum: 0,
             pasteExcel: "",
             okCreate: false,
-            allDate: ""
+            allDate: "",
+            notRepeat: true
         },
         methods: {
             checkPost: function (event) {
@@ -154,30 +160,49 @@
                         || val.children[2].firstChild.value != ""
                         || val.children[3].firstChild.value != ""
                         || val.children[4].firstChild.value != ""
-                        || val.children[5].firstChild.value != "") {
+                        || val.children[5].firstChild.value != ""
+                        //|| val.children[6].firstChild.value != ""
+                        ) {
                         if (val.children[0].firstChild.value != ""
                         && val.children[1].firstChild.value != ""
                         && val.children[2].firstChild.value != ""
                         && val.children[3].firstChild.value != ""
                         && val.children[4].firstChild.value != ""
-                        && val.children[5].firstChild.value != "") {
-                            app.recordsJson['LineNum'] = val.children[0].firstChild.value;
-                            app.recordsJson['OrderNum'] = val.children[1].firstChild.value;
-                            app.recordsJson['Customer'] = val.children[2].firstChild.value;
-                            app.recordsJson['PlatformType'] = val.children[3].firstChild.value;
-                            app.recordsJson['Quantity'] = val.children[4].firstChild.value;
-                            app.recordsJson['CreateDate'] = val.children[5].firstChild.value;
-                            //app.recordsJson['Status'] = val.children[5].firstChild.checked;
-                            app.recordsArray.push(app.recordsJson);
-                            app.recordsJson = {};
-                            $(val.children).each(function (i, v) {
-                                $(v.firstChild).next().remove("p");
+                        && val.children[5].firstChild.value != ""
+                            //&& val.children[6].firstChild.value != ""
+                            ) {
+                            //检查重复
+                            app.notRepeat = true;
+                            $(".orderNum").each(function (index2, val2) {
+                                $(".orderNum p[class!='repeat']").remove();
+                                if (index > index2 && val.children[0].firstChild.value == val2.children[0].firstChild.value && val.children[1].firstChild.value == val2.children[1].firstChild.value && val.children[2].firstChild.value == val2.children[2].firstChild.value) {
+                                    $(val.children[1]).children("p").remove();
+                                    $(val.children[1]).append($("<p class=\"repeat\" style=\"color:red\">此订单重复填写</p>"));
+                                    app.notRepeat = false;
+                                };
                             });
-                            app.okNum++;
+                            if (app.notRepeat) {
+                                app.recordsJson['LineNum'] = val.children[0].firstChild.value;
+                                app.recordsJson['OrderNum'] = val.children[1].firstChild.value;
+                                app.recordsJson['JobContent'] = val.children[2].firstChild.value;
+                                app.recordsJson['Capacity'] = val.children[3].firstChild.value;
+                                app.recordsJson['Quantity'] = val.children[4].firstChild.value;
+                                app.recordsJson['CreateDate'] = val.children[5].firstChild.value;
+                                app.recordsJson['Remark'] = val.children[6].firstChild.value;
+                                //app.recordsJson['Status'] = val.children[5].firstChild.checked;
+                                app.recordsArray.push(app.recordsJson);
+                                app.recordsJson = {};
+                                //$(val.children).each(function (i, v) {
+                                //    $(v.firstChild).next().remove("p");
+                                //});
+                                $(val.children[1]).children("p").remove();
+                                app.okNum++;
+                            };
                         } else {
                             $(val.children).each(function (i, v) {
                                 $(v.firstChild).next().remove("p");
-                                if (v.firstChild.value == "" && v.firstChild.type != "button") {
+                                console.log(v)
+                                if (v.firstChild.value == "" && v.firstChild.type != "button" && v.cellIndex < 6) {
                                     $(v).append($("<p style=\"color:red\">内容不能为空</p>"));
                                 }
                             });
@@ -201,16 +226,16 @@
                         success: function (data) {
                             returnData = JSON.parse(data);
                             console.log(returnData);
-                            var i = 0;
+                            //var i = 0;
                             for (var val in returnData) {
-                                if (returnData[val] == "此产线已存在该订单计划") {
+                                if (returnData[val] == "此产线已存在该订单计划" || returnData[val] == "此订单号不存在") {
                                     $(".orderNum").each(function (index) {
-                                        if ($(".orderNum")[index].children[1].firstChild.value == val) {
-                                            $($(".orderNum")[index].firstChild).append($("<p class=\"unqualified\" style=\"color:red\">此产线已存在该订单计划</p>"));
+                                        if ($(".orderNum")[index].children[0].firstChild.value == val.split("_")[0] && $(".orderNum")[index].children[1].firstChild.value == val.split("_")[1] && $(".orderNum")[index].children[2].firstChild.value == val.split("_")[2]) {
+                                            $($(".orderNum")[index].children[1]).append($("<p class=\"unqualified\" style=\"color:red\">" + returnData[val] + "</p>"));
                                         };
                                     });
                                 };
-                                i++;
+                                //i++;
                             };
                             if ($(".unqualified").length == 0) {
                                 app.okCreate = true;
