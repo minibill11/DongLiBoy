@@ -29,6 +29,16 @@
 <div id="app" class="form-horizontal">
     <hr>
     <table id="para_table" class="table table-bordered">
+        <colgroup>
+            <col width="100" />
+            <col width="160" />
+            <col width="120" />
+            <col width="120" />
+            <col width="120" />
+            <col width="120" />
+            <col width="200" />
+            <col width="50" />
+        </colgroup>
         <tr class="topTitle">
             <td colspan="5" style="color:green;">
                 <span>Excel内容粘贴在此处</span>
@@ -45,9 +55,9 @@
             <th>产线</th>
             <th>订单号</th>
             <th>工作内容</th>
-            <th>计划产能</th>
+            <th>计划产能 /H</th>
             <th>计划数量</th>
-            <th>创建记录日期</th>
+            <th>计划生产日期</th>
             <th>备注</th>
             <th align="center"><button type="button" class="btn btn-link" onclick="emptytable()">清空</button></th>
         </tr>
@@ -90,6 +100,7 @@
 <div>
     @Html.ActionLink("返回", "SMT_ProductionPlan")
 </div>
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
 
 <script>
     function addtr() {
@@ -144,7 +155,8 @@
             pasteExcel: "",
             okCreate: false,
             allDate: "",
-            notRepeat: true
+            notRepeat: true,
+            userName: "@UserName"
         },
         methods: {
             checkPost: function (event) {
@@ -174,7 +186,7 @@
                             //检查重复
                             app.notRepeat = true;
                             $(".orderNum").each(function (index2, val2) {
-                                $(".orderNum p[class!='repeat']").remove();
+                                //    $(".orderNum p[class!='repeat']").remove();
                                 if (index > index2 && val.children[0].firstChild.value == val2.children[0].firstChild.value && val.children[1].firstChild.value == val2.children[1].firstChild.value && val.children[2].firstChild.value == val2.children[2].firstChild.value) {
                                     $(val.children[1]).children("p").remove();
                                     $(val.children[1]).append($("<p class=\"repeat\" style=\"color:red\">此订单重复填写</p>"));
@@ -187,14 +199,17 @@
                                 app.recordsJson['JobContent'] = val.children[2].firstChild.value;
                                 app.recordsJson['Capacity'] = val.children[3].firstChild.value;
                                 app.recordsJson['Quantity'] = val.children[4].firstChild.value;
-                                app.recordsJson['CreateDate'] = val.children[5].firstChild.value;
+                                app.recordsJson['PlanProductionDate'] = val.children[5].firstChild.value;
+                                app.recordsJson['CreateDate'] = "@DateTime.Now";
+                                app.recordsJson['Creator'] = app.userName;
                                 app.recordsJson['Remark'] = val.children[6].firstChild.value;
                                 //app.recordsJson['Status'] = val.children[5].firstChild.checked;
                                 app.recordsArray.push(app.recordsJson);
                                 app.recordsJson = {};
-                                //$(val.children).each(function (i, v) {
-                                //    $(v.firstChild).next().remove("p");
-                                //});
+
+                                $(val.children).each(function (i, v) {
+                                    $(v.firstChild).next().remove("p");
+                                });
                                 $(val.children[1]).children("p").remove();
                                 app.okNum++;
                             };
@@ -250,11 +265,24 @@
             createPost: function (event) { //提交post内容
                 this.$options.methods.postForm("/SMT/SMT_ProductionPlanCreate", JSON.stringify(app.recordsArray));
             },
-            postForm: function (url, params) {
-                var newForm = $("<form action=" + url + " method='post' style='display:none' ><input name='records' value=" + params + " ></form>");
-                $("#setForm").append(newForm);
-                newForm.submit();
-                newForm.remove();
+            postForm: function (posturl, params) {
+                //var newForm = $("<form action=" + posturl + " method='post' style='display:none' ><input name='records' value=" + params + " ></form>");
+                //$("#setForm").append(newForm);
+                //newForm.submit();
+                //newForm.remove();
+                $.ajax({
+                    type: 'post',
+                    url: posturl,
+                    data: {
+                        records: params
+                    },
+                    success: function (data) {
+                        window.location.href = "/SMT/SMT_ProductionPlan";
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert("创建失败")
+                    }
+                });
             }
         },
         computed: {
@@ -299,9 +327,10 @@
                                     lineNum++;
                                 }
                                 val.children[1].firstChild.value = isPlan;
-                                val.children[2].firstChild.value = pasteQuantity[index][3];
-                                val.children[3].firstChild.value = pasteQuantity[index][5];
+                                val.children[2].firstChild.value = pasteQuantity[index][6];
+                                val.children[3].firstChild.value = (pasteQuantity[index][9] == "无标产" ? "" : pasteQuantity[index][9].split("/H")[0]);
                                 val.children[4].firstChild.value = pasteQuantity[index][8];
+                                val.children[6].firstChild.value = pasteQuantity[index][10];
                             };
                         };
                     });
@@ -322,9 +351,10 @@
                                     lineNum++;
                                 }
                                 val.children[1].firstChild.value = isPlan;
-                                val.children[2].firstChild.value = pasteQuantity[index][3];
-                                val.children[3].firstChild.value = pasteQuantity[index][5];
+                                val.children[2].firstChild.value = pasteQuantity[index][6];
+                                val.children[3].firstChild.value = (pasteQuantity[index][9] == "无标产" ? "" : pasteQuantity[index][9].split("/H")[0]);
                                 val.children[4].firstChild.value = pasteQuantity[index][8];
+                                val.children[6].firstChild.value = pasteQuantity[index][10];
                             };
                         };
                     });
