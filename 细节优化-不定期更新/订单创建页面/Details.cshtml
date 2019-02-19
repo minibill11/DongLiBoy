@@ -125,10 +125,26 @@
         @Html.DisplayFor(model => model.CapacityQ)
     </div>
     <div class="col-md-3">
-        <span>
-            @Html.DisplayNameFor(model => model.HandSampleScedule)
-        </span>：
-        @Html.DisplayFor(model => model.HandSampleScedule)
+        @if (((JianHeMES.Models.Users)Session["User"]).Role == "经理" && ((JianHeMES.Models.Users)Session["User"]).Department == "技术部" || ((JianHeMES.Models.Users)Session["User"]).Role == "系统管理员")
+        {
+            <div>
+                <a href="../EditForSmallSample/@Model.ID" target="_blank">
+                    <span>
+                        @Html.DisplayNameFor(model => model.HandSampleScedule)
+                    </span>：
+                    @Html.DisplayFor(model => model.HandSampleScedule)
+                </a>
+            </div>
+        }
+        else
+        {
+            <div>
+                <span>
+                    @Html.DisplayNameFor(model => model.HandSampleScedule)
+                </span>：
+                @Html.DisplayFor(model => model.HandSampleScedule)
+            </div>
+        }
     </div>
 </div>
 <div class="row titleRow">
@@ -430,8 +446,8 @@
 
         @*@Html.RouteLink("SMT生产计划管理", "Default", new { Controller = "SMT", Action = "SMT_ProductionPlan", id = Model.ID }, new { @class = "btn btn-default" })*@
         @*<p class="text-center btn btn-default">
-                @Html.ActionLink("生产计划管理", "SMT_ProductionPlan")
-            </p>*@
+            @Html.ActionLink("生产计划管理", "SMT_ProductionPlan")
+        </p>*@
 
         @Html.ActionLink("修改订单信息", "Edit", new { id = Model.ID }, new { @class = "btn btn-default", style = "display:inline-block" })
 
@@ -444,9 +460,9 @@
             }
         }
 
-        &nbsp;&nbsp;<br /><br />
-        @Html.ActionLink("返回", "Index", new { @class = "btn btn-default" })
-    </div>
+        &nbsp; &nbsp;<br /><br />
+            @Html.ActionLink("返回", "Index", new { @class = "btn btn-default" })
+        </div>
     <div class="col-md-4 form-group">
         @if (Model.BarCodeCreated == 1)
             {
@@ -487,19 +503,32 @@
             {
                 <button class="btn btn-warning" v-on:click="selectFile">选择文件</button>
                 <button class="btn btn-primary" v-on:click="postFile">上传</button>
-                <button class="btn btn-default" v-on:click="showIMG=!showIMG" v-show="( '@ViewBag.Picture'=='Exists')?true:false">显示特采单照片</button>
                 <p id="filecontent" class="text-primary" style="margin-left:10px;font-size:17px;margin:0"></p>
+                <br />
+                <button class="btn btn-default" v-on:click="showIMG=!showIMG" v-show="( '@ViewBag.Picture'=='Exists')?true:false">显示特采单照片</button>
+                <button v-on:click="showModal" class="btn btn-default" v-show="('@ViewBag.PDf'=='Exists')?true:false">查看pdf文档</button>
+                <button id="showModal" class="btn btn-default hidden" data-toggle="modal" data-target="#myModal"></button>
+                @*<div class="btn btn-default" v-show="('@ViewBag.PDf'=='Exists')?true:false">
+                        @Html.ActionLink("直接查看pdf文档", "preview_pdf", new { ordernum = Model.OrderNum }, new { Target = "_blank" })
+                    </div>*@
             }
         }
     </div>
     <div class="col-md-4 form-group">
-        @if (Model.BarCodeCreated == 1 && Model.IsAOD == true)
+        @*@if (Model.BarCodeCreated == 1 && Model.IsAOD == true)
             {
-            <button v-on:click="showModal" class="btn btn-default" v-show="('@ViewBag.PDf'=='Exists')?true:false">查看pdf文档</button>
-            <button id="showModal" class="btn btn-default hidden" data-toggle="modal" data-target="#myModal"></button>
-            @*<div class="btn btn-default" v-show="('@ViewBag.PDf'=='Exists')?true:false">
-                    @Html.ActionLink("直接查看pdf文档", "preview_pdf", new { ordernum = Model.OrderNum }, new { Target = "_blank" })
-                </div>*@
+            <br /><br />
+        }*@
+        @if (((JianHeMES.Models.Users)Session["User"]).Role == "经理" && ((JianHeMES.Models.Users)Session["User"]).Department == "技术部" || ((JianHeMES.Models.Users)Session["User"]).Role == "系统管理员")
+        {
+
+            using (Html.BeginForm("UploadSmallSample", "OrderMgms", null, FormMethod.Post, new { enctype = "multipart/form-data" }))
+            {
+                @Html.TextBox("ordernum", Model.OrderNum, new { style = "display:none" })
+                @Html.TextBox("id", Model.ID, new { style = "display:none" })
+                <input type="file" id="uploadfile2" name="uploadfile" accept="image/jpeg" />
+                <button class="btn btn-default" id="fileBtn" >上传小样单</button>
+            }
         }
     </div>
     <div class="col-md-12 form-group">
@@ -682,6 +711,15 @@
     })
     $("#uploadfile").change(function () {
         selectFileImage(this)
+    });
+    $("#fileBtn").click(function () {
+        var fileInput = $('#uploadfile2').get(0).files[0];
+        if (fileInput) {
+            return true;
+        } else {
+            alert("请先选择上传文件！");
+            return false;
+        }
     });
     function postOrder(url) {
         $("#setForm").attr("action", url)
