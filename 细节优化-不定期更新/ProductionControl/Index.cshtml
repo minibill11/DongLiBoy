@@ -93,6 +93,46 @@
         background-color: rgba(233, 32, 32, 0.8);
         color: white;
     }
+
+    .overTimeNeverJoin {
+        display: block;
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        right: 1px;
+        top: 1px;
+        text-align: center;
+        vertical-align: middle;
+        border-radius: 50%;
+        color: white;
+        background: red;
+        /*animation: blink 1s infinite;*/
+        transition: width 2s, height 2s, line-height 2s,font-size 2s,transform 2s;
+        line-height: 15px;
+        font-size: 9px;
+    }
+
+        /*@@keyframes blink {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.2;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }*/
+
+        .overTimeNeverJoin:hover {
+            width: 30px;
+            height: 30px;
+            animation: none;
+            line-height: 30px;
+            font-size: 13px;
+        }
 </style>
 <div id="ieShow" class="row" style="display:none;padding:200px 0">
     <h2 class="text-center">当前浏览器版本过低，建议升级浏览器</h2>
@@ -108,7 +148,7 @@
             <span id="nowtime" style="width:140px"></span>
         </div>
     </div>
-    
+
     <div id="app" class="form-group scroll_table_content">
         <div id="shelter">
             <div id="fixed_table_wrap">
@@ -217,11 +257,14 @@
                     <td>{{item.PlanCompleteTime.split(" ")[0]}}</td>
                     <td>{{item.ActualProductionTime}}</td>
                     @*组装*@
+                    @*完成且24h未进入老化*@
                     <td v-on:click="Detail(item.OrderNum,'Assemble')"
-                        v-bind:class="(item.Assemble_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
+                        v-bind:class="(item.Assemble_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" style="position: relative;">
                         {{item.Assemble_Finish_Rate}}
                         <span v-show="item.AssembleRecord_Count"><br />({{item.Assemble_Finish}}/{{item.Quantity}})</span>
+                        <span class="overTimeNeverJoin" v-if="item.Overtime_never_join_burn_in!=''" v-on:click.stop="overTimeForm(item.OrderNum,'PQCNormal','/Assembles/AssembleIndex')">{{item.Overtime_never_join_burn_in}}</span>
                     </td>
+                    @*---*@
                     <td v-on:click="Detail(item.OrderNum,'Assemble')"
                         v-bind:class="(item.Assemble_Pass_Rate.split('%')[0])>=100?'bgcolor100':(item.Assemble_Pass_Rate.split('%')[0])<80?'bgcolor80':(item.Assemble_Pass_Rate.split('%')[0])<90?'bgcolor90':''">
                         {{item.Assemble_Pass_Rate}}
@@ -242,11 +285,14 @@
 
                     @*老化*@
                     @*<td v-on:click="Detail(item.OrderNum,'Burn_in')" >{{item.Burn_in_Doing_Count}}</td>*@
+                    @*完成且72h未结束包装*@
                     <td v-on:click="Detail(item.OrderNum,'Burn_in')"
-                        v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
+                        v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" style="position: relative;">
                         {{item.Burn_in_Finish_Rate}}
                         <span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Record_Count}}/{{item.Quantity}})</span>
+                        <span class="overTimeNeverJoin" v-if="item.Overtime_never_join_appearances!=''" v-on:click.stop="overTimeForm(item.OrderNum,'OQCNormal','/Burn_in/Index')">{{item.Overtime_never_join_appearances}}</span>
                     </td>
+                    @*---*@
                     <td v-on:click="Detail(item.OrderNum,'Burn_in')"
                         v-bind:class="(item.Burn_in_Pass_Rate.split('%')[0])>=100?'bgcolor100':(item.Burn_in_Pass_Rate.split('%')[0])<80?'bgcolor80':(item.Burn_in_Pass_Rate.split('%')[0])<90?'bgcolor90':''">
                         {{item.Burn_in_Pass_Rate}}
@@ -261,7 +307,7 @@
                     <td v-on:click="Detail(item.OrderNum,'Calibration')"
                         v-bind:class="(item.Calibration_Pass_Rate.split('%')[0])>=100?'bgcolor100':(item.Calibration_Pass_Rate.split('%')[0])<80?'bgcolor80':(item.Calibration_Pass_Rate.split('%')[0])<90?'bgcolor90':''">
                         {{item.Calibration_Pass_Rate}}
-                        <span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Calibration_Count}})</span>
+                        <span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Calibration_Record_Count}})</span>
                     </td>
                     @*包装*@
                     <td v-on:click="Detail(item.OrderNum,'Appearance')"
@@ -306,6 +352,15 @@
         </div>
     </div>
     <div id="setForm"></div>
+    <form id="overTimeForm" action="" method="post" target="_blank" style="display:none">
+            @Html.AntiForgeryToken()
+            <input type="text" id="Order" name="orderNum" value="" />
+            <input type="text" name="BoxBarCode" value="" />
+            <input type="text" id="Normal" name="" value="" />
+            <input type="text" name="FinishStatus" value="" />
+            <input type="text" name="Remark" value="" />
+            <input type="text" name="SearchString" value="" />
+        </form>
 </div>
 <script>
     $(function () {
@@ -357,6 +412,21 @@
                 $("#setForm").append(newForm);
                 newForm.submit();
                 newForm.remove();
+            },
+            overTimeForm: function (Order, Normal, url) {
+                if ("@Session["User"]" == "") {
+                    $("#login").modal();
+                    return false;
+                } else {
+                    $("#overTimeForm").attr("action", url);
+                    $("#Normal").attr("name", Normal);
+                    $("#Order").val(Order);
+                    $("#overTimeForm").submit();
+                    //清除
+                    $("#overTimeForm").attr("action", "");
+                    $("#Normal").attr("name", "");
+                    $("#Order").val("");
+                }
             },
             imgModal: function (OrderNumVal) {
                 $("#imgModal").children().remove();
@@ -423,7 +493,7 @@
             };
         });
     };
-    
+
     Date.prototype.Format = function (fmt) {
         var o = {
             "M+": this.getMonth() + 1,
@@ -451,7 +521,7 @@
         $(function () {
             var mypush = $.connection.ProductionControlIndex;
             mypush.client.sendProductionControlIndex = function (ProductionControlIndex) {
-                //console.log(ProductionControlIndex)
+                console.log(ProductionControlIndex)
                 app.marqueeList = [];
                 //console.log(Object.keys(ProductionControlIndex).length)
                 for (index in ProductionControlIndex) {
@@ -519,7 +589,10 @@
                         Appearances_Finish: ProductionControlIndex[index].Appearances_Finish,
                         Appearances_Count: ProductionControlIndex[index].Appearances_Count,
                         Appearances_Record_Count: ProductionControlIndex[index].Appearances_Record_Count,
-                        AOD_Description: ProductionControlIndex[index].AOD_Description
+                        AOD_Description: ProductionControlIndex[index].AOD_Description,
+
+                        Overtime_never_join_burn_in: ProductionControlIndex[index].Overtime_never_join_burn_in,
+                        Overtime_never_join_appearances: ProductionControlIndex[index].Overtime_never_join_appearances,
                     });
                 };
             };
