@@ -4,6 +4,9 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+
 <style>
     .table > thead > tr > th, .table > tbody > tr > td {
         text-align: center;
@@ -38,7 +41,7 @@
         cursor: auto;
     }
 
-    .table > tbody > tr:nth-child(n+3):hover {
+    .table > tbody > tr:nth-child(n+1):hover {
         background-color: rgba(77, 72, 72, 0.15);
     }
 
@@ -94,13 +97,20 @@
         background-color: rgba(233, 32, 32, 0.8);
         color: white;
     }
+
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
 </style>
 <h3 class="text-center">生产管控历史记录查询</h3>
 <br />
 <form action="/ProductionControl/ProductionControlHistory" class="text-center" method="post">
     @*<span>平台：<input name="PlatformType" type="text"></span>*@
-    <span>平台：@Html.DropDownList("PlatformType", (List<SelectListItem>)ViewBag.PlatformType, "全部")</span>
-    <input value="查找" type="submit">
+    <span>订单号：</span>@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderNumList, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })
+    @*<span>订单号内容：</span>
+    <input type="text" class="form-control" style="display:inline;width:150px;" name="orderNumContent" />*@
+    <span>  平台：@Html.DropDownList("PlatformType", (List<SelectListItem>)ViewBag.PlatformType, "全部", new { @class = "selectpicker", data_style = "form-control" })</span>
+    <input id="queryBtn" class="btn btn-default" value="查找" type="submit">
 </form>
 <br />
 <div id="app" class="form-group scroll_table_content">
@@ -236,8 +246,9 @@
 
                 @*老化*@
                 @*<td v-on:click="Detail(item.OrderNum,'Burn_in')" >{{item.Burn_in_Doing_Count}}</td>*@
+                @*组装完成且24h未进入老化*@
                 <td v-on:click="Detail(item.OrderNum,'Burn_in')"
-                    v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
+                    v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" v-bind:style="(item.Overtime_never_join_burn_in=='')?'':'border:3px solid red;'">
                     {{item.Burn_in_Finish_Rate}}
                     <span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Record_Count}}/{{item.Quantity}})</span>
                 </td>
@@ -258,8 +269,9 @@
                     <span v-show="item.Calibration_Count"><br />({{item.Calibration_Finish}}/{{item.Calibration_Count}})</span>
                 </td>
                 @*包装*@
+                @*老化完成且72h未结束包装*@
                 <td v-on:click="Detail(item.OrderNum,'Appearance')"
-                    v-bind:class="(item.Appearances_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
+                    v-bind:class="(item.Appearances_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" v-bind:style="(item.Overtime_never_join_appearances=='')?'':'border:3px solid red;'">
                     {{item.Appearances_Finish_Rate}}
                     <span v-show="item.Appearances_Count"><br />({{item.Appearances_Finish}}/{{item.Quantity}})</span>
                 </td>
@@ -272,7 +284,7 @@
                 <td style="white-space:nowrap;" v-if="item.TotalTime.length==4">{{item.TotalTime[0]+"天"+item.TotalTime[1]+"时"}}<br />{{item.TotalTime[2]+"分"+item.TotalTime[3]+"秒"}}</td>
                 <td style="white-space:nowrap;" v-else-if="item.TotalTime.length==3">{{item.TotalTime[0]+"时"}}<br />{{item.TotalTime[1]+"分"+item.TotalTime[2]+"秒"}}</td>
                 <td style="white-space:nowrap;" v-else></td>
-                <td v-bind:style="(item.AOD_Description)?'text-align :left;font-size:11px;padding:0;line-height:1.2;cursor:pointer':''" v-on:click="(item.AOD_Description)?imgModal(item.OrderNum):''"><span style="display:block;width:100%; height:45px;overflow:auto;">{{item.AOD_Description}}</span></td>
+                <td v-bind:style="(item.AOD_Description)?'cursor:pointer':''" v-on:click="(item.AOD_Description)?imgModal(item.OrderNum):''"><span>{{item.AOD_Description}}</span></td>
             </tr>
         </tbody>
     </table>
@@ -384,7 +396,10 @@
                     Appearances_Finish: viewbagJson[index].Appearances_Finish,
                     Appearances_Count: viewbagJson[index].Appearances_Count,
                     Appearances_Record_Count: viewbagJson[index].Appearances_Record_Count,
-                    AOD_Description: viewbagJson[index].AOD_Description
+                    AOD_Description: viewbagJson[index].AOD_Description,
+
+                    Overtime_never_join_burn_in: viewbagJson[index].Overtime_never_join_burn_in,
+                    Overtime_never_join_appearances: viewbagJson[index].Overtime_never_join_appearances,
                 });
             }
         },
@@ -432,7 +447,7 @@
                 });
             });
         }
-    })
+    });
 
     function sortByActualProductionTime(array, key) {
         return array.sort(function (a, b) {
@@ -448,6 +463,25 @@
             return ((x > y) ? -1 : ((x < y) ? 1 : 0))
         })
     };
+
+    $(function () {
+        isQuery();
+        $("#orderNum").change(function () {
+            isQuery();
+        });
+        $("#PlatformType").change(function () {
+            isQuery();
+        });
+    });
+
+    function isQuery() {
+        if ($("#orderNum").val() == "" && $("#PlatformType").val() == "") {
+            $("#queryBtn").attr("disabled", "disabled")
+        } else {
+            $("#queryBtn").attr("disabled", false)
+        }
+    };
+
 </script>
 <script>
     $(function () {
@@ -532,6 +566,14 @@
                     fixTopDiv.hide();
                 }
             }
+        });
+
+
+        $(function () {
+            $('.selectpicker').selectpicker();
+            $('#searchButton').click(function () {
+                submitForm($('#pagebar .currentpagenumber').text());
+            })
         });
     });
 </script>
