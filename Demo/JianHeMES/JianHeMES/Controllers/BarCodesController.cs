@@ -338,7 +338,6 @@ namespace JianHeMES.Controllers
                     return Content("<script>alert('此订单的模组已经创建过条码，不能重复创建！');history.go(-1);</script>");
                 }
 
-                List<BarCodes> barcodeslist = new List<BarCodes>();
                 BarCodes aBarCode = new BarCodes();
                 aBarCode.OrderNum = orderMgm.OrderNum;
                 aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
@@ -351,10 +350,9 @@ namespace JianHeMES.Controllers
                 for (int i = 1; i <= orderMgm.Boxes; i++)
                 {
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
-                    barcodeslist.Add(aBarCode);
+                    db.BarCodes.Add(aBarCode);
+                    db.SaveChanges();
                 }
-                db.BarCodes.AddRange(barcodeslist);
-                db.SaveChanges();
 
                 //修改订单的模组条码生成状态为1，表示已经生成.修改订单中的条码创建人
                 orderMgm.BarCodeCreated = 1;
@@ -390,23 +388,21 @@ namespace JianHeMES.Controllers
                     return Content("<script>alert('此订单的模块已经创建过条码，不能重复创建！');history.go(-1);</script>");
                 }
 
-                List<BarCodes> barcodeslist = new List<BarCodes>();
+                BarCodes aBarCode = new BarCodes();
+                aBarCode.OrderNum = orderMgm.OrderNum;
+                aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                aBarCode.BarCodeType = "模块";
+                aBarCode.Creator = ((Users)Session["User"]).UserName;
+                aBarCode.CreateDate = DateTime.Now;
 
                 //生成模块条码
                 for (int i = 1; i <= orderMgm.Models; i++)
                 {
-                    BarCodes aBarCode = new BarCodes();
-                    aBarCode.OrderNum = orderMgm.OrderNum;
-                    aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
-                    aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                    aBarCode.BarCodeType = "模块";
-                    aBarCode.Creator = ((Users)Session["User"]).UserName;
-                    aBarCode.CreateDate = DateTime.Now;
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "B" + i.ToString("00000");
-                    barcodeslist.Add(aBarCode);
+                    db.BarCodes.Add(aBarCode);
+                    db.SaveChanges();
                 }
-                db.BarCodes.AddRange(barcodeslist);
-                db.SaveChanges();
 
                 //修改订单的模块条码生成状态为1，表示已经生成.修改订单中的条码创建人
                 orderMgm.ModulePieceBarCodeCreated = 1;
@@ -442,23 +438,21 @@ namespace JianHeMES.Controllers
                     return Content("<script>alert('此订单的电源已经创建过条码，不能重复创建！');history.go(-1);</script>");
                 }
 
-                List<BarCodes> barcodeslist = new List<BarCodes>();
+                BarCodes aBarCode = new BarCodes();
+                aBarCode.OrderNum = orderMgm.OrderNum;
+                aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                aBarCode.BarCodeType = "电源";
+                aBarCode.Creator = ((Users)Session["User"]).UserName;
+                aBarCode.CreateDate = DateTime.Now;
 
                 //生成电源条码
                 for (int i = 1; i <= orderMgm.Powers; i++)
                 {
-                    BarCodes aBarCode = new BarCodes();
-                    aBarCode.OrderNum = orderMgm.OrderNum;
-                    aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
-                    aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                    aBarCode.BarCodeType = "电源";
-                    aBarCode.Creator = ((Users)Session["User"]).UserName;
-                    aBarCode.CreateDate = DateTime.Now;
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "C" + i.ToString("00000");
-                    barcodeslist.Add(aBarCode);
+                    db.BarCodes.Add(aBarCode);
+                    db.SaveChanges();
                 }
-                db.BarCodes.AddRange(barcodeslist);
-                db.SaveChanges();
 
                 //修改订单的电源条码生成状态为1，表示已经生成.修改订单中的条码创建人
                 orderMgm.PowerBarCodeCreated = 1;
@@ -494,23 +488,21 @@ namespace JianHeMES.Controllers
                     return Content("<script>alert('此订单的转接卡已经创建过条码，不能重复创建！');history.go(-1);</script>");
                 }
 
-                List<BarCodes> barcodeslist = new List<BarCodes>();
+                BarCodes aBarCode = new BarCodes();
+                aBarCode.OrderNum = orderMgm.OrderNum;
+                aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                aBarCode.BarCodeType = "转接卡";
+                aBarCode.Creator = ((Users)Session["User"]).UserName;
+                aBarCode.CreateDate = DateTime.Now;
 
                 //生成电源条码
                 for (int i = 1; i <= orderMgm.AdapterCard; i++)
                 {
-                    BarCodes aBarCode = new BarCodes();
-                    aBarCode.OrderNum = orderMgm.OrderNum;
-                    aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
-                    aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                    aBarCode.BarCodeType = "转接卡";
-                    aBarCode.Creator = ((Users)Session["User"]).UserName;
-                    aBarCode.CreateDate = DateTime.Now;
                     aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "D" + i.ToString("00000");
-                    barcodeslist.Add(aBarCode);
+                    db.BarCodes.Add(aBarCode);
+                    db.SaveChanges();
                 }
-                db.BarCodes.AddRange(barcodeslist);
-                db.SaveChanges();
 
                 //修改订单的电源条码生成状态为1，表示已经生成.修改订单中的条码创建人
                 orderMgm.AdapterCardBarCodeCreated = 1;

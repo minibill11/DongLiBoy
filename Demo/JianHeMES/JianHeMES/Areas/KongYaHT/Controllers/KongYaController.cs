@@ -36,6 +36,11 @@ namespace JianHeMES.Areas.kongya.Controllers
             return View();
         }
 
+        public ActionResult SecondFloor()
+        {
+            return View();
+        }
+
         public ActionResult ThirdFloor()
         {
             return View();
@@ -3507,7 +3512,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             {
                 case "空压机1":
                     queryRecords1 = (from m in db.aircomp1
-                                     where (m.recordingTime > begin && m.recordingTime < end && m.recordingTime.Second == 0)
+                                     where (m.recordingTime > begin && m.recordingTime < end /*&& m.recordingTime.Second == 0*/)    //注释部分是输出分钟为单位的筛选
                                      orderby m.id descending
                                      select m).OrderBy(m => m.recordingTime);
                     ViewBag.Station = "空压机1";
@@ -3524,7 +3529,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     break;
                 case "空压机2":
                     queryRecords2 = (from m in db.aircomp2
-                                     where (m.recordingTime > begin && m.recordingTime < end && m.recordingTime.Second == 0)
+                                     where (m.recordingTime > begin && m.recordingTime < end /*&& m.recordingTime.Second == 0*/)    //注释部分是输出分钟为单位的筛选
                                      orderby m.id descending
                                      select m).OrderBy(m => m.recordingTime);
                     ViewBag.Station = "空压机2";
@@ -3541,7 +3546,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     break;
                 case "空压机3":
                     queryRecords3 = (from m in db.aircomp3
-                                     where (m.recordingTime > begin && m.recordingTime < end && m.recordingTime.Second == 0)
+                                     where (m.recordingTime > begin && m.recordingTime < end /*&& m.recordingTime.Second == 0*/)  //注释部分是输出分钟为单位的筛选
                                      orderby m.id descending
                                      select m).OrderBy(m => m.recordingTime);
                     ViewBag.Station = "空压机3";

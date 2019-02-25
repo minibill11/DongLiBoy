@@ -6,6 +6,13 @@
 <link href="~/Scripts/easyui/icon.css" rel="stylesheet" />
 <script src="~/Scripts/easyui/jquery.easyui.min.js"></script>
 <style>
+    #datagrid-td-group1-0-3>.datagrid-cell-group,
+    #datagrid-td-group1-0-4>.datagrid-cell-group,
+    #datagrid-td-group1-0-5>.datagrid-cell-group,
+    #datagrid-td-group1-0-6>.datagrid-cell-group{
+        height:35px;
+        white-space:normal;
+    }
     /*更改表格文字大小*/
     .datagrid-header span, .datagrid-cell, .datagrid-cell-group {
         font-size: 12px !important;
@@ -37,18 +44,20 @@
     .datagrid-view1 > .datagrid-body > .datagrid-body-inner > .datagrid-btable > tbody > .datagrid-row td:nth-child(4),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(3),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(4),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(15),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(16),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(17),
     .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(18),
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(19) {
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(19),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(20) {
         background-color: rgba(255, 255, 0, 0.8);
     }
 
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(6),
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(8),
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(10),
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(12),
-    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(14) {
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(5),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(7),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(9),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(11),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(13) {
         background-color: rgba(220, 230, 241, 0.8) !important;
     }
 
@@ -80,6 +89,10 @@
         <span style="float:right;">日期：<input type="date" name="date" v-model="SearchDate" /></span>
     </div>
     <table id="tableData" class="easyui-datagrid" toolbar="#title" style="width:100%;"></table>
+    <form id="getForm" action="/Personnel/GetExcelFile" method="post" style="display:none" @*target="_blank"*@>
+        <input type="text" id="postDepartment" name="department" />
+        <input type="date" name="date" v-model="SearchDate" />
+    </form>
 </div>
 
 @{
@@ -121,73 +134,51 @@
                 nowrap: false,
                 striped: true,
                 frozenColumns: [[
-                    { field: 'Department', title: '部门', align: 'center', width: 75 },
-                    { field: 'Principal', title: '负责人', align: 'center', width: 42 },
-                    { field: 'Aurhorized_personnel', title: '编制', align: 'center', width: 29 },
                     {
-                        field: 'Need_personnel', title: '刚需<br />人数', align: 'center', width: 30,
+                        field: 'Department', title: '部门', align: 'center', width: 78,
+                        formatter: function (value, row, index) {
+                            if (value == "合计") {
+                                return value;
+                            } else {
+                                var aLink = "<a href='javascript:void(0)' onclick='postExcel(&apos;" + value + "&apos;)'>" + value + "</a>";
+                                return aLink;
+                            };
+
+                        }
+                    },
+                    { field: 'Principal', title: '负责人', align: 'center', width: 52 },
+                    { field: 'Aurhorized_personnel', title: '编制<br />人数', align: 'center', width: 36 },
+                    {
+                        field: 'Need_personnel', title: '刚需<br />人数', align: 'center', width: 36,
                         styler: function (value, row, index) {
                             //return 'background-color: rgba(255, 255, 0, 0.8)';
                             //return '<span style="color:red">Edit Delete</span>';
                         }
-                    },
-                    {
-                        field: 'Employees_personnel', title: '正式<br />人数', align: 'center', width: 30,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Workers_personnel', title: '劳务<br />工人数', align: 'center', width: 38,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     }
                 ]],
                 columns: [[
+                    { title: '在册人数', rowspan: 2, colspan: 3, },
+                    //{
+                    //    field: 'Today_on_board_employees', title: '当日入<br />职正式<br />工人数', align: 'center', rowspan: 3, width: 50,
+                    //    formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    //},
+                    //{
+                    //    field: 'Today_on_board_workers', title: '当日入<br />职劳务<br />工人数', align: 'center', rowspan: 3, width: 50,
+                    //    formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    //},
                     {
-                        field: 'Today_on_board_employees', title: '当日入职<br />正式工人数', align: 'center', rowspan: 3, width: 62,
+                        field: 'Dangqian_que', title: '刚需<br />缺口', align: 'center', rowspan: 3, width: 36,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
+                    //{ field: 'Interview', title: '预填表<br />人数', align: 'center', rowspan: 3, width: 40 },
+                    { title: '每日入职人数', colspan: 10, },
+                    { title: '本周入职<br />人数小计', rowspan: 2, colspan: 2, },
+                    { title: '本月入职<br />人数合计', rowspan: 2, colspan: 2, },
+                    { title: '本月已离职<br />人数合计', rowspan: 2, colspan: 2, },
+                    { title: '本月待离职<br />人数合计', rowspan: 2, colspan: 2, },
+                    { field: 'Date', title: '时间', align: 'center', rowspan: 3, width: 74 },
                     {
-                        field: 'Today_on_board_workers', title: '当日入职<br />劳务工人数', align: 'center', rowspan: 3, width: 62,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Huizong', title: '汇总<br />人数', align: 'center', rowspan: 3, width: 30,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Dangqian_que', title: '当前<br />缺口人数', align: 'center', rowspan: 3, width: 52,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    { field: 'Interview', title: '预填表<br />人数', align: 'center', rowspan: 3, width: 40 },
-                    { title: '实际每日<br />入职人数', colspan: 10, },
-                    {
-                        field: 'Week_total', title: '本周入职<br />人数合计', align: 'center', rowspan: 3, width: 52,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Month_on_board', title: '当月<br />入职人数', align: 'center', rowspan: 3, width: 52,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Month_dimission_employees', title: '当月离职<br />正式工人数', align: 'center', rowspan: 3, width: 61,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Month_dimission_workers', title: '当月离职<br />劳务工人数', align: 'center', rowspan: 3, width: 61,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-                    {
-                        field: 'Resigned_that_month', title: '当月待离职<br />正式工人数', align: 'center', rowspan: 3, width: 63,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-
-                    },
-                    {
-                        field: 'Resigned_workers_that_month', title: '当月待离职<br />劳务工人数', align: 'center', rowspan: 3, width: 63,
-                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
-                    },
-
-                    { field: 'Date', title: '时间', align: 'center', rowspan: 3, width: 70 },
-                    {
-                        field: 'Reporter', title: '上报人', align: 'center', rowspan: 3, width: 46,
+                        field: 'Reporter', title: '上报人', align: 'center', rowspan: 3, width: 52,
                         styler: function (value, row, index) {
                             if (value == "未上报") {
                                 return 'color: red';
@@ -217,44 +208,94 @@
                     { title: '', colspan: 2, align: 'center' },
                     { title: '', colspan: 2, align: 'center' },
                 ], [
+                    //在册人数
                     {
-                        field: 'Mon_workers', title: '劳务', align: 'center', width: 31,
+                        field: 'Employees_personnel', title: '正式', align: 'center', width: 34,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Mon_employees', title: '正式', align: 'center', width: 31,
+                        field: 'Workers_personnel', title: '劳务', align: 'center', width: 34,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Tues_workers', title: '劳务', align: 'center', width: 31,
+                        field: 'Huizong', title: '合计', align: 'center',  width: 34,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+
+                    //每日
+                    {
+                        field: 'Mon_employees', title: '正式', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Tues_employees', title: '正式', align: 'center', width: 31,
+                        field: 'Mon_workers', title: '劳务', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Wednes_workers', title: '劳务', align: 'center', width: 31,
+                        field: 'Tues_employees', title: '正式', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Wednes_employees', title: '正式', align: 'center', width: 31,
+                        field: 'Tues_workers', title: '劳务', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Thurs_workers', title: '劳务', align: 'center', width: 31,
+                        field: 'Wednes_employees', title: '正式', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Thurs_employees', title: '正式', align: 'center', width: 31,
+                        field: 'Wednes_workers', title: '劳务', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Fri_workers', title: '劳务', align: 'center', width: 31,
+                        field: 'Thurs_employees', title: '正式', align: 'center', width: 32,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                     {
-                        field: 'Fri_employees', title: '正式', align: 'center', width: 31,
+                        field: 'Thurs_workers', title: '劳务', align: 'center', width: 32,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Fri_employees', title: '正式', align: 'center', width: 32,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Fri_workers', title: '劳务', align: 'center', width: 32,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    //本周入职、本月入职
+                    {
+                        field: 'Week_total_employees', title: '正式', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Week_total_workers', title: '劳务', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_on_board_employees', title: '正式', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_on_board_workers', title: '劳务', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    //本月已离职、待离职
+                    {
+                        field: 'Month_dimission_employees', title: '正式', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_dimission_workers', title: '劳务', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Resigned_that_month', title: '正式', align: 'center', width: 44,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+
+                    },
+                    {
+                        field: 'Resigned_workers_that_month', title: '劳务', align: 'center', width: 44,
                         formatter: function (value, row, index) { return value == "0" ? "" : value; }
                     },
                 ]],
@@ -267,28 +308,33 @@
                             Principal: ' ',
                             Aurhorized_personnel: '<span>' + compute("Aurhorized_personnel") + '</span>',
                             Need_personnel: '<span>' + compute("Need_personnel") + '</span>',
+                            
+                            //第2部分
                             Employees_personnel: '<span>' + compute("Employees_personnel") + '</span>',
                             Workers_personnel: '<span>' + compute("Workers_personnel") + '</span>',
-                            //第2部分
-                            Today_on_board_employees: '<span>' + compute("Today_on_board_employees") + '</span>',
-                            Today_on_board_workers: '<span>' + compute("Today_on_board_workers") + '</span>',
                             Huizong: '<span>' + compute("Huizong") + '</span>',
+
+                            //Today_on_board_employees: '<span>' + compute("Today_on_board_employees") + '</span>',
+                            //Today_on_board_workers: '<span>' + compute("Today_on_board_workers") + '</span>',
                             Dangqian_que: '<span>' + compute("Dangqian_que") + '</span>',
-                            Interview: '<span>' + compute("Interview") + '</span>',
+                            //Interview: '<span>' + compute("Interview") + '</span>',
+
                             //第3部分
-                            Mon_workers: '<span>' + compute("Mon_workers") + '</span>',
                             Mon_employees: '<span>' + compute("Mon_employees") + '</span>',
-                            Tues_workers: '<span>' + compute("Tues_workers") + '</span>',
+                            Mon_workers: '<span>' + compute("Mon_workers") + '</span>',
                             Tues_employees: '<span>' + compute("Tues_employees") + '</span>',
-                            Wednes_workers: '<span>' + compute("Wednes_workers") + '</span>',
+                            Tues_workers: '<span>' + compute("Tues_workers") + '</span>',
                             Wednes_employees: '<span>' + compute("Wednes_employees") + '</span>',
-                            Thurs_workers: '<span>' + compute("Thurs_workers") + '</span>',
+                            Wednes_workers: '<span>' + compute("Wednes_workers") + '</span>',
                             Thurs_employees: '<span>' + compute("Thurs_employees") + '</span>',
-                            Fri_workers: '<span>' + compute("Fri_workers") + '</span>',
+                            Thurs_workers: '<span>' + compute("Thurs_workers") + '</span>',
                             Fri_employees: '<span>' + compute("Fri_employees") + '</span>',
+                            Fri_workers: '<span>' + compute("Fri_workers") + '</span>',
                             //第4部分
-                            Week_total: '<span>' + compute("Week_total") + '</span>',
-                            Month_on_board: '<span>' + compute("Month_on_board") + '</span>',
+                            Week_total_employees: '<span>' + compute("Week_total_employees") + '</span>',
+                            Week_total_workers: '<span>' + compute("Week_total_workers") + '</span>',
+                            Month_on_board_employees: '<span>' + compute("Month_on_board_employees") + '</span>',
+                            Month_on_board_workers: '<span>' + compute("Month_on_board_workers") + '</span>',
                             Month_dimission_employees: '<span>' + compute("Month_dimission_employees") + '</span>',
                             Month_dimission_workers: '<span>' + compute("Month_dimission_workers") + '</span>',
                             Resigned_that_month: '<span>' + compute("Resigned_that_month") + '</span>',
@@ -300,13 +346,13 @@
                         $('#tableData').datagrid('mergeCells', {
                             index: 0,
                             field: 'Department',
-                            colspan: 6,
+                            colspan: 4,
                             rowspan: 2
                         });
                         $('#tableData').datagrid('mergeCells', {
                             index: 0,
-                            field: 'Today_on_board_employees',
-                            colspan: 21,
+                            field: 'Employees_personnel',
+                            colspan: 24,
                             rowspan: 2
                         });
                     };
@@ -359,8 +405,8 @@
                         if (returnVal.无记录 == "无记录") {
                             app.isRecord = false;
                             var data = {
-                                rows: [{ "Department": "无记录", "Today_on_board_employees": "" },
-                                    { "Department": "无记录", "Today_on_board_employees": "无记录" }]
+                                rows: [{ "Department": "无记录", "Employees_personnel": "" },
+                                    { "Department": "无记录", "Employees_personnel": "无记录" }]
                             };
                         } else {
                             app.isRecord = true;
@@ -387,6 +433,27 @@
         };
         return total;
     };
-
-
+    //下载excel
+    function postExcel(value) {
+        $.ajax({
+            url: "/Personnel/GetExcelFile",
+            type: "post",
+            data: {
+                department: value,
+                date: app.SearchDate,
+            },
+            success: function (data) {
+                if (data == "文件不存在") {
+                    alert('此部门今天的人员动态信息文件尚未上传，无文件可下载！');
+                } else {
+                    $("#postDepartment").val(value);
+                    $("#getForm").submit();
+                    $("#postDepartment").val("");
+                }
+            },
+            error: function (err) {
+                alert("下载excel表格失败")
+            }
+        });
+    };
 </script>

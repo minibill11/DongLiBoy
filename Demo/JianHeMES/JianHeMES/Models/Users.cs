@@ -20,6 +20,7 @@ namespace JianHeMES.Models
         public string UserName { get; set; }
 
         //[Required]
+        //[DataType(DataType.Password)]
         [Display(Name = "密码")]
         public string PassWord { get; set; }
 

@@ -35,14 +35,16 @@ namespace JianHeMES.Controllers
         public ActionResult ProductionControlHistory()
         {
             ViewBag.PlatformType = PlatformTypeList();
+            ViewBag.OrderNumList = GetOrderList();
             return View();
         }
 
 
         [HttpPost]
-        public ActionResult ProductionControlHistory(string PlatformType)
+        public ActionResult ProductionControlHistory(string PlatformType, string orderNum)
         {
             ViewBag.PlatformType = PlatformTypeList();
+            ViewBag.OrderNumList = GetOrderList();
             JObject ProductionControlHistory = new JObject();   //创建JSON对象
             //取出数据
             int i = 1;
@@ -52,6 +54,10 @@ namespace JianHeMES.Controllers
                 if (PlatformType!="")
                 {
                     OrderList_All = OrderList_All.Where(m => m.PlatformType == PlatformType).ToList();
+                }
+                if(!String.IsNullOrEmpty(orderNum))
+                {
+                    OrderList_All = OrderList_All.Where(c => c.OrderNum == orderNum).ToList();
                 }
                 //把2017-TEST-1放入排除清单中
                 OrderList_All = OrderList_All.Where(c => c.OrderNum != "2017-TEST-1").ToList();
@@ -181,17 +187,17 @@ namespace JianHeMES.Controllers
                         OrderNum.Add("Burn_in_Record_Count", Burn_in_Record.Count());
                         OrderNum.Add("Burn_in_Count", Burn_in_Record_Count);
                         //计算老化完成率、合格率
-                        if (Burn_in_Finish == 0)
-                        {
-                            OrderNum.Add("Burn_in_Finish_Rate", "0%");
-                            OrderNum.Add("Burn_in_Pass_Rate", "0%");
-                        }
-                        else
-                        {
+                        //if (Burn_in_Finish == 0)
+                        //{
+                        //    OrderNum.Add("Burn_in_Finish_Rate", "0%");
+                        //    OrderNum.Add("Burn_in_Pass_Rate", "0%");
+                        //}
+                        //else
+                        //{
                             //OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / Burn_in_Record_Count * 100).ToString("F2") + "%");
-                            OrderNum.Add("Burn_in_Finish_Rate", (Burn_in_Finish / item.Boxes * 100).ToString("F2") + "%");
+                            OrderNum.Add("Burn_in_Finish_Rate", (Convert.ToDecimal(Burn_in_Record.Count()) / item.Boxes * 100).ToString("F2") + "%");
                             OrderNum.Add("Burn_in_Pass_Rate", (Burn_in_Finish / Burn_in_Record.Count() * 100).ToString("F2") + "%");
-                        }
+                        //}
                     }
                     else
                     {
@@ -295,6 +301,91 @@ namespace JianHeMES.Controllers
                             OrderNum.Add("Appearances_Pass_Rate", "--%");
                         }
                     }
+                    #endregion
+
+                    #region---------------------PQC超24小时未进入老化工序和老化后72小时未进入包装工序提示信息部分
+                    //此条码PQC完成，到现在为止超过24小时未有老化记录，输出提示；
+                    //此条码PQC完成，老化的开始时间－PQC完成时间超24小时，输出提示；
+                    //此条码老化完成，到现在为止超过72小时未有包装记录，输出提示；
+                    //此条码老化完成，包装的开始时间－老化完成时间超72小时，输出提示；
+                    List<string> barCodesList = db.BarCodes.Where(c => c.OrderNum == item.OrderNum).OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+                    int Overtime_never_join_burn_in_count = 0;
+                    int Overtime_never_join_appearances_count = 0;
+                    //var AssembleRecord_count = AssembleRecord.Where(c => c.OrderNum == item.OrderNum).Count();
+                    string assemble_Finish_Rate = (string)OrderNum["Assemble_Finish_Rate"];
+                    var burn_in_Finish_Rate = OrderNum.Value<string>("Burn_in_Finish_Rate");
+                    var appearances_Finish_Rate = OrderNum.Value<string>("Appearances_Finish_Rate");
+                    //如果组装和老化调试都未开始或都已经完成，则输出空值
+                    if (assemble_Finish_Rate == "100.00%" && burn_in_Finish_Rate == "100.00%" || assemble_Finish_Rate == "--%" && burn_in_Finish_Rate == "--%")
+                    {
+                        OrderNum.Add("Overtime_never_join_burn_in", "");
+                    }
+                    else
+                    {
+                        //计算PQC完超过24小时未进入老化调试输出，如果下一工序已经有记录，则不算入超时数量，只要有一个超时，就跳出foreach 循环
+                        foreach (var it in barCodesList)
+                        {
+                            //取出组装已经完成的记录
+                            var assemble_record = AssembleRecord.Where(c => c.BoxBarCode == it && c.PQCCheckFT != null && c.PQCCheckFinish == true && c.RepetitionPQCCheck != true).FirstOrDefault();
+                            if (assemble_record != null)
+                            {
+                                //取出组装完成时间
+                                var assembleFinishTime_temp = assemble_record.PQCCheckFT;
+                                var burn_in_Earliest_Record = Burn_in_Record.Where(c => c.BarCodesNum == it && c.OQCCheckBT != null).OrderBy(c => c.OQCCheckBT).FirstOrDefault();
+                                //如果老化调试最早时间为空，则老化调试没有记录
+                                if (burn_in_Earliest_Record == null)
+                                {
+                                    ////取出老化调试最早时间
+                                    //var burn_in_BeginTime_temp = Burn_in_Record.Where(c => c.BarCodesNum == it && c.OQCCheckBT != null).Min(c => c.OQCCheckBT);
+                                    //DateTime burn_in_BeginTime = burn_in_BeginTime_temp == null ? DateTime.Now : new DateTime(burn_in_BeginTime_temp.Value.Year, burn_in_BeginTime_temp.Value.Month, burn_in_BeginTime_temp.Value.Day, burn_in_BeginTime_temp.Value.Hour, burn_in_BeginTime_temp.Value.Minute, burn_in_BeginTime_temp.Value.Second);
+                                    DateTime assembleFinishTime = assembleFinishTime_temp == null ? DateTime.Now : new DateTime(assembleFinishTime_temp.Value.Year, assembleFinishTime_temp.Value.Month, assembleFinishTime_temp.Value.Day, assembleFinishTime_temp.Value.Hour, assembleFinishTime_temp.Value.Minute, assembleFinishTime_temp.Value.Second);
+                                    TimeSpan overtime_never_join_appearances = DateTime.Now - assembleFinishTime;
+                                    if (overtime_never_join_appearances.TotalHours >= 24)
+                                    {
+                                        Overtime_never_join_burn_in_count++;
+                                    }
+                                }
+                            }
+                            if (Overtime_never_join_burn_in_count >= 1)
+                                break;
+                        }
+                        OrderNum.Add("Overtime_never_join_burn_in", Overtime_never_join_burn_in_count);
+                    }
+                    //如果老化调试和包装都未开始或都已经完成，则输出空值
+                    if (burn_in_Finish_Rate == "100.00%" && appearances_Finish_Rate == "100.00%" || burn_in_Finish_Rate == "--%" && appearances_Finish_Rate == "--%")
+                    {
+                        OrderNum.Add("Overtime_never_join_appearances", "");
+                    }
+                    else
+                    {
+                        //计算老化调试完超过72小时未进入包装工序输出，如果下一工序已经有记录，则不算入超时数量，只要有一个超时，就跳出foreach 循环
+                        foreach (var it in barCodesList)
+                        {
+                            //取出老化调试已经完成的记录
+                            var burn_in_record = Burn_in_Record.Where(c => c.BarCodesNum == it && c.OQCCheckFT != null && c.OQCCheckFinish == true).FirstOrDefault();
+                            if (burn_in_record != null)
+                            {
+                                //取出老化调试完成时间
+                                var burn_in_FinishTime_temp = burn_in_record.OQCCheckFT;
+                                var appearances_Earliest_Record = Appearances_Record.Where(c => c.BarCodesNum == it && c.OQCCheckBT != null).OrderBy(c => c.OQCCheckBT).FirstOrDefault();
+                                //var appearances_BeginTime_temp = Appearances_Record.Where(c => c.BarCodesNum == it && c.OQCCheckBT != null).Min(c => c.OQCCheckBT);
+                                //DateTime appearances_BeginTime = appearances_BeginTime_temp == null ? DateTime.Now : new DateTime(appearances_BeginTime_temp.Value.Year, appearances_BeginTime_temp.Value.Month, appearances_BeginTime_temp.Value.Day, appearances_BeginTime_temp.Value.Hour, appearances_BeginTime_temp.Value.Minute, appearances_BeginTime_temp.Value.Second);
+                                if (appearances_Earliest_Record == null)
+                                {
+                                    DateTime burn_in_FinishTime = burn_in_FinishTime_temp == null ? DateTime.Now : new DateTime(burn_in_FinishTime_temp.Value.Year, burn_in_FinishTime_temp.Value.Month, burn_in_FinishTime_temp.Value.Day, burn_in_FinishTime_temp.Value.Hour, burn_in_FinishTime_temp.Value.Minute, burn_in_FinishTime_temp.Value.Second);
+                                    TimeSpan overtime_never_join_appearances = DateTime.Now - burn_in_FinishTime;
+                                    if (overtime_never_join_appearances.TotalHours >= 72)
+                                    {
+                                        Overtime_never_join_appearances_count++;
+                                    }
+                                }
+                            }
+                            if (Overtime_never_join_appearances_count >= 1)
+                                break;
+                        }
+                        OrderNum.Add("Overtime_never_join_appearances", Overtime_never_join_appearances_count);
+                    }
+
                     #endregion
 
                     #region---------------------AOD特采部分
@@ -1353,6 +1444,22 @@ namespace JianHeMES.Controllers
         #endregion
 
 
+        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
+        private List<SelectListItem> GetOrderList()
+        {
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var items = new List<SelectListItem>();
+            foreach (string order in orders)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = order,
+                    Value = order
+                });
+            }
+            return items;
+        }
+        #endregion
 
 
     }

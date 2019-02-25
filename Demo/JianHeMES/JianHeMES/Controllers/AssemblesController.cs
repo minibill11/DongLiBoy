@@ -916,7 +916,7 @@ namespace JianHeMES.Controllers
         }
 
         [HttpPost]
-        public ActionResult AssembleIndex(string orderNum, string BoxBarCode, string PQCNormal, string Remark, int PageIndex = 0)
+        public ActionResult AssembleIndex(string orderNum, string BoxBarCode, string PQCNormal, string Remark/*, int PageIndex = 0*/)
         {
             if (Session["User"] == null)
             {
@@ -1021,6 +1021,27 @@ namespace JianHeMES.Controllers
             //    assembles = assembles.Where(s => s.AbnormalDescription.Contains(searchString));
             //}
 
+            #region----------筛选出完成组装，超过24小时未进入老化工序的记录JSON------------
+            var BarcodesListByOrderNum = Allassembles.Select(c => c.BoxBarCode).Distinct().ToList();//1和2
+            JObject BorcodesOvertimeList = new JObject();//3
+            var AllBurn_inRecordByOrderNum = db.Burn_in.Where(c => c.OrderNum == orderNum).ToList();//4
+            foreach (var item in BarcodesListByOrderNum)
+            {
+                int AllBurn_inRecords = AllBurn_inRecordByOrderNum.Count(c => c.BarCodesNum == item);
+                if (AllBurn_inRecords != 0)
+                {
+                    var Aassembles_MaxFT = Allassembles.Where(c => c.BoxBarCode == item).FirstOrDefault().PQCCheckFT;
+                    var SubTime = DateTime.Now - Aassembles_MaxFT;
+                    if (Aassembles_MaxFT != null && SubTime.Value.TotalMinutes > 1440) //1天：1*24*60
+                    {
+                        BorcodesOvertimeList.Add(item, "此模组在" + Aassembles_MaxFT.ToString() + "完成组装,已经超过" + SubTime.Value.Days + "天" + SubTime.Value.Hours + "小时" + SubTime.Value.Minutes + "分未进入老化工序！");
+                    }
+                }
+            }
+            ViewBag.Overtime = BorcodesOvertimeList;
+            #endregion
+
+
             #region   ----------计算总时长和平均时长------------
             //取出对应orderNum对应组装中PQC时长所有记录
             IQueryable<TimeSpan?> TimeSpanList = from m in db.Assemble
@@ -1104,7 +1125,7 @@ namespace JianHeMES.Controllers
             #endregion
 
             //列出记录
-            AllassemblesList = Allassembles.ToList();
+            AllassemblesList = Allassembles.OrderBy(c=>c.BoxBarCode).ToList();
 
             //取出记录对应的模块清单
             List<string> list = new List<string>();
@@ -1151,18 +1172,18 @@ namespace JianHeMES.Controllers
             ViewBag.PQCNormal = PQCNormalList();
 
             //分页计算功能
-            var recordCount = Allassembles.Count();
-            var pageCount = GetPageCount(recordCount);
-            if (PageIndex >= pageCount && pageCount >= 1)
-            {
-                PageIndex = pageCount - 1;
-            }
+            //var recordCount = Allassembles.Count();
+            //var pageCount = GetPageCount(recordCount);
+            //if (PageIndex >= pageCount && pageCount >= 1)
+            //{
+            //    PageIndex = pageCount - 1;
+            //}
 
-            AllassemblesList = AllassemblesList.OrderBy(m => m.BoxBarCode)//按条码排序
-                                 .Skip(PageIndex * PAGE_SIZE)
-                                 .Take(PAGE_SIZE).ToList();
-            ViewBag.PageIndex = PageIndex;
-            ViewBag.PageCount = pageCount;
+            //AllassemblesList = AllassemblesList.OrderBy(m => m.BoxBarCode)//按条码排序
+            //                     .Skip(PageIndex * PAGE_SIZE)
+            //                     .Take(PAGE_SIZE).ToList();
+            //ViewBag.PageIndex = PageIndex;
+            //ViewBag.PageCount = pageCount;
 
             return View(AllassemblesList);
         }

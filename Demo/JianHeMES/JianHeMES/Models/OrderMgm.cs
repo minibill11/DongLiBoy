@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace JianHeMES.Models
 
         [Required]
         //[DataType(DataType.Password)]
-        //[Display(Name = "密码")]
+        //[Display(Name = "信息")]
         //[StringLength(100, ErrorMessage = "{0} 必须至少包含 {2} 个字符。", MinimumLength = 6)]
         [Display(Name = "订单号")]
         public string OrderNum { get; set; }
@@ -20,7 +21,7 @@ namespace JianHeMES.Models
         [Required]
         [Display(Name = "条码前缀")]
         public string BarCode_Prefix { get; set; }
-        
+
         [Required]
         [Display(Name = "客户名称")]
         public string CustomerName { get; set; }
@@ -68,6 +69,22 @@ namespace JianHeMES.Models
         [Display(Name = "转接卡类型")]
         public string AdapterCardType { get; set; }
 
+        [Display(Name ="制程要求")]//有铅，无铅
+        public string ProcessingRequire { get; set; }
+
+        [Display(Name = "标准要求")] //商用，军用
+        public string StandardRequire { get; set; }
+
+        [Display(Name = "备用字段")]
+        public int Capacity { get; set; }
+
+        //[Required]
+        [Display(Name = "SMT产能")]
+        public decimal CapacityQ { get; set; }
+
+        [Display(Name = "小样进度")]
+        public string HandSampleScedule { get; set; }
+
         [Required]
         [Display(Name = "模组数量")]
         public int Boxes { get; set; }
@@ -96,47 +113,47 @@ namespace JianHeMES.Models
 
 
         //修改为Module模组条码
-        [Display(Name = "条码是否已经生成")]
+        [Display(Name = "模组条码是否已经生成")]
         public int? BarCodeCreated { get; set; }
 
-        [Display(Name = "条码生成日期")]
+        [Display(Name = "模组条码生成日期")]
         [DataType(DataType.DateTime)]
         public DateTime? BarCodeCreateDate { get; set; }
 
-        [Display(Name = "条码生成者")]
+        [Display(Name = "模组条码生成者")]
         public string BarCodeCreator { get; set; }
 
         //模块条码
-        [Display(Name = "条码是否已经生成")]
+        [Display(Name = "模块条码是否已经生成")]
         public int? ModulePieceBarCodeCreated { get; set; }
 
-        [Display(Name = "条码生成日期")]
+        [Display(Name = "模块条码生成日期")]
         [DataType(DataType.DateTime)]
         public DateTime? ModulePieceBarCodeCreateDate { get; set; }
 
-        [Display(Name = "条码生成者")]
+        [Display(Name = "模块条码生成者")]
         public string ModulePieceBarCodeCreator { get; set; }
 
         //电源条码
-        [Display(Name = "条码是否已经生成")]
+        [Display(Name = "电源条码是否已经生成")]
         public int? PowerBarCodeCreated { get; set; }
 
-        [Display(Name = "条码生成日期")]
+        [Display(Name = "电源条码生成日期")]
         [DataType(DataType.DateTime)]
         public DateTime? PowerBarCodeCreateDate { get; set; }
 
-        [Display(Name = "条码生成者")]
+        [Display(Name = "电源条码生成者")]
         public string PowerBarCodeCreator { get; set; }
 
         //转接卡条码
-        [Display(Name = "条码是否已经生成")]
+        [Display(Name = "转接卡条码是否已经生成")]
         public int? AdapterCardBarCodeCreated { get; set; }
 
-        [Display(Name = "条码生成日期")]
+        [Display(Name = "转接卡条码生成日期")]
         [DataType(DataType.DateTime)]
         public DateTime? AdapterCardBarCodeCreateDate { get; set; }
 
-        [Display(Name = "条码生成者")]
+        [Display(Name = "转接卡条码生成者")]
         public string AdapterCardBarCodeCreator { get; set; }
 
 
@@ -225,6 +242,24 @@ namespace JianHeMES.Models
         public virtual List<Users> Users { get; set; }
         public virtual List<BarCodes> BarCodes { get; set; }
 
+    }
+
+
+    public class OrderMgm_Delete
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Display(Name ="订单号")]
+        public string OrderNum { get; set; }
+
+        [Display(Name ="删除日期")]
+        [DataType(DataType.Date)]
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
+        public DateTime? DeleteDate { get; set; }
+
+        [Display(Name ="删除人")]
+        public string Deleter { get; set; }
     }
 
 }

@@ -85,7 +85,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string BoxBarCode, string AppearancesNormal, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string BoxBarCode, string AppearancesNormal, string searchString/*, int PageIndex = 0*/)
         {
             if (Session["User"] == null)
             {
@@ -130,8 +130,6 @@ namespace JianHeMES.Controllers
                 }
 
             }
-
-            
 
             //统计外观包装结果正常的模组数量
             var Order_CR_Normal_Count = AllAppearanceRecords.Where(x => x.RepairCondition == "正常").Count();
@@ -224,7 +222,7 @@ namespace JianHeMES.Controllers
             }
 
             //列出记录
-            AllAppearanceRecordsList = AllAppearanceRecords.ToList();
+            AllAppearanceRecordsList = AllAppearanceRecords.OrderBy(c=>c.BarCodesNum).ToList();
 
             //读出订单中模组总数量
             var Order_MG_Quantity = (from m in db.OrderMgm
@@ -246,21 +244,21 @@ namespace JianHeMES.Controllers
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
 
             //分页计算功能
-            var recordCount = AllAppearanceRecords.Count();
-            var pageCount = GetPageCount(recordCount);
-            if (PageIndex >= pageCount && pageCount >= 1)
-            {
-                PageIndex = pageCount - 1;
-            }
-            AllAppearanceRecords = AllAppearanceRecords.OrderBy(m => m.BarCodesNum)
-                                .Skip(PageIndex * PAGE_SIZE)
-                                .Take(PAGE_SIZE).ToList();
-            ViewBag.PageIndex = PageIndex;
-            ViewBag.PageCount = pageCount;
+            //var recordCount = AllAppearanceRecords.Count();
+            //var pageCount = GetPageCount(recordCount);
+            //if (PageIndex >= pageCount && pageCount >= 1)
+            //{
+            //    PageIndex = pageCount - 1;
+            //}
+            //AllAppearanceRecords = AllAppearanceRecords.OrderBy(m => m.BarCodesNum)
+            //                    .Skip(PageIndex * PAGE_SIZE)
+            //                    .Take(PAGE_SIZE).ToList();
+            //ViewBag.PageIndex = PageIndex;
+            //ViewBag.PageCount = pageCount;
             ViewBag.OrderNumList = GetOrderNumList();
             ViewBag.AppearancesNormal = AppearancesNormalList();
 
-            return View(AllAppearanceRecords);
+            return View(AllAppearanceRecordsList);
             //return View(AllAppearanceRecordsList);
         }
         #endregion
@@ -417,15 +415,29 @@ namespace JianHeMES.Controllers
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// 外观包装输入条码时，检查模组是否已经完成老化调试或校正工序
+        /// </summary>
+        /// <param name="barcode"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Appearance_B_Check(string barcode)
+        {
+
+            return Content("");
+        }
+
+
+
         // POST: Appearance/Create
         // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
+        public async Task<ActionResult> Appearance_B([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,CustomerBarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-
 
             if (db.BarCodes.FirstOrDefault(u => u.BarCodesNum == appearance.BarCodesNum) == null)
             {
@@ -572,7 +584,6 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
@@ -591,7 +602,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckDate,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
+        public async Task<ActionResult> Appearance_F([Bind(Include = "Id,OrderNum,ToOrderNum,BarCodesNum,CustomerBarCodesNum,ModuleGroupNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckDate,OQCCheckTime,OQCCheckTimeSpan,Appearance_OQCCheckAbnormal,RepairCondition,OQCCheckFinish,Remark")] Appearance appearance)
         {
             if (Session["User"] == null)
             {
@@ -611,7 +622,6 @@ namespace JianHeMES.Controllers
                     appearance.OQCCheckDate = CT.Days;
                     appearance.OQCCheckTime = new TimeSpan(CT.Hours,CT.Minutes,CT.Seconds);
                 }
-
                 if (appearance.Appearance_OQCCheckAbnormal == null)
                 {
                     appearance.Appearance_OQCCheckAbnormal = "正常";
@@ -678,7 +688,6 @@ namespace JianHeMES.Controllers
             return Content(JsonConvert.SerializeObject(stationResult));
         }
         #endregion
-
 
 
         #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------

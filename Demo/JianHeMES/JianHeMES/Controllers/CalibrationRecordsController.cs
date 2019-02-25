@@ -41,7 +41,7 @@ namespace JianHeMES.Controllers
 
 
         [HttpPost]
-        public async Task<ActionResult> Index(string orderNum, string moduleGroupNum,string barcodenum, string searchString, int PageIndex = 0)
+        public async Task<ActionResult> Index(string orderNum, string moduleGroupNum,string barcodenum, string searchString/*, int PageIndex = 0*/)
         {
             if (Session["User"] == null)
             {
@@ -144,7 +144,7 @@ namespace JianHeMES.Controllers
 
             //列出记录
             //CalibrationRecordVM.AllCalibrationRecord = await AllCalibrationRecords.ToListAsync();
-            CalibrationRecordVM.AllCalibrationRecord = AllCalibrationRecords.ToList();
+            CalibrationRecordVM.AllCalibrationRecord = AllCalibrationRecords.OrderBy(c=>c.BarCodesNum).ToList();
             //统计校正结果正常的模组数量
             CalibrationRecordVM.Order_CR_Normal_Count = AllCalibrationRecords.Where(x => x.Normal == true).Count();
             var Abnormal_Count = AllCalibrationRecords.Where(x => x.Normal == false).Count();
@@ -172,18 +172,18 @@ namespace JianHeMES.Controllers
             ViewBag.OrderList = GetOrderListForIndex();//向View传递OrderNum订单号列表.
 
             //分页计算功能
-            var recordCount = AllCalibrationRecords.Count();
-            var pageCount = GetPageCount(recordCount);
-            if (PageIndex >= pageCount && pageCount >= 1)
-            {
-                PageIndex = pageCount - 1;
-            }
+            //var recordCount = AllCalibrationRecords.Count();
+            //var pageCount = GetPageCount(recordCount);
+            //if (PageIndex >= pageCount && pageCount >= 1)
+            //{
+            //    PageIndex = pageCount - 1;
+            //}
 
-            CalibrationRecordVM.AllCalibrationRecord = CalibrationRecordVM.AllCalibrationRecord.OrderByDescending(m => m.BeginCalibration)//按条码排序
-                                                                            .Skip(PageIndex * PAGE_SIZE)
-                                                                            .Take(PAGE_SIZE).ToList();
-            ViewBag.PageIndex = PageIndex;
-            ViewBag.PageCount = pageCount;
+            //CalibrationRecordVM.AllCalibrationRecord = CalibrationRecordVM.AllCalibrationRecord.OrderByDescending(m => m.BeginCalibration)//按条码排序
+            //                                                                .Skip(PageIndex * PAGE_SIZE)
+            //                                                                .Take(PAGE_SIZE).ToList();
+            //ViewBag.PageIndex = PageIndex;
+            //ViewBag.PageCount = pageCount;
 
             //将分页后的结果转成JSON数据           
             //var data0 = CalibrationRecordVM.AllCalibrationRecord.OrderByDescending(m => m.BeginCalibration)
@@ -285,11 +285,25 @@ namespace JianHeMES.Controllers
                         {
                             if ((from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).Count() > 0)
                             {
+                                //修改条码表箱体记录的箱体号
                                 var barcode = (from m in db.BarCodes where m.BarCodesNum == calibrationRecord.BarCodesNum select m).FirstOrDefault();
                                 barcode.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
                                 db.Entry(barcode).State = EntityState.Modified;
                                 db.SaveChanges();
-
+                                //如果包装有记录，修改包装记录的箱体号
+                                var appearance_record_list = db.Appearance.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum).ToList();
+                                if (appearance_record_list != null)
+                                {
+                                    foreach (var item in appearance_record_list)
+                                    {
+                                        if(String.IsNullOrEmpty(item.ModuleGroupNum))
+                                        {
+                                            item.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
+                                            db.Entry(item).State = EntityState.Modified;
+                                            db.SaveChanges();
+                                        }
+                                    }
+                                }
                             }
                         }
                         return RedirectToAction("FinishCal", new { calibrationRecord.ID });
@@ -305,7 +319,6 @@ namespace JianHeMES.Controllers
             //订单选择有误，返回提示信息
             else
             {
-                
                 ModelState.AddModelError("", "模组条码号应该属于"+ ordernum.OrderNum + "订单，请确定订单是否正确！");
                 return View(calibrationRecord);
             }
@@ -340,7 +353,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult FinishCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
+        public ActionResult FinishCal([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationDate,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -409,7 +422,7 @@ namespace JianHeMES.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,ModuleGroupNum,BarCodesNum,BeginCalibration,FinishCalibration,Normal,AbnormalDescription,CalibrationDate,CalibrationTime,CalibrationTimeSpan,Operator,RepetitionCalibration,RepetitionCalibrationCause")] CalibrationRecord calibrationRecord)
         {
             if (Session["User"] == null)
             {
@@ -421,23 +434,27 @@ namespace JianHeMES.Controllers
                 return RedirectToAction("Login", "Users");
             }
 
-
-            if (calibrationRecord.FinishCalibration == null)
-            {
-                calibrationRecord.FinishCalibration = DateTime.Now;
-
-                var BC = calibrationRecord.BeginCalibration.Value;
-                var FC = calibrationRecord.FinishCalibration.Value;
-                var CT = FC - BC;
-                calibrationRecord.CalibrationTime = CT;
-                calibrationRecord.CalibrationTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
-            }
             if (ModelState.IsValid)
             {
                 db.Entry(calibrationRecord).State = EntityState.Modified;
                 db.SaveChanges();
-                //tempOrderNum = calibrationRecord.OrderNum;
-                return RedirectToAction("Create");
+
+                var barCodes = db.BarCodes.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum).FirstOrDefault();
+                if(barCodes != null)
+                {
+                    barCodes.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
+                    db.Entry(barCodes).State = EntityState.Modified;
+                    db.SaveChanges();
+                }
+                var appearances = db.Appearance.Where(c => c.BarCodesNum == calibrationRecord.BarCodesNum).ToList();
+                foreach (var item in appearances)
+                {
+                        item.ModuleGroupNum = calibrationRecord.ModuleGroupNum;
+                        db.Entry(item).State = EntityState.Modified;
+                        db.SaveChanges();
+
+                    }
+                    return RedirectToAction("Index");
             }
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             return View(calibrationRecord);

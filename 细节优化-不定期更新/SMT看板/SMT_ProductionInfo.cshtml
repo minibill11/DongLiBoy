@@ -12,19 +12,57 @@
         border-color: rgba(35, 35, 35, 0.9);
     }
 
-    .gotoDetail{
-        color:#1449b7;
-        cursor:pointer
+    .gotoDetail {
+        color: #1449b7;
+        cursor: pointer;
     }
     /*.table > tbody > tr:nth-child(n+3):hover {
         background-color: rgba(77, 72, 72, 0.15);
     }*/
+
+    .modal-header, .modal-body {
+        padding: 10px;
+    }
+
+    .btnSty {
+        width: 50px;
+        height: 40px;
+        position: absolute;
+        padding: 0;
+    }
+
+    .showBtn {
+        position: relative;
+    }
+
+        .showBtn:hover .showDiv {
+            visibility: visible;
+        }
+
+    .showDiv {
+        position: absolute;
+        width: 100px;
+        height: 40px;
+        top: -20px;
+        left: -50%;
+        visibility: hidden;
+        animation: showani 2s;
+    }
+
+    @@keyframes showani {
+        0% {
+            opacity: 0;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
 </style>
 <h2 class="text-center">SMT生产信息</h2>
 
 <div id="app" class="form-group">
     <span style="float:right;margin:0 5px 3px 0">{{nowtime}}</span>
-
     <div class="form-group">
         <table class="table table-bordered">
             <tr>
@@ -70,7 +108,15 @@
                         <td v-bind:rowspan="val.length">{{v[0].StandardRequire}}</td>
                         <td>{{v[0].PlanQuantity}}</td>
                         <td>{{v[0].Capacity}}</td>
-                        <td v-bind:rowspan="val.length"  v-bind:style="(v[0].HandSampleScedule=='未开始')?'':'color:#14830d;cursor:pointer'" v-on:click="(v[0].HandSampleScedule=='未开始')?'':imgModal(v[0].OrderNum)">{{v[0].HandSampleScedule}}</td>
+                        <td v-bind:rowspan="val.length"
+                            v-bind:class="(v[0].HandSampleScedule=='未开始')?'':'showBtn'"
+                            v-bind:style="(v[0].HandSampleScedule=='未开始')?'':'color:#14830d;cursor:pointer;position:relative'">
+                            {{v[0].HandSampleScedule}}
+                            <div v-if="(v[0].HandSampleScedule!='未开始')" class="showDiv">
+                                <button v-on:click="imgModal(v[0].OrderNum)" class="btn btn-info btnSty" style="left: 0px;">IMG</button>
+                                <button v-on:click="pdfModal(v[0].OrderNum)" class="btn btn-warning btnSty" style="right: 0px;">PDF</button>
+                            </div>
+                        </td>
                         <td>{{v[0].LineNum}}</td>
                         <td>{{v[0].NormalCount}}</td>
                         <td>{{v[0].AbnormalCount}}</td>
@@ -110,7 +156,7 @@
         <div class="row">
             <!-- 小样图片 -->
             <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-                <div class="modal-dialog" style="width: 100%;height: auto;max-width: 900px;margin: 30px auto;">
+                <div class="modal-dialog" style="width: 100%;height: auto;max-width: 900px;margin: 10px auto;">
                     <div class="modal-content">
                         <div class="modal-header">
                             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
@@ -120,8 +166,8 @@
                                 小样订单
                             </h4>
                         </div>
-                        <div id="imgModal" class="modal-body text-center">
-                            @*<img v-bind:src="imgSrc" alt="该小样订单照片尚未上传！" style="width:100%;height:100%;" />*@
+                        <div id="contentModal" class="modal-body text-center">
+                            <iframe id="pdfIframe" name="pdfIframe" src="" style="width:100%;"></iframe>
                         </div>
                     </div>
                 </div>
@@ -130,6 +176,7 @@
         </div>
     </div>
 </div>
+<div id="setPdf"></div>
 <div id="setForm"></div>
 <script>
     var app = new Vue({
@@ -137,7 +184,7 @@
         data: {
             smtLineData: [],
             smtLineData_new: [],
-            nowtime: ""
+            nowtime: "",
         },
         created: function () {
             //this.$options.methods.smtProductionInfo();
@@ -156,7 +203,8 @@
                 newForm.remove();
             },
             imgModal: function (OrderNumVal) {
-                $("#imgModal").children().remove();
+                $("#imgModalc").remove();
+                $("#pdfIframe").hide();
                 $.ajax({
                     url: "/OrderMgms/GetSmallSampleImg",
                     type: "post",
@@ -166,16 +214,38 @@
                     success: function (returnVal) {
                         var json = JSON.parse(returnVal);
                         for (var img in json) {
-                            $("#imgModal").append('<img src="/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" /><br /><br />')
+                            $("#contentModal").append('<img id="imgModalc" src="/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" />')
                         }
                         $("#showModal").click();
                     },
                     error: function (err) {
-                        alert("查看小样订单失败", err);
+                        alert("小样订单图片尝未上传！", err);
                     }
                 })
                 //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
-            }
+            },
+            pdfModal: function (OrderNumVal) {
+                $("#imgModalc").remove();
+                $("#pdfIframe").show();
+                $.ajax({
+                    url: "/OrderMgms/preview_SmallSample_pdf",
+                    type: "post",
+                    cache: false,
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (address) {
+                        $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\SmallSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_SmallSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                        document.getElementById("temporary").click();
+                        $("#temporary").remove();
+                        $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                        $("#showModal").click();
+                    },
+                    error: function (err) {
+                        alert("查看PDF失败", err);
+                    }
+                });
+            },
         }
     });
     Date.prototype.Format = function (fmt) {
@@ -204,7 +274,6 @@
             var mypush2 = $.connection.SMT;
             mypush2.client.sendSMT_ProductionInfo_new = function (SMT_ProductionInfo_new) {
                 app.smtLineData_new = [];
-                
                 var linedata = SMT_ProductionInfo_new;
                 for (var ordernum in linedata) {
                     var ordernumdata = JSON.parse(linedata[ordernum]);

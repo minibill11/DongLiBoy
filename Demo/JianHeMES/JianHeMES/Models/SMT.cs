@@ -44,22 +44,29 @@ namespace JianHeMES.Models
         [Display(Name ="产线")]
         public int LineNum { get; set; }
 
-        [Display(Name ="订单")]
+        [Display(Name ="订单号")]
         public string OrderNum { get; set; }
 
-        [Display(Name = "数量")]
+        [Display(Name = "计划产能")]
+        public decimal Capacity { get; set; }
+
+        [Display(Name = "计划数量")]
         public int Quantity { get; set; }
 
-        [Display(Name = "平台类型")]
+        [Display(Name = "工作内容")]
+        public string JobContent { get; set; }
 
-        public string PlatformType { get; set; }
-
-        [Display(Name = "客户")]
-        public string Customer { get; set; }
-
-        [Display(Name ="创建记录日期"),DataType(DataType.DateTime)]
+        [Display(Name ="创建生产计划日期"),DataType(DataType.DateTime)]  
         public DateTime? CreateDate { get; set; }
 
+        [Display(Name = "计划生产日期"), DataType(DataType.DateTime)]
+        public DateTime? PlanProductionDate { get; set; }
+
+        [Display(Name = "计划创建人")]
+        public string Creator { get; set; }
+
+        [Display(Name = "备注")]
+        public string Remark { get; set; }
 
 
         public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
@@ -110,7 +117,8 @@ namespace JianHeMES.Models
         [Display(Name = "订单")]
         public string OrderNum { get; set; }
 
-
+        [Display(Name = "工作内容")]
+        public string JobContent { get; set; }
 
         [Display(Name = "良品数量")]
         public int NormalCount { get; set; }
@@ -124,8 +132,7 @@ namespace JianHeMES.Models
         [Display(Name = "结束时间"), DataType(DataType.DateTime)]
         public DateTime? EndTime { get; set; }
 
-
-        [Display(Name = "订单")]
+        [Display(Name = "条码号")]
         public string BarcodeNum { get; set; }
 
         [Display(Name = "产品状态")]

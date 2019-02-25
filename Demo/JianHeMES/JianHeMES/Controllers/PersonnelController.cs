@@ -15,12 +15,16 @@ using System.Dynamic;
 using System.Web.Script.Serialization;
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.IO;
 
 namespace JianHeMES.Controllers
 {
     public class PersonnelController : Controller
     {
         private ApplicationDbContext db = new ApplicationDbContext();
+
+
+        #region-----------------Index首页方法
 
         // GET: Personnel
         public async Task<ActionResult> Index()
@@ -158,7 +162,7 @@ namespace JianHeMES.Controllers
             ViewBag.Principal = GetPrincipalList();
             return View(result);
         }
-
+        #endregion
 
 
         #region-----------------Daily方法
@@ -244,12 +248,15 @@ namespace JianHeMES.Controllers
                     obj.Interview = 0;
                     obj.Date = "";
                     obj.Reporter = "未上报";
-                    obj.Resigned_that_month = lastrecord.Resigned_that_month;
-                    obj.Resigned_workers_that_month = lastrecord.Resigned_workers_that_month;
+                    obj.Resigned_that_month = 0;// lastrecord.Resigned_that_month;//如果当天没有记录，是否应该赋最后一个记录的值？还是直接赋0?   
+                    obj.Resigned_workers_that_month = 0;// lastrecord.Resigned_workers_that_month;//如果当天没有记录，是否应该赋最后一个记录的值？还是直接赋0?
                 }
                 DateTime mon_begin_date = new DateTime(date.Year, date.Month, 1);
                 DateTime tomorrow = new DateTime(date.Year, date.Month, dateV.AddDays(1).Day);
-                obj.Month_on_board = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                //本月入职正式工和劳务工人数
+                obj.Month_on_board_employees = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Today_on_board_employees);
+                obj.Month_on_board_workers = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Today_on_board_workers);
+                //本月离职正式工和劳务工人数
                 obj.Month_dimission_employees = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Todoy_dimission_employees);
                 obj.Month_dimission_workers = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Todoy_dimission_workers);
 
@@ -261,18 +268,21 @@ namespace JianHeMES.Controllers
                 switch (weeknum.ToString())
                 {
                     case "Monday":
+                        recordlist = Month_recordlist.Where(c=>c.Date>dateV && c.Date< tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
-                            obj.Week_total = 0;
-
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
                         }
                         else
                         {
                             obj.Mon_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Mon_employees = record == null ? 0 : record.Today_on_board_employees;
-                            obj.Week_total = record == null ? 0 : record.Today_on_board_employees + record.Today_on_board_workers;
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = record == null ? 0 : record.Today_on_board_employees;
+                            obj.Week_total_workers = record == null ? 0 : record.Today_on_board_workers;
                         }
                         obj.Tues_workers = 0;
                         obj.Tues_employees = 0;
@@ -285,21 +295,24 @@ namespace JianHeMES.Controllers
                         break;
                     case "Tuesday":
                         monday = dateV.AddDays(-1);
-                        recordlist = db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
+                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
                             obj.Tues_workers = 0;
                             obj.Tues_employees = 0;
-                            obj.Week_total = 0;
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
 
                         }
                         else
                         {
                             obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
                             obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Week_total = recordlist.Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
                             obj.Tues_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Tues_employees = record == null ? 0 : record.Today_on_board_employees;
 
@@ -314,7 +327,7 @@ namespace JianHeMES.Controllers
                         break;
                     case "Wednesday": //星期三 
                         monday = dateV.AddDays(-2);
-                        recordlist = db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
+                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
@@ -323,7 +336,8 @@ namespace JianHeMES.Controllers
                             obj.Tues_employees = 0;
                             obj.Wednes_workers = 0;
                             obj.Wednes_employees = 0;
-                            obj.Week_total = 0;
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
                         }
                         else
                         {
@@ -331,7 +345,9 @@ namespace JianHeMES.Controllers
                             obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Tues_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
                             obj.Tues_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Week_total = recordlist.Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
                         }
                         obj.Wednes_workers = record == null ? 0 : record.Today_on_board_workers;
                         obj.Wednes_employees = record == null ? 0 : record.Today_on_board_employees;
@@ -342,7 +358,7 @@ namespace JianHeMES.Controllers
                         break;
                     case "Thursday": //星期四
                         monday = dateV.AddDays(-3);
-                        recordlist = db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
+                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
@@ -353,7 +369,8 @@ namespace JianHeMES.Controllers
                             obj.Wednes_employees = 0;
                             obj.Thurs_workers = 0;
                             obj.Thurs_employees = 0;
-                            obj.Week_total = 0;
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
                         }
                         else
                         {
@@ -365,14 +382,16 @@ namespace JianHeMES.Controllers
                             obj.Wednes_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Thurs_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Thurs_employees = record == null ? 0 : record.Today_on_board_employees;
-                            obj.Week_total = recordlist.Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
                         }
                         obj.Fri_workers = 0;
                         obj.Fri_employees = 0;
                         break;
                     case "Friday": //星期五
                         monday = dateV.AddDays(-4);
-                        recordlist = db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
+                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
@@ -385,7 +404,8 @@ namespace JianHeMES.Controllers
                             obj.Thurs_employees = 0;
                             obj.Fri_workers = 0;
                             obj.Fri_employees = 0;
-                            obj.Week_total = 0;
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
                         }
                         else
                         {
@@ -399,12 +419,14 @@ namespace JianHeMES.Controllers
                             obj.Thurs_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Fri_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Fri_employees = record == null ? 0 : record.Today_on_board_employees;
-                            obj.Week_total = recordlist.Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
                         }
                         break;
                     case "Saturday":
                         monday = dateV.AddDays(-5);
-                        recordlist = db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
+                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
@@ -417,7 +439,8 @@ namespace JianHeMES.Controllers
                             obj.Thurs_employees = 0;
                             obj.Fri_workers = 0;
                             obj.Fri_employees = 0;
-                            obj.Week_total = 0;
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
                         }
                         else
                         {
@@ -431,12 +454,14 @@ namespace JianHeMES.Controllers
                             obj.Thurs_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Fri_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
                             obj.Fri_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Week_total = recordlist.Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = recordlist.Sum(c =>c.Today_on_board_workers);
                         }
                         break;
                     case "Sunday":
                         monday = dateV.AddDays(-6);
-                        recordlist = db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
+                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
                         if (recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
@@ -449,7 +474,8 @@ namespace JianHeMES.Controllers
                             obj.Thurs_employees = 0;
                             obj.Fri_workers = 0;
                             obj.Fri_employees = 0;
-                            obj.Week_total = 0;
+                            obj.Week_total_employees = 0;
+                            obj.Week_total_workers = 0;
                         }
                         else
                         {
@@ -463,7 +489,9 @@ namespace JianHeMES.Controllers
                             obj.Thurs_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Fri_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
                             obj.Fri_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Week_total = recordlist.Sum(c => c.Today_on_board_employees + c.Today_on_board_workers);
+                            //本周入职、离职正式工和劳务工人数
+                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = recordlist.Sum(c =>c.Today_on_board_workers);
                         }
                         break;
                 }
@@ -843,6 +871,88 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+
+        #region --------------------上传文件(Excel)方法
+        [HttpPost]
+        public ActionResult UploadFile(string department,DateTime dateTime)
+        {
+            if (Request.Files.Count > 0)
+            {
+                //HttpPostedFileBase file = Request.Files[0];    //方法1
+                HttpPostedFileBase file = Request.Files["uploadfile"];   //方法2
+                var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
+                var re = String.Equals(fileType, ".xls") == true||String.Equals(fileType, ".xlsx") == true ? false:true;
+                if(re)
+                {
+                    return Content("<script>alert('您选择文件的文件类型不正确，请选择xls或xlsx类型文件！');history.go(-1);</script>");
+                }
+                string ReName = dateTime.Year + "-" + dateTime.Month.ToString("00") + "-" + dateTime.Day.ToString("00") + department + "人员动态";  //重命名文件
+                if (Directory.Exists(@"D:\MES_Data\Personnel_Files\人员动态表\" + dateTime.Year + "\\" + department + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Personnel_Files\人员动态表\" + dateTime.Year + "\\" + department + "\\");
+                }
+                //List<FileInfo> fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\Personnel_Files\人员动态表\"  + dateTime.Year + "\\" + department + "\\");
+                file.SaveAs(@"D:\MES_Data\Personnel_Files\人员动态表\" + dateTime.Year + "\\" + department + "\\" + ReName + fileType);
+                return Content("<script>alert('上传成功！');window.location.href='../Personnel/Daily';</script>");
+            }
+            return Content("<script>alert('请选择文件');history.go(-1);</script>");
+        }
+
+        #region --------------------返回指定目录下所有文件信息
+        /// <summary>  
+        /// 返回指定目录下所有文件信息  
+        /// </summary>  
+        /// <param name="strDirectory">目录字符串</param>  
+        /// <returns></returns>  
+        public List<FileInfo> GetAllFilesInDirectory(string strDirectory)
+        {
+            List<FileInfo> listFiles = new List<FileInfo>(); //保存所有的文件信息  
+            DirectoryInfo directory = new DirectoryInfo(strDirectory);
+            DirectoryInfo[] directoryArray = directory.GetDirectories();
+            FileInfo[] fileInfoArray = directory.GetFiles();
+            if (fileInfoArray.Length > 0) listFiles.AddRange(fileInfoArray);
+            foreach (DirectoryInfo _directoryInfo in directoryArray)
+            {
+                DirectoryInfo directoryA = new DirectoryInfo(_directoryInfo.FullName);
+                DirectoryInfo[] directoryArrayA = directoryA.GetDirectories();
+                FileInfo[] fileInfoArrayA = directoryA.GetFiles();
+                if (fileInfoArrayA.Length > 0) listFiles.AddRange(fileInfoArrayA);
+                GetAllFilesInDirectory(_directoryInfo.FullName);//递归遍历  
+            }
+            return listFiles;
+        }
+        #endregion
+
+        #endregion
+
+
+        #region --------------------下载部门人员动态Excel文件
+        [HttpPost]
+        public ActionResult GetExcelFile(string department,DateTime date)
+        {
+            string file1 = "/Personnel_Files/人员动态表/" + date.Year + "/" + department + "/" + date.Year + "-" + date.Month.ToString("00") + "-" + date.Day.ToString("00") + department + "人员动态.xls";
+            string file2 = "/Personnel_Files/人员动态表/" + date.Year + "/" + department + "/" + date.Year + "-" + date.Month.ToString("00") + "-" + date.Day.ToString("00") + department + "人员动态.xlsx";
+            if (System.IO.File.Exists(Server.MapPath(file2)))
+            {
+                return File(file2,"xlsx/plain", date.Year + "-" + date.Month.ToString("00") + "-" + date.Day.ToString("00") + department + "人员动态.xlsx");
+            }
+            else
+            {
+                if (System.IO.File.Exists(Server.MapPath(file1)))
+                {
+                    return File(file1, "xls/plain", date.Year + "-" + date.Month.ToString("00") + "-" + date.Day.ToString("00") + department + "人员动态.xls");
+                }
+                else //如果文件夹不存在，提示信息
+                {
+                    //return File("", "text/plain");
+                    return Content("文件不存在");
+                }
+            }
+        }
+        #endregion
+
+
+        #region --------------------Details方法
         // GET: Personnel/Details/5
         public async Task<ActionResult> Details(int? id)
         {
@@ -857,6 +967,10 @@ namespace JianHeMES.Controllers
             }
             return View(personnel_daily);
         }
+        #endregion
+
+
+        #region --------------------Create方法
 
         // GET: Personnel/Create
         public ActionResult Create()
@@ -867,7 +981,6 @@ namespace JianHeMES.Controllers
             }
             if (((Users)Session["User"]).Role == "文员" || ((Users)Session["User"]).Role == "系统管理员")
             {
-
                 return View();
             }
             else
@@ -904,6 +1017,10 @@ namespace JianHeMES.Controllers
             }
             return View(personnel_daily);
         }
+        #endregion
+
+
+        #region --------------------Edit 方法
 
         // GET: Personnel/Edit/5
         public async Task<ActionResult> Edit(int? id)
@@ -948,6 +1065,10 @@ namespace JianHeMES.Controllers
             }
             return View(personnel_daily);
         }
+        #endregion
+
+
+        #region --------------------Delete 方法
 
         // GET: Personnel/Delete/5
         public async Task<ActionResult> Delete(int? id)
@@ -983,6 +1104,7 @@ namespace JianHeMES.Controllers
             }
             base.Dispose(disposing);
         }
+        #endregion
 
 
         #region ------------------GetDepartmentList()取出部门列表
@@ -1002,6 +1124,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+
         #region ------------------GetPrincipalList()取出部门列表
         private List<SelectListItem> GetPrincipalList()
         {
@@ -1019,8 +1142,5 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-
     }
-
-
 }

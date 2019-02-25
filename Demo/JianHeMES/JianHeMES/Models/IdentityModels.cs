@@ -30,6 +30,7 @@ namespace JianHeMES.Models
         public DbSet<PQCCheckabnormal> PQCCheckabnormal { get; set; }
         public DbSet<BarCodes> BarCodes { get; set; }
         public DbSet<OrderMgm> OrderMgm { get; set; }
+        public DbSet<OrderMgm_Delete> OrderMgm_Delete{ get; set; }
         public DbSet<Users> Users { get; set; }
         public DbSet<OrderInformation> OrderInformation { get; set; }
         public DbSet<CalibrationRecord> CalibrationRecord { get; set; }

@@ -21,7 +21,7 @@ namespace JianHeMES.Controllers
         ApplicationDbContext db = new ApplicationDbContext();
 
 
-        #region------------------管理界面
+        #region------------------SMT管理界面(产线管理，产线生产计划)
         // GET: SMT管理主页
 
         public ActionResult SMT_Mangage()
@@ -147,8 +147,8 @@ namespace JianHeMES.Controllers
             //System.Threading.Thread.Sleep(2000);
             ViewBag.FinishStatus = FinishStatusList();
             return PartialView(QueryResult);
-
         }
+
         public ActionResult SMT_OrderInfoCreate()
         {
             if (Session["User"] == null)
@@ -161,7 +161,6 @@ namespace JianHeMES.Controllers
             }
             return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_OrderMangage';</script>");
         }
-
 
         [HttpPost]
         public ActionResult SMT_OrderInfoCheck(string records)
@@ -211,7 +210,6 @@ namespace JianHeMES.Controllers
             return View(records);
         }
 
-
         public async Task<ActionResult> SMT_OrderInfoEdit(int? id)
         {
             if (Session["User"] == null)
@@ -251,11 +249,49 @@ namespace JianHeMES.Controllers
 
 
         #region---------------------产线计划管理
-
+        [HttpGet]
         public ActionResult SMT_ProductionPlan()
         {
-            var records = db.SMT_ProductionPlan.OrderBy(c=>c.LineNum).Where(c=>DbFunctions.DiffDays(c.CreateDate,DateTime.Now)<=0).ToList();
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.LineNumList = GetLineNumList();
+            ViewBag.JobContentList = GetJobContentList();
+            var records = db.SMT_ProductionPlan.OrderBy(c=>c.LineNum).Where(c=>DbFunctions.DiffDays(c.PlanProductionDate, DateTime.Now)<=0).ToList();
             return View(records);
+        }
+
+        [HttpPost]
+        public ActionResult SMT_ProductionPlan(string orderNum,int? lineNum,string jobContent, DateTime? planProductionDate, string remark)
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.LineNumList = GetLineNumList();
+            ViewBag.JobContentList = GetJobContentList();
+            List<SMT_ProductionPlan> recordlist = new List<SMT_ProductionPlan>();
+            if (String.IsNullOrEmpty(orderNum) && lineNum == null && String.IsNullOrEmpty(jobContent) && planProductionDate == null && String.IsNullOrEmpty(remark))
+            {
+                return View(recordlist);
+            }
+            recordlist = db.SMT_ProductionPlan.ToList();
+            if (!String.IsNullOrEmpty(orderNum))
+            {
+                recordlist = recordlist.Where(c => c.OrderNum == orderNum).ToList();
+            }
+            if (lineNum != null )
+            {
+                recordlist = recordlist.Where(c => c.LineNum == lineNum).ToList();
+            }
+            if(!String.IsNullOrEmpty(jobContent))
+            {
+                recordlist = recordlist.Where(c => c.JobContent == jobContent).ToList();
+            }
+            if(planProductionDate!=null)
+            {
+                recordlist = recordlist.Where(c => c.PlanProductionDate.Value.Year == planProductionDate.Value.Year && c.PlanProductionDate.Value.Month == planProductionDate.Value.Month && c.PlanProductionDate.Value.Day == planProductionDate.Value.Day).ToList();
+            }
+            if (!String.IsNullOrEmpty(remark))
+            {
+                recordlist = recordlist.Where(c => c.Remark.Contains(remark)).ToList();
+            }
+            return View(recordlist);
         }
 
         public ActionResult SMT_ProductionPlanCreate()
@@ -283,14 +319,21 @@ namespace JianHeMES.Controllers
             {
                 foreach (var item in orders)
                 {
-                    var IsExistOrder = db.SMT_ProductionPlan.Where(c => c.OrderNum == item.OrderNum && c.LineNum==item.LineNum && DbFunctions.DiffDays(c.CreateDate,DateTime.Now )==0).Count();
+                    var IsExistOrder = db.SMT_ProductionPlan.Where(c => c.OrderNum == item.OrderNum && c.LineNum==item.LineNum && c.JobContent==item.JobContent && DbFunctions.DiffDays(item.PlanProductionDate,c.PlanProductionDate)>=0).Count();
                     if (IsExistOrder > 0)
                     {
-                        SMT_OrderInfoCheck_result.Add(item.OrderNum, "此产线已存在该订单计划");
+                        SMT_OrderInfoCheck_result.Add(item.LineNum+"_"+item.OrderNum+"_"+item.JobContent, "此产线已存在该订单计划");
                     }
                     else
                     {
-                        SMT_OrderInfoCheck_result.Add(item.OrderNum, "此产线可以做订单计划");
+                        if (db.OrderMgm.Count(c=>c.OrderNum==item.OrderNum) > 0)
+                        {
+                            SMT_OrderInfoCheck_result.Add(item.LineNum + "_" + item.OrderNum + "_" + item.JobContent, "此产线可以做订单计划");
+                        }
+                        else
+                        {
+                            SMT_OrderInfoCheck_result.Add(item.LineNum + "_" + item.OrderNum + "_" + item.JobContent, "此订单号不存在");
+                        }
                     }
                 }
                 return Json(SMT_OrderInfoCheck_result.ToString(), JsonRequestBehavior.AllowGet);
@@ -314,11 +357,6 @@ namespace JianHeMES.Controllers
                         db.SaveChanges();
                     }
                 }
-                //if (ModelState.IsValid)
-                //{
-                //    db.SMT_ProductionPlan.AddRange(orders);
-                //    db.SaveChanges();
-                //}
                 return RedirectToAction("SMT_ProductionPlan");
             }
             return View(records);
@@ -330,7 +368,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 if (id == null)
                 {
@@ -344,11 +382,11 @@ namespace JianHeMES.Controllers
                 ViewBag.Status = ProductionLineStatus();
                 return View(record);
             }
-            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_Mangage';</script>");
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系系统管理员！');window.location.href='../SMT_Mangage';</script>");
         }
 
         [HttpPost]
-        public async Task<ActionResult> SMT_ProductionPlanEdit([Bind(Include = "Id,LineNum,OrderNum,CreateDate,Quantity,PlatformType,Customer")]SMT_ProductionPlan record)
+        public async Task<ActionResult> SMT_ProductionPlanEdit([Bind(Include = "Id,LineNum,OrderNum,Capacity,Quantity,JobContent,CreateDate,PlanProductionDate,Creator,Remark")]SMT_ProductionPlan record)
         {
             if (ModelState.IsValid)
             {
@@ -358,7 +396,6 @@ namespace JianHeMES.Controllers
             }
             return View(record);
         }
-
         #endregion
 
 
@@ -508,220 +545,14 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region------------------生产信息
+        #region------------------SMT生产信息（总看板、产线看板、查找历史记录）
 
-        public ActionResult SMT_ProductionInfo_old()
+        // GET: SMT总览表
+        public ActionResult SMT_ProductionInfo()
         {
             return View();
         }
 
-
-            // GET: SMT总览表
-            public ActionResult SMT_ProductionInfo()
-        {
-            //SMT生产数据
-            JObject LineData = new JObject();
-            //SMT生产线号
-            var LineNumList = db.SMT_ProductionLineInfo.OrderBy(d => d.LineNum).Select(c => c.LineNum).Distinct().ToList();
-            JObject LineOrderDetails = new JObject();
-            //今天全部计划生产的订单清单
-            var PlanProductionOrderNumList = db.SMT_ProductionPlan.Where(c => c.CreateDate.Value.Year == DateTime.Now.Year && c.CreateDate.Value.Month == DateTime.Now.Month && c.CreateDate.Value.Day == DateTime.Now.Day).ToList();
-            //今天全部生产记录清单
-            var TodayProductionData = db.SMT_ProductionData.Where(c => c.ProductionDate.Value.Year == DateTime.Now.Year && c.ProductionDate.Value.Month == DateTime.Now.Month && c.ProductionDate.Value.Day == DateTime.Now.Day).ToList();
-            //foreach每条生产线
-            foreach (var linenum in LineNumList)
-            {
-                //取出今天本生产线的计划订单清单
-                List<string> planOrderNumList = PlanProductionOrderNumList.Where(c => c.LineNum == linenum).Select(c => c.OrderNum).ToList();
-                //foreach本生产线的每个计划订单号
-                foreach (var planorder in planOrderNumList)
-                {
-                    //今天良品
-                    int todayNormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault()==null?0: TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().NormalCount;
-                    //今天不良品
-                    int todayAbnormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().AbnormalCount;
-                    //订单总良品
-                    int orderNormalcount = 0;
-                    if(db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count()>0)
-                    {
-                        orderNormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.NormalCount);
-                    }
-                    //订单总不良品
-                    int orderAbnormalcount = 0;
-                    if(db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count()>0)
-                    {
-                        orderAbnormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.AbnormalCount);
-                    }
-                    //订单日计划
-                    int todayPlanQuantity = PlanProductionOrderNumList.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
-                    //订单数量
-                    int orderQuantity = db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
-                    //产线信息
-                    var lineInfo = db.SMT_ProductionLineInfo.Where(c => c.LineNum == linenum).FirstOrDefault();
-
-                    //建一个List装一行信息
-                    List<string> detailInfor_planorder = new List<string>();
-                    //往List填写“平台”信息
-                    detailInfor_planorder.Add(db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? "" : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().PlatformType);
-                    //往List填写“订单数量”信息
-                    detailInfor_planorder.Add(orderQuantity==0?"": orderQuantity.ToString());
-                    //往List填写“日计划数量”信息
-                    detailInfor_planorder.Add(todayPlanQuantity.ToString());
-                    //往List填写“日生产完成数量”信息
-                    detailInfor_planorder.Add((todayNormalcount + todayAbnormalcount).ToString());
-                    //往List填写“日生产完成率”信息
-                    detailInfor_planorder.Add(((todayNormalcount + todayAbnormalcount) * 100 / todayPlanQuantity).ToString("F2")+"%");
-                    //往List填写“不良品”信息
-                    detailInfor_planorder.Add(todayAbnormalcount.ToString());
-                    //往List填写“良品”信息
-                    detailInfor_planorder.Add(todayNormalcount.ToString());
-                    //往List填写“不良率”信息
-                    detailInfor_planorder.Add(todayAbnormalcount + todayNormalcount == 0?"0.00%": (todayAbnormalcount * 100 / (todayAbnormalcount + todayNormalcount)).ToString("F2") + "%");
-                    //往List填写“总良品”信息
-                    detailInfor_planorder.Add(orderNormalcount.ToString());
-                    //往List填写“总不良品”信息
-                    detailInfor_planorder.Add(orderAbnormalcount.ToString());
-                    //往List填写“总不良品率”信息
-                    detailInfor_planorder.Add(orderNormalcount + orderAbnormalcount == 0?"0.00%": (orderAbnormalcount * 100 / (orderNormalcount + orderAbnormalcount)).ToString("F2") + "%");
-                    //往List填写“累计数量”信息
-                    detailInfor_planorder.Add((orderNormalcount + orderAbnormalcount).ToString());
-                    //往List填写“订单完成率”信息
-                    detailInfor_planorder.Add(orderQuantity==0? "0.00%": ((orderNormalcount + orderAbnormalcount) * 100 / orderQuantity).ToString("F2") + "%");
-                    //往List填写“班组”信息
-                    detailInfor_planorder.Add(lineInfo.Team);
-                    //往List填写“组长”信息
-                    detailInfor_planorder.Add(lineInfo.GroupLeader);
-                    //往List填写“状态”信息
-
-                    if (TodayProductionData.Where(c => c.OrderNum == planorder).Count()>0)
-                    {
-                        var subtime = DateTime.Now.Subtract(Convert.ToDateTime(TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().ProductionDate));
-                        if (subtime.TotalMinutes>5)
-                        {
-                            detailInfor_planorder.Add("待生产");
-                        }
-                        else
-                        {
-                            detailInfor_planorder.Add("生产中");
-                        }
-                    }
-                    else
-                    {
-                        detailInfor_planorder.Add("待生产");
-                    }
-                    LineOrderDetails.Add(planorder, JsonConvert.SerializeObject(detailInfor_planorder));
-                }
-                LineData.Add(linenum.ToString(), JsonConvert.SerializeObject(LineOrderDetails));
-                LineOrderDetails = new JObject();
-            }
-            ViewBag.json = LineData;
-            return View();
-        }
-
-
-        [HttpPost]
-        public ActionResult SMT_ProductionInfo(string getdata)
-        {
-            //SMT生产数据
-            JObject LineData = new JObject();
-            //SMT生产线号
-            var LineNumList = db.SMT_ProductionLineInfo.OrderBy(d => d.LineNum).Select(c => c.LineNum).Distinct().ToList();
-            JObject LineOrderDetails = new JObject();
-            //今天全部计划生产的订单清单
-            var PlanProductionOrderNumList = db.SMT_ProductionPlan.Where(c => c.CreateDate.Value.Year == DateTime.Now.Year && c.CreateDate.Value.Month == DateTime.Now.Month && c.CreateDate.Value.Day == DateTime.Now.Day).ToList();
-            //今天全部生产记录清单
-            var TodayProductionData = db.SMT_ProductionData.Where(c => c.ProductionDate.Value.Year == DateTime.Now.Year && c.ProductionDate.Value.Month == DateTime.Now.Month && c.ProductionDate.Value.Day == DateTime.Now.Day).ToList();
-            //foreach每条生产线
-            foreach (var linenum in LineNumList)
-            {
-                //取出今天本生产线的计划订单清单
-                List<string> planOrderNumList = PlanProductionOrderNumList.Where(c => c.LineNum == linenum).Select(c => c.OrderNum).ToList();
-                //foreach本生产线的每个计划订单号
-                foreach (var planorder in planOrderNumList)
-                {
-                    //今天良品
-                    int todayNormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().NormalCount;
-                    //今天不良品
-                    int todayAbnormalcount = TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().AbnormalCount;
-                    //订单总良品
-                    int orderNormalcount = 0;
-                    if (db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count() > 0)
-                    {
-                        orderNormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.NormalCount);
-                    }
-                    //订单总不良品
-                    int orderAbnormalcount = 0;
-                    if (db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Count() > 0)
-                    {
-                        orderAbnormalcount = db.SMT_ProductionData.Where(c => c.OrderNum == planorder).Sum(c => c.AbnormalCount);
-                    }
-                    //订单日计划
-                    int todayPlanQuantity = PlanProductionOrderNumList.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
-                    //订单数量
-                    int orderQuantity = db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? 0 : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().Quantity;
-                    //产线信息
-                    var lineInfo = db.SMT_ProductionLineInfo.Where(c => c.LineNum == linenum).FirstOrDefault();
-
-                    //建一个List装一行信息
-                    List<string> detailInfor_planorder = new List<string>();
-                    //往List填写“平台”信息
-                    detailInfor_planorder.Add(db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault() == null ? "" : db.SMT_OrderInfo.Where(c => c.OrderNum == planorder).FirstOrDefault().PlatformType);
-                    //往List填写“订单数量”信息
-                    detailInfor_planorder.Add(orderQuantity == 0 ? "" : orderQuantity.ToString());
-                    //往List填写“日计划数量”信息
-                    detailInfor_planorder.Add(todayPlanQuantity.ToString());
-                    //往List填写“日生产完成数量”信息
-                    detailInfor_planorder.Add((todayNormalcount + todayAbnormalcount).ToString());
-                    //往List填写“日生产完成率”信息
-                    detailInfor_planorder.Add(((todayNormalcount + todayAbnormalcount) * 100 / todayPlanQuantity).ToString("F2") + "%");
-                    //往List填写“不良品”信息
-                    detailInfor_planorder.Add(todayAbnormalcount.ToString());
-                    //往List填写“良品”信息
-                    detailInfor_planorder.Add(todayNormalcount.ToString());
-                    //往List填写“不良率”信息
-                    detailInfor_planorder.Add(todayAbnormalcount + todayNormalcount == 0 ? "0.00%" : (todayAbnormalcount * 100 / (todayAbnormalcount + todayNormalcount)).ToString("F2") + "%");
-                    //往List填写“总良品”信息
-                    detailInfor_planorder.Add(orderNormalcount.ToString());
-                    //往List填写“总不良品”信息
-                    detailInfor_planorder.Add(orderAbnormalcount.ToString());
-                    //往List填写“总不良品率”信息
-                    detailInfor_planorder.Add(orderNormalcount + orderAbnormalcount == 0 ? "0.00%" : (orderAbnormalcount * 100 / (orderNormalcount + orderAbnormalcount)).ToString("F2") + "%");
-                    //往List填写“累计数量”信息
-                    detailInfor_planorder.Add((orderNormalcount + orderAbnormalcount).ToString());
-                    //往List填写“订单完成率”信息
-                    detailInfor_planorder.Add(orderQuantity == 0 ? "0.00%" : ((orderNormalcount + orderAbnormalcount) * 100 / orderQuantity).ToString("F2") + "%");
-                    //往List填写“班组”信息
-                    detailInfor_planorder.Add(lineInfo.Team);
-                    //往List填写“组长”信息
-                    detailInfor_planorder.Add(lineInfo.GroupLeader);
-                    //往List填写“状态”信息
-
-                    if (TodayProductionData.Where(c => c.OrderNum == planorder).Count() > 0)
-                    {
-                        var subtime = DateTime.Now.Subtract(Convert.ToDateTime(TodayProductionData.Where(c => c.OrderNum == planorder).FirstOrDefault().ProductionDate));
-                        if (subtime.TotalMinutes > 5)
-                        {
-                            detailInfor_planorder.Add("待生产");
-                        }
-                        else
-                        {
-                            detailInfor_planorder.Add("生产中");
-                        }
-                    }
-                    else
-                    {
-                        detailInfor_planorder.Add("待生产");
-                    }
-                    LineOrderDetails.Add(planorder, JsonConvert.SerializeObject(detailInfor_planorder));
-                }
-                LineData.Add(linenum.ToString(), JsonConvert.SerializeObject(LineOrderDetails));
-                LineOrderDetails = new JObject();
-            }
-            return Content(JsonConvert.SerializeObject(LineData));
-        }
-
-        //产线看板页面
-        //[HttpPost]
         public ActionResult SMT_ProductionLineInfo(int LineNum)
         {
             //内容:痴线号，时间，班组，组长，正在生产的订单，良品数量，不良品数量，不良率，产线累计个数，订单完成率，今天计划订单，产线状态
@@ -729,21 +560,66 @@ namespace JianHeMES.Controllers
             return View();
         }
 
+        #region----------SMT生产信息查找历史记录
+        public ActionResult SMT_ProductionData()
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.LineNumList = GetLineNumList();
+            ViewBag.JobContentList = GetJobContentList();
+            var records = db.SMT_ProductionData.OrderBy(c => c.LineNum).Where(c => DbFunctions.DiffDays(c.ProductionDate, DateTime.Now) <= 0).ToList();
+            return View(records);
+        }
+
+        [HttpPost]
+        public ActionResult SMT_ProductionData(string orderNum, int? lineNum, string jobContent, DateTime? ProductionDate)
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            ViewBag.LineNumList = GetLineNumList();
+            ViewBag.JobContentList = GetJobContentList();
+            List<SMT_ProductionData> recordlist = new List<SMT_ProductionData>();
+            if (String.IsNullOrEmpty(orderNum) && lineNum == null && String.IsNullOrEmpty(jobContent) && ProductionDate == null)
+            {
+                return View(recordlist);
+            }
+            recordlist = db.SMT_ProductionData.ToList();
+            if (!String.IsNullOrEmpty(orderNum))
+            {
+                recordlist = recordlist.Where(c => c.OrderNum == orderNum).ToList();
+            }
+            if (lineNum != null)
+            {
+                recordlist = recordlist.Where(c => c.LineNum == lineNum).ToList();
+            }
+            if (!String.IsNullOrEmpty(jobContent))
+            {
+                recordlist = recordlist.Where(c => c.JobContent == jobContent).ToList();
+            }
+            if (ProductionDate != null)
+            {
+                recordlist = recordlist.Where(c => c.ProductionDate.Value.Year == ProductionDate.Value.Year && c.ProductionDate.Value.Month == ProductionDate.Value.Month && c.ProductionDate.Value.Day == ProductionDate.Value.Day).ToList();
+            }
+            return View(recordlist);
+        }
         #endregion
 
 
-        #region------------------生产操作(数据)
+        #endregion
+
+
+        #region------------------生产操作(数据录入)
         // GET: SMT产线未段工位输入操作
 
         public ActionResult SMT_Operator()
         {
-            ViewBag.OrderNumList = GetTodayPlanOrderNumList();//向View传递OrderNum订单号列表.
-            //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
+            //ViewBag.OrderNumList = JsonConvert.SerializeObject(GetTodayPlanOrderNumList());//向View传递OrderNum订单号列表.
+            //前端
+            //var list = JSON.parse('@Html.Raw(ViewBag.OrderNumList)');
+            ViewBag.OrderNumList = GetTodayPlanOrderNumList();
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role != "SMT组长" || ((Users)Session["User"]).Role != "系统管理员")
+            if (((Users)Session["User"]).Role != "SMT看板管理员" || ((Users)Session["User"]).Department != "SMT部" && ((Users)Session["User"]).Role != "主管" || ((Users)Session["User"]).Role != "系统管理员")
             {
                 return View();
             }
@@ -754,14 +630,17 @@ namespace JianHeMES.Controllers
         [HttpPost]
         public ActionResult SMT_Operator(List<SMT_ProductionData> SMT_ProductionDataList)
         {
-            ViewBag.OrderNumList = GetTodayPlanOrderNumList();//向View传递OrderNum订单号列表.
+            //ViewBag.OrderNumList = JsonConvert.SerializeObject(GetTodayPlanOrderNumList());//向View传递OrderNum订单号列表.
+            //前端
+            //var list = JSON.parse('@Html.Raw(ViewBag.OrderNumList)');
+            ViewBag.OrderNumList = GetTodayPlanOrderNumList();
             List<SMT_ProductionData> result = new List<SMT_ProductionData>();
             foreach(var item in SMT_ProductionDataList)
             {
-                var count = db.SMT_ProductionPlan.Where(c => c.OrderNum == item.OrderNum && c.LineNum == item.LineNum && c.CreateDate.Value.Year == DateTime.Now.Year && c.CreateDate.Value.Month == DateTime.Now.Month && c.CreateDate.Value.Day == DateTime.Now.Day).Count();
+                var count = db.SMT_ProductionPlan.Where(c => c.OrderNum == item.OrderNum && c.LineNum == item.LineNum && c.JobContent==item.JobContent && DbFunctions.DiffDays(c.PlanProductionDate, DateTime.Now) == 0).Count();
                 if (count == 0)
                 {
-                    return Content("订单"+item.OrderNum + "没有在产线" + item.LineNum + "做生产计划！");
+                    return Content("订单" + item.OrderNum + "在产线" + item.LineNum + "没有做" + item.JobContent + "生产计划！");
                 }
                 else
                 {
@@ -776,83 +655,6 @@ namespace JianHeMES.Controllers
             return Content("保存成功");//跳转到../SMT/SMT_Operator
         }
 
-
-        //[HttpPost]
-        //public ActionResult SMT_Operator(FormCollection fc)
-        //{
-        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-        //    SMT_ProductionData productiondata = new SMT_ProductionData();
-        //    productiondata.OrderNum = fc["OrderNum"];
-        //    productiondata.LineNum = Convert.ToInt32(fc["LineNum"]);
-        //    productiondata.Operator = ((Users)Session["User"]).UserName;
-        //    productiondata.NormalCount = Convert.ToInt32(fc["normalQ"]);
-        //    productiondata.AbnormalCount = Convert.ToInt32(fc["abnormalQ"]);
-        //    productiondata.BeginTime = Convert.ToDateTime(fc["begintime"]);
-        //    productiondata.EndTime = Convert.ToDateTime(fc["endtime"]);
-        //    productiondata.Result = Convert.ToBoolean(fc["result"]);
-        //    productiondata.BarcodeNum = fc["barcodeNum"];
-        //    productiondata.ProductionDate = DateTime.Now;
-        //    if (ModelState.IsValid)
-        //    {
-        //        db.SMT_ProductionData.Add(productiondata);
-        //        db.SaveChanges();
-        //    }
-        //    return Content("<script>alert('保存成功！');window.location.href='../SMT/SMT_Operator';</script>");
-        //}
-
-
-
-
-
-        [HttpPost]
-        public ActionResult SMT_Operator_DataCheck() 
-        {
-            string result = "";
-
-
-            return Content(result);
-        }
-
-
-
-        public ActionResult SMT_Operator1()
-        {
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            //内容：用户名，产线号，正在生产的订单，时间，今天生产的订单及数量（良品、不良品）
-            if (Session["User"] == null)
-            {
-                return RedirectToAction("Login", "Users");
-            }
-            if (((Users)Session["User"]).Role != "SMT操作员" || ((Users)Session["User"]).Role != "系统管理员")
-            {
-                return View();
-            }
-            return Content("对不起，您的不能进入产线操作，请联系SMT看板管理员！");
-        }
-
-        [HttpPost]
-        public ActionResult SMT_Operator1(FormCollection fc)
-        {
-            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
-            SMT_ProductionData productiondata = new SMT_ProductionData();
-            productiondata.OrderNum = fc["OrderNum"];
-            productiondata.LineNum = Convert.ToInt32(fc["LineNum"]);
-            productiondata.Operator = ((Users)Session["User"]).UserName;
-            productiondata.NormalCount = Convert.ToInt32(fc["normalQ"]);
-            productiondata.AbnormalCount = Convert.ToInt32(fc["abnormalQ"]);
-            productiondata.BeginTime = Convert.ToDateTime(fc["begintime"]);
-            productiondata.EndTime = Convert.ToDateTime(fc["endtime"]);
-            productiondata.Result = Convert.ToBoolean(fc["result"]);
-            productiondata.BarcodeNum = fc["barcodeNum"];
-            productiondata.ProductionDate = DateTime.Now;
-            if (ModelState.IsValid)
-            {
-                db.SMT_ProductionData.Add(productiondata);
-                db.SaveChanges();
-            }
-            return Content("<script>alert('保存成功！');window.location.href='../SMT/SMT_Operator';</script>");//history.go(-1);
-
-        }
 
         [HttpPost]
         public ActionResult SMT_Operator_getBeginTime(string ordernum,int linenum)   //history.go(-1);
@@ -872,84 +674,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-
-        #region------------------其他方法
-
-        //// GET: SMT/Details/5
-        //public ActionResult Details(int id)
-        //{
-        //    return View();
-        //}
-
-        //// GET: SMT/Create
-        //public ActionResult Create()
-        //{
-        //    return View();
-        //}
-
-        //// POST: SMT/Create
-        //[HttpPost]
-        //public ActionResult Create(FormCollection collection)
-        //{
-        //    try
-        //    {
-        //        // TODO: Add insert logic here
-
-        //        return RedirectToAction("Index");
-        //    }
-        //    catch
-        //    {
-        //        return View();
-        //    }
-        //}
-
-        //// GET: SMT/Edit/5
-        //public ActionResult Edit(int id)
-        //{
-        //    return View();
-        //}
-
-        //// POST: SMT/Edit/5
-        //[HttpPost]
-        //public ActionResult Edit(int id, FormCollection collection)
-        //{
-        //    try
-        //    {
-        //        // TODO: Add update logic here
-
-        //        return RedirectToAction("Index");
-        //    }
-        //    catch
-        //    {
-        //        return View();
-        //    }
-        //}
-
-        //// GET: SMT/Delete/5
-        //public ActionResult Delete(int id)
-        //{
-        //    return View();
-        //}
-
-        //// POST: SMT/Delete/5
-        //[HttpPost]
-        //public ActionResult Delete(int id, FormCollection collection)
-        //{
-        //    try
-        //    {
-        //        // TODO: Add delete logic here
-
-        //        return RedirectToAction("Index");
-        //    }
-        //    catch
-        //    {
-        //        return View();
-        //    }
-        //}
-
-        #endregion
-
-        #region ---------------------------------------FinishStatus列表
+        #region --------------------FinishStatus列表
         private List<SelectListItem> FinishStatusList()
         {
             return new List<SelectListItem>()
@@ -969,7 +694,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region ---------------------------------------产线状态列表
+        #region --------------------产线状态列表
         private List<SelectListItem> ProductionLineStatus()
         {
             return new List<SelectListItem>()
@@ -993,6 +718,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+
         #region --------------------创建角色列表
         private List<SelectListItem> createRoleList()
         {
@@ -1012,6 +738,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+
         #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
@@ -1029,11 +756,48 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+
+        #region --------------------GetLineNumList()取出SMT的LineNumList订单号列表
+        private List<SelectListItem> GetLineNumList()
+        {
+            var lineNumList = db.SMT_ProductionLineInfo.OrderBy(m => m.LineNum).Select(m => m.LineNum).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            var items = new List<SelectListItem>();
+            foreach (int lineNum in lineNumList)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = lineNum.ToString(),
+                    Value = lineNum.ToString()
+                });
+            }
+            return items;
+        }
+        #endregion
+
+
+        #region --------------------GetJobContentList()取出SMT_ProductionPlan的JobContentList订单号列表
+        private List<SelectListItem> GetJobContentList()
+        {
+            var jobContentList = db.SMT_ProductionPlan.Select(m => m.JobContent).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            var items = new List<SelectListItem>();
+            foreach (string jobContent in jobContentList)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = jobContent,
+                    Value = jobContent
+                });
+            }
+            return items;
+        }
+        #endregion
+        
+
         #region --------------------GetTodayPlanOrderNumList() 取出今天SMT计划的所有OrderNum订单号列表
         private List<SelectListItem> GetTodayPlanOrderNumList()
         {
             var date = DateTime.Now;
-            var orders = db.SMT_ProductionPlan.Where(c=>c.CreateDate.Value.Year==date.Year && c.CreateDate.Value.Month == date.Month && c.CreateDate.Value.Day == date.Day).OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.SMT_ProductionPlan.Where(c=>c.PlanProductionDate.Value.Year==date.Year && c.PlanProductionDate.Value.Month == date.Month && c.PlanProductionDate.Value.Day == date.Day).OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
             var items = new List<SelectListItem>();
             foreach (string order in orders)
             {
@@ -1046,45 +810,6 @@ namespace JianHeMES.Controllers
             return items;
         }
         #endregion
-
-
-
-        ///// <summary>
-        ///// 对象转换成json
-        ///// </summary>
-        ///// <typeparam name="T"></typeparam>
-        ///// <param name="jsonObject">需要格式化的对象</param>
-        ///// <returns>Json字符串</returns>
-        //public static string DataContractJsonSerialize<T>(T jsonObject)
-        //{
-        //    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
-        //    string json = null;
-        //    using (MemoryStream ms = new MemoryStream()) //定义一个stream用来存发序列化之后的内容
-        //    {
-        //        serializer.WriteObject(ms, jsonObject);
-        //        json = Encoding.UTF8.GetString(ms.GetBuffer()); //将stream读取成一个字符串形式的数据，并且返回
-        //        ms.Close();
-        //    }
-        //    return json;
-        //}
-
-        ///// <summary>
-        ///// json字符串转换成对象
-        ///// </summary>
-        ///// <typeparam name="T"></typeparam>
-        ///// <param name="json">要转换成对象的json字符串</param>
-        ///// <returns></returns>
-        //public static T DataContractJsonDeserialize<T>(string json)
-        //{
-        //    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
-        //    T obj = default(T);
-        //    using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(json)))
-        //    {
-        //        obj = (T)serializer.ReadObject(ms);
-        //        ms.Close();
-        //    }
-        //    return obj;
-        //}
 
     }
 }

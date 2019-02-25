@@ -72,6 +72,7 @@ namespace JianHeMES.Controllers
             {
                 resultlist = resultlist.Where(c => c.Remark != null && c.Remark.Contains(Remark)).ToList();
             }
+            resultlist = resultlist.OrderBy(c => c.BarCodesNum).ToList();
             return View(resultlist);
         }
         #endregion

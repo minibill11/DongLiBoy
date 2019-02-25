@@ -363,8 +363,8 @@ namespace JianHeMESEntities.Controllers
             ProductionDetailsJson.Add("CalibrationNewTime", calibration_newtime.ToString());//目前时长
 
             //直通个数
-            var calibration_NotFirstPassYield = calibrationRecord.Where(c => c.Normal == false).Select(c => c.BarCodesNum).Distinct().ToList();
-            var calibration_PassYield = calibrationRecord.Where(c => c.Normal == true).Select(c => c.BarCodesNum).ToList();
+            var calibration_NotFirstPassYield = calibrationRecord.Where(c => c.Normal == false && c.RepetitionCalibration == false).Select(c => c.BarCodesNum).Distinct().ToList();
+            var calibration_PassYield = calibrationRecord.Where(c => c.Normal == true && c.RepetitionCalibration == false).Select(c => c.BarCodesNum).ToList();
             var calibration_FirstPassYield = calibration_PassYield.Except(calibration_NotFirstPassYield).ToList();//直通条码记录
             var calibration_FirstPassYieldCount = calibration_PassYield.Count();//直通个数
             ProductionDetailsJson.Add("CalibrationFirstPassYieldCount", calibration_FirstPassYieldCount.ToString());//直通个数
@@ -387,9 +387,10 @@ namespace JianHeMESEntities.Controllers
             //异常工时
 
             //完成率
-            var calibration_finished = calibrationRecord.Count(m => m.Normal == true);//订单已完成PQC个数
-            var calibration_finishedList = calibrationRecord.Where(m => m.Normal == true).Select(m => m.BarCodesNum).ToList(); //订单已完成PQC的条码清单
-            var calibration_Count = calibrationRecord.Count();//订单PQC全部记录条数
+            //var calibration_finished = calibrationRecord.Count(m => m.Normal == true);//订单已完成PQC个数
+            var calibration_finished = calibrationRecord.Where(c=>c.Normal==true && c.RepetitionCalibration == false).Select(c=>c.BarCodesNum).Distinct().Count();//订单已完成PQC个数
+            var calibration_finishedList = calibrationRecord.Where(m => m.Normal == true && m.RepetitionCalibration == false).Select(m => m.BarCodesNum).ToList(); //订单已完成PQC的条码清单
+            var calibration_Count = calibrationRecord.Where(c=>c.RepetitionCalibration==false).Count();//订单PQC全部记录条数
             if(calibration_Count==0)
             {
                 ProductionDetailsJson.Add("CalibrationFinisthRate", "");
@@ -397,11 +398,11 @@ namespace JianHeMESEntities.Controllers
             }
             else
             {
-                var calibration_finisthRate = (calibration_finished / calibrationRecord.Select(c => c.BarCodesNum).Distinct().Count() * 100).ToString("F2");//完成率：完成数/订单的模组数
-                ProductionDetailsJson.Add("CalibrationFinisthRate", calibration_finisthRate);
+                var calibration_finisthRate = Convert.ToDecimal(calibration_finished) / calibrationRecord.Select(c => c.BarCodesNum).Distinct().Count() * 100;//完成率：完成数/订单的模组数
+                ProductionDetailsJson.Add("CalibrationFinisthRate", calibration_finisthRate.ToString("F2"));
                 //合格率
-                var calibration_PassRate = (calibration_finished / calibration_Count * 100).ToString("F2");//合格率：完成数/记录数
-                ProductionDetailsJson.Add("CalibrationPassRate", calibration_PassRate);
+                var calibration_PassRate = (Convert.ToDecimal(calibration_finished) / calibration_Count )* 100;//合格率：完成数/记录数
+                ProductionDetailsJson.Add("CalibrationPassRate", calibration_PassRate.ToString("F2"));
             }
             #endregion
 
@@ -508,8 +509,6 @@ namespace JianHeMESEntities.Controllers
                 }
             ViewBag.jpgjson = json;
             }
-
-
             return View(orderMgm);
         }
         #endregion
@@ -536,7 +535,7 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,ProcessingRequire,StandardRequire,Capacity,CapacityQ,HandSampleScedule,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,OrderCreateDate,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {
@@ -549,6 +548,8 @@ namespace JianHeMESEntities.Controllers
             }
             //设置条码生成状态为0，表示未生成订单条码
             orderMgm.BarCodeCreated = 0;
+            orderMgm.HandSampleScedule = "未开始";
+            orderMgm.OrderCreateDate = DateTime.Now;
                 if (ModelState.IsValid)
                 {
                     db.OrderMgm.Add(orderMgm);
@@ -589,25 +590,145 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
+        public ActionResult Edit([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,ProcessingRequire,StandardRequire,Capacity,CapacityQ,HandSampleScedule,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,OrderCreateDate,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
         {
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
             }
-
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
                 db.SaveChanges();
-                return RedirectToAction("Index");
+                return RedirectToAction("Details",new { id = orderMgm.ID});
+            }
+            return View(orderMgm);
+        }
+
+        #endregion
+
+        #region --------------------EditForSmallSample修改小样进度页
+
+        public ActionResult EditForSmallSample(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "小样调试员" || ((Users)Session["User"]).Role == "系统管理员" )
+            {
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                OrderMgm orderMgm = db.OrderMgm.Find(id);
+                if (orderMgm == null)
+                {
+                    return HttpNotFound();
+                }
+                ViewBag.HandSampleScedule = SmallSampleScedule();
+                ViewBag.SmallSampleSceduleValue = orderMgm.HandSampleScedule;
+                return View(orderMgm);
+            }
+            else
+            {
+                return Content("<script>alert('对不起，您的不能管理小样进度，请联系技术部经理！');history.go(-1);</script>");
+            }
+            //return RedirectToAction("Index", "OrderMgms");
+        }
+
+        // POST: OrderMgms/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult EditForSmallSample([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,ProcessingRequire,StandardRequire,Capacity,CapacityQ,HandSampleScedule,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,OrderCreateDate,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            ViewBag.HandSampleScedule = SmallSampleScedule();
+            ViewBag.SmallSampleSceduleValue = orderMgm.HandSampleScedule;
+            if (ModelState.IsValid)
+            {
+                db.Entry(orderMgm).State = EntityState.Modified;
+                db.SaveChanges();
+                return RedirectToAction("Details", new { id = orderMgm.ID });
             }
             return View(orderMgm);
         }
         #endregion
 
+        #region --------------------DeleteOrderNum方法
+
+        /// <summary>
+        /// 1.在订单Detail页面增加一个删除按钮，指向删除订单方法
+        /// 2.删除订单方法：检查订单是否有扫码记录，
+        ///   如果没有，可以删除，删除订单的同时，也删除订单对应的条码记录，删除完成后提示“已经删除订单和条码”
+        ///   如果有扫码记录，提示不允许删除
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        // assemble_begintime
+        [HttpPost]
+        public ActionResult DeleteOrderNum(string orderNum)
+        {
+            //取出订单
+            var Record = db.OrderMgm.Where(c=>c.OrderNum==orderNum).FirstOrDefault();
+            if (Record != null)
+            {
+                //计算订单在组装、FQC、老化、校正、包装的记录条数
+                var assembleCount = db.Assemble.Count(c => c.OrderNum == orderNum);
+                var fqcCount = db.FinalQC.Count(c => c.OrderNum == orderNum);
+                var burn_inCount = db.Burn_in.Count(c => c.OrderNum == orderNum);
+                var calibrationCount = db.CalibrationRecord.Count(c => c.OrderNum == orderNum);
+                var appearancesCount = db.Appearance.Count(c => c.OrderNum == orderNum);
+                //如果订单在组装、FQC、老化、校正、包装的记录条数都为0，则删除订单信息和条码信息
+                if (assembleCount==0 && fqcCount==0 && burn_inCount==0 && calibrationCount==0 && appearancesCount == 0)
+                {
+                    //删除订单信息
+                    db.OrderMgm.Remove(Record);
+                    db.SaveChanges();
+                    //取出订单对应的条码
+                    var barCodeList = db.BarCodes.Where(c => c.OrderNum == orderNum).ToList();
+                    if (barCodeList != null)
+                    {
+                        //删除订单的条码信息
+                        foreach(var barCode in barCodeList)
+                        {
+                            db.BarCodes.Remove(barCode);
+                            db.SaveChanges();
+                        }
+                    }
+
+                    OrderMgm_Delete orderMgm_delete = new OrderMgm_Delete();
+                    orderMgm_delete.OrderNum = Record.OrderNum;
+                    orderMgm_delete.DeleteDate = DateTime.Now;
+                    orderMgm_delete.Deleter = ((Users)Session["User"]).UserName;
+
+                    db.OrderMgm_Delete.Add(orderMgm_delete);
+                    db.SaveChanges();
+
+                    return Content("<script>alert('你已删除订单和条码！');window.location.href='../OrderMgms/Index';</script>");
+                }
+                //如果订单在组装、FQC、老化、校正、包装的记录条数其中一个不为0，则返回提示信息
+                else
+                {
+                    return Content("<script>alert('订单号"+ orderNum +  "有生产记录,不能删除此订单！');history.go(-1);</script>");
+                }
+            }
+            else
+            {
+                return Content("<script>alert('订单不存在！');window.location.href='../OrderMgms/Index';</script>");
+            }
+
+        }
+  
+        #endregion
+
         #region --------------------Delete页
-        // GET: OrderMgms/Delete/5
+            // GET: OrderMgms/Delete/5
         public ActionResult Delete(int? id)
         {
             if (Session["User"] == null)
@@ -648,7 +769,6 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-
         #region --------------------转为特采订单
         [HttpPost]
         public ActionResult AODConvert(int? id,string AOD_Description)
@@ -680,7 +800,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region --------------------上传文件(jpg、pdf)方法
+        #region --------------------上传特采文件(jpg、pdf)方法
         [HttpPost]
         public ActionResult UploadFile(int id, string ordernum)
         {
@@ -723,7 +843,33 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region --------------------获取特采订单pdf文件
+        #region --------------------上传小样文件(jpg、pdf)方法
+        [HttpPost]
+        public ActionResult UploadSmallSample(int id, string ordernum)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["uploadfile"];
+                var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
+                var re = String.Equals(fileType, ".jpg") == true || String.Equals(fileType, ".jpeg" )|| String.Equals(fileType, ".pdf") == true ? false : true;
+                if (re)
+                {
+                    return Content("<script>alert('您选择文件的文件类型不正确，请选择jpg、jpeg或pdf类型文件！');history.go(-1);</script>");
+                }
+                string ReName = ordernum + "_SmallSample";
+                if (Directory.Exists(@"D:\MES_Data\SmallSample_Files\" + ordernum + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\SmallSample_Files\" + ordernum + "\\");
+                }
+                file.SaveAs(@"D:\MES_Data\SmallSample_Files\" + ordernum + "\\" + ReName + fileType);
+                return Content("<script>alert('上传成功！');window.location.href='../OrderMgms/Details/" + id + "';</script>");
+            }
+            return Content("<script>alert('上传失败');history.go(-1);</script>");
+        }
+        #endregion
+
+
+        #region --------------------下载特采订单pdf文件
         [HttpPost]
         public ActionResult GetPDF(string ordernum)
         {
@@ -748,7 +894,7 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
-        #region --------------------获取特采订单图片预览
+        #region --------------------下载特采订单图片预览
         [HttpPost]
         public ActionResult GetImg(string ordernum)
         {
@@ -767,6 +913,52 @@ namespace JianHeMESEntities.Controllers
         }
         #endregion
 
+
+        #region --------------------查看小样订单图片预览
+        [HttpPost]
+        public ActionResult GetSmallSampleImg(string ordernum)
+        {
+            List<FileInfo> filesInfo = GetAllFilesInDirectory(@"D:\\MES_Data\\SmallSample_Files\\" + ordernum + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + "_SmallSample") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            foreach (var item in filesInfo)
+            {
+                json.Add(i.ToString(), item.Name);
+                i++;
+            }
+            ViewBag.jpgjson = json;
+            return Content(json.ToString());
+        }
+        #endregion
+
+        #region --------------------查看小样单pdf文档页面
+        public ActionResult preview_SmallSample_pdf(string ordernum)
+        {
+            List<FileInfo> filesInfo = new List<FileInfo>();
+            string directory = "D:\\MES_Data\\SmallSample_Files\\" + ordernum + "\\";
+            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
+            {
+                return Content("<script>alert('此订单的小样单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
+            }
+            filesInfo = GetAllFilesInDirectory(directory);
+            List<string> pdf_address = new List<string>();
+            string address = "";
+            if (filesInfo.Where(c => c.Name == ordernum + "_SmallSample.pdf").Count() > 0)
+            {
+                address = "~/Scripts/pdf.js/web/viewer.html?file=\\SmallSample_Files\\" + ordernum + "\\" + ordernum + "_SmallSample.pdf";
+            }
+            else
+            {
+                return Content("<script>alert('此订单的小样单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
+            }
+            ViewBag.address = address;
+            ViewBag.ordernum = ordernum;
+            return Redirect(address);
+        }
+        #endregion
+
+
         #region --------------------查看特采订单pdf文档页面
         public ActionResult preview_pdf(string ordernum)
         {
@@ -777,7 +969,7 @@ namespace JianHeMESEntities.Controllers
                 return Content("<script>alert('此特采单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
             }
             filesInfo = GetAllFilesInDirectory(directory);
-            List<string> pdf_address = new List<string>();
+            //List<string> pdf_address = new List<string>();
             string address = "";
             if (filesInfo.Where(c => c.Name == ordernum + "_AOD.pdf").Count() > 0)
             {
@@ -815,6 +1007,35 @@ namespace JianHeMESEntities.Controllers
                 GetAllFilesInDirectory(_directoryInfo.FullName);//递归遍历  
             }
             return listFiles;
+        }
+        #endregion
+
+        #region --------------------SmallSampleScedule列表
+        private List<SelectListItem> SmallSampleScedule()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "未开始",
+                    Value = "未开始"
+                },
+                new SelectListItem
+                {
+                    Text = "进行中",
+                    Value = "进行中"
+                },
+                new SelectListItem
+                {
+                    Text = "待产",
+                    Value = "待产"
+                },
+                new SelectListItem
+                {
+                    Text = "完成",
+                    Value = "完成"
+                }
+            };
         }
         #endregion
 

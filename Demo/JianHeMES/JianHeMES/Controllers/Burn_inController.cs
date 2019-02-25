@@ -106,7 +106,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal, string FinishStatus, string searchString, int PageIndex = 0)
+        public ActionResult Index(string OrderNum, string BoxBarCode, string OQCNormal, string FinishStatus, string searchString/*, int PageIndex = 0*/)
         {
             if (Session["User"] == null)
             {
@@ -140,14 +140,14 @@ namespace JianHeMES.Controllers
             var Order_CR_Normal_Count = AllBurn_inRecords.Where(x => x.RepairCondition == "正常").Count();
             var Abnormal_Count = AllBurn_inRecords.Where(x => x.RepairCondition != "正常" && x.RepairCondition != null).Count();
 
-            #region  ---------按条码筛选--------------
+            #region---------按条码筛选--------------
             if (BoxBarCode != "")
             {
                 AllBurn_inRecords = AllBurn_inRecords.Where(x => x.BarCodesNum == BoxBarCode).ToList();
             }
             #endregion
 
-            #region   ---------筛选正常、异常-------------
+            #region---------筛选正常、异常-------------
             //正常、异常记录筛选
             if (OQCNormal == "异常")
             {
@@ -159,7 +159,7 @@ namespace JianHeMES.Controllers
             }
             #endregion
 
-            #region   ---------筛选完成、未完成-------------
+            #region---------筛选完成、未完成-------------
             //完成、未完成记录筛选
             if (FinishStatus == "完成")
             {
@@ -171,7 +171,7 @@ namespace JianHeMES.Controllers
             }
             #endregion
 
-            #region   ---------异常描述条件筛选-------------
+            #region---------异常描述条件筛选-------------
 
             //检查searchString是否为空
             if (!String.IsNullOrEmpty(searchString))
@@ -180,7 +180,7 @@ namespace JianHeMES.Controllers
             }
             #endregion
 
-            #region   ----------筛选从未开始、正在老化调试OQC的条码清单------------
+            #region----------筛选从未开始、正在老化调试OQC的条码清单------------
             //取出订单的全部条码
             List<BarCodes> BarCodesList = (from m in db.BarCodes where m.OrderNum == OrderNum select m).ToList();
             List<string> NotDoOQCList = new List<string>();
@@ -207,8 +207,7 @@ namespace JianHeMES.Controllers
             ViewBag.DoingNowOQCListCount = DoingNowOQCList.Count(); //正在做老化调试OQC的条码清单个数
             #endregion
 
-
-            #region   ----------计算总时长和平均时长------------
+            #region----------计算总时长和平均时长------------
 
             //取出对应orderNum校正时长所有记录
             var recordlist = db.Burn_in.Where(m => m.OrderNum == OrderNum).ToList();
@@ -306,7 +305,7 @@ namespace JianHeMES.Controllers
             #endregion
 
             //列出记录
-            AllBurn_inRecordsList = AllBurn_inRecords.ToList();
+            AllBurn_inRecordsList = AllBurn_inRecords.OrderBy(c=>c.BarCodesNum).ToList();
 
             #region
             //查出完成老化工序后，超过三天还没有进入包装工序的条码记录清单
@@ -336,9 +335,9 @@ namespace JianHeMES.Controllers
             //5.在包装的全部记录中，通过foreach条码清单（list<string>），统计包装中有多少条记录
             //6.如果记录数==0，则进入计算时间差程序，并判定时间是否>3天，如果大于3天，则进入记录超时程序
             //7.输出ViewBag.Overtime给前端
+            #endregion
 
-    #endregion
-
+            #region----------筛选出完成老化，超过72小时未进入包装工序的记录JSON------------
             var BarcodesNumListByOrderNum = AllBurn_inRecords.Select(c => c.BarCodesNum).ToList();//1和2
             JObject BorcodesNumOvertimeList = new JObject();//3
             var AppearanceRecordByOrderNum = db.Appearance.Where(c => c.OrderNum == OrderNum).ToList();//4
@@ -356,6 +355,8 @@ namespace JianHeMES.Controllers
                 }
             }
             ViewBag.Overtime = BorcodesNumOvertimeList;
+            #endregion
+
             //ArrayList re2 = new ArrayList();
             //foreach (var item in BorcodesNumOvertimeList)
             //{
@@ -392,24 +393,23 @@ namespace JianHeMES.Controllers
             ViewBag.FinishStatus = FinishStatusList();
 
             //分页计算功能
-            var recordCount = AllBurn_inRecords.Count();
-            var pageCount = GetPageCount(recordCount);
-            if (PageIndex >= pageCount && pageCount >= 1)
-            {
-                PageIndex = pageCount - 1;
-            }
-            AllBurn_inRecords = AllBurn_inRecords.OrderBy(m => m.BarCodesNum)
-                                .Skip(PageIndex * PAGE_SIZE)
-                                .Take(PAGE_SIZE).ToList();
-            ViewBag.PageIndex = PageIndex;
-            ViewBag.PageCount = pageCount;
+            //var recordCount = AllBurn_inRecords.Count();
+            //var pageCount = GetPageCount(recordCount);
+            //if (PageIndex >= pageCount && pageCount >= 1)
+            //{
+            //    PageIndex = pageCount - 1;
+            //}
+            //AllBurn_inRecords = AllBurn_inRecords.OrderBy(m => m.BarCodesNum)
+            //                    .Skip(PageIndex * PAGE_SIZE)
+            //                    .Take(PAGE_SIZE).ToList();
+            //ViewBag.PageIndex = PageIndex;
+            //ViewBag.PageCount = pageCount;
             ViewBag.OrderNumList = GetOrderNumList();
 
-            return View(AllBurn_inRecords);
+            return View(AllBurn_inRecordsList);
         }
         #endregion
-
-
+        
         #region ---------------------------------------其他页面
         // GET: Burn_in/Details/5
         public async Task<ActionResult> Details(int? id)
@@ -535,7 +535,6 @@ namespace JianHeMES.Controllers
         }
 
         #endregion
-
 
         #region ---------------------------------------单个模组老化开始
 
@@ -788,8 +787,7 @@ namespace JianHeMES.Controllers
         }
 
         #endregion
-
-
+        
         #region ---------------------------------------批量模组老化开始
 
 
@@ -1307,8 +1305,7 @@ namespace JianHeMES.Controllers
         #endregion
 
         #endregion
-
-
+            
         #region    --------------------查询订单已完成、未完成、未开始条码
         [HttpPost]
         public ActionResult Burn_inChecklist(string orderNum)
@@ -1352,8 +1349,7 @@ namespace JianHeMES.Controllers
             return Content(JsonConvert.SerializeObject(stationResult));
         }
         #endregion
-
-
+        
         #region ---------------------------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {

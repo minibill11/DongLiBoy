@@ -21,13 +21,6 @@ namespace JianHeMES
             );
 
             //routes.MapRoute(
-            //    name: "DefaultApi",
-            //    url: "api/{controller}/{action}/{id}",
-            //    defaults: new { id = UrlParameter.Optional },
-            //    namespaces: new string[] { "JianHeMES.Controllers" } //new一个namespaces
-            //);
-
-            //routes.MapRoute(
             //    name: "CalibrationRecord",
             //    url: "{controller}/{action}/{id}",
             //    defaults: new { controller = "CalibrationRecords", action = "Create", id = UrlParameter.Optional },
