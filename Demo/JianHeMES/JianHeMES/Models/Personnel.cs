@@ -94,6 +94,9 @@ namespace JianHeMES.Models
 
     public class Personnel_of_Contrast
     {
+        [Key]
+        public int Id { get; set; }
+
         [Display(Name = "部门")]
         public string Department { get; set; }
 
@@ -143,6 +146,10 @@ namespace JianHeMES.Models
 
     public class Personnel_Turnoverrate
     {
+
+        [Key]
+        public int Id { get; set; }
+
         [Display(Name = "部门")]
         public string Department { get; set; }
 
@@ -177,6 +184,9 @@ namespace JianHeMES.Models
 
     public class Personnel_Recruitment
     {
+        [Key]
+        public int Id { get; set; }
+
         [Display(Name = "部门")]
         public string Department_weekly { get; set; }
 

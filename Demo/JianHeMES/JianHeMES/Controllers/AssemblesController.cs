@@ -1027,14 +1027,14 @@ namespace JianHeMES.Controllers
             var AllBurn_inRecordByOrderNum = db.Burn_in.Where(c => c.OrderNum == orderNum).ToList();//4
             foreach (var item in BarcodesListByOrderNum)
             {
-                int AllBurn_inRecords = AllBurn_inRecordByOrderNum.Count(c => c.BarCodesNum == item);
-                if (AllBurn_inRecords != 0)
+                int AllBurn_in_Records_Count = AllBurn_inRecordByOrderNum.Count(c => c.BarCodesNum == item);
+                if (AllBurn_in_Records_Count == 0)
                 {
-                    var Aassembles_MaxFT = Allassembles.Where(c => c.BoxBarCode == item).FirstOrDefault().PQCCheckFT;
-                    var SubTime = DateTime.Now - Aassembles_MaxFT;
-                    if (Aassembles_MaxFT != null && SubTime.Value.TotalMinutes > 1440) //1天：1*24*60
+                    var Aassembles_FT = Allassembles.Where(c => c.BoxBarCode == item && c.PQCCheckFinish==true).FirstOrDefault().PQCCheckFT;
+                    var SubTime = DateTime.Now - Aassembles_FT;
+                    if (Aassembles_FT != null && SubTime.Value.TotalMinutes > 1440) //1天：1*24*60
                     {
-                        BorcodesOvertimeList.Add(item, "此模组在" + Aassembles_MaxFT.ToString() + "完成组装,已经超过" + SubTime.Value.Days + "天" + SubTime.Value.Hours + "小时" + SubTime.Value.Minutes + "分未进入老化工序！");
+                        BorcodesOvertimeList.Add(item, "此模组在" + Aassembles_FT.ToString() + "完成组装,已经超过" + SubTime.Value.Days + "天" + SubTime.Value.Hours + "小时" + SubTime.Value.Minutes + "分未进入老化工序！");
                     }
                 }
             }

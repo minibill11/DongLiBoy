@@ -922,13 +922,20 @@ namespace JianHeMESEntities.Controllers
             filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + "_SmallSample") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
             JObject json = new JObject();
             int i = 1;
-            foreach (var item in filesInfo)
+            if (filesInfo.Count() > 0)
             {
-                json.Add(i.ToString(), item.Name);
-                i++;
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
             }
-            ViewBag.jpgjson = json;
-            return Content(json.ToString());
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
         }
         #endregion
 
@@ -939,7 +946,7 @@ namespace JianHeMESEntities.Controllers
             string directory = "D:\\MES_Data\\SmallSample_Files\\" + ordernum + "\\";
             if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
             {
-                return Content("<script>alert('此订单的小样单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
+                return Content("pdf文档未上传或不存在！");
             }
             filesInfo = GetAllFilesInDirectory(directory);
             List<string> pdf_address = new List<string>();
@@ -950,7 +957,7 @@ namespace JianHeMESEntities.Controllers
             }
             else
             {
-                return Content("<script>alert('此订单的小样单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
+                return Content("pdf文档未上传或不存在！");
             }
             ViewBag.address = address;
             ViewBag.ordernum = ordernum;

@@ -52,10 +52,14 @@ namespace JianHeMES.Models
         public DbSet<SMT_ProductionData> SMT_ProductionData { get; set; }
 
         public DbSet<SMT_OrderInfo> SMT_OrderInfo { get; set; }
+        public DbSet<FinalQC> FinalQC { get;set; }
 
         public DbSet<Personnel_daily> Personnel_daily { get; set; }
 
-        public DbSet<FinalQC> FinalQC { get;set; }
+        public DbSet<Personnel_of_Contrast> Personnel_of_Contrast { get; set; }
+        public DbSet<Personnel_Turnoverrate> Personnel_Turnoverrate { get; set; }
+        public DbSet<Personnel_Recruitment> Personnel_Recruitment { get; set; }
+
 
 
         public object BarCode { get; internal set; }

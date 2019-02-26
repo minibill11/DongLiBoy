@@ -24,39 +24,33 @@
         padding: 10px;
     }
 
-    .btnSty {
-        width: 50px;
-        height: 40px;
-        position: absolute;
-        padding: 0;
-    }
-
     .showBtn {
         position: relative;
+        color: #14830d;
+        cursor: pointer;
     }
-
-        .showBtn:hover .showDiv {
-            visibility: visible;
-        }
 
     .showDiv {
         position: absolute;
-        width: 100px;
-        height: 40px;
-        top: -20px;
-        left: -50%;
+        width: 88px;
+        height: 100%;
+        top: 0px;
+        left: -22px;
         visibility: hidden;
-        animation: showani 2s;
+        opacity: 0;
+        transition: opacity 1s;
     }
 
-    @@keyframes showani {
-        0% {
-            opacity: 0;
-        }
+    .btnSty {
+        position: absolute;
+        width: 44px;
+        height: 100%;
+        padding: 0;
+    }
 
-        100% {
-            opacity: 1;
-        }
+    .showBtn:hover .showDiv {
+        visibility: visible;
+        opacity: 1;
     }
 </style>
 <h2 class="text-center">SMT生产信息</h2>
@@ -67,7 +61,7 @@
         <table class="table table-bordered">
             <tr>
                 <th colspan="8">PC</th>
-                <th rowspan="2">小样进度</th>
+                <th rowspan="2" style="width:44px">小样<br />进度</th>
                 <th rowspan="2">线别</th>
                 <th colspan="4">今天产量</th>
                 <th colspan="2">订单在对应线别</th>
@@ -110,11 +104,11 @@
                         <td>{{v[0].Capacity}}</td>
                         <td v-bind:rowspan="val.length"
                             v-bind:class="(v[0].HandSampleScedule=='未开始')?'':'showBtn'"
-                            v-bind:style="(v[0].HandSampleScedule=='未开始')?'':'color:#14830d;cursor:pointer;position:relative'">
+                            v-on:click="(v[0].HandSampleScedule=='未开始')?'':clickBtn($event)">
                             {{v[0].HandSampleScedule}}
                             <div v-if="(v[0].HandSampleScedule!='未开始')" class="showDiv">
-                                <button v-on:click="imgModal(v[0].OrderNum)" class="btn btn-info btnSty" style="left: 0px;">IMG</button>
-                                <button v-on:click="pdfModal(v[0].OrderNum)" class="btn btn-warning btnSty" style="right: 0px;">PDF</button>
+                                <button v-on:click.stop="imgModal(v[0].OrderNum)" class="btn btn-info btnSty" style="right: 44px;">IMG</button>
+                                <button v-on:click.stop="pdfModal(v[0].OrderNum)" class="btn btn-warning btnSty" style="left: 44px;">PDF</button>
                             </div>
                         </td>
                         <td>{{v[0].LineNum}}</td>
@@ -179,18 +173,28 @@
 <div id="setPdf"></div>
 <div id="setForm"></div>
 <script>
+    var isHoverNum = "true";
     var app = new Vue({
         el: "#app",
         data: {
             smtLineData: [],
             smtLineData_new: [],
-            nowtime: "",
+            nowtime: ""
         },
         created: function () {
             //this.$options.methods.smtProductionInfo();
             setInterval(function () {
                 app.nowtime = new Date().Format("yyyy-MM-dd hh:mm:ss");
             }, 1000);
+        },
+        mounted: function () {
+            if (isMobile()) {
+                $(document).mousedown(function (e) {
+                    if ($(e.target).parent(".showDiv").length == 0) {
+                        cancelHover();
+                    };
+                });
+            };
         },
         methods: {
             orderDetail: function (val, station) {
@@ -201,6 +205,9 @@
                 $("#setForm").append(newForm);
                 newForm.submit();
                 newForm.remove();
+            },
+            clickBtn: function (event) {
+                $(event.target).children(".showDiv").css({ "visibility": "visible", "opacity": "1" })
             },
             imgModal: function (OrderNumVal) {
                 $("#imgModalc").remove();
@@ -221,7 +228,7 @@
                     error: function (err) {
                         alert("小样订单图片尝未上传！", err);
                     }
-                })
+                });
                 //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
             },
             pdfModal: function (OrderNumVal) {
@@ -235,17 +242,35 @@
                         ordernum: OrderNumVal,
                     },
                     success: function (address) {
-                        $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\SmallSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_SmallSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
-                        document.getElementById("temporary").click();
-                        $("#temporary").remove();
-                        $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
-                        $("#showModal").click();
+                        if (address == "pdf文档未上传或不存在！") {
+                            alert(address)
+                        } else {
+                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\SmallSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_SmallSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            document.getElementById("temporary").click();
+                            $("#temporary").remove();
+                            if (isMobile()) {
+                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            } else {
+                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            }
+                            $("#showModal").click();
+                        };
                     },
                     error: function (err) {
                         alert("查看PDF失败", err);
                     }
                 });
             },
+        },
+        updated: function () {
+            this.$nextTick(function () {
+                if (isHoverNum == "true") {
+                    if(isMobile()){
+                        cancelHover();
+                        isHoverNum = "false";
+                    };
+                };
+            });
         }
     });
     Date.prototype.Format = function (fmt) {
@@ -264,7 +289,17 @@
             if (new RegExp("(" + k + ")").test(fmt))
                 fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
         return fmt;
-    }
+    };
+
+    function isMobile() {
+        var judge = (navigator.userAgent.match(/(phone|pad|pod|iPhone|iPod|ios|iPad|Android|Mobile|BlackBerry|IEMobile|MQQBrowser|JUC|Fennec|wOSBrowser|BrowserNG|WebOS|Symbian|Windows Phone)/i));
+        return judge;
+    };
+    function cancelHover() {
+        $(".showDiv").each(function () {
+            $(this).css({ "visibility": "hidden", "opacity": "0" })
+        });
+    };
 </script>
 @section scripts {
     <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>

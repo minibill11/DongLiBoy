@@ -28,6 +28,10 @@
     .isempty {
         border: 1px solid red;
     }
+
+    input[type="date"].form-control{
+        line-height:1.42857143;
+    }
 </style>
 
 @using (Html.BeginForm())
@@ -36,7 +40,16 @@
     <div id="app" class="form-horizontal">
         @Html.ValidationSummary(true, "", new { @class = "text-danger" })
         <div class="col-md-4">
-            <h3>@ViewBag.Title</h3><hr />
+            <div class="form-group">
+                <div class="col-md-5">
+                    <h3>@ViewBag.Title</h3>
+                </div>
+                <div class="col-md-7" style="padding-top:10px;color:green;">
+                    <span>Excel内容粘贴在此处</span>
+                    <textarea v-model="pasteExcel" class="form-control" style="width:130px;height:35px;resize: none;"></textarea>
+                </div>
+            </div>
+            <hr />
             <div class="form-group">
                 @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
@@ -112,13 +125,15 @@
                 @Html.LabelFor(model => model.ProcessingRequire, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
                     @*@Html.EditorFor(model => model.ProcessingRequire, new { htmlAttributes = new { @class = "form-control" } })*@
-                    <select class="form-control" name="ProcessingRequire">
-                        <option value="">请选择</option>
-                        <option value="有铅，灯面">有铅，灯面</option>
-                        <option value="有铅，IC面">有铅，IC面</option>
-                        <option value="无铅，灯面">无铅，灯面</option>
-                        <option value="无铅，IC面">无铅，IC面</option>
-                    </select>
+                    <input type="radio" name="ProcessingRequire" value="有铅" /><label class="control-label">有铅</label>&nbsp;&nbsp;
+                    <input type="radio" name="ProcessingRequire" value="无铅" /><label class="control-label">无铅</label>
+                    @*<select class="form-control" name="ProcessingRequire">
+                            <option value="">请选择</option>
+                            <option value="有铅，灯面">有铅，灯面</option>
+                            <option value="有铅，IC面">有铅，IC面</option>
+                            <option value="无铅，灯面">无铅，灯面</option>
+                            <option value="无铅，IC面">无铅，IC面</option>
+                        </select>*@
                     @Html.ValidationMessageFor(model => model.ProcessingRequire, "", new { @class = "text-danger" })
                 </div>
             </div>
@@ -127,8 +142,8 @@
                 @Html.LabelFor(model => model.StandardRequire, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
                     @*@Html.EditorFor(model => model.StandardRequire, new { htmlAttributes = new { @class = "form-control" } })*@
-                    <input type="radio" name="StandardRequire" value="军用" /><label class="control-label">军用</label>&nbsp;&nbsp;
                     <input type="radio" name="StandardRequire" value="商用" /><label class="control-label">商用</label>
+                    <input type="radio" name="StandardRequire" value="军用" /><label class="control-label">军用</label>&nbsp;&nbsp;
                     @Html.ValidationMessageFor(model => model.StandardRequire, "", new { @class = "text-danger" })
                 </div>
             </div>
@@ -142,12 +157,12 @@
             </div>
 
             @*<div class="form-group">
-                @Html.LabelFor(model => model.HandSampleScedule, htmlAttributes: new { @class = "control-label col-md-4" })
-                <div class="col-md-8">
-                    @Html.EditorFor(model => model.HandSampleScedule, new { htmlAttributes = new { @class = "form-control" } })
-                    @Html.ValidationMessageFor(model => model.HandSampleScedule, "", new { @class = "text-danger" })
-                </div>
-            </div>*@
+                    @Html.LabelFor(model => model.HandSampleScedule, htmlAttributes: new { @class = "control-label col-md-4" })
+                    <div class="col-md-8">
+                        @Html.EditorFor(model => model.HandSampleScedule, new { htmlAttributes = new { @class = "form-control" } })
+                        @Html.ValidationMessageFor(model => model.HandSampleScedule, "", new { @class = "text-danger" })
+                    </div>
+                </div>*@
 
             <div class="form-group">
                 @Html.LabelFor(model => model.Boxes, htmlAttributes: new { @class = "control-label col-md-4" })
@@ -315,16 +330,6 @@
                             </td>
                             <td><input v-model="s567m" v-bind:class="(s567m=='')?'isempty':''" class="s56789m" type="text" maxlength="3" onkeyup="value=value.replace(/[^\d]/g,'')" /></td>
                             <td><input v-model="s89m" v-bind:class="(s89m=='')?'isempty':''" class="s56789m" type="text" maxlength="2" onkeyup="value=value.replace(/[^\d]/g,'')" /></td>
-                            @*<td>
-                                    <select v-model="s89m" v-bind:class="(s89m=='')?'isempty':''">
-                                        <option></option>
-                                        <option>01</option>
-                                        <option>02</option>
-                                        <option>03</option>
-                                        <option>04</option>
-                                        <option>05</option>
-                                    </select>
-                                </td>*@
                         </tr>
                         <tr><th colspan="6" style="font-size:18px; text-align:center;padding:20px">编码说明-共十五码(XX X X XXX XX X XXXXX)</th></tr>
                         <tr>
@@ -403,7 +408,8 @@
                 s89m: "",
                 ordernum: "",
                 trueOrderNum: "",
-                autoOrdernum: ""
+                autoOrdernum: "",
+                pasteExcel: "",
             },
             watch: {
                 ordernum: function (val) {
@@ -414,31 +420,40 @@
                     };
                 },
                 autoOrdernum: function (val) {
-                    var cutVal = val.split("");
-                    //console.log(cutVal)
-                    this.s12m = (cutVal[2] + cutVal[3]);
-                    var s4m = (cutVal[5] + cutVal[6]);
-                    switch (s4m) {
-                        case "GA": s4m = "A"; break;
-                        case "GY": s4m = "B"; break;
-                        case "LA": s4m = "C"; break;
-                        case "LY": s4m = "D"; break;
-                        case "YA": s4m = "E"; break;
-                        case "YY": s4m = "F"; break;
-                        default: s4m = "";
+                    var cutVal = val.split("-");
+                    //第一部分
+                    this.s12m = (cutVal[0][2] + cutVal[0][3]);
+                    //第二部分
+                    if (cutVal.length > 1 && cutVal[1] != "") {
+                        var s4m = cutVal[1].match(/[a-zA-Z]+/g)[0].toUpperCase();
+                        switch (s4m) {
+                            case "GA": s4m = "A"; break;
+                            case "GY": s4m = "B"; break;
+                            case "LA": s4m = "C"; break;
+                            case "LY": s4m = "D"; break;
+                            case "YA": s4m = "E"; break;
+                            case "YY": s4m = "F"; break;
+                            case "J": s4m = "J"; break;
+                            case "K": s4m = "K"; break;
+                            case "G": s4m = "G"; break;
+                            default: s4m = "";
+                        };
+                        this.s4m = s4m;
+                        if (isNaN(parseInt(cutVal[1].match(/\d{3}/g))) == false) {
+                            this.s567m = cutVal[1].match(/\d{3}/g);
+                        } else {
+                            this.s567m = "";
+                        };
                     };
-                    this.s4m = s4m;
-                    if (isNaN(parseInt(cutVal[7])) == false && isNaN(parseInt(cutVal[8])) == false && isNaN(parseInt(cutVal[9])) == false) {
-                        this.s567m = (cutVal[7] + cutVal[8] + cutVal[9]);
-                    } else {
-                        this.s567m = "";
-                    };
-                    if (val.length <= 12) {
-                        this.s89m = ("0" + cutVal[11]);
-                    } else if (val.length == 13) {
-                        this.s89m = (cutVal[11] + cutVal[12]);
-                    } else {
-                        this.s89m = "";
+                    //第三部分
+                    if (cutVal.length > 2) {
+                        if (cutVal[2].length == 1) {
+                            this.s89m = ("0" + cutVal[2]);
+                        } else if (cutVal[2].length == 2) {
+                            this.s89m = (cutVal[2]);
+                        } else {
+                            this.s89m = "";
+                        };
                     };
                 },
                 s12m: function (val) {
@@ -451,8 +466,6 @@
                         default: this.s12m = "";
                     };
                 },
-                //s3m: function (val) {
-                //},
                 s4m: function (val) {
                     if (val == "K") {
                         $("#IsRepertory").prop('checked', true);
@@ -461,7 +474,7 @@
                     };
                 },
                 s567m: function (val) {
-                    if (val == val.replace(/[^\d]/g, '')) {
+                    if (val[0] == val[0].replace(/[^\d]/g, '')) {
                         app.ordernum = app.s12m + app.s3m + app.s4m + app.s567m + app.s89m;
                     } else {
                         app.s567m = "";
@@ -473,15 +486,31 @@
                     } else {
                         app.s89m = "";
                     };
-                    //switch (val) {
-                    //    case "01": this.s89m = "01"; break;
-                    //    case "02": this.s89m = "02"; break;
-                    //    case "03": this.s89m = "03"; break;
-                    //    case "04": this.s89m = "04"; break;
-                    //    case "05": this.s89m = "05"; break;
-                    //    default: this.s89m = "";
-                    //};
-                }
+                },
+                pasteExcel: function (val) {
+                    if (val == "") {
+                        return false;
+                    };
+                    var pasteQuantity = val.split("\t");
+                    var effectiveContent = pasteQuantity.slice(0, 33);
+                    //console.log(effectiveContent);
+                    //console.log(effectiveContent.length);
+                    if (effectiveContent.length == 33) {
+                        app.autoOrdernum = effectiveContent[5];//订单号
+                        $("#CustomerName").val(effectiveContent[6]);//客户名称
+                        $("#ContractDate").val(addzero(effectiveContent[1]));//下单日期
+                        $("#DeliveryDate").val(addzero(effectiveContent[2]));//合同交期  出货日期
+                        $("#PlatformType").val(effectiveContent[8]);//平台
+                        $("#Boxes").val(effectiveContent[10]);//模组
+                        $("#Models").val(effectiveContent[11]);//模块
+                    };
+                    app.pasteExcel = "";
+                },
+            },
+            mounted: function () {
+                $("#ModelsMore").val(0);
+                $("#PowersMore").val(0);
+                $("#AdapterCardMore").val(0);
             }
         });
 
@@ -491,5 +520,10 @@
         $('#IsRepertory').css('cursor', "not-allowed").bind('click', function () {
             return false;
         });
+        //日期 月/日 补零
+        function addzero(date) {
+            var cutDate = date.split("/")
+            return (cutDate[0] + "-" + (cutDate[1] < 10 ? '0' + cutDate[1] : cutDate[1]) + "-" + (cutDate[2] < 10 ? '0' + cutDate[2] : cutDate[2]));
+        };
     </script>
 }

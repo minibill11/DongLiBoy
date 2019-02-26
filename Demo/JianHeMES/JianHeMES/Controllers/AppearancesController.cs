@@ -415,20 +415,6 @@ namespace JianHeMES.Controllers
             return RedirectToAction("Index");
         }
 
-        /// <summary>
-        /// 外观包装输入条码时，检查模组是否已经完成老化调试或校正工序
-        /// </summary>
-        /// <param name="barcode"></param>
-        /// <returns></returns>
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Appearance_B_Check(string barcode)
-        {
-
-            return Content("");
-        }
-
-
 
         // POST: Appearance/Create
         // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
@@ -575,6 +561,28 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+        #region --------------------外观电检包装开始时检查条码在老化调试工序是否已经完成-----------------
+        /// <summary>
+        /// 外观包装输入条码时，检查模组是否已经完成老化调试或校正工序
+        /// </summary>
+        /// <param name="barcode"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Appearance_B_Check(string barcode)
+        {
+            var burn_in_Finish_Record = db.Burn_in.Where(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true).Count();
+            if(burn_in_Finish_Record > 0 )
+            {
+                return Content("");
+            }
+            else
+            {
+                return Content("此模组老化调试工序尝未完成！");
+            }
+        }
+
+        #endregion
 
         #region --------------------外观电检包装完成------------
         // GET: Appearances/Appearance_F
