@@ -73,10 +73,10 @@
         }
     }
 </style>
-
 <h3 class="text-center">月度数据对比</h3>
 <div id="app">
     <div class="col-md-6 left">
+        <div style="width:0;height:0;border:10px solid white;border-top-color:red;border-bottom:none;float:left"></div>
         <h5 class="text-center">
             <span>
                 <select v-model="leftYear">
@@ -355,6 +355,7 @@
 
     </div>
     <div class="col-md-6 right">
+        <div style="width:0;height:0;border:10px solid white;border-top-color:red;border-bottom:none;float:right"></div>
         <h5 class="text-center">
             <span>
                 <select v-model="rightYear">
@@ -700,11 +701,21 @@
                     },
                     success: function (data) {
                         var returnData = JSON.parse(data);
+                        //console.log(returnData);
                         for (var val in returnData) {
-                            //console.log(returnData[val]);
+                            var totalVal;
+                            switch (val) {
+                                case "1": totalVal = returnData.weektotal1; break;
+                                case "2": totalVal = returnData.weektotal2; break;
+                                case "3": totalVal = returnData.weektotal3; break;
+                                case "4": totalVal = returnData.weektotal4; break;
+                                case "5": totalVal = returnData.weektotal5; break;
+                                case "month_total": totalVal = returnData.month_total_total; break;
+                                default: totalVal = "";
+                            };
                             var numVal = app.$options.methods.replaceNum(val);
-                            if (numVal != "") {
-                                app.$options.methods.assignmentData(returnData[val], L, numVal);
+                            if (numVal != "" && totalVal != "") {
+                                app.$options.methods.assignmentData(returnData[val], L, numVal, totalVal);
                             };
                         };
                     },
@@ -713,8 +724,9 @@
                     }
                 });
             },
-            assignmentData: function (val, lacation, num) {
+            assignmentData: function (val, lacation, num, total) {
                 var arrayName = lacation + num + "Week";
+                total.Department = "总计";
                 if (num == "Total") {
                     var totalVal = [];
                     for (var v in val) {
@@ -729,8 +741,10 @@
                             Daily_Pay: val[v].Daily_Pay,
                         });
                     };
+                    totalVal.push(total);
                 } else {
                     var weekVal = JSON.parse(val)
+                    weekVal.push(total);
                 }
                 switch (arrayName) {
                     case "leftFirstWeek": app.leftFirstWeek = weekVal; break;
@@ -755,7 +769,7 @@
                     case "3": key = "Third"; break;
                     case "4": key = "Fourth"; break;
                     case "5": key = "Fifth"; break;
-                    case "total": key = "Total"; break;
+                    case "month_total": key = "Total"; break;
                     default: key = "";
                 };
                 return key;
