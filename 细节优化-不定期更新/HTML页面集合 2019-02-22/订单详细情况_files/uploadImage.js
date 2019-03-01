@@ -3,7 +3,7 @@
     //图片方向角 added by lzk
     var Orientation = null;
     if (file) {
-        $("#filecontent").text(file.name);
+        //$("#filecontent").text(file.name);
         var rFilter = /^(image\/jpeg|image\/png)$/i; // 检查图片格式
         if (!rFilter.test(file.type)) {
             //showMyTips("请选择jpeg、png格式的图片", false);
@@ -69,14 +69,6 @@
                                 break;
                         }
                     }
-
-                    /*var mpImg = new MegaPixImage(image);
-					mpImg.render(canvas, {
-						maxWidth: 800,
-						maxHeight: 1200,
-						quality: 0.8,
-						orientation: 8
-					});*/
                     base64 = canvas.toDataURL("image/jpeg", 0.8);
                 } else if (navigator.userAgent.match(/Android/i)) {// 修复android
                     var encoder = new JPEGEncoder();
@@ -105,9 +97,8 @@
                     base64 = canvas.toDataURL("image/jpeg", 0.8);
                 }
                 //uploadImage(base64);图片预览
-                //$("#myImage").attr("src", base64);
-                $("#imgPreview").attr("src", URL.createObjectURL(file));
-                app.previewIMG = true;
+                //$("#imgPreview").attr("src", URL.createObjectURL(file));
+                //app.previewIMG = true;
             };
         };
         oReader.readAsDataURL(file);//file不是blob类型这里会报错
@@ -138,14 +129,6 @@ function rotateImg(img, direction, canvas) {
         step--;
         step < min_step && (step = max_step);
     }
-    //img.setAttribute('step', step);  
-    /*var canvas = document.getElementById('pic_' + pid);  
-    if (canvas == null) {  
-        img.style.display = 'none';  
-        canvas = document.createElement('canvas');  
-        canvas.setAttribute('id', 'pic_' + pid);  
-        img.parentNode.appendChild(canvas);  
-    }  */
     //旋转角度以弧度值为参数  
     var degree = step * 90 * Math.PI / 180;
     var ctx = canvas.getContext('2d');
