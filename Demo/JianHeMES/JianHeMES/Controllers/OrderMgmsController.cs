@@ -478,13 +478,22 @@ namespace JianHeMESEntities.Controllers
             ViewBag.ProductionDetailsJson = ProductionDetailsJson;
             #endregion
 
-            //检查文件目录是否存在
+
+            #region----------组装工段按线别分类输出条码清单
+            //订单的全部组装记录
+            ViewBag.order_in_Assemble_Record = db.Assemble.Where(c => c.OrderNum == orderMgm.OrderNum).ToList();
+            
+            #endregion
+
+
+            #region----------特采订单基本信息
+            //检查特采订单文件目录是否存在
             string directory = "D:\\MES_Data\\AOD_Files\\" + orderMgm.OrderNum;
             if (Directory.Exists(@directory) == true)
             {
                 ViewBag.Directory = "Exists";
             }
-            //检查pdf文件是否存在
+            //检查特采订单pdf文件是否存在
             string pdfFile = "D:\\MES_Data\\AOD_Files\\" + orderMgm.OrderNum + "\\"+ orderMgm.OrderNum + "_AOD.pdf";
             if (System.IO.File.Exists(@pdfFile) == true)
             {
@@ -496,7 +505,7 @@ namespace JianHeMESEntities.Controllers
             {
                 filesInfo = GetAllFilesInDirectory(directory);
                 filesInfo = filesInfo.Where(c => c.Name.StartsWith(orderMgm.OrderNum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
-                //检查jpg文件是否存在
+                //检查特采订单jpg文件是否存在
                 if (filesInfo.Count > 0)
                 {            
                     ViewBag.Picture = "Exists";
@@ -509,6 +518,76 @@ namespace JianHeMESEntities.Controllers
                 }
             ViewBag.jpgjson = json;
             }
+            #endregion
+
+            #region----------小样订单基本信息
+            //检查小样订单文件目录是否存在
+            string SmallSample_directory = "D:\\MES_Data\\SmallSample_Files\\" + orderMgm.OrderNum;
+            if (Directory.Exists(@SmallSample_directory) == true)
+            {
+                ViewBag.SmallSample_Directory = "Exists";
+            }
+            //检查小样订单pdf文件是否存在
+            string SmallSample_pdfFile = "D:\\MES_Data\\SmallSample_Files\\" + orderMgm.OrderNum + "\\" + orderMgm.OrderNum + "_SmallSample.pdf";
+            if (System.IO.File.Exists(@SmallSample_pdfFile) == true)
+            {
+                ViewBag.SmallSample_PDf = "Exists";
+            }
+            List<FileInfo> SmallSample_filesInfo = new List<FileInfo>();
+            JObject SmallSample_json = new JObject();
+            if (ViewBag.SmallSample_Directory == "Exists")
+            {
+                SmallSample_filesInfo = GetAllFilesInDirectory(SmallSample_directory);
+                SmallSample_filesInfo = SmallSample_filesInfo.Where(c => c.Name.StartsWith(orderMgm.OrderNum + "_SmallSample") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+                //检查小样订单jpg文件是否存在
+                if (SmallSample_filesInfo.Count > 0)
+                {
+                    ViewBag.SmallSample_Picture = "Exists";
+                }
+                int i = 1;
+                foreach (var item in SmallSample_filesInfo)
+                {
+                    SmallSample_json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.SmallSample_jpgjson = SmallSample_json;
+            }
+            #endregion
+
+            #region----------异常订单基本信息
+            //检查异常订单文件目录是否存在
+            string AbnormalOrder_directory = "D:\\MES_Data\\AbnormalOrder_Files\\" + orderMgm.OrderNum;
+            if (Directory.Exists(@AbnormalOrder_directory) == true)
+            {
+                ViewBag.AbnormalOrder_Directory = "Exists";
+            }
+            //检查异常订单pdf文件是否存在
+            string AbnormalOrder_pdfFile = "D:\\MES_Data\\AbnormalOrder_Files\\" + orderMgm.OrderNum + "\\" + orderMgm.OrderNum + "_AbnormalOrder.pdf";
+            if (System.IO.File.Exists(@AbnormalOrder_pdfFile) == true) 
+            {
+                ViewBag.AbnormalOrder_PDf = "Exists";
+            }
+            List<FileInfo> AbnormalOrder_filesInfo = new List<FileInfo>();
+            JObject AbnormalOrder_json = new JObject();
+            if (ViewBag.AbnormalOrder_Directory == "Exists")
+            {
+                AbnormalOrder_filesInfo = GetAllFilesInDirectory(AbnormalOrder_directory);
+                AbnormalOrder_filesInfo = AbnormalOrder_filesInfo.Where(c => c.Name.StartsWith(orderMgm.OrderNum + "_AbnormalOrder") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+                //检查异常订单jpg文件是否存在
+                if (AbnormalOrder_filesInfo.Count > 0)
+                {
+                    ViewBag.AbnormalOrder_Picture = "Exists";
+                }
+                int i = 1;
+                foreach (var item in AbnormalOrder_filesInfo)
+                {
+                    AbnormalOrder_json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.AbnormalOrder_jpgjson = AbnormalOrder_json;
+            }
+            #endregion
+
             return View(orderMgm);
         }
         #endregion
@@ -596,6 +675,19 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
+
+            ////1.修改后的订单模组数>原订单模组数
+            ////  询问是否修改？修改后在BarCodes表追加相应的条码号
+            ////2.修改后的订单模组数<原订单模组数
+            ////  检查对应缩少的那部分条码号是否有生产记录，如果无生产记录，询问是否修改？如果有生产记录，反馈“有生产记录，不能修改！”
+            ////  如果修改，修改后把BarCodes表中的缩少的那部分条码号删除
+
+            //var orginal_ordermgm = db.OrderMgm.Find(orderMgm.ID);
+
+            //if(orginal_ordermgm.Models<orderMgm.Models)
+            //{
+            //}
+
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
@@ -678,18 +770,16 @@ namespace JianHeMESEntities.Controllers
             var Record = db.OrderMgm.Where(c=>c.OrderNum==orderNum).FirstOrDefault();
             if (Record != null)
             {
-                //计算订单在组装、FQC、老化、校正、包装的记录条数
+                //计算订单在组装、FQC、老化、校正、包装的记录条数、SMT生产记录
                 var assembleCount = db.Assemble.Count(c => c.OrderNum == orderNum);
                 var fqcCount = db.FinalQC.Count(c => c.OrderNum == orderNum);
                 var burn_inCount = db.Burn_in.Count(c => c.OrderNum == orderNum);
                 var calibrationCount = db.CalibrationRecord.Count(c => c.OrderNum == orderNum);
                 var appearancesCount = db.Appearance.Count(c => c.OrderNum == orderNum);
-                //如果订单在组装、FQC、老化、校正、包装的记录条数都为0，则删除订单信息和条码信息
-                if (assembleCount==0 && fqcCount==0 && burn_inCount==0 && calibrationCount==0 && appearancesCount == 0)
+                var smtCount = db.SMT_ProductionData.Count(c => c.OrderNum == orderNum);
+                //如果订单在组装、FQC、老化、校正、包装的记录条数、SMT生产记录都为0，则删除订单信息和条码信息
+                if (assembleCount==0 && fqcCount==0 && burn_inCount==0 && calibrationCount==0 && appearancesCount == 0 && smtCount == 0)
                 {
-                    //删除订单信息
-                    db.OrderMgm.Remove(Record);
-                    db.SaveChanges();
                     //取出订单对应的条码
                     var barCodeList = db.BarCodes.Where(c => c.OrderNum == orderNum).ToList();
                     if (barCodeList != null)
@@ -701,18 +791,30 @@ namespace JianHeMESEntities.Controllers
                             db.SaveChanges();
                         }
                     }
-
+                    //删除SMT计划信息
+                    var smtPlanList = db.SMT_ProductionPlan.Where(c => c.OrderNum == orderNum).ToList();
+                    if (smtPlanList != null)
+                    {
+                        //删除SMT计划信息
+                        foreach (var plan in smtPlanList)
+                        {
+                            db.SMT_ProductionPlan.Remove(plan);
+                            db.SaveChanges();
+                        }
+                    }
+                    //删除订单信息
+                    db.OrderMgm.Remove(Record);
+                    db.SaveChanges();
+                    //保存删除信息
                     OrderMgm_Delete orderMgm_delete = new OrderMgm_Delete();
                     orderMgm_delete.OrderNum = Record.OrderNum;
                     orderMgm_delete.DeleteDate = DateTime.Now;
                     orderMgm_delete.Deleter = ((Users)Session["User"]).UserName;
-
                     db.OrderMgm_Delete.Add(orderMgm_delete);
                     db.SaveChanges();
-
                     return Content("<script>alert('你已删除订单和条码！');window.location.href='../OrderMgms/Index';</script>");
                 }
-                //如果订单在组装、FQC、老化、校正、包装的记录条数其中一个不为0，则返回提示信息
+                //如果订单在组装、FQC、老化、校正、包装的记录条数、SMT生产记录其中一个不为0，则返回提示信息
                 else
                 {
                     return Content("<script>alert('订单号"+ orderNum +  "有生产记录,不能删除此订单！');history.go(-1);</script>");
@@ -722,7 +824,6 @@ namespace JianHeMESEntities.Controllers
             {
                 return Content("<script>alert('订单不存在！');window.location.href='../OrderMgms/Index';</script>");
             }
-
         }
   
         #endregion
@@ -767,7 +868,164 @@ namespace JianHeMESEntities.Controllers
             }
             base.Dispose(disposing);
         }
+
         #endregion
+
+
+
+
+        #region --------------------转为异常订单
+        [HttpPost]
+        public ActionResult AbnormalOrderConvert(int? id, string AbnormalOrder_Description)  
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            OrderMgm orderMgm = db.OrderMgm.Find(id);
+            if (orderMgm == null)
+            {
+                return HttpNotFound();
+            }
+            orderMgm.IsAbnormalOrder = true;
+            orderMgm.AbnormalOrderConvertDate = DateTime.Now;
+            orderMgm.AbnormalOrderConverter = ((Users)Session["User"]).UserName;
+            orderMgm.AbnormalOrder_Description = AbnormalOrder_Description;
+            if (ModelState.IsValid)
+            {
+                db.Entry(orderMgm).State = EntityState.Modified;
+                db.SaveChanges();
+                return RedirectToAction("Details", "OrderMgms", new { id = orderMgm.ID });
+            }
+            return View(orderMgm);
+        }
+        #endregion
+               
+        #region --------------------上传异常单文件(jpg、pdf)方法
+        [HttpPost]
+        public ActionResult UploadAbnormalOrder(int id, string ordernum)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["uploadAbnormalOrder"];
+                var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
+                string ReName = ordernum + "_AbnormalOrder";
+                if (Directory.Exists(@"D:\MES_Data\AbnormalOrder_Files\" + ordernum + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\AbnormalOrder_Files\" + ordernum + "\\");
+                }
+                List<FileInfo> fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\AbnormalOrder_Files\" + ordernum + "\\");
+                //文件为jpg类型
+                if (fileType == ".jpg")
+                {
+                    int jpg_count = fileInfos.Where(c => c.Name.StartsWith(ordernum + "_AbnormalOrder") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").Count();
+                    file.SaveAs(@"D:\MES_Data\AbnormalOrder_Files\" + ordernum + "\\" + ReName + (jpg_count + 1) + fileType);
+                }
+                //文件为pdf类型,直接存储或替换原文件
+                else
+                {
+                    file.SaveAs(@"D:\MES_Data\AbnormalOrder_Files\" + ordernum + "\\" + ReName + fileType);
+                }
+                //OrderMgm orderMgm = db.OrderMgm.Find(id);
+                //if (orderMgm == null)
+                //{
+                //    return View(orderMgm);
+                //}
+                //if (ModelState.IsValid)
+                //{
+                //    db.Entry(orderMgm).State = EntityState.Modified;
+                //    db.SaveChanges();
+                //    return RedirectToAction("Details", "OrderMgms", new { id = orderMgm.ID });
+                //}
+                //return View(orderMgm);
+                return RedirectToAction("Details", "OrderMgms", new { id = id });
+            }
+            return View();
+        }
+        #endregion
+
+        #region --------------------下载异常订单pdf文件
+        [HttpPost]
+        public ActionResult GetAbnormalOrderPDF(string ordernum)
+        {
+            List<FileInfo> filesInfo = new List<FileInfo>();
+            string directory = "D:\\MES_Data\\AbnormalOrder_Files\\" + ordernum + "\\";
+            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
+            {
+                return Content("此异常单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            filesInfo = GetAllFilesInDirectory(directory);
+            List<string> pdf_address = new List<string>();
+            string address = "";
+            if (filesInfo.Where(c => c.Name == ordernum + "_AbnormalOrder.pdf").Count() > 0)
+            {
+                address = "/AbnormalOrder_Files" + "/" + ordernum + "/" + ordernum + "_AbnormalOrder.pdf";
+            }
+            else
+            {
+                return Content("此异常单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            return Content(address);
+        }
+        #endregion
+
+        #region --------------------下载异常订单图片预览
+        [HttpPost]
+        public ActionResult GetAbnormalOrderImg(string ordernum)
+        {
+            List<FileInfo> filesInfo = GetAllFilesInDirectory(@"D:\\MES_Data\\AbnormalOrder_Files\\" + ordernum + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + "_AbnormalOrder") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            foreach (var item in filesInfo)
+            {
+                json.Add(i.ToString(), item.Name);
+                i++;
+            }
+            ViewBag.jpgjson = json;
+            if (filesInfo.Count > 0)
+            {
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("此异常单订单图片尚未上传！");
+            }
+        }
+        #endregion
+        
+        #region --------------------查看异常订单pdf文档页面
+        public ActionResult AbnormalOrder_pdf(string ordernum)
+        {
+            List<FileInfo> filesInfo = new List<FileInfo>();
+            string directory = "D:\\MES_Data\\AbnormalOrder_Files\\" + ordernum + "\\";
+            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
+            {
+                return Content("此异常单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            filesInfo = GetAllFilesInDirectory(directory);
+            //List<string> pdf_address = new List<string>();
+            string address = "";
+            if (filesInfo.Where(c => c.Name == ordernum + "_AbnormalOrder.pdf").Count() > 0)
+            {
+                address = "~/Scripts/pdf.js/web/viewer.html?file=\\AbnormalOrder_Files\\" + ordernum + "\\" + ordernum + "_AbnormalOrder.pdf";
+            }
+            else
+            {
+                return Content("此异常单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            ViewBag.address = address;
+            ViewBag.ordernum = ordernum;
+            return Redirect(address);
+        }
+        #endregion
+                          
+
+
 
         #region --------------------转为特采订单
         [HttpPost]
@@ -814,7 +1072,6 @@ namespace JianHeMESEntities.Controllers
                     Directory.CreateDirectory(@"D:\MES_Data\AOD_Files\" + ordernum + "\\");
                 }
                 List<FileInfo> fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\AOD_Files\" + ordernum + "\\");
-                //List<FileInfo> test_temp = fileInfos.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) ==".jpg").ToList();
                 //文件为jpg类型
                 if(fileType==".jpg")
                 {
@@ -826,22 +1083,103 @@ namespace JianHeMESEntities.Controllers
                 {
                     file.SaveAs(@"D:\MES_Data\AOD_Files\" + ordernum + "\\" + ReName + fileType);
                 }
-                OrderMgm orderMgm = db.OrderMgm.Find(id);
-                if (orderMgm == null)
-                {
-                    return View(orderMgm);
-                }
-                if (ModelState.IsValid)
-                {
-                    db.Entry(orderMgm).State = EntityState.Modified;
-                    db.SaveChanges();
-                    return RedirectToAction("Details", "OrderMgms", new { id = orderMgm.ID });
-                }
-                return View(orderMgm);
+                //OrderMgm orderMgm = db.OrderMgm.Find(id);
+                //if (orderMgm == null)
+                //{
+                //    return View(orderMgm);
+                //}
+                //if (ModelState.IsValid)
+                //{
+                //    db.Entry(orderMgm).State = EntityState.Modified;
+                //    db.SaveChanges();
+                //    return RedirectToAction("Details", "OrderMgms", new { id = orderMgm.ID });
+                //}
+                //return View(orderMgm);
+                return RedirectToAction("Details", "OrderMgms", new { id = id });
+
             }
             return View();
         }
         #endregion
+
+        #region --------------------下载特采订单pdf文件
+        [HttpPost]
+        public ActionResult GetPDF(string ordernum)
+        {
+            List<FileInfo> filesInfo = new List<FileInfo>();
+            string directory = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\";
+            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
+            {
+                return Content("此特采单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            filesInfo = GetAllFilesInDirectory(directory);
+            List<string> pdf_address = new List<string>();
+            string address = "";
+            if (filesInfo.Where(c=>c.Name == ordernum + "_AOD.pdf").Count()>0)
+            {
+                address = "/AOD_Files" + "/" + ordernum + "/" + ordernum + "_AOD.pdf";
+            }
+            else
+            {
+                return Content("此特采单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            return Content(address);
+        }
+        #endregion
+
+        #region --------------------下载特采订单图片预览
+        [HttpPost]
+        public ActionResult GetImg(string ordernum)
+        {
+            List<FileInfo> filesInfo = GetAllFilesInDirectory(@"D:\\MES_Data\\AOD_Files\\" + ordernum + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            foreach (var item in filesInfo)
+            {
+                json.Add(i.ToString(), item.Name);
+                i++;
+            }
+            ViewBag.jpgjson = json;
+            //return Json(json, JsonRequestBehavior.AllowGet);
+            if (filesInfo.Count > 0)
+            {
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("此特采单订单图片尚未上传！");
+            }
+        }
+        #endregion
+
+        #region --------------------查看特采订单pdf文档页面
+        public ActionResult preview_pdf(string ordernum)
+        {
+            List<FileInfo> filesInfo = new List<FileInfo>();
+            string directory = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\";
+            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
+            {
+                return Content("<script>alert('此特采单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
+            }
+            filesInfo = GetAllFilesInDirectory(directory);
+            string address = "";
+            if (filesInfo.Where(c => c.Name == ordernum + "_AOD.pdf").Count() > 0)
+            {
+                address = "~/Scripts/pdf.js/web/viewer.html?file=\\AOD_Files\\" + ordernum + "\\" + ordernum + "_AOD.pdf";
+            }
+            else
+            {
+                return Content("此特采单pdf版文件尚未上传，无pdf文件可下载！");
+            }
+            ViewBag.address = address;
+            ViewBag.ordernum = ordernum;
+            return Redirect(address);
+        }
+        #endregion
+
+
+
 
         #region --------------------上传小样文件(jpg、pdf)方法
         [HttpPost]
@@ -867,52 +1205,6 @@ namespace JianHeMESEntities.Controllers
             return Content("<script>alert('上传失败');history.go(-1);</script>");
         }
         #endregion
-
-
-        #region --------------------下载特采订单pdf文件
-        [HttpPost]
-        public ActionResult GetPDF(string ordernum)
-        {
-            List<FileInfo> filesInfo = new List<FileInfo>();
-            string directory = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\";
-            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
-            {
-                return Content("<script>alert('此特采单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
-            }
-            filesInfo = GetAllFilesInDirectory(directory);
-            List<string> pdf_address = new List<string>();
-            string address = "";
-            if (filesInfo.Where(c=>c.Name == ordernum + "_AOD.pdf").Count()>0)
-            {
-                address = "/AOD_Files" + "/" + ordernum + "/" + ordernum + "_AOD.pdf";//filesInfo.Where(c => c.Name == ordernum + "_AOD.pdf").FirstOrDefault().Name;
-            }
-            else
-            {
-                return Content("<script>alert('此特采单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
-            }
-            return Content(address);
-        }
-        #endregion
-
-        #region --------------------下载特采订单图片预览
-        [HttpPost]
-        public ActionResult GetImg(string ordernum)
-        {
-            List<FileInfo> filesInfo = GetAllFilesInDirectory(@"D:\\MES_Data\\AOD_Files\\" + ordernum + "\\");
-            filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + "_AOD") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
-            JObject json = new JObject();
-            int i = 1;
-            foreach (var item in filesInfo)
-            {
-                json.Add(i.ToString(), item.Name);
-                i++;
-            }
-            ViewBag.jpgjson = json;
-            //return Json(json, JsonRequestBehavior.AllowGet);
-            return Content(json.ToString());
-        }
-        #endregion
-
 
         #region --------------------查看小样订单图片预览
         [HttpPost]
@@ -966,31 +1258,7 @@ namespace JianHeMESEntities.Controllers
         #endregion
 
 
-        #region --------------------查看特采订单pdf文档页面
-        public ActionResult preview_pdf(string ordernum)
-        {
-            List<FileInfo> filesInfo = new List<FileInfo>();
-            string directory = "D:\\MES_Data\\AOD_Files\\" + ordernum + "\\";
-            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
-            {
-                return Content("<script>alert('此特采单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
-            }
-            filesInfo = GetAllFilesInDirectory(directory);
-            //List<string> pdf_address = new List<string>();
-            string address = "";
-            if (filesInfo.Where(c => c.Name == ordernum + "_AOD.pdf").Count() > 0)
-            {
-                address = "~/Scripts/pdf.js/web/viewer.html?file=\\AOD_Files\\" + ordernum + "\\" + ordernum + "_AOD.pdf";
-            }
-            else
-            {
-                return Content("<script>alert('此特采单pdf版文件尚未上传，无pdf文件可下载！');history.back(-1);</script>");
-            }
-            ViewBag.address = address;
-            ViewBag.ordernum = ordernum;
-            return Redirect(address);
-        }
-        #endregion
+
 
         #region --------------------返回指定目录下所有文件信息
         /// <summary>  

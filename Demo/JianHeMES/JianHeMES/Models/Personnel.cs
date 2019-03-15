@@ -130,6 +130,15 @@ namespace JianHeMES.Models
         [Display(Name = "记录人")]
         public string Creator { get; set; }
 
+        [Display(Name = "年份")]
+        public int Year { get; set; }
+
+        [Display(Name = "月份")]
+        public int Month { get; set; }
+
+        [Display(Name = "周")]
+        public int Week { get; set; }
+
         //第几周
         [Display(Name = " 周数")]
         public int Week_number { get; set; }
@@ -170,6 +179,12 @@ namespace JianHeMES.Models
 
         [Display(Name = "平均数值")]
         public decimal Average_Value { get; set; }
+
+        [Display(Name = "年份")]
+        public int Year { get; set; }
+
+        [Display(Name = "月份")]
+        public int Month { get; set; }
 
         [Display(Name = "记录日期")]
         public DateTime? Date { get; set; }
@@ -225,6 +240,15 @@ namespace JianHeMES.Models
 
         [Display(Name = "记录人")]
         public string Creator { get; set; }
+
+        [Display(Name = "年份")]
+        public int Year { get; set; }
+
+        [Display(Name = "月份")]
+        public int Month { get; set; }
+
+        [Display(Name = "周")]
+        public int Week { get; set; }
 
         //第几周
         [Display(Name = " 周数")]

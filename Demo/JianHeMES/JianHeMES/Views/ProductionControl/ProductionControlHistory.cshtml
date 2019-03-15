@@ -101,6 +101,37 @@
     .selectpicker {
         border: 1px solid #ccc;
     }
+    .modal-header, .modal-body {
+        padding: 10px;
+    }
+
+    .showBtn {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .showDiv {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        right: 0px;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 1s;
+    }
+
+    .btnSty {
+        position: absolute;
+        width: 50%;
+        height: 100%;
+        padding: 0;
+    }
+
+    .showBtn:hover .showDiv {
+        visibility: visible;
+        opacity: 1;
+    }
 </style>
 <h3 class="text-center">生产管控历史记录查询</h3>
 <br />
@@ -133,6 +164,7 @@
                         <th rowspan="2">完成时间</th>
                         <th rowspan="2">生产时长</th>
                         <th rowspan="2">特采描述</th>
+                        <th rowspan="2">异常描述</th>
                     </tr>
                     <tr class="rowTitle2">
                         <th>起始日期</th>
@@ -176,7 +208,8 @@
             <col width="65 ">
             <col width="70 ">
             <col width="70 ">
-            <col width="90 ">
+            <col width="70 ">
+            <col width="70 ">
         </colgroup>
         <thead id="table_head">
             <tr class="rowTitle1">
@@ -194,6 +227,7 @@
                 <th rowspan="2">完成时间</th>
                 <th rowspan="2">生产时长</th>
                 <th rowspan="2">特采描述</th>
+                <th rowspan="2">异常描述</th>
             </tr>
             <tr class="rowTitle2">
                 <th>起始日期</th>
@@ -284,7 +318,24 @@
                 <td style="white-space:nowrap;" v-if="item.TotalTime.length==4">{{item.TotalTime[0]+"天"+item.TotalTime[1]+"时"}}<br />{{item.TotalTime[2]+"分"+item.TotalTime[3]+"秒"}}</td>
                 <td style="white-space:nowrap;" v-else-if="item.TotalTime.length==3">{{item.TotalTime[0]+"时"}}<br />{{item.TotalTime[1]+"分"+item.TotalTime[2]+"秒"}}</td>
                 <td style="white-space:nowrap;" v-else></td>
-                <td v-bind:style="(item.AOD_Description)?'cursor:pointer':''" v-on:click="(item.AOD_Description)?imgModal(item.OrderNum):''"><span>{{item.AOD_Description}}</span></td>
+                @*<td v-bind:style="(item.AOD_Description)?'cursor:pointer':''" v-on:click="(item.AOD_Description)?imgModal(item.OrderNum):''"><span>{{item.AOD_Description}}</span></td>*@
+                <td v-bind:class="(item.AOD_Description)?'showBtn':''"
+                    v-on:click="(item.AOD_Description)?clickBtn($event):''">
+                    {{item.AOD_Description}}
+                    <div v-if="(item.AOD_Description)" class="showDiv">
+                        <button v-on:click.stop="imgModal_AOD(item.OrderNum)" class="btn btn-info btnSty" style="right: 50%;">IMG</button>
+                        <button v-on:click.stop="pdfModal_AOD(item.OrderNum)" class="btn btn-warning btnSty" style="left: 50%;">PDF</button>
+                    </div>
+                </td>
+                <td v-bind:class="(item.AbnormalOrder_Description)?'showBtn':''"
+                    v-on:click="(item.AbnormalOrder_Description)?clickBtn($event):''">
+                    {{item.AbnormalOrder_Description}}
+                    <div v-if="(item.AbnormalOrder_Description)" class="showDiv">
+                        <button v-on:click.stop="imgModal_Abnormal(item.OrderNum)" class="btn btn-info btnSty" style="right: 50%;">IMG</button>
+                        <button v-on:click.stop="pdfModal_Abnormal(item.OrderNum)" class="btn btn-warning btnSty" style="left: 50%;">PDF</button>
+                    </div>
+                </td>
+                @*<td v-bind:style="(item.AbnormalOrder_Description)?'cursor:pointer':''" v-on:click="(item.AbnormalOrder_Description)?imgModal(item.OrderNum):''"><span>{{item.AbnormalOrder_Description}}</span></td>*@
             </tr>
         </tbody>
     </table>
@@ -293,20 +344,20 @@
         <input id="viewbagValue" value="@ViewBag.History" />
     </div>
     <div class="row">
-        <!-- 特采图片 -->
+        <!-- 模态框 -->
         <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-            <div class="modal-dialog" style="width: 100%;height: 100%;max-width: 900px;margin: 30px auto;">
+            <div class="modal-dialog" style="width: 100%;height: auto;max-width: 900px;margin: 10px auto;">
                 <div class="modal-content">
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
                             &times;
                         </button>
                         <h4 class="modal-title text-center" id="myModalLabel">
-                            特采订单
+                            #
                         </h4>
                     </div>
-                    <div id="imgModal" class="modal-body text-center">
-                        @*<img v-bind:src="imgSrc" alt="该特采订单照片尚未上传！" style="width:100%;height:100%;" />*@
+                    <div id="contentModal" class="modal-body text-center">
+                        <iframe id="pdfIframe" name="pdfIframe" src="" style="width:100%;"></iframe>
                     </div>
                 </div>
             </div>
@@ -314,9 +365,17 @@
         <button id="showModal" class="form-control" style="display:inline;width:60px;display:none" data-toggle="modal" data-target="#myModal">选择</button>
     </div>
 </div>
+<div>
+    <span style="display: inline-block; background: rgba(62, 215, 0, 0.4);width: 10px;height: 10px;"></span> 达到100% &nbsp;&nbsp;
+    <span style="display: inline-block; background: rgba(233, 32, 32, 0.8);width: 10px;height: 10px;"></span> 合格率范围为<80% &nbsp;&nbsp;
+    	<span style="display: inline-block; background: rgba(233, 230, 0, 0.6);width: 10px;height: 10px;"></span> 合格率范围为80%~90% &nbsp;&nbsp;
+    	<span style="display: inline-block; border: 2px solid red;width: 10px;height: 10px;"></span> 老化数栏：组装完成后，超过24H未进入老化； 包装完成率栏：老化完成后，超过72H包装未完成。
+</div>
+<div id="setPdf"></div>
 <div id="setForm"></div>
 
 <script>
+    var isHoverNum = "true";
     var app = new Vue({
         el: "#app",
         data: {
@@ -397,6 +456,7 @@
                     Appearances_Count: viewbagJson[index].Appearances_Count,
                     Appearances_Record_Count: viewbagJson[index].Appearances_Record_Count,
                     AOD_Description: viewbagJson[index].AOD_Description,
+                    AbnormalOrder_Description: viewbagJson[index].AbnormalOrder_Description,
 
                     Overtime_never_join_burn_in: viewbagJson[index].Overtime_never_join_burn_in,
                     Overtime_never_join_appearances: viewbagJson[index].Overtime_never_join_appearances,
@@ -416,8 +476,12 @@
                 newForm.submit();
                 newForm.remove();
             },
-            imgModal: function (OrderNumVal) {
-                $("#imgModal").children().remove();
+            clickBtn: function (event) {
+                $(event.target).children(".showDiv").css({ "visibility": "visible", "opacity": "1" })
+            },
+            imgModal_AOD: function (OrderNumVal) {
+                $(".imgModalc").remove();
+                $("#pdfIframe").hide();
                 $.ajax({
                     url: "/OrderMgms/GetImg",
                     type: "post",
@@ -425,29 +489,148 @@
                         ordernum: OrderNumVal,
                     },
                     success: function (returnVal) {
-                        var json = JSON.parse(returnVal);
-                        for (var img in json) {
-                            $("#imgModal").append('<img src="/AOD_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" /><br /><br />')
-                        }
-                        $("#showModal").click();
+                        if (returnVal == "此特采单订单图片尚未上传！") {
+                            alert(returnVal)
+                        } else {
+                            var json = JSON.parse(returnVal);
+                            for (var img in json) {
+                                $("#contentModal").append('<img class="imgModalc" src="/AOD_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该特采订单照片尚未上传！" />')
+                            }
+                            $("#myModalLabel").text("特采订单");
+                            $("#showModal").click();
+                        };
                     },
                     error: function (err) {
-                        alert("查看特采订单失败", err);
+                        alert("特采订单图片尝未上传！", err);
                     }
-                })
+                });
                 //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
-            }
+            },
+            imgModal_Abnormal: function (OrderNumVal) {
+                $(".imgModalc").remove();
+                $("#pdfIframe").hide();
+                $.ajax({
+                    url: "/OrderMgms/GetAbnormalOrderImg",
+                    type: "post",
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (returnVal) {
+                        if (returnVal == "此异常单订单图片尚未上传！") {
+                            alert(returnVal)
+                        } else {
+                            var json = JSON.parse(returnVal);
+                            for (var img in json) {
+                                $("#contentModal").append('<img class="imgModalc" src="/AbnormalOrder_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该异常订单照片尚未上传！" />')
+                            }
+                            $("#myModalLabel").text("异常订单");
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("异常订单图片尝未上传！", err);
+                    }
+                });
+                //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+            },
+            pdfModal_AOD: function (OrderNumVal) {
+                $(".imgModalc").remove();
+                $("#pdfIframe").show();
+                $.ajax({
+                    url: "/OrderMgms/GetPDF",
+                    type: "post",
+                    cache: false,
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (address) {
+                        if (address == "此特采单pdf版文件尚未上传，无pdf文件可下载！") {
+                            alert(address)
+                        } else {
+                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\AOD_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_AOD.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            document.getElementById("temporary").click();
+                            $("#temporary").remove();
+                            $("#myModalLabel").text("特采订单");
+                            if (isMobile()) {
+                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            } else {
+                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            }
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("查看特采订单PDF失败", err);
+                    }
+                });
+            },
+            pdfModal_Abnormal: function (OrderNumVal) {
+                $(".imgModalc").remove();
+                $("#pdfIframe").show();
+                $.ajax({
+                    url: "/OrderMgms/GetAbnormalOrderPDF",
+                    type: "post",
+                    cache: false,
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (address) {
+                        if (address == "此异常单pdf版文件尚未上传，无pdf文件可下载！") {
+                            alert(address)
+                        } else {
+                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\AbnormalOrder_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_AbnormalOrder.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            document.getElementById("temporary").click();
+                            $("#temporary").remove();
+                            $("#myModalLabel").text("异常订单");
+                            if (isMobile()) {
+                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            } else {
+                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            }
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("查看异常订单PDF失败", err);
+                    }
+                });
+            },
         },
         mounted: function () {
+            if (isMobile()) {
+                $(document).mousedown(function (e) {
+                    if ($(e.target).parent(".showDiv").length == 0) {
+                        cancelHover();
+                    };
+                });
+            };
             this.$nextTick(function () {
                 $("#table_head th").each(function (index, value) {
                     var tempWidth = $(value)[0].getBoundingClientRect().width;
                     var tempHeight = $(value)[0].getBoundingClientRect().height;
                     $("#fixed_table th").eq(index).css({ 'width': tempWidth + "px", 'height': tempHeight + "px" });
                 });
+                $("#shelter").css('height', $("#table_head").height());
+
+                if (isHoverNum == "true") {
+                    if (isMobile()) {
+                        cancelHover();
+                        isHoverNum = "false";
+                    };
+                };
             });
         }
     });
+
+    function isMobile() {
+        var judge = (navigator.userAgent.match(/(phone|pad|pod|iPhone|iPod|ios|iPad|Android|Mobile|BlackBerry|IEMobile|MQQBrowser|JUC|Fennec|wOSBrowser|BrowserNG|WebOS|Symbian|Windows Phone)/i));
+        return judge;
+    };
+    function cancelHover() {
+        $(".showDiv").each(function () {
+            $(this).css({ "visibility": "hidden", "opacity": "0" })
+        });
+    };
 
     function sortByActualProductionTime(array, key) {
         return array.sort(function (a, b) {

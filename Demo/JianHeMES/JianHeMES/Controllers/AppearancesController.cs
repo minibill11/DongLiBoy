@@ -561,16 +561,19 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region --------------------外观电检包装开始时检查条码在老化调试工序是否已经完成-----------------
+        #region --------------------外观电检包装开始时检查条码在老化调试工序是否已经完成
         /// <summary>
         /// 外观包装输入条码时，检查模组是否已经完成老化调试或校正工序
         /// </summary>
         /// <param name="barcode"></param>
         /// <returns></returns>
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public ActionResult Appearance_B_Check(string barcode)
         {
+            if (barcode=="")
+            {
+                return Content("此模组条码号为空！");
+            }
             var burn_in_Finish_Record = db.Burn_in.Where(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true).Count();
             if(burn_in_Finish_Record > 0 )
             {
@@ -698,7 +701,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
         private List<SelectListItem> GetOrderList()
         {
             var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
@@ -713,7 +716,6 @@ namespace JianHeMES.Controllers
             }
             return items;
         }
-        //----------------------------------------------------------------------------------------
         #endregion
 
         #region --------------------检索订单号------

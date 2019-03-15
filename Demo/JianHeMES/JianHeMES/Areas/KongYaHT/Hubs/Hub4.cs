@@ -55,7 +55,7 @@ namespace JianHeMES.Hubs
                 BroadcastShape,
                 null,
                 0,
-                1000);
+                10000);
         }
 
         private void BroadcastShape(object state)
@@ -64,25 +64,24 @@ namespace JianHeMES.Hubs
             JObject TH4_json = new JObject();
             using (var db = new kongyadbEntities())
             {
-
-                var TH_40001676_1 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "1") select m).FirstOrDefault();
-                var TH_40001676_2 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "2") select m).FirstOrDefault();
-                var TH_40001676_3 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "3") select m).FirstOrDefault();
                 var TH_40001676_4 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "4") select m).FirstOrDefault();
-                var TH_40001676_5 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "5") select m).FirstOrDefault();
+                var TH_40004493_6 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "6") select m).FirstOrDefault();
+                var TH_40021216_1 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021216" && m.NodeID == "1") select m).FirstOrDefault();
+                var TH_40021216_2 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021216" && m.NodeID == "2") select m).FirstOrDefault();
+                var TH_40021216_3 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021216" && m.NodeID == "3") select m).FirstOrDefault();
+                var TH_40021216_4 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021216" && m.NodeID == "4") select m).FirstOrDefault();
+                var TH_40004493_3 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "3") select m).FirstOrDefault();
                 var TH_40004493_4 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "4") select m).FirstOrDefault();
                 var TH_40004493_5 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "5") select m).FirstOrDefault();
-                var TH_40004493_3 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "3") select m).FirstOrDefault();
-                var TH_40004518_7 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004518" && m.NodeID == "7") select m).FirstOrDefault();
-                TH4_json.Add("TH_40001676_1", JsonConvert.SerializeObject(TH_40001676_1));
-                TH4_json.Add("TH_40001676_2", JsonConvert.SerializeObject(TH_40001676_2));
-                TH4_json.Add("TH_40001676_3", JsonConvert.SerializeObject(TH_40001676_3));
                 TH4_json.Add("TH_40001676_4", JsonConvert.SerializeObject(TH_40001676_4));
-                TH4_json.Add("TH_40001676_5", JsonConvert.SerializeObject(TH_40001676_5));
+                TH4_json.Add("TH_40004493_6", JsonConvert.SerializeObject(TH_40004493_6));
+                TH4_json.Add("TH_40004493_3", JsonConvert.SerializeObject(TH_40004493_3));
                 TH4_json.Add("TH_40004493_4", JsonConvert.SerializeObject(TH_40004493_4));
                 TH4_json.Add("TH_40004493_5", JsonConvert.SerializeObject(TH_40004493_5));
-                TH4_json.Add("TH_40004493_3", JsonConvert.SerializeObject(TH_40004493_3));
-                TH4_json.Add("TH_40004518_7", JsonConvert.SerializeObject(TH_40004518_7));
+                TH4_json.Add("TH_40021216_1", JsonConvert.SerializeObject(TH_40021216_1));
+                TH4_json.Add("TH_40021216_2", JsonConvert.SerializeObject(TH_40021216_2));
+                TH4_json.Add("TH_40021216_3", JsonConvert.SerializeObject(TH_40021216_3));
+                TH4_json.Add("TH_40021216_4", JsonConvert.SerializeObject(TH_40021216_4));
             }
             _hubContext4.Clients.All.sendTH4(TH4_json);
 

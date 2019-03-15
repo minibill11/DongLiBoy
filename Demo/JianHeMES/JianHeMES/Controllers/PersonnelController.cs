@@ -180,8 +180,11 @@ namespace JianHeMES.Controllers
                 date = DateTime.Now;
             }
             DateTime dateV = new DateTime(date.Year, date.Month, date.Day);
+            DateTime tomorrow = dateV.AddDays(1);
+            DateTime monday = new DateTime(date.Year, date.Month, date.Day); 
+            DateTime sunday = new DateTime(date.Year, date.Month, date.Day); 
             var arr = new List<Object>();
-            var weeknum = date.DayOfWeek;//得到date对应是星期几
+            var weeknum = date.DayOfWeek.ToString();//得到date对应是星期几
             List<string> departmentlist = new List<string>();
             if (date.Date < new DateTime(2019, 1, 2))
             {
@@ -197,8 +200,42 @@ namespace JianHeMES.Controllers
                 "PC部","MC部","SMT部","装配1部","装配2部","配套加工部","技术部","品质部","行政后勤部","人力资源部","财务部","制造中心总监","工厂厂长"
                 };
             }
+            //取出本月数据
             var Month_recordlist = await db.Personnel_daily.Where(c => c.Date.Value.Year == dateV.Year && c.Date.Value.Month == dateV.Month).ToListAsync();
-            if (Month_recordlist.Count == 0 || date.Date > DateTime.Now.Date || date < new DateTime(2018, 12, 3))
+            //修正确定monday的日期
+            switch (weeknum)
+            {
+                case "Monday": //星期一
+                    sunday = dateV.AddDays(6);
+                    break;
+                case "Tuesday": //星期二
+                    monday = dateV.AddDays(-1);
+                    sunday = dateV.AddDays(5);
+                    break;
+                case "Wednesday": //星期三 
+                    monday = dateV.AddDays(-2);
+                    sunday = dateV.AddDays(4);
+                    break;
+                case "Thursday": //星期四
+                    monday = dateV.AddDays(-3);
+                    sunday = dateV.AddDays(3);
+                    break;
+                case "Friday": //星期五
+                    monday = dateV.AddDays(-4);
+                    sunday = dateV.AddDays(2);
+                    break;
+                case "Saturday": //星期六
+                    monday = dateV.AddDays(-5);
+                    sunday = dateV.AddDays(1);
+                    break;
+                case "Sunday": //星期日
+                    monday = dateV.AddDays(-6);
+                    break;
+            }
+            //取出本周数据
+            var this_week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date<tomorrow).ToListAsync();
+            //如果月和周数据都为空，则返回“无记录”
+            if (Month_recordlist.Count == 0 && this_week_recordlist.Count() == 0 || date.Date > sunday || date < new DateTime(2018, 12, 3))
             {
                 JObject temp = new JObject();
                 temp.Add("无记录", "无记录");
@@ -252,7 +289,6 @@ namespace JianHeMES.Controllers
                     obj.Resigned_workers_that_month = 0;// lastrecord.Resigned_workers_that_month;//如果当天没有记录，是否应该赋最后一个记录的值？还是直接赋0?
                 }
                 DateTime mon_begin_date = new DateTime(date.Year, date.Month, 1);
-                DateTime tomorrow = new DateTime(date.Year, date.Month, dateV.AddDays(1).Day);
                 //本月入职正式工和劳务工人数
                 obj.Month_on_board_employees = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Today_on_board_employees);
                 obj.Month_on_board_workers = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Today_on_board_workers);
@@ -262,14 +298,13 @@ namespace JianHeMES.Controllers
 
                 //(2)得到date对应是星期几后，根据星期几的值不同，做一个Switch处理不同数据
                 //取出本周的记录集合
-                List<Personnel_daily> recordlist = new List<Personnel_daily>();
-                DateTime monday = new DateTime();
+                List<Personnel_daily> week_recordlist = new List<Personnel_daily>();
 
-                switch (weeknum.ToString())
+                switch (weeknum)
                 {
                     case "Monday":
-                        recordlist = Month_recordlist.Where(c=>c.Date>dateV && c.Date< tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c=>c.Date>dateV && c.Date< tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -295,8 +330,8 @@ namespace JianHeMES.Controllers
                         break;
                     case "Tuesday":
                         monday = dateV.AddDays(-1);
-                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -304,18 +339,16 @@ namespace JianHeMES.Controllers
                             obj.Tues_employees = 0;
                             obj.Week_total_employees = 0;
                             obj.Week_total_workers = 0;
-
                         }
                         else
                         {
-                            obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Mon_workers = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Mon_employees = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             //本周入职、离职正式工和劳务工人数
-                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
-                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
+                            obj.Week_total_employees = week_recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = week_recordlist.Sum(c => c.Today_on_board_workers);
                             obj.Tues_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Tues_employees = record == null ? 0 : record.Today_on_board_employees;
-
                         }
                         obj.Wednes_workers = 0;
                         obj.Wednes_employees = 0;
@@ -327,8 +360,8 @@ namespace JianHeMES.Controllers
                         break;
                     case "Wednesday": //星期三 
                         monday = dateV.AddDays(-2);
-                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -341,13 +374,13 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Tues_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Tues_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Mon_workers = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Mon_employees = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Tues_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Tues_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             //本周入职、离职正式工和劳务工人数
-                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
-                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
+                            obj.Week_total_employees = week_recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = week_recordlist.Sum(c => c.Today_on_board_workers);
                         }
                         obj.Wednes_workers = record == null ? 0 : record.Today_on_board_workers;
                         obj.Wednes_employees = record == null ? 0 : record.Today_on_board_employees;
@@ -358,8 +391,8 @@ namespace JianHeMES.Controllers
                         break;
                     case "Thursday": //星期四
                         monday = dateV.AddDays(-3);
-                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -374,25 +407,25 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Tues_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Tues_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Wednes_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Wednes_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Mon_workers = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Mon_employees = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Tues_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Tues_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Wednes_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Wednes_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Thurs_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Thurs_employees = record == null ? 0 : record.Today_on_board_employees;
                             //本周入职、离职正式工和劳务工人数
-                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
-                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
+                            obj.Week_total_employees = week_recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = week_recordlist.Sum(c => c.Today_on_board_workers);
                         }
                         obj.Fri_workers = 0;
                         obj.Fri_employees = 0;
                         break;
                     case "Friday": //星期五
                         monday = dateV.AddDays(-4);
-                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -409,25 +442,25 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Tues_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Tues_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Wednes_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Wednes_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Thurs_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Thurs_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Mon_workers = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Mon_employees = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Tues_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Tues_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Wednes_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Wednes_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Thurs_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Thurs_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             obj.Fri_workers = record == null ? 0 : record.Today_on_board_workers;
                             obj.Fri_employees = record == null ? 0 : record.Today_on_board_employees;
                             //本周入职、离职正式工和劳务工人数
-                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
-                            obj.Week_total_workers = recordlist.Sum(c => c.Today_on_board_workers);
+                            obj.Week_total_employees = week_recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = week_recordlist.Sum(c => c.Today_on_board_workers);
                         }
                         break;
                     case "Saturday":
                         monday = dateV.AddDays(-5);
-                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -444,25 +477,25 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Tues_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Tues_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Wednes_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Wednes_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Thurs_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Thurs_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Fri_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Fri_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Mon_workers = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Mon_employees = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Tues_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Tues_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Wednes_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Wednes_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Thurs_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Thurs_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Fri_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Fri_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             //本周入职、离职正式工和劳务工人数
-                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
-                            obj.Week_total_workers = recordlist.Sum(c =>c.Today_on_board_workers);
+                            obj.Week_total_employees = week_recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = week_recordlist.Sum(c =>c.Today_on_board_workers);
                         }
                         break;
                     case "Sunday":
                         monday = dateV.AddDays(-6);
-                        recordlist = Month_recordlist.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToList();
-                        if (recordlist.Count == 0)
+                        week_recordlist = await db.Personnel_daily.Where(c => c.Date > monday && c.Date < tomorrow && c.Department == item).OrderBy(c => c.Date).ToListAsync();
+                        if (week_recordlist.Count == 0)
                         {
                             obj.Mon_workers = 0;
                             obj.Mon_employees = 0;
@@ -479,19 +512,19 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            obj.Mon_workers = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Mon_employees = recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Tues_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Tues_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Wednes_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Wednes_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Thurs_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Thurs_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
-                            obj.Fri_workers = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
-                            obj.Fri_employees = recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Mon_workers = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_workers : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Mon_employees = week_recordlist.FirstOrDefault().Date.Value.DayOfWeek.ToString() == "Monday" ? week_recordlist.FirstOrDefault().Today_on_board_employees : 0;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-3).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Tues_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Tues_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Tuesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-2).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Wednes_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Wednes_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Wednesday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Thurs_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Thurs_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Thursday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
+                            obj.Fri_workers = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_workers;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_workers;
+                            obj.Fri_employees = week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").Count() == 0 ? 0 : week_recordlist.Where(c => c.Date.Value.DayOfWeek.ToString() == "Friday").FirstOrDefault().Today_on_board_employees;//db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == dateV.AddDays(-1).Day).FirstOrDefault().Today_on_board_employees;
                             //本周入职、离职正式工和劳务工人数
-                            obj.Week_total_employees = recordlist.Sum(c => c.Today_on_board_employees);
-                            obj.Week_total_workers = recordlist.Sum(c =>c.Today_on_board_workers);
+                            obj.Week_total_employees = week_recordlist.Sum(c => c.Today_on_board_employees);
+                            obj.Week_total_workers = week_recordlist.Sum(c =>c.Today_on_board_workers);
                         }
                         break;
                 }

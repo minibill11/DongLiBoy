@@ -55,7 +55,7 @@ namespace JianHeMES.Hubs
                 BroadcastShape,
                 null,
                 0,
-                1000);
+                10000);
         }
 
         private void BroadcastShape(object state)

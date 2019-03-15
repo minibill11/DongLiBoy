@@ -24,7 +24,7 @@ namespace JianHeMES.Controllers
         #region------------------SMT管理界面(产线管理，产线生产计划)
         // GET: SMT管理主页
 
-        public ActionResult SMT_Mangage()
+        public ActionResult SMT_Manage()
         {
             List<SMT_ProductionLineInfo> SMT_ProcutionLineInfos = new List<SMT_ProductionLineInfo>();
             SMT_ProcutionLineInfos = db.SMT_ProductionLineInfo.ToList();
@@ -37,7 +37,7 @@ namespace JianHeMES.Controllers
         }
 
 
-        #region---------------------产线管理
+        #region---------------------产线管理 SMT_ProductionLine
 
         public ActionResult SMT_ProductionLineCreate()
         {
@@ -45,12 +45,12 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Department == "SMT部" && ((Users)Session["User"]).Role == "主管" ||((Users)Session["User"]).Role == "SMT看板管理员" ||  ((Users)Session["User"]).Role == "系统管理员")
             {
                 ViewBag.Status = ProductionLineStatus();
                 return View();
             }
-            return Content("<script>alert('对不起，您不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Mangage';</script>");
+            return Content("<script>alert('对不起，您不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_Manage';</script>");
         }
 
         [HttpPost]
@@ -67,7 +67,7 @@ namespace JianHeMES.Controllers
             {
                 db.SMT_ProductionLineInfo.Add(newline);
                 db.SaveChanges();
-                return RedirectToAction("SMT_Mangage");
+                return RedirectToAction("SMT_Manage");
             }
             else
             {
@@ -82,7 +82,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Department == "SMT部" && ((Users)Session["User"]).Role == "主管" ||((Users)Session["User"]).Role == "SMT看板管理员" ||  ((Users)Session["User"]).Role == "系统管理员")
             {
                 if (id == null)
                 {
@@ -97,7 +97,7 @@ namespace JianHeMES.Controllers
                 ViewBag.StatusValue = record.Status;
                 return View(record);
             }
-            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_Mangage';</script>");
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_Manage';</script>");
         }
 
         [HttpPost]
@@ -107,7 +107,7 @@ namespace JianHeMES.Controllers
             {
                 db.Entry(record).State = EntityState.Modified;
                 await db.SaveChangesAsync();
-                return RedirectToAction("SMT_Mangage");
+                return RedirectToAction("SMT_Manage");
             }
             return View(record);
         }
@@ -115,17 +115,17 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region---------------------订单管理
+        #region---------------------订单管理 SMT_OrderManage
 
         // GET: SMT订单信息管理
-        public ActionResult SMT_OrderMangage()
+        public ActionResult SMT_OrderManage()
         {
             ViewBag.FinishStatus = FinishStatusList();
             return View();
         }
 
         [HttpPost]
-        public PartialViewResult SMT_OrderMangage(string FinishStatus)
+        public PartialViewResult SMT_OrderManage(string FinishStatus)
         {
             List<SMT_OrderInfo> QueryResult = new List<SMT_OrderInfo>();
             //筛选完成状态
@@ -155,11 +155,11 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            if ( ((Users)Session["User"]).Department == "SMT部" && ((Users)Session["User"]).Role == "主管" ||((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
-            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_OrderMangage';</script>");
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT/SMT_OrderManage';</script>");
         }
 
         [HttpPost]
@@ -205,7 +205,7 @@ namespace JianHeMES.Controllers
                         db.SaveChanges();
                     }
                 }
-                return RedirectToAction("SMT_OrderMangage");
+                return RedirectToAction("SMT_OrderManage");
             }
             return View(records);
         }
@@ -216,7 +216,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Role == "系统管理员")
+            if (((Users)Session["User"]).Department == "SMT部" && ((Users)Session["User"]).Role == "主管" ||((Users)Session["User"]).Role == "SMT看板管理员" ||  ((Users)Session["User"]).Role == "系统管理员")
             {
                 if (id == null)
                 {
@@ -230,7 +230,7 @@ namespace JianHeMES.Controllers
                 ViewBag.Status = ProductionLineStatus();
                 return View(record);
             }
-            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_OrderMangage';</script>");
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系SMT看板管理员！');window.location.href='../SMT_OrderManage';</script>");
         }
 
         [HttpPost]
@@ -240,7 +240,7 @@ namespace JianHeMES.Controllers
             {
                 db.Entry(record).State = EntityState.Modified;
                 await db.SaveChangesAsync();
-                return RedirectToAction("SMT_OrderMangage");
+                return RedirectToAction("SMT_OrderManage");
             }
             return View(record);
         }
@@ -248,7 +248,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region---------------------产线计划管理
+        #region---------------------产线计划管理 SMT_ProductionPlan
         [HttpGet]
         public ActionResult SMT_ProductionPlan()
         {
@@ -289,7 +289,7 @@ namespace JianHeMES.Controllers
             }
             if (!String.IsNullOrEmpty(remark))
             {
-                recordlist = recordlist.Where(c => c.Remark.Contains(remark)).ToList();
+                recordlist = recordlist.Where(c => c.Remark.Contains(remark)==true).ToList();
             }
             return View(recordlist);
         }
@@ -382,7 +382,7 @@ namespace JianHeMES.Controllers
                 ViewBag.Status = ProductionLineStatus();
                 return View(record);
             }
-            return Content("<script>alert('对不起，您的不能管理产线信息，请联系系统管理员！');window.location.href='../SMT_Mangage';</script>");
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系系统管理员！');window.location.href='../SMT/SMT_ProductionPlan';</script>");
         }
 
         [HttpPost]
@@ -396,13 +396,58 @@ namespace JianHeMES.Controllers
             }
             return View(record);
         }
+
+        // GET: SMT_ProductionPlan/Delete/
+        public async Task<ActionResult> SMT_ProductionPlanDelete(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                SMT_ProductionPlan record = await db.SMT_ProductionPlan.FindAsync(id);
+                if (record == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(record);
+            }
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系系统管理员！');window.location.href='../SMT_ProductionPlan';</script>");
+        }
+
+        // POST: SMT_ProductionPlan/Delete/
+        [HttpPost, ActionName("SMT_ProductionPlanDelete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> SMT_ProductionPlanDeleteConfirmed(int id)
+        {
+            SMT_ProductionPlan record = await db.SMT_ProductionPlan.FindAsync(id);
+            db.SMT_ProductionPlan.Remove(record);
+            await db.SaveChangesAsync();
+            return Content("<script>alert('SMT计划已经成功删除！');window.location.href='../SMT_ProductionPlan';</script>");
+        }
+
+        //protected override void Dispose(bool disposing)
+        //{
+        //    if (disposing)
+        //    {
+        //        db.Dispose();
+        //    }
+        //    base.Dispose(disposing);
+        //}
+
         #endregion
 
 
-        #region---------------------用户管理
+        #region---------------------用户管理 SMT_UserManage
 
         // GET: SMT用户管理
-        public ActionResult SMT_UserMangage()
+        public ActionResult SMT_UserManage()
         {
             if (Session["User"] == null)
             {
@@ -545,7 +590,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region------------------SMT生产信息（总看板、产线看板、查找历史记录）
+        #region------------------SMT生产信息（总看板、产线看板、查找历史记录） SMT_ProductionLineInfo  SMT_ProductionData
 
         // GET: SMT总览表
         public ActionResult SMT_ProductionInfo()
@@ -560,12 +605,30 @@ namespace JianHeMES.Controllers
             return View();
         }
 
-        #region----------SMT生产信息查找历史记录
+        public ActionResult SMT_ProductionInfoHistory()
+        {
+            ViewBag.PlatformType = PlatformTypeList();
+            ViewBag.OrderNumList = GetOrderList();
+            return View();
+        }
+        [HttpPost]
+        public ActionResult SMT_ProductionInfoHistory(string ordernum, string platformType)
+        {
+            ViewBag.PlatformType = PlatformTypeList();
+            ViewBag.OrderNumList = GetOrderList();
+            //参考Hubs的SMT方法
+
+            return View();
+        }
+
+
+        #region----------SMT生产信息查找历史记录 SMT_ProductionData
         public ActionResult SMT_ProductionData()
         {
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.LineNumList = GetLineNumList();
             ViewBag.JobContentList = GetJobContentList();
+            ViewBag.OrderInfo = null;
             var records = db.SMT_ProductionData.OrderBy(c => c.LineNum).Where(c => DbFunctions.DiffDays(c.ProductionDate, DateTime.Now) <= 0).ToList();
             return View(records);
         }
@@ -576,6 +639,15 @@ namespace JianHeMES.Controllers
             ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
             ViewBag.LineNumList = GetLineNumList();
             ViewBag.JobContentList = GetJobContentList();
+
+            if(!String.IsNullOrEmpty(orderNum) && lineNum==null && String.IsNullOrEmpty(jobContent) && ProductionDate==null)
+            {
+                ViewBag.OrderInfo = db.OrderMgm.FirstOrDefault(c => c.OrderNum == orderNum);
+            }
+            else
+            {
+                ViewBag.OrderInfo = null;
+            }
             List<SMT_ProductionData> recordlist = new List<SMT_ProductionData>();
             if (String.IsNullOrEmpty(orderNum) && lineNum == null && String.IsNullOrEmpty(jobContent) && ProductionDate == null)
             {
@@ -606,9 +678,9 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region------------------生产操作(数据录入)
+        #region------------------生产操作(数据录入、修改)
         // GET: SMT产线未段工位输入操作
-
+        #region----------数据生产录入
         public ActionResult SMT_Operator()
         {
             //ViewBag.OrderNumList = JsonConvert.SerializeObject(GetTodayPlanOrderNumList());//向View传递OrderNum订单号列表.
@@ -619,7 +691,7 @@ namespace JianHeMES.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role != "SMT看板管理员" || ((Users)Session["User"]).Department != "SMT部" && ((Users)Session["User"]).Role != "主管" || ((Users)Session["User"]).Role != "系统管理员")
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Department == "SMT部" && ((Users)Session["User"]).Role == "主管" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 return View();
             }
@@ -663,11 +735,53 @@ namespace JianHeMES.Controllers
             string lastrecordendtime = record == null ? "" : record.EndTime.ToString();
             return Content(lastrecordendtime);
         }
-       #endregion
+        #endregion
+
+        #region----------数据生产修改
+        public async Task<ActionResult> SMT_ProductionDataEdit(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "SMT看板管理员" || ((Users)Session["User"]).Department == "SMT部" && ((Users)Session["User"]).Role == "主管" || ((Users)Session["User"]).Role == "系统管理员")
+            {
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                SMT_ProductionData record = await db.SMT_ProductionData.FindAsync(id);
+                if (record == null)
+                {
+                    return HttpNotFound();
+                }
+                //ViewBag.Status = ProductionLineStatus();
+                ViewBag.OrderNum = GetOrderList();
+                ViewBag.OrderNumValue = record.OrderNum;
+                return View(record);
+            }
+            return Content("<script>alert('对不起，您的不能修改数据生产，请联系系统管理员！');history.go(-1);</script>");//window.location.href='../SMT_Mangage';
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> SMT_ProductionDataEdit([Bind(Include = "Id,LineNum,OrderNum,JobContent,NormalCount,AbnormalCount,BeginTime,EndTime,BarcodeNum,Result,ProductionDate,Operator")]SMT_ProductionData record)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(record).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("SMT_ProductionData");
+            }
+            return View(record);
+        }
+
+
+        #endregion
+        #endregion
 
 
         #region------------------走廊显示屏
-            public ActionResult SMT_CorridorView()
+        public ActionResult SMT_CorridorView()
         {
             return View();
         }
@@ -708,6 +822,11 @@ namespace JianHeMES.Controllers
                 {
                     Text = "待料",
                     Value = "待料"
+                },
+                new SelectListItem
+                {
+                    Text = "设备保养",
+                    Value = "设备保养"
                 },
                 new SelectListItem
                 {
@@ -798,6 +917,23 @@ namespace JianHeMES.Controllers
         {
             var date = DateTime.Now;
             var orders = db.SMT_ProductionPlan.Where(c=>c.PlanProductionDate.Value.Year==date.Year && c.PlanProductionDate.Value.Month == date.Month && c.PlanProductionDate.Value.Day == date.Day).OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            var items = new List<SelectListItem>();
+            foreach (string order in orders)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = order,
+                    Value = order
+                });
+            }
+            return items;
+        }
+        #endregion
+
+        #region -----------------PlatformTypeList()取出整个OrderMgms的PlatformTypeList列表
+        private List<SelectListItem> PlatformTypeList()
+        {
+            var orders = db.OrderMgm.Select(m => m.PlatformType).Distinct().ToList();
             var items = new List<SelectListItem>();
             foreach (string order in orders)
             {

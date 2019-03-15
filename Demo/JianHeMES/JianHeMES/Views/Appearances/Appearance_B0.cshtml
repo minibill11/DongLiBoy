@@ -1,0 +1,287 @@
+﻿@model JianHeMES.Models.Appearance
+
+@{
+    ViewBag.Title = "外观包装工作";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+<h2 class="hidden-xs">外观包装工作</h2>
+<style>
+    #BarCodesNum {
+        display: inline-block;
+    }
+
+    .RepertoryStyle {
+        color: #555;
+        padding: 6px 12px 6px 12px;
+    }
+
+    input, textarea, select {
+        max-width: 215px;
+    }
+
+    .barcodeFrame {
+        width: 200px;
+        height: 200px;
+        border: 1px solid #555;
+        overflow: auto;
+        padding: 5px;
+    }
+
+        .barcodeFrame ul {
+            list-style: none;
+            padding: 0;
+        }
+
+    .frameW p {
+        margin: 10px 0;
+    }
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 215px;
+    }
+    /*select    宽度*/
+    .bootstrap-select > .btn,.bootstrap-select.form-control:not([class*="col-"]){
+        max-width:215px;
+    }
+    @@media screen and (min-width:992px) {
+        .leftform {
+            border-right: 1px solid #555;
+            padding: 80px 40px 0 0;
+            min-height: 500px;
+        }
+
+        .barcodeFrame {
+            height: 400px;
+        }
+    }
+
+    @@media screen and (min-width:768px) {
+        .frameW {
+            text-align: center;
+            padding-right: 0;
+        }
+
+        .barcodeFrame {
+            margin: 0 auto;
+        }
+    }
+</style>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <h4 class="hidden-xs">@ViewBag.Title</h4>
+        <h4 class="visible-xs text-center">@ViewBag.Title</h4>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+        <div class="col-md-4 leftform">
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.DropDownListFor(model => model.OrderNum,
+            ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                    @*@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, new { @class = "form-control" })*@
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="form-group">
+                @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')" } })
+                    @*<br /><span class="RepertoryStyle">是否为库存转新订单：<input id="IsRepertory" type="checkbox"></span>*@
+                    <br /><span class="RepertoryStyle">是否有客户条码号：<input id="IsRepertory" type="checkbox"></span>
+                    @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div id="isorder" class="form-group">
+                @Html.LabelFor(model => model.CustomerBarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.CustomerBarCodesNum, new { htmlAttributes = new { @class = "form-control" } })
+                    @Html.ValidationMessageFor(model => model.CustomerBarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+
+
+            <div @*id="isorder"*@ style="display:none">
+                <div class="form-group">
+                    @Html.LabelFor(model => model.ToOrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                    <div class="col-md-8">
+                        @Html.DropDownListFor(model => model.ToOrderNum,
+            ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                        @*@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, new { @class = "form-control" })*@
+                        @Html.ValidationMessageFor(model => model.ToOrderNum, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    @Html.LabelFor(model => model.Remark, htmlAttributes: new { @class = "control-label col-md-4" })
+                    <div class="col-md-8">
+                        @Html.EditorFor(model => model.Remark, new { htmlAttributes = new { @class = "form-control" } })
+                        @Html.ValidationMessageFor(model => model.Remark, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input type="submit" value="开始外观包装" class="btn btn-default" />
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8 " style="padding:0">
+            <div class="col-md-4 col-sm-4 frameW text-danger">
+                <p>未开始 {{NotDoList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:indianred">
+                    <ul>
+                        <li v-for="item in NotDoList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-info">
+                <p>未完成 {{NeverFinish.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:cornflowerblue">
+                    <ul>
+                        <li v-for="item in NeverFinish">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-success">
+                <p>已完成 {{FinishList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:forestgreen">
+                    <ul>
+                        <li v-for="item in FinishList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+<div class="clearfix"></div>
+<div class="row col-md-12">
+    @Html.ActionLink("返回", "Index")
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            NotDoList: [],
+            NeverFinish: [],
+            FinishList: []
+        }
+    })
+</script>
+<script>
+    $(function () {
+        var localRepertory = localStorage.getItem('isRepertory');
+        if (localRepertory == "false" || localRepertory == null) {
+            $("#isorder").hide();
+            $("#ToOrderNum").removeAttr("name");
+            $("#Remark").removeAttr("name");
+            $("#CustomerBarCodesNum").removeAttr("name");
+        } else if (localRepertory == "true") {
+            $("#ToOrderNum").removeAttr("name");
+            $("#Remark").removeAttr("name");
+            $("#IsRepertory").prop('checked', true);
+        };
+
+        $("#IsRepertory").change(function () {
+            localStorage.setItem('isRepertory', $(this).is(':checked'));
+            if ($(this).is(':checked') == true) {
+                $("#isorder").show();
+                //$("#ToOrderNum").attr("name", "ToOrderNum");
+                //$("#Remark").attr("name", "Remark");
+                $("#CustomerBarCodesNum").attr("name", "CustomerBarCodesNum");
+            } else {
+                $("#isorder").hide();
+                $("#ToOrderNum").removeAttr("name");
+                $("#Remark").removeAttr("name");
+                $("#CustomerBarCodesNum").removeAttr("name");
+            }
+        });
+
+
+        var localOrder = localStorage.getItem('Order');
+        if (localOrder != null) {
+            $("#OrderNum").val(localOrder);
+            getInfo($("#OrderNum").val());
+        }
+        $("#OrderNum").change(function (val) {
+            localStorage.setItem('Order', val.target.value);
+            getInfo(val.target.value, "appearance");
+            $("#BarCodesNum").select();
+        })
+
+        var localToOrder = localStorage.getItem('toOrder');
+        if (localToOrder != null) {
+            $("#ToOrderNum").val(localToOrder);
+        }
+        $("#ToOrderNum").change(function (val) {
+            localStorage.setItem('toOrder', val.target.value);
+            //getInfo(val.target.value);
+            $("#Remark").select();
+        })
+
+        //$("#BarCodesNum").select();
+        $("#BarCodesNum").keypress(function (e) {
+            if (e.which == 13 && $("#IsRepertory").is(":checked") == true) {// 判断所按是否回车键
+                $("#CustomerBarCodesNum").focus(); // 设置焦点
+                return false;// 取消默认的提交行为
+            }
+        });
+    });
+    function getInfo(oNum) {
+        $.ajax({
+            url: "/Appearances/AppearanceChecklist",
+            type: "post",
+            data: {
+                orderNum: oNum,
+            },
+            success: function (data) {
+                console.log(data)
+                var allJson = JSON.parse(data);
+                for (var i in allJson) {
+                    var iJson = JSON.parse(allJson[i]);
+                    var iDiv = $('#' + i);
+                    if (i == "NotDoList") {
+                        app.NotDoList = [];
+                        for (var j in iJson) {
+                            app.NotDoList.push(iJson[j]);
+                        }
+                    };
+                    if (i == "NeverFinish") {
+                        app.NeverFinish = [];
+                        for (var j in iJson) {
+                            app.NeverFinish.push(iJson[j]);
+                        }
+                    };
+                    if (i == "FinishList") {
+                        app.FinishList = [];
+                        for (var j in iJson) {
+                            app.FinishList.push(iJson[j]);
+                        }
+                    };
+                }
+            },
+            error: function (err) {
+                alert("获取订单信息失败")
+            }
+        });
+    }
+    $(function () {
+        $('.selectpicker').selectpicker();
+    });
+</script>
+@section Scripts {
+    @Scripts.Render("~/bundles/jqueryval")
+}

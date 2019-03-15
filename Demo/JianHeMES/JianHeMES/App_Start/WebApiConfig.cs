@@ -19,7 +19,7 @@ namespace JianHeMES.App_Start
                 name: "DefaultApi",
                 routeTemplate: "api/{controller}/{action}",
                 defaults: new { id = RouteParameter.Optional }
-            );
+                );
         }
     }
 }

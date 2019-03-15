@@ -10,6 +10,7 @@
 <style>
     #BarCodesNum {
         display: inline-block;
+        /* background-color: aqua; */
     }
 
     .RepertoryStyle {
@@ -69,6 +70,15 @@
         .barcodeFrame {
             margin: 0 auto;
         }
+    }
+
+    .contentposition{
+        /* border: 1px solid aquamarine; */
+        width: 390px;
+        height: 100px;
+        color: red;
+        text-align: center;
+        margin-top: 100px;
     }
 </style>
 @using (Html.BeginForm())
@@ -132,8 +142,9 @@
 
             <div class="form-group">
                 <div class="col-md-offset-4 col-md-8">
-                    <input type="submit" value="开始外观包装" class="btn btn-default" />
+                    <input id="subm" type="submit" value="开始外观包装" class="btn btn-default" />
                 </div>
+                <div class="contentposition" id="left-dwon"></div>
             </div>
         </div>
         <div class="col-md-8 " style="padding:0">
@@ -234,12 +245,41 @@
 
         //$("#BarCodesNum").select();
         $("#BarCodesNum").keypress(function (e) {
-            if (e.which == 13 && $("#IsRepertory").is(":checked") == true) {// 判断所按是否回车键
-                $("#CustomerBarCodesNum").focus(); // 设置焦点
-                return false;// 取消默认的提交行为
+            if (e.which == 13) {// 判断所按是否回车键
+                if($("#IsRepertory").is(":checked") == true){
+                    $("#CustomerBarCodesNum").focus(); // 设置焦点
+                    postY();
+                    return false;// 取消默认的提交行为
+                }else{
+                    postY();
+                    return false;
+                }
             }
         });
+    // 次部分为检测条码号是否已完成老化工序；后台在post空值时也会返回提示信息！
+        function postY(){
+            $.ajax({
+                url: "/Appearances/Appearance_B_Check",
+                type: "post",
+                data: {
+                barcode:$("#BarCodesNum").val() ,
+                },
+                success:function(dat){
+                    if(dat == ""){
+                        $("#left-dwon").text("");
+                        $("#subm").click();
+                    }else{
+                        $("#left-dwon").text(dat);
+                    }
+                },
+                error:function(er){
+                    alert("连接失败！")
+                }
+            })
+        }
     });
+
+
     function getInfo(oNum) {
         $.ajax({
             url: "/Appearances/AppearanceChecklist",

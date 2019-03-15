@@ -168,7 +168,6 @@ namespace JianHeMES.Models
         public string Remark { get; set; }
 
 
-
         #region ------------特采单内容
 
         [Display(Name = "是否为特采订单")]
@@ -235,6 +234,22 @@ namespace JianHeMES.Models
         [Display(Name = "AOD_QA描述")]
         public string AOD_QA_Description { get; set; }
 
+        #endregion
+
+
+        #region ------------异常订单内容
+        [Display(Name = "是否为异常订单")]
+        public Boolean IsAbnormalOrder { get; set; }
+
+        [Display(Name = "转异常订单用户")]
+        public string AbnormalOrderConverter { get; set; }
+
+        [Display(Name = "转异常订单日期")]
+        [DataType(DataType.DateTime)]
+        public DateTime? AbnormalOrderConvertDate { get; set; }
+
+        [Display(Name = "异常描述")]
+        public string AbnormalOrder_Description { get; set; }
         #endregion
 
 

@@ -394,6 +394,12 @@ namespace JianHeMES.Controllers
                     #endregion
 
 
+                    #region---------------------异常订单部分
+                    var AbnormalOrder_Description = db.OrderMgm.Where(c => c.OrderNum == item.OrderNum).ToList().FirstOrDefault().AbnormalOrder_Description;
+                    OrderNum.Add("AbnormalOrder_Description", AbnormalOrder_Description);
+                    #endregion
+
+
                     ProductionControlHistory.Add(i.ToString(), OrderNum);
                     i++;
                 }
@@ -664,6 +670,23 @@ namespace JianHeMES.Controllers
             #endregion
 
 
+            #region ---------------PQC完成后超过24小时未开始老化工序的条码清单-----------------
+            //finish_assemble_list 已完成组装清单
+            var finish_assemble_list = assembleRecord.Where(c => c.PQCCheckFT != null && c.PQCCheckFinish == true && c.RepetitionPQCCheck == false).ToList();
+            //burn_in_Record 老化全部记录
+            var burn_in_Record = db.Burn_in.Where(c => c.OrderNum == OrderNum).ToList();  
+            List<Assemble> Overtime_never_join_burn_in_list = new List<Assemble>();
+            foreach (var record in finish_assemble_list)
+            {
+                if(burn_in_Record.Count(c => c.BarCodesNum == record.BoxBarCode) == 0 && (DateTime.Now-record.PQCCheckFT).Value.TotalHours>=24)
+                {
+                    Overtime_never_join_burn_in_list.Add(record);
+                }
+            }
+            ViewBag.Overtime_never_join_burn_in = Overtime_never_join_burn_in_list;
+            #endregion
+
+
             var unbeginRecord_temp = orderBoxBarCodeList.ToArray().Except(finishedList.ToArray()).ToList().Except(going_temp.Select(c => c.BoxBarCode).ToArray()).ToList();//14.未开始PQC的条码清单、个数(排除已完成（包含正常异常）、正在进行)
 
             string unbeginRecord = null;
@@ -712,8 +735,10 @@ namespace JianHeMES.Controllers
                 { "unbeginRecordNum", unbeginRecord_temp.Count() },//14.未开始PQC的条码清单、个数
                 { "goingNum", going_temp.Count() },//15.正在进行PQC的条码清单、个数
                 { "passedNum", passed_temp.Count() },//16.已经完成PQC的条码清单、个数
+                { "Overtime_never_join_burn_in", Overtime_never_join_burn_in_list.Count() },//PQC完成后超过24小时未开始老化工序的条码清单个数
                 //17.异常信息统计
             };
+            #endregion
 
             ViewBag.abnormalList_temp = abnormalList_temp;//10.异常记录清单
             ViewBag.finishedAnd2record_temp = finishedAnd2record_temp;//12.经过2次及以上PQC已完成的条码清单、个数
@@ -723,7 +748,6 @@ namespace JianHeMES.Controllers
             ViewBag.passed_temp = passed_temp;//16.已经完成PQC的条码清单、个数
             ViewBag.JsonObj = JsonObj;
 
-            #endregion
             return View();
         }
 
@@ -988,6 +1012,39 @@ namespace JianHeMES.Controllers
             var passed = Burn_in_PutOutJson(passed_temp);
             //string abnormalStatistics = null; //17.异常信息统计
 
+            #region ---------------PQC完成后超过24小时未开始老化工序的条码清单-----------------
+            //finish_assemble_list 已完成组装清单
+            var finish_assemble_list = db.Assemble.Where(c =>c.OrderNum==OrderNum && c.PQCCheckFT != null && c.PQCCheckFinish == true && c.RepetitionPQCCheck == false).OrderBy(c=>c.BoxBarCode).ToList();
+            //burn_in_Record 老化全部记录
+            var burn_in_Record = db.Burn_in.Where(c => c.OrderNum == OrderNum).ToList();
+            List<Assemble> Overtime_never_join_burn_in_list = new List<Assemble>();
+            foreach (var record in finish_assemble_list)
+            {
+                if (burn_in_Record.Count(c => c.BarCodesNum == record.BoxBarCode) == 0 && (DateTime.Now - record.PQCCheckFT).Value.TotalHours >= 24)
+                {
+                    Overtime_never_join_burn_in_list.Add(record);
+                }
+            }
+            ViewBag.Overtime_never_join_burn_in = Overtime_never_join_burn_in_list;
+            #endregion
+
+            #region ---------------老化完成后超过72小时未开始包装工序的条码清单-----------------
+            //finish_burn_in_list 已完成老化清单
+            var finish_burn_in_list = db.Burn_in.Where(c => c.OrderNum == OrderNum && c.OQCCheckFT != null && c.OQCCheckFinish == true).OrderBy(c => c.BarCodesNum).ToList();
+            //appearance_list 包装全部记录
+            var appearance_list = db.Appearance.Where(c => c.OrderNum == OrderNum).ToList();
+            List<Burn_in> Overtime_never_join_appearance_list = new List<Burn_in>();
+            foreach (var record in finish_burn_in_list)
+            {
+                if (appearance_list.Count(c => c.BarCodesNum == record.BarCodesNum) == 0 && (DateTime.Now - record.OQCCheckFT).Value.TotalHours >= 72)
+                {
+                    Overtime_never_join_appearance_list.Add(record);
+                }
+            }
+            ViewBag.Overtime_never_join_appearance = Overtime_never_join_appearance_list;
+            #endregion
+
+
             #endregion
 
             #region ---------------将对象转为列矩阵JSON
@@ -1013,8 +1070,11 @@ namespace JianHeMES.Controllers
                 { "unbeginRecordNum", unbeginRecord_temp.Count() },//14.未开始OQC的条码清单、个数
                 { "goingNum", going_temp.Count() },//15.正在进行OQC的条码清单、个数
                 { "passedNum", passed_temp.Count() },//16.已经完成OQC的条码清单、个数
+                { "Overtime_never_join_burn_in", Overtime_never_join_burn_in_list.Count() },//PQC完成后超过24小时未开始老化工序的条码清单个数
+                { "Overtime_never_join_appearance", Overtime_never_join_appearance_list.Count() },//老化完成后超过72小时未开始包装工序的条码清单个数
                 //17.异常信息统计
             };
+            #endregion
 
             ViewBag.abnormalList_temp = abnormalList_temp;//10.异常记录清单
             //ViewBag.finishedAnd2record_temp = finishedAnd2record_temp;//12.经过2次及以上OQC已完成的条码清单、个数
@@ -1024,7 +1084,6 @@ namespace JianHeMES.Controllers
             ViewBag.passed_temp = passed_temp;//16.已经完成OQC的条码清单、个数
             ViewBag.JsonObj = JsonObj;
 
-            #endregion
 
             return View();
         }
@@ -1386,6 +1445,23 @@ namespace JianHeMES.Controllers
             var passed = Appearance_PutOutJson(passed_temp);
             //string abnormalStatistics = null; //17.异常信息统计
 
+            #region ---------------老化完成后超过72小时未开始包装工序的条码清单-----------------
+            //finish_burn_in_list 已完成老化清单
+            var finish_burn_in_list = db.Burn_in.Where(c => c.OrderNum == OrderNum && c.OQCCheckFT != null && c.OQCCheckFinish == true).OrderBy(c=>c.BarCodesNum).ToList();
+            //appearance_list 包装全部记录
+            var appearance_list = db.Appearance.Where(c => c.OrderNum == OrderNum).ToList();
+            List<Burn_in> Overtime_never_join_appearance_list = new List<Burn_in>();
+            foreach (var record in finish_burn_in_list)
+            {
+                if (appearance_list.Count(c => c.BarCodesNum == record.BarCodesNum) == 0 && (DateTime.Now - record.OQCCheckFT).Value.TotalHours >= 72)
+                {
+                    Overtime_never_join_appearance_list.Add(record);
+                }
+            }
+            ViewBag.Overtime_never_join_appearance = Overtime_never_join_appearance_list;
+            #endregion
+
+
             #endregion
 
             #region ---------------将对象转为列矩阵JSON
@@ -1411,8 +1487,10 @@ namespace JianHeMES.Controllers
                 { "unbeginRecordNum", unbeginRecord_temp.Count() },//14.未开始OQC的条码清单、个数
                 { "goingNum", going_temp.Count() },//15.正在进行外观包装OQC的条码清单、个数
                 { "passedNum", passed_temp.Count() },//16.已经完成外观包装OQC的条码清单、个数
+                { "Overtime_never_join_appearance", Overtime_never_join_appearance_list.Count() },//老化完成后超过72小时未开始包装工序的条码清单个数
                 //17.异常信息统计
             };
+            #endregion
 
             ViewBag.abnormalList_temp = abnormalList_temp;//10.异常记录清单
             //ViewBag.finishedAnd2record_temp = finishedAnd2record_temp;//12.经过2次及以上外观包装OQC已完成的条码清单、个数
@@ -1422,7 +1500,6 @@ namespace JianHeMES.Controllers
             ViewBag.passed_temp = passed_temp;//16.已经完成外观包装OQC的条码清单、个数
             ViewBag.JsonObj = JsonObj;
 
-            #endregion
 
             return View();
         }
