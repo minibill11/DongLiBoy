@@ -10,6 +10,7 @@
 <style>
     #BarCodesNum {
         display: inline-block;
+        /* background-color: aqua; */
     }
 
     .RepertoryStyle {
@@ -37,6 +38,7 @@
     .frameW p {
         margin: 10px 0;
     }
+
     .selectpicker {
         border: 1px solid #ccc;
     }
@@ -45,9 +47,10 @@
         width: 215px;
     }
     /*select    宽度*/
-    .bootstrap-select > .btn,.bootstrap-select.form-control:not([class*="col-"]){
-        max-width:215px;
+    .bootstrap-select > .btn, .bootstrap-select.form-control:not([class*="col-"]) {
+        max-width: 215px;
     }
+
     @@media screen and (min-width:992px) {
         .leftform {
             border-right: 1px solid #555;
@@ -69,6 +72,35 @@
         .barcodeFrame {
             margin: 0 auto;
         }
+    }
+
+    #left-dwon {
+        /* border: 1px solid aquamarine; */
+        color: red;
+        font-size:13px;
+    }
+
+    .table{
+        margin-bottom:0;
+        max-width:215px;
+    }
+    .table > tbody > tr > td, .table > tbody > tr > th{
+        padding:1px;
+        text-align:center;
+        vertical-align:middle;
+        font-size:13px;
+        height:22px;
+    }
+
+    .table-bordered > tbody > tr > th,.table-bordered > tbody > tr > td{
+        border:1px solid #000;
+    }
+    .green {
+        color: green;
+    }
+
+    .red {
+        color: red;
     }
 </style>
 @using (Html.BeginForm())
@@ -129,10 +161,31 @@
                     </div>
                 </div>
             </div>
-
+            <div class="form-group" v-show="commonalitylist!=''">
+                <label class="control-label col-md-4">各工段情况</label>
+                <div class="col-md-8">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>组装</th>
+                            <th>FQC</th>
+                            <th>老化</th>
+                            <th>校正</th>
+                            <th>包装</th>
+                        </tr>
+                        <tr v-for="item in commonalitylist">
+                            <td><span v-bind:class="item.Accemble_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.FQC_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Burn_in_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Calibration_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Appearance_Record==true?trueclass:falseclass"></span></td>
+                        </tr>
+                    </table>
+                    <span id="left-dwon"></span>
+                </div>
+            </div>
             <div class="form-group">
                 <div class="col-md-offset-4 col-md-8">
-                    <input type="submit" value="开始外观包装" class="btn btn-default" />
+                    <input id="subm" type="submit" value="开始外观包装" class="btn btn-default" />
                 </div>
             </div>
         </div>
@@ -177,7 +230,18 @@
         data: {
             NotDoList: [],
             NeverFinish: [],
-            FinishList: []
+            FinishList: [],
+            commonalitylist: [],
+            trueclass: {
+                'glyphicon': true,
+                'glyphicon-ok': true,
+                'green': true
+            },
+            falseclass: {
+                'glyphicon': true,
+                'glyphicon-remove': true,
+                'red': true
+            },
         }
     })
 </script>
@@ -232,8 +296,77 @@
             $("#Remark").select();
         })
 
-        $("#BarCodesNum").select();
+
+
+        //$("#BarCodesNum").select();
+        $("#BarCodesNum").keypress(function (e) {
+            if (e.which == 13) {// 判断所按是否回车键
+                if ($("#BarCodesNum").val() != '') {
+                    if ($("#IsRepertory").is(":checked") == true) {
+                        $("#CustomerBarCodesNum").focus(); // 设置焦点
+                        postX();
+                        postY();
+                        return false;// 取消默认的提交行为
+                    } else {
+                        postX();
+                        postY();
+                        return false;// 取消默认的提交行为
+                    }
+                } else {
+                    app.commonalitylist = [];
+                    $("#left-dwon").text("");
+                    return false;
+                }
+            };
+        });
+
+        $("#CustomerBarCodesNum").keypress(function (e) {
+            if (e.which == 13) {
+                return false;
+            }
+        });
+        // 次部分为检测条码号是否已完成老化工序；后台在post空值时也会返回提示信息！
+        function postY() {
+            $.ajax({
+                url: "/Appearances/Appearance_B_Check",
+                type: "post",
+                data: {
+                    barcode: $("#BarCodesNum").val(),
+                },
+                success: function (dat) {
+                    if (dat == "") {
+                        $("#left-dwon").text("");
+                        //$("#subm").click();
+                    } else {
+                        $("#left-dwon").text(dat);
+                    }
+                },
+                error: function (er) {
+                    alert("连接失败！")
+                }
+            })
+        };
+        //
+        function postX() {
+            app.commonalitylist = [];
+            $.ajax({
+                url: "/Commonality/GetBarcode_Each_Section_Prompt",
+                type: "post",
+                data: {
+                    barcode: $("#BarCodesNum").val(),
+                },
+                success: function (data) {
+                    console.log(data)
+                    app.commonalitylist.push(JSON.parse(data));
+                },
+                error: function (er) {
+                    alert("连接失败！")
+                }
+            })
+        }
     });
+
+
     function getInfo(oNum) {
         $.ajax({
             url: "/Appearances/AppearanceChecklist",
@@ -242,7 +375,7 @@
                 orderNum: oNum,
             },
             success: function (data) {
-                console.log(data)
+                //console.log(data)
                 var allJson = JSON.parse(data);
                 for (var i in allJson) {
                     var iJson = JSON.parse(allJson[i]);
