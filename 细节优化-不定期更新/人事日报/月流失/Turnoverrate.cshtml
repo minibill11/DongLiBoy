@@ -109,7 +109,7 @@
         </div>
     </div>
     <hr />
-    <div class="row">
+    <div v-show="departmentList!=''" class="row">
         <table class="table table-bordered">
             <colgroup>
                 <col width="100" />
@@ -144,82 +144,16 @@
                 <th>12</th>
                 <th rowspan="5">平均数值</th>
             </tr>
-            <tr>
-                <td rowspan="5">部门</td>
-                <td>月初人数</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td>月末人数</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td>平均人数</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td>离职人数</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td>流失率</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>100.00%</td>
+            <tr v-for="(item,index) in departmentList">
+                <td v-if="index==0" rowspan="5">{{yearDepartment}}</td>
+                <td v-if="index==0">月初人数</td>
+                <td v-if="index==1">月末人数</td>
+                <td v-if="index==2">平均人数</td>
+                <td v-if="index==3">离职人数</td>
+                <td v-if="index==4">流失率</td>
+                <td v-if="index<4" v-for="i in item">{{i}}</td>
+                <td v-if="index==4" v-for="i in item">{{i}}<span v-if="typeof(i)!='undefined'">%</span></td>
+                <td v-if="index==4" style="font-weight:bold;">{{yearAverageVal}}%</td>
             </tr>
         </table>
     </div>
@@ -235,11 +169,14 @@
             lineArray: [],
             departmentList: [],
             monthAverageVal: "",
+            yearDepartment: "部门",
+            yearAverageVal: "",
             emptyMessage: "请选择年/月查询数据"
         },
         created: function () {
             let nowDate = new Date();
             this.year = nowDate.getFullYear();
+            this.month = nowDate.getMonth() + 1;
         },
         mounted: function () {
             //this.$options.methods.getTurnoverrateYearlyLineChartData();
@@ -279,7 +216,32 @@
                     },
                     success: function (data) {
                         let dataJson = JSON.parse(data);
-                        console.log(JSON.parse(data));
+                        let dataArray = [[], [], [], [], []];
+                        app.departmentList = [];
+                        //console.log(JSON.parse(data));
+                        dataArray.forEach(function (value, index, array) {
+                            value.length = 12;
+                        });
+                        for (let i in dataJson) {
+                            dataArray[0][i] = dataJson[i].Month_Beginning;
+                            dataArray[1][i] = dataJson[i].Month_End;
+                            dataArray[2][i] = dataJson[i].Average_Number;
+                            dataArray[3][i] = dataJson[i].Departure;
+                            dataArray[4][i] = dataJson[i].Turnover_Rate;
+                        };
+                        let yearAverageCount = 0;
+                        let yearLeaveCount = 0;
+                        for (let m = 0; m < 12; m++) {
+                            if (typeof (dataArray[2][m]) != 'undefined') {
+                                yearAverageCount += dataArray[2][m];
+                            };
+                            if (typeof (dataArray[3][m]) != 'undefined') {
+                                yearLeaveCount += dataArray[3][m];
+                            };
+                        };
+                        app.yearDepartment = dataJson[0].Department;
+                        app.departmentList = dataArray;
+                        app.yearAverageVal = ((yearLeaveCount / yearAverageCount) * 100).toFixed(2);
                     },
                     error: function (err) {
                         alert("查看失败！")
@@ -316,6 +278,7 @@
         },
         watch: {
             year: function () {
+                this.departmentList = [];
                 if (this.year != "" && this.month != "") {
                     this.$options.methods.postTime(this.year, this.month);
                 } else {
@@ -328,7 +291,7 @@
                 } else {
                     this.lineArray = [];
                     myChart.setOption({
-                        title: { subtext: app.year + '年记录' },
+                        title: { subtext: '请选择年份' },
                         series: [{ data: this.lineArray }]
                     });
                 };
@@ -340,6 +303,7 @@
                     this.monthAverageVal = this.lineArray[this.month - 1];
                 } else {
                     this.turnoverrateList = [];
+                    this.departmentList = [];
                     this.emptyMessage = "请选择年/月查询数据"
                 };
             },
