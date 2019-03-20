@@ -8,21 +8,29 @@
     [v-cloak] {
         display: none;
     }
+
     .table > tbody > tr > th {
         background-color: #f0da35;
     }
-    .table > tbody > tr > th,.footTr{
-        height:30px;
+
+    .table > tbody > tr > th, .footTr {
+        height: 30px;
     }
-    .table-bordered > tbody > tr > th,.table-bordered > tbody > tr > td {
+
+    .table-bordered > tbody > tr > th, .table-bordered > tbody > tr > td {
         border: 1px solid #555;
-        text-align:center;
-        vertical-align:middle;
-        padding:1px;
+        text-align: center;
+        vertical-align: middle;
+        padding: 1px;
     }
+
     .table > tbody > tr > td:hover, .table > tbody > tr > th :hover {
-                background-color: #f0da35;
-            }
+        background-color: #f0da35;
+    }
+
+    .DepartmentStyle {
+        cursor: pointer;
+    }
 </style>
 <h3 class="text-center">月流失率查看</h3>
 <p>@Html.ActionLink("月流失率输入页面", "TurnoverrateInput")</p>
@@ -31,31 +39,31 @@
     <div class="row">
         <div class="col-md-5">
             <div style="margin-bottom:5px;">
-                    <select v-model="year">
-                        <option></option>
-                        <option>2019</option>
-                        <option>2020</option>
-                        <option>2021</option>
-                        <option>2022</option>
-                        <option>2023</option>
-                    </select>
-                    年
-                    <select v-model="month">
-                        <option></option>
-                        <option>1</option>
-                        <option>2</option>
-                        <option>3</option>
-                        <option>4</option>
-                        <option>5</option>
-                        <option>6</option>
-                        <option>7</option>
-                        <option>8</option>
-                        <option>9</option>
-                        <option>10</option>
-                        <option>11</option>
-                        <option>12</option>
-                    </select>
-                    月流失率
+                <select v-model="year">
+                    <option></option>
+                    <option>2019</option>
+                    <option>2020</option>
+                    <option>2021</option>
+                    <option>2022</option>
+                    <option>2023</option>
+                </select>
+                年
+                <select v-model="month">
+                    <option></option>
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                    <option>6</option>
+                    <option>7</option>
+                    <option>8</option>
+                    <option>9</option>
+                    <option>10</option>
+                    <option>11</option>
+                    <option>12</option>
+                </select>
+                月流失率
             </div>
             <div>
                 <table class="table table-bordered">
@@ -66,30 +74,33 @@
                         <col width="80" />
                         <col width="80" />
                         <col width="90" />
+                        <col width="80" />
                     </colgroup>
-                        <tr>
-                            <th>部门</th>
-                            <th>月初人数</th>
-                            <th>月末人数</th>
-                            <th>平均人数</th>
-                            <th>离职人数</th>
-                            <th>流失率</th>
-                        </tr>
-                        <tr v-for="(item,index) in list" v-cloak>
-                            <td>{{item.Department}}</td>
-                            <td>{{item.Month_Beginning}}</td>
-                            <td>{{item.Month_End}}</td>
-                            <td>{{item.Average_Number}}</td>
-                            <td>{{item.Departure}}</td>
-                            <td>{{item.Turnover_Rate.toFixed(2)}}%</td>
-                            @*[Display(Name = "平均数值")]
-                                public decimal Average_Value { get; set; }*@
-                        </tr>
-                        <tr class="footTr">
-                            <td v-if="list==''" colspan="6">{{emptyMessage}}</td>
-                            <td v-else colspan="5">平均数值</td>
-                            <td v-if="list!=''" style="font-weight:bold;">{{list[0].Average_Value.toFixed(2)}}%</td>
-                        </tr>
+                    <tr>
+                        <th>部门</th>
+                        <th>月初人数</th>
+                        <th>月末人数</th>
+                        <th>平均人数</th>
+                        <th>离职人数</th>
+                        <th>流失率</th>
+                        <th>操作</th>
+                    </tr>
+                    <tr v-for="(item,index) in turnoverrateList" v-cloak>
+                        <td v-on:click="getDepartmentYearMsg(item.Department)" class="DepartmentStyle">{{item.Department}}</td>
+                        <td>{{item.Month_Beginning}}</td>
+                        <td>{{item.Month_End}}</td>
+                        <td>{{item.Average_Number}}</td>
+                        <td>{{item.Departure}}</td>
+                        <td>{{item.Turnover_Rate.toFixed(2)}}%</td>
+                        @*[Display(Name = "平均数值")]
+                            public decimal Average_Value { get; set; }*@
+                        <td><a href="'/Personnel_Turnoverrate/Edit/' + item.Id" target="_blank">编辑</a></td>
+                    </tr>
+                    <tr class="footTr">
+                        <td v-if="turnoverrateList==''" colspan="7">{{emptyMessage}}</td>
+                        <td v-else colspan="5">平均数值</td>
+                        <td v-if="turnoverrateList!=''" colspan="2" style="font-weight:bold;">{{monthAverageVal}}%</td>
+                    </tr>
                 </table>
             </div>
         </div>
@@ -220,8 +231,18 @@
         data: {
             year: "",
             month: "",
-            list: [],
+            turnoverrateList: [],
+            lineArray: [],
+            departmentList: [],
+            monthAverageVal: "",
             emptyMessage: "请选择年/月查询数据"
+        },
+        created: function () {
+            let nowDate = new Date();
+            this.year = nowDate.getFullYear();
+        },
+        mounted: function () {
+            //this.$options.methods.getTurnoverrateYearlyLineChartData();
         },
         methods: {
             postTime: function (y, m) {
@@ -233,18 +254,62 @@
                         Month: m,
                     },
                     success: function (data) {
-                        console.log(data);
                         let targetdata = JSON.parse(data);
+                        //console.log(targetdata);
                         if (targetdata.length > 0) {
-                            app.list = targetdata;
+                            app.turnoverrateList = targetdata;
                         } else {
-                            app.list = [];
+                            app.turnoverrateList = [];
                             //alert(y + "年" + m + "月没有记录或尚未输入数据！");
                             app.emptyMessage = y + "年" + m + "月没有记录或尚未输入数据！";
                         };
                     },
-                    error: function (dat) {
+                    error: function (err) {
                         alert("查询失败！")
+                    }
+                });
+            },
+            getDepartmentYearMsg: function (departmentVal) {
+                $.ajax({
+                    url: "/Personnel_Turnoverrate/TurnoverrateYearly",
+                    type: "post",
+                    data: {
+                        department: departmentVal,
+                        year: app.year,
+                    },
+                    success: function (data) {
+                        let dataJson = JSON.parse(data);
+                        console.log(JSON.parse(data));
+                    },
+                    error: function (err) {
+                        alert("查看失败！")
+                    }
+                });
+            },
+            getTurnoverrateYearlyLineChartData: function () {
+                $.ajax({
+                    url: "/Personnel_Turnoverrate/TurnoverrateYearlyLineChartData",
+                    type: "post",
+                    data: {
+                        year: app.year,
+                    },
+                    success: function (data) {
+                        app.lineArray = [];
+                        let dataJson = JSON.parse(data);
+                        for (let i in dataJson) {
+                            app.lineArray[i - 1] = dataJson[i];
+                        };
+                        //赋值平均数
+                        if (app.month != "") {
+                            app.monthAverageVal = app.lineArray[app.month - 1];
+                        };
+                        myChart.setOption({
+                            title: { subtext: app.year + '年记录' },
+                            series: [{ data: app.lineArray }]
+                        });
+                    },
+                    error: function (err) {
+                        //alert("查看失败！")
                     }
                 });
             },
@@ -254,27 +319,40 @@
                 if (this.year != "" && this.month != "") {
                     this.$options.methods.postTime(this.year, this.month);
                 } else {
-                    this.list = [];
+                    this.turnoverrateList = [];
                     this.emptyMessage = "请选择年/月查询数据"
+                };
+                //折线图根据年查询
+                if (this.year != "") {
+                    this.$options.methods.getTurnoverrateYearlyLineChartData();
+                } else {
+                    this.lineArray = [];
+                    myChart.setOption({
+                        title: { subtext: app.year + '年记录' },
+                        series: [{ data: this.lineArray }]
+                    });
                 };
             },
             month: function () {
                 if (this.year != "" && this.month != "") {
                     this.$options.methods.postTime(this.year, this.month);
+                    //赋值平均数
+                    this.monthAverageVal = this.lineArray[this.month - 1];
                 } else {
-                    this.list = [];
+                    this.turnoverrateList = [];
                     this.emptyMessage = "请选择年/月查询数据"
                 };
             },
         }
     });
-
+    //echart折线图配置
     var myChart = echarts.init(document.getElementById('echartMain'));
+    //myChart.showLoading();
+    //myChart.hideLoading();
     var option = {
         title: {
             left: 'center',
             text: '月流失率变化',
-            subtext: '目前数据为虚构固定值，供露露参考'
         },
         tooltip: {
             trigger: 'axis',
@@ -286,8 +364,8 @@
         yAxis: {
             type: 'value',
             axisLabel: {
-            formatter: '{value} %'
-        }
+                formatter: '{value} %'
+            }
         },
         toolbox: {
             feature: {
@@ -296,11 +374,10 @@
                 saveAsImage: {}
             },
             right: 60,
-            top:30,
+            top: 30,
         },
         series: [{
-            name:"平均流失率(%)",
-            data: [30, 11, 20, 90, 50, 33, 50,40, 40, 27, 69, 56],
+            name: "平均流失率(%)",
             type: 'line',
             toolbox: {
                 show: true,

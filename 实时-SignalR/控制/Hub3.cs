@@ -17,8 +17,6 @@ using JianHeMES.Areas.KongYaHT.Models;
 
 namespace JianHeMES.Hubs
 {
-
-
     [HubName("Hub3")]
     public class Hub3 : Hub
     {
@@ -55,7 +53,7 @@ namespace JianHeMES.Hubs
                 BroadcastShape,
                 null,
                 0,
-                1000);
+                10000);
         }
 
         private void BroadcastShape(object state)
@@ -65,16 +63,19 @@ namespace JianHeMES.Hubs
             //取出数据
             using (var db = new kongyadbEntities())
             {
-                var TH_40001676_6 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "6") select m).FirstOrDefault();
+                //var TH_40001676_6 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "6") select m).FirstOrDefault();
                 var TH_40001676_9 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "9") select m).FirstOrDefault();
-                var TH_40001676_10 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "10") select m).FirstOrDefault();
+
+                //var TH_40001676_10 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40001676" && m.NodeID == "10") select m).FirstOrDefault();
+                var TH_40021209_1 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021209" && m.NodeID == "1") select m).FirstOrDefault();
                 var TH_40004493_2 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40004493" && m.NodeID == "2") select m).FirstOrDefault();
 
                 
                 //存入JSON对象
-                TH3_json.Add("TH_40001676_6", JsonConvert.SerializeObject(TH_40001676_6));
+                //TH3_json.Add("TH_40001676_6", JsonConvert.SerializeObject(TH_40001676_6));
                 TH3_json.Add("TH_40001676_9", JsonConvert.SerializeObject(TH_40001676_9));
-                TH3_json.Add("TH_40001676_10", JsonConvert.SerializeObject(TH_40001676_10));
+                //TH3_json.Add("TH_40001676_10", JsonConvert.SerializeObject(TH_40001676_10));
+                TH3_json.Add("TH_40021209_1", JsonConvert.SerializeObject(TH_40021209_1));
                 TH3_json.Add("TH_40004493_2", JsonConvert.SerializeObject(TH_40004493_2));
             }
             //广播发送JSON数据
