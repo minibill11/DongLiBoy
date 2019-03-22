@@ -3,13 +3,15 @@
 @{
     ViewBag.Title = "开始校正";
 }
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 <style>
     input, textarea, select {
         max-width: 215px;
     }
 
     .barcodeFrame {
-        width: 200px;
+        width: 210px;
         height: 200px;
         border: 1px solid #555;
         overflow: auto;
@@ -24,7 +26,17 @@
     .frameW p {
         margin: 10px 0;
     }
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
 
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 215px;
+    }
+    /*select    宽度*/
+    .bootstrap-select > .btn,.bootstrap-select.form-control:not([class*="col-"]){
+        max-width:215px;
+    }
     @@media screen and (min-width:992px) {
         .leftform {
             border-right: 1px solid #555;
@@ -47,6 +59,26 @@
             margin: 0 auto;
         }
     }
+
+
+    @@media screen and (max-width:768px) {
+        .form-group ,.control-label{
+            margin-bottom: 0px;
+        }
+
+        h5 {
+            margin-top: 5px;
+            margin-bottom: 0px;
+        }
+
+        .frameW p {
+            margin: 5px 0 0;
+        }
+
+        .barcodeFrame {
+            height: 150px;
+        }
+    }
 </style>
 <h2 class="hidden-xs">@ViewBag.Title</h2>
 
@@ -55,7 +87,7 @@
     @Html.AntiForgeryToken()
     <div id="app" class="form-horizontal">
         <h4 class="hidden-xs">校正记录</h4>
-        <h4 class="text-center visible-xs">开始校正</h4>
+        <h5 class="text-center visible-xs">开始校正</h5>
         <hr class="hidden-xs" />
         @Html.ValidationSummary(true, "", new { @class = "text-danger" })
 
@@ -63,14 +95,14 @@
             <div class="form-group">
                 @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
-                    @Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "form-control" })
+                    @Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
                     @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
                 </div>
             </div>
             <div class="form-group">
                 @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
-                    @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')" } })
+                    @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autocomplete = "off", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')" } })
                     @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
                 </div>
             </div>
@@ -78,7 +110,7 @@
                 @Html.LabelFor(model => model.ModuleGroupNum, htmlAttributes: new { @class = "control-label col-md-4" })
                 <div class="col-md-8">
                     @*@Html.EditorFor(model => model.ModuleGroupNum, new { htmlAttributes = new { @class = "form-control", onkeyup = "this.value=this.value.toUpperCase()" } })*@
-                    <input v-model="ModuleGroupNumVal" id="ModuleGroupNum" name="ModuleGroupNum" data-val="true" data-val-required="模组号 字段是必需的。" onkeyup="this.value=this.value.toUpperCase()" class="form-control text-box single-line" type="text">
+                    <input v-model="ModuleGroupNumVal" id="ModuleGroupNum" name="ModuleGroupNum" data-val="true" data-val-required="模组号 字段是必需的。" onkeyup="this.value=this.value.toUpperCase()" class="form-control text-box single-line" type="text" autocomplete="off">
                     @Html.ValidationMessageFor(model => model.ModuleGroupNum, "", new { @class = "text-danger" })
                 </div>
             </div>
@@ -118,7 +150,7 @@
             </div>
             <div class="col-md-4 col-sm-4 frameW text-info">
                 <p>未完成 {{NeverFinish.length}} 个</p>
-                <div class="barcodeFrame" style="border-color:cornflowerblue">
+                <div class="barcodeFrame" style="border-color:cornflowerblue;text-align:left;">
                     <ul>
                         <li v-for="item in NeverFinish">{{item}}</li>
                     </ul>
@@ -126,7 +158,7 @@
             </div>
             <div class="col-md-4 col-sm-4 frameW text-success">
                 <p>已完成 {{FinishList.length}} 个</p>
-                <div class="barcodeFrame" style="border-color:forestgreen">
+                <div class="barcodeFrame" style="border-color:forestgreen;text-align:left;">
                     <ul>
                         <li v-for="item in FinishList">{{item}}</li>
                     </ul>
@@ -159,14 +191,14 @@
         },
         watch: {
             RepetitionCause: function (val) {
-                if (this.checkstate == true && val != '' && app.ModuleGroupNumVal != '') {
+                if (this.checkstate == true && val != '' && app.ModuleGroupNumVal != '' && app.ModuleGroupNumVal.length <= 8) {
                     this.confirm = false;
                 } else {
                     this.confirm = true;
                 };
             },
             ModuleGroupNumVal: function (val) {
-                if ((this.checkstate == true && val != '' && app.RepetitionCause != '') || (this.checkstate == false && val != '')) {
+                if ((this.checkstate == true && val != '' && val.length <= 8 && app.RepetitionCause != '') || (this.checkstate == false && val != '' && val.length <= 8)) {
                     this.confirm = false;
                 } else {
                     this.confirm = true;
@@ -177,14 +209,14 @@
             checkchange: function () {
                 this.checkstate = !this.checkstate;
                 if (this.checkstate) {
-                    if (app.ModuleGroupNumVal != '' && app.RepetitionCause != '') {
+                    if (app.ModuleGroupNumVal != '' && app.ModuleGroupNumVal.length <= 8 && app.RepetitionCause != '') {
                         this.confirm = false;
                     } else {
                         this.confirm = true;
                     };
                     this.$nextTick(() =>  $("#RepetitionCalibrationCause").focus());
                 } else {
-                    if (app.ModuleGroupNumVal != '') {
+                    if (app.ModuleGroupNumVal != '' && app.ModuleGroupNumVal.length <= 8) {
                         this.confirm = false;
                     } else {
                         this.confirm = true;
@@ -253,6 +285,10 @@
             }
         });
     }
+
+    $(function () {
+        $('.selectpicker').selectpicker();
+    });
 </script>
 @section Scripts {
     @Scripts.Render("~/bundles/jqueryval")
