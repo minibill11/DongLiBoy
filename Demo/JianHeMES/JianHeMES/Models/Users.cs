@@ -56,26 +56,44 @@ namespace JianHeMES.Models
         public virtual List<OrderMgm> OrderMgm { get; set; }
         public virtual List<Assemble> Assemble { get; set; }
         public virtual List<BarCodes> BarCodes { get; set; }
-        public virtual List<UserRole> UserRole { get; set; }
-        public virtual List<Departments> Departments { get; set; }
     }
 
-    public class UserRole
+    public class Useroles
     {
-        public int ID { get; set; }
+        [Key]
+        public int Id { get; set; }
 
-        public int RoleNum { get; set; }
+        [Display(Name = "姓名"), StringLength(50)]
+        public string UserName { get; set; }
 
-        public string RoleName { get; set; }
+        [Display(Name = "工号")]
+        public int UserID { get; set; }
 
-        public string RoleScription { get; set; }
+        [Display(Name = "部门"), StringLength(50)]
+        public string Department { get; set; }
+
+        [Display(Name = "权限名"), StringLength(50)]
+        public string RolesName { get; set; }
+
+        [Display(Name = "权限"), StringLength(50)]
+        public string Roles { get; set; }
     }
 
-    public class Departments
+    public class UserRolelistTable
     {
-        public int ID { get; set; }
-        public int DepartmentNum { get; set; }
-        public string DepartmentName { get; set; }
-        public string DepartmentScription { get; set; }
+        [Key]
+        public int id { get; set; }
+
+        [Display(Name = "部门"), StringLength(50)]
+        public string Department { get; set; }
+
+        [Display(Name = "权限代码")]
+        public int RolesCode { get; set; }
+
+        [Display(Name = "权限名"), StringLength(50)]
+        public string RolesName { get; set; }
+
+        [Display(Name = "描述"), StringLength(50)]
+        public string Discription { get; set; }
     }
 }

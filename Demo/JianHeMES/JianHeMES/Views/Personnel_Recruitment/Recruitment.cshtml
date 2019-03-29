@@ -18,6 +18,9 @@
         font-size:18px;
         font-style: italic;
     }
+    .color2{
+        background-color:red;
+    }
  table thead{
         background-color: rgba(255, 255, 0, 0.712);
     }
@@ -69,8 +72,6 @@
     }
 </style>
 <!-- <h4>招聘周报</h4> -->
-
-
     <div id="app" style="margin-top: 29px;">
         <span class="spanone">
             <select v-model="year">
@@ -139,12 +140,12 @@
                     <td style="width:135px;">{{item.Demand_jobs}}</td>
                     <td style="width:85px;">{{item.Compile}}</td>
                     <td style="width:85px;">{{item.Demand_number}}</td>
-                    <td style="width:85px;">{{item.Employed}}</td>
-                    <td style="width:85px;">{{item.Unfinished_nember}}</td>
-                    <td style="width:105px;">{{item.Application_date | timeFormat}}</td>
-                    <td style="width:105px;">{{item.Work_date | timeFormat}}</td>
+                    <td style="width:85px;">{{item.Employed}}</td>              
+                    <td style="width:85px;">{{item.Unfinished_nember}}</td>     
+                    <td style="width:105px;">{{item.Application_date | timeFormat}}</td> <!-- 申请日期 -->
+                    <td style="width:105px;">{{item.Work_date | timeFormat}}</td>        <!-- 到岗日期 -->
                     <td style="width:74.5px;">{{item.Invite_Plan_Cycle}}</td>
-                    <td style="width:74.5px;" :class="(item.Invite_Actaul_Cycle > item.Invite_Plan_Cycle)?'color':''">{{item.Invite_Actaul_Cycle}}</td>
+                    <td style="width:74.5px;" :title="(demandDate(item.Application_date,item.Work_date) < 0)?'所填到岗日期早于申请日期！':''" :class="(demandDate(item.Application_date,item.Work_date) > item.Invite_Plan_Cycle || demandDate(item.Application_date,item.Work_date) <0)?'color':''">{{demandDate(item.Application_date,item.Work_date)}}</td>
 					<td style="width:65px;" v-text="((item.Employed / item.Demand_number)*100).toFixed(2) + '%'"></td>
                     <td style="width:141px;">
                     <a :href="'/Personnel_Recruitment/Edit/' + item.Id" >编辑</a>
@@ -152,7 +153,6 @@
                     <a :href="'/Personnel_Recruitment/Delete/' + item.Id" style="margin-left:15px;">删除</a>
                     </td>
                 </tr>
-                
             </tbody>
     </table>
     </div>
@@ -165,30 +165,43 @@
             </tbody>
     </table>
 </div>
-
-
-
-
     <script>
     Vue.filter("timeFormat",function(val){    //时间格式过滤器
-        var mydata = new Date(val);
-        var startYear = mydata.getFullYear();
-        var startMonth = (mydata.getMonth() + 1).toString().padStart(2,"0");
-        var startDay = mydata.getDate().toString().padStart(2,"0");
-        return startYear + "-" + startMonth + "-" + startDay 
+       if(val == null){
+            val =""
+       }else{
+            var mydata = new Date(val);
+            var startYear = mydata.getFullYear();
+            var startMonth = (mydata.getMonth() + 1).toString().padStart(2,"0");
+            var startDay = mydata.getDate().toString().padStart(2,"0");
+            return startYear + "-" + startMonth + "-" + startDay 
+       }
 
     })
     var vm = new Vue({
         el:"#app",
         data:{
             year:"",
-            finishRate:"",
             month:"",
             week:"",
             list:""
         },
-        methods:{   //事件触发
-
+        methods: {
+            demandDate(date1,date2){  //date1:小日期   date2:大日期
+                 if(date2 ==null){
+                     var sdate = new Date(date1); 
+                     var now =new Date(); 
+                     var days = now.getTime() - sdate.getTime(); 
+              　　  var day = parseInt(days / (1000 * 60 * 60 * 24)); 
+              　　  return day;
+                 }else{
+                    var sdate = new Date(date1); 
+              　　  var now = new Date(date2); 
+              　　  var days = now.getTime() - sdate.getTime(); 
+              　　  var day = parseInt(days / (1000 * 60 * 60 * 24)); 
+              　　  return day; 
+                 }
+            }
         },
         watch:{  //改变触发
             year:function(){
@@ -213,17 +226,22 @@
                if(lists ==""){
 
                }else{
-                    var count =0;
-                for(var i in lists){
-                    count += lists[i].Employed / lists[i].Demand_number; 
+                    var Employed_count =0;
+                    var Demand_number_count = 0;
+                for(var i in lists){    //改变算法：由各完成率的平均值变为如下
+                    Employed_count += lists[i].Employed 
+                    Demand_number_count += lists[i].Demand_number; 
                 }
-                return  ((count/lists.length)*100).toFixed(2)+"%";
+                return  ((Employed_count/Demand_number_count)*100).toFixed(2)+"%";
                }
+            },
+            dynDate(){
+               
             }
         }
      })
 
-     function postTime(y,m,w){
+    function postTime(y,m,w){
          $.ajax({
              url: "/Personnel_Recruitment/Recruitment",
             type: "post",

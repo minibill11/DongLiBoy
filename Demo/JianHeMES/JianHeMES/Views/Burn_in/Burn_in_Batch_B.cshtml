@@ -6,7 +6,7 @@
 <link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
 <script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 <h2 class="hidden-xs">@ViewBag.Title</h2>
-<h4 class="visible-xs text-center">批量开始老化</h4>
+<h5 class="visible-xs text-center">批量开始老化</h5>
 <style>
     .color-show {
         display: flex;
@@ -17,6 +17,7 @@
         width: 50%;
         text-align: center;
         transition: transform .3s;
+        padding: 6px 4px;
     }
 
     .green {
@@ -26,6 +27,7 @@
     .red {
         color: red;
     }
+
     .selectpicker {
         border: 1px solid #ccc;
     }
@@ -33,8 +35,54 @@
     .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
         max-width: 280px;
     }
-    .form-control{
+
+    .form-control {
         max-width: 280px;
+    }
+
+
+    .table > tbody > tr > td, .table > tbody > tr > th {
+        padding: 1px;
+        text-align: center;
+        vertical-align: middle;
+        font-size: 13px;
+        height: 24px;
+    }
+
+    .table-bordered > tbody > tr > th, .table-bordered > tbody > tr > td {
+        border: 1px solid #555;
+    }
+
+    .green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }
+
+    @@media screen and (max-width:768px) {
+        .form-group, .control-label {
+            margin-bottom: 0px;
+        }
+
+        h5 {
+            margin-top: 5px;
+            margin-bottom: 0px;
+        }
+
+        hr {
+            margin: 10px 0px 0px;
+        }
+
+        .xsnum, .table {
+            margin-bottom: 5px;
+        }
+
+        .color-box {
+            padding: 4px 0 !important;
+            height: 25px;
+        }
     }
 </style>
 @using (Html.BeginForm())
@@ -61,9 +109,9 @@
             <div class="col-md-6">
                 <label class="control-label col-md-4" for="content">输入模块条码</label>
                 <div class="col-md-8">
-                    <input type="text" class="form-control" placeholder="请输入模块条码" v-model.trim="newTask" id="content" style="display:inline;text-transform:uppercase">
-                    <button class="btn btn-default" v-on:click="addTask">添加</button>
-                    <br /><span v-show="prompt" style="color: red;">不能输入相同条码</span>
+                    <input type="text" class="form-control" placeholder="请输入模块条码" v-model.trim="newTask" maxlength="15" id="content" onKeyUp="value = value.replace(/[^A-Za-z0-9]/g, '')" style="display:inline;text-transform:uppercase" autocomplete="off">
+                    <button id="addclick" class="btn btn-default" v-on:click="addTask">添加</button>
+                    <br class="hidden-xs" /><span v-show="prompt" style="color: red;">不能输入相同条码</span>
                 </div>
                 <div class="form-group"><div class="col-md-12"></div></div>
                 <div class="col-md-8 col-md-offset-4">
@@ -85,19 +133,40 @@
                         </template>
                     </div>
                 </div>
-                <div class="col-md-8 visible-xs">
+                <div class="col-md-8 visible-xs xsnum">
                     <div class="form-group color-show">
                         <template v-for="(task,index) in tasks">
                             <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control" style="font-size:12px; padding:7px 5px">
                                 <span>{{task}}</span>
-                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;padding:0">✗</button>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;padding:0;width:20px;">✗</button>
                             </li>
                         </template>
                     </div>
                 </div>
             </div>
+
+            <div class="col-md-6" style="overflow:auto">
+                <table class="table table-bordered">
+                    <tr>
+                        <th>条码号</th>
+                        <th>组装</th>
+                        <th>FQC</th>
+                        <th>老化</th>
+                        <th>校正</th>
+                        <th>包装</th>
+                    </tr>
+                    <tr v-for="item in commonalitylist">
+                        <td>{{item.BarcodeNum_Record}}</td>
+                        <td><span v-bind:class="item.Accemble_Record==true?trueclass:falseclass"></span></td>
+                        <td><span v-bind:class="item.FQC_Record==true?trueclass:falseclass"></span></td>
+                        <td><span v-bind:class="item.Burn_in_Record==true?trueclass:falseclass"></span></td>
+                        <td><span v-bind:class="item.Calibration_Record==true?trueclass:falseclass"></span></td>
+                        <td><span v-bind:class="item.Appearance_Record==true?trueclass:falseclass"></span></td>
+                    </tr>
+                </table>
+            </div>
             <div class="col-md-6 hidden-xs" style="height:550px;overflow:auto">
-                <table class="table">
+                <table class="table table-bordered">
                     <tr>
                         <th>条码号</th>
                         <th>是否在订单中</th>
@@ -119,7 +188,7 @@
                 </table>
             </div>
             <div class="visible-xs" style="font-size:12px">
-                <table class="table">
+                <table class="table table-bordered">
                     <tr>
                         <th>条码号</th>
                         <th>是否可以老化</th>
@@ -158,7 +227,18 @@
             prompt: false,
             beginShow: false,
             returnList: [],
-            okList: []
+            okList: [],
+            commonalitylist: [],
+            trueclass: {
+                'glyphicon': true,
+                'glyphicon-ok': true,
+                'green': true
+            },
+            falseclass: {
+                'glyphicon': true,
+                'glyphicon-remove': true,
+                'red': true
+            },
         },
         methods: {
             addTask: function (event) {
@@ -167,7 +247,9 @@
                 this.prompt = false;
                 sames = app.same;
                 if (app.newTask != "") {
-                    app.newTask=app.newTask.toUpperCase();
+                    app.newTask = app.newTask.toUpperCase();
+                    app.newTask = app.newTask.substr(0, 15);
+                    app.newTask = app.newTask.replace(/[^A-Za-z0-9]/g, '');
                     app.tasks.forEach(function (item, index) {
                         if (app.newTask == item) {
                             console.log(index);
@@ -214,6 +296,7 @@
                         app.returnList = [];
                         app.okList = [];
                         alert(data);
+                        location.reload();
                         $("#content").focus();
                     },
                     error: function (XMLHttpRequest, textStatus, errorThrown) {
@@ -225,49 +308,91 @@
             inspect: function (event) {
                 event.preventDefault();
                 this.prompt = false;
+                this.commonalitylist = [];
+                this.returnList = [];
                 //var cut = this.NumList.substr(0, this.NumList.length - 1).split("\n");
                 //console.log(JSON.stringify(app.tasks));
-                $.ajax({
-                    type: 'post',
-                    url: '/Burn_in/CheckBarCodesList_B',
-                    data: {
-                        OrderNum: $("#OrderNum").val(),
-                        BarCodesNumList: app.tasks
-                    },
-                    success: function (data) {
-                        //console.log(data);
-                        app.returnList = [];
-                        app.okList = [];
-                        for (var i = 0; i < data[0].BarcodeList.length; i++) {
-                            if (data[0].BarcodeComfirm[i] == "Yes") {
-                                app.okList.push(data[0].BarcodeList[i])
+                if (app.tasks != '') {
+                    var btndis = 0;
+                    event.target.disabled = "disabled";
+                    $.ajax({
+                        type: 'post',
+                        url: '/Burn_in/CheckBarCodesList_B',
+                        data: {
+                            OrderNum: $("#OrderNum").val(),
+                            BarCodesNumList: app.tasks
+                        },
+                        success: function (data) {
+                            console.log(data);
+                            app.okList = [];
+                            for (var i = 0; i < data[0].BarcodeList.length; i++) {
+                                if (data[0].BarcodeComfirm[i] == "Yes") {
+                                    app.okList.push(data[0].BarcodeList[i])
+                                };
+                                app.returnList.push({
+                                    BarcodeList: data[0].BarcodeList[i],
+                                    BarcodeInOrder: data[0].BarcodeInOrder[i],
+                                    BarcodeInOtherOrder: data[0].BarcodeInOtherOrder[i][0],
+                                    BarcodeComfirm: data[0].BarcodeComfirm[i],
+                                    BarcodeBeginTime: data[0].BarcodeBeginTime[i],
+                                    BarcodeFinishTime: data[0].BarcodeFinishTime[i],
+                                    BarcodeStatus: data[0].BarcodeStatus[i]
+                                });
                             };
-                            app.returnList.push({
-                                BarcodeList: data[0].BarcodeList[i],
-                                BarcodeInOrder: data[0].BarcodeInOrder[i],
-                                BarcodeInOtherOrder: data[0].BarcodeInOtherOrder[i][0],
-                                BarcodeComfirm: data[0].BarcodeComfirm[i],
-                                BarcodeBeginTime: data[0].BarcodeBeginTime[i],
-                                BarcodeFinishTime: data[0].BarcodeFinishTime[i],
-                                BarcodeStatus: data[0].BarcodeStatus[i]
-                            });
-                        };
-                        if (app.returnList.length == app.okList.length) {
-                            app.beginShow = true;
-                        };
-                    },
-                    error: function (XMLHttpRequest, textStatus, errorThrown) {
-                        alert("请输入条码");
-                        $("#content").focus();
-                    }
-                });
+                            if (app.returnList.length == app.okList.length) {
+                                app.beginShow = true;
+                            };
+                            if (btndis == 1) {
+                                event.target.disabled = "";
+                            } else {
+                                btndis = 1;
+                            };
+                        },
+                        error: function (XMLHttpRequest, textStatus, errorThrown) {
+                            alert("请输入条码");
+                            $("#content").focus();
+                        }
+                    });
+
+
+                    $.ajax({
+                        url: "/Commonality/GetBarcode_List_Each_Section_Prompt",
+                        type: "post",
+                        data: {
+                            barcodelist: app.tasks,
+                        },
+                        success: function (data) {
+                            //console.log(data)
+                            let objData = JSON.parse(data)
+                            for (let item in objData) {
+                                objData[item].BarcodeNum_Record = item;
+                                app.commonalitylist.push(objData[item]);
+                            };
+
+                            if (btndis == 1) {
+                                event.target.disabled = "";
+                            } else {
+                                btndis = 1;
+                            };
+                        },
+                        error: function (er) {
+                            alert("连接失败！")
+                        }
+                    });
+                };
             }
         },
         computed: {
 
         },
         watch: {
-
+            newTask: function (val) {
+                if (val.length >= 15) {
+                    val.substr(0, 15);
+                    val.replace(/[^A-Za-z0-9]/g, '');
+                    $("#addclick").click();
+                };
+            }
         }
     });
 </script>

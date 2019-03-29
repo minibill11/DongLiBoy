@@ -109,16 +109,16 @@ namespace JianHeMES.Controllers
                 #endregion
                 foreach (var data in weekDataList)
                 {
-                    int isExist = db.Personnel_of_Contrast.Count(c => c.Year == data.Year && c.Month == data.Month && c.Week == data.Week && c.Department == data.Department_weekly);
+                    int isExist = db.Personnel_Recruitment.Count(c => c.Year == data.Year && c.Month == data.Month && c.Week == data.Week && c.Department_weekly == data.Department_weekly && c.Demand_jobs == data.Demand_jobs);
                     if (isExist > 0)
                     {
                         if (result == "")
                         {
-                            result = data.Year + "年" + data.Month + "月第" + data.Week + "周" + data.Department_weekly;
+                            result = data.Year + "年" + data.Month + "月第" + data.Week + "周" + data.Department_weekly + data.Demand_jobs;
                         }
                         else
                         {
-                            result = result + "," + data.Year + "年" + data.Month + "月第" + data.Week + "周" + data.Department_weekly;
+                            result = result + "," + data.Year + "年" + data.Month + "月第" + data.Week + "周" + data.Department_weekly + data.Demand_jobs;
                         }
                     }
                 }
@@ -241,7 +241,7 @@ namespace JianHeMES.Controllers
             {
                 db.Entry(personnel_Recruitment).State = EntityState.Modified;
                 await db.SaveChangesAsync();
-                return RedirectToAction("Index");
+                return RedirectToAction("Recruitment");
             }
             return View(personnel_Recruitment);
         }
@@ -269,7 +269,7 @@ namespace JianHeMES.Controllers
             Personnel_Recruitment personnel_Recruitment = await db.Personnel_Recruitment.FindAsync(id);
             db.Personnel_Recruitment.Remove(personnel_Recruitment);
             await db.SaveChangesAsync();
-            return RedirectToAction("Index");
+            return RedirectToAction("Recruitment");
         }
 
         protected override void Dispose(bool disposing)

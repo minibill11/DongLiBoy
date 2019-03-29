@@ -11,7 +11,7 @@ namespace JianHeMES.Models
         [Key]
         public int Id { get; set; }
 
-        [Display(Name = "订单号")]
+        [Display(Name = "订单号"),StringLength(50)]
         public string OrderNum { get; set; }
 
         [Display(Name = "数量")]
@@ -68,44 +68,10 @@ namespace JianHeMES.Models
         [Display(Name = "备注")]
         public string Remark { get; set; }
 
-
         public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
         public virtual List<SMT_OrderInfo> SMT_OrderInfo { get; set; }
         public virtual List<SMT_ProductionData> SMT_ProductionData { get; set; }
-
-
     }
-
-    public class SMT_ProductionLineInfo
-    {
-        [Key]
-        public int Id { get; set; }
-
-        [Display(Name = "产线")]
-        public int LineNum { get; set; }
-
-        [Display(Name = "正在生产的订单")]
-        public string ProducingOrderNum { get; set; }
-
-        [Display(Name = "创建记录日期"),DataType(DataType.DateTime)]
-        public DateTime? CreateDate { get; set; }
-
-        [Display(Name = "班组")]
-        public string Team { get; set; }
-
-        [Display(Name = "组长")]
-        public string GroupLeader { get; set; }
-
-        [Display(Name = "产线状态")]
-        public string Status { get; set; }
-
-        public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
-        public virtual List<SMT_OrderInfo> SMT_OrderInfo { get; set; }
-        public virtual List<SMT_ProductionData> SMT_ProductionData { get; set; }
-
-    }
-
-
     public class SMT_ProductionData
     {
         [Key]
@@ -144,9 +110,54 @@ namespace JianHeMES.Models
         [Display(Name ="操作员")]
         public string Operator { get; set; }
 
-
         public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
         public virtual List<SMT_ProductionLineInfo> SMT_ProcutionLineInfo { get; set; }
         public virtual List<SMT_OrderInfo> SMT_OrderInfo { get; set; }
     }
+
+    public class SMT_ProductionLineInfo
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Display(Name = "产线")]
+        public int LineNum { get; set; }
+
+        [Display(Name = "正在生产的订单")]
+        public string ProducingOrderNum { get; set; }
+
+        [Display(Name = "创建记录日期"),DataType(DataType.DateTime)]
+        public DateTime? CreateDate { get; set; }
+
+        [Display(Name = "班组")]
+        public string Team { get; set; }
+
+        [Display(Name = "组长")]
+        public string GroupLeader { get; set; }
+
+        [Display(Name = "产线状态")]
+        public string Status { get; set; }
+
+        public virtual List<SMT_ProductionPlan> SMT_ProductionPlan { get; set; }
+        public virtual List<SMT_OrderInfo> SMT_OrderInfo { get; set; }
+        public virtual List<SMT_ProductionData> SMT_ProductionData { get; set; }
+
+    }
+
+    public class SMT_ProductionBoardTable
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Display(Name = "订单"), StringLength(50)]
+        public string OrderNum { get; set; }
+
+        [Display(Name = "工作内容"), StringLength(50)]
+        public string JobContent { get; set; }
+
+        [Display(Name = "产线")]
+        public int LineNum { get; set; }
+    }
+
+
 }

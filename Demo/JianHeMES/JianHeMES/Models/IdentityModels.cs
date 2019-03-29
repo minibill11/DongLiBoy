@@ -32,6 +32,9 @@ namespace JianHeMES.Models
         public DbSet<OrderMgm> OrderMgm { get; set; }
         public DbSet<OrderMgm_Delete> OrderMgm_Delete{ get; set; }
         public DbSet<Users> Users { get; set; }
+        public DbSet<Useroles> Useroles { get; set; }
+        public DbSet<UserRolelistTable> UserRolelistTable { get; set; }
+
         public DbSet<OrderInformation> OrderInformation { get; set; }
         public DbSet<CalibrationRecord> CalibrationRecord { get; set; }
         public DbSet<ModelCollections> ModelCollections { get; set; }
@@ -52,6 +55,8 @@ namespace JianHeMES.Models
         public DbSet<SMT_ProductionData> SMT_ProductionData { get; set; }
 
         public DbSet<SMT_OrderInfo> SMT_OrderInfo { get; set; }
+        public DbSet<SMT_ProductionBoardTable> SMT_ProductionBoardTable { get; set; }
+
         public DbSet<FinalQC> FinalQC { get;set; }
 
         public DbSet<Personnel_daily> Personnel_daily { get; set; }
@@ -60,6 +65,7 @@ namespace JianHeMES.Models
         public DbSet<Personnel_Turnoverrate> Personnel_Turnoverrate { get; set; }
         public DbSet<Personnel_Recruitment> Personnel_Recruitment { get; set; }
 
+        public DbSet<Test> Tests { get; set; }
 
 
         public object BarCode { get; internal set; }

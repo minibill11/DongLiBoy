@@ -5,12 +5,19 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
     <style>
+    /* .rowNum td:nth-child(1) input{
+        color:red;
+    } */
     .hide{
         display: none;
     }
     .myTable{
         width: 100%;
         text-align: center;
+    }
+    .color2{
+        color:red;
+        font-size:15px;
     }
     .myTable thead tr th {
         text-align: center;
@@ -68,7 +75,7 @@
         <span class="spanone">
             <select v-model="year">
                 <option></option>
-                <option>2018</option>
+                @*<option>2018</option>*@
                 <option>2019</option>
                 <option>2020</option>
                 <option>2021</option>
@@ -140,7 +147,7 @@
                         <input class="delete" type="button" value="移除" id="delete" onclick="removeTr(this)">
                     </td>
                 </tr>
-                <tr class="rowNum">
+                <!-- <tr class="rowNum">
                     <td><input type="text" value=""></td>    
                     <td><input type="text" value=""></td>
                     <td><input type="text" value=""></td>
@@ -154,9 +161,8 @@
                     <td><input type="text" value="" disabled="disabled"></td>
                     <td>
                         <input type="button" value="清空" id="replace" onclick="clearTr(this)">
-                        <!-- <input type="button" value="移除" id="delete" onclick="removeTr(this)"> -->
                     </td>
-                </tr>
+                </tr> -->
                 <!-- <tr class="rowNum">
                     <td><input type="text" value=""></td>    
                     <td><input type="text" value=""></td>
@@ -191,14 +197,12 @@
                 </tr> -->
             </tbody>
         </table>
-        <input id="add" type="button" value="新增一行" onclick="cloneTr()">
-        <input id="comfirm" type="button" value="确认" >
-        <input id="showtj" class="hide" type="submit" value="提交" onclick="postVal()">
-        <button id="btn1" onclick="countRate()">计算完成率</button>
+        <input style="margin-top:10px;margin-right:8px;" id="add" type="button" value="新增一行" onclick="cloneTr()">
+        <input style="margin-top:10px;" id="comfirm" type="button" value="提交">
+        @*<input id="showtj" class="hide" type="submit" value="提交" onclick="postVal()">*@
+        @*<button id="btn1" onclick="countRate()">计算完成率</button>*@
     </div>
-<!-- <p>Tips:除到岗日期栏外，其他栏目若无请填“0”！</p> -->
     <script>
-       
         function cloneTr(){    //采用克隆的方法实现增加一行功能；只clone默认出现的第一行以控制克隆数量；
             var tr = $("#forClone");
             var newTr = tr.clone(true);
@@ -207,9 +211,16 @@
             newTr.find(".delete").show(); 
             newTr.find("#replace").click();
         }
-        function removeTr(tdobj){    //移除功能；
+        function removeTr(tdobj) {    //移除功能；
+            var row = $(".rowNum");
             var td = $(tdobj);
+            var rows = [];
+            for (var i = 0 ; i < row.length; i++) {
+                rows.push(row[i]);
+            }
+            if (rows.length > 1) {
                 td.parents("tr").remove();
+            }
         }
         function clearTr(tdobject) {    //清空功能
         var td = $(tdobject);
@@ -293,23 +304,25 @@
             //console.log(trlength);
             var trData = $(".rowNum");
             var rowone = trData[0].children[0].children[0].value;
+            var rowone2 = trData[0].children[1].children[0].value;
             //var rowone1 = trData[0].children.children.value;
             //console.log(rowone);
-            var rowtwo = trData[1].children[0].children[0].value;
+            // var rowtwo = trData[1].children[0].children[0].value;
+            // var rowtwo2 = trData[1].children[1].children[0].value;
             // var rowthree = trData[2].children[0].children[0].value;
             // var rowfour = trData[3].children[0].children[0].value;
-            if((rowone =="0" && rowtwo =="0") || (rowone =="" && rowtwo =="")){
-                alert("请粘贴或填写数据！");
+            if ((rowone == "0" || rowone2 == "0") || (rowone == "" || rowone2 == "")) {
+                alert("存在空行或数据不全，请粘贴或填写数据！");
                 return false;
-            }else if(vm.year =="" || vm.month =="" || vm.week ==""){
+            } else if (vm.year == "" || vm.month == "" || vm.week == "") {
                 alert("请选择时间日期！");
                 return false;
             }
-            else{
+            else {
                 var someArr = [];
-                for(var i=0;i<trlength;i++){
-                    var needPost = trData[i].children[0].children[0].value;  //部门
-                    var needPost1 = trData[i].children[1].children[0].value;
+                for (var i = 0; i < trlength; i++) {
+                    var needPost = trData[i].children[0].children[0].value;     //部门
+                    var needPost1 = trData[i].children[1].children[0].value;    //岗位
                     var needPost2 = trData[i].children[2].children[0].value;
                     var needPost3 = trData[i].children[3].children[0].value;
                     var needPost4 = trData[i].children[4].children[0].value;
@@ -320,58 +333,145 @@
                     var needPost9 = trData[i].children[9].children[0].value;
                     //var needPost10 = trData[i].children[10].children[0].value;  //招聘达成率
                     var postArr =      //后台接受的数据格式：数组对象
-                    {"Department_weekly":needPost,"Demand_jobs":needPost1,"Compile":needPost2,
-                    "Demand_number":needPost3,"Employed":needPost4,"Unfinished_nember":needPost5,
-                    "Application_date":needPost6,"Work_date":needPost7,"Invite_Plan_Cycle":needPost8,"Invite_Actaul_Cycle":needPost9,
-                    "Year":vm.year,"Month":vm.month,"Week":vm.week};
+                    {
+                        "Department_weekly": needPost, "Demand_jobs": needPost1, "Compile": needPost2,
+                        "Demand_number": needPost3, "Employed": needPost4, "Unfinished_nember": needPost5,
+                        "Application_date": needPost6, "Work_date": needPost7, "Invite_Plan_Cycle": needPost8, "Invite_Actaul_Cycle": needPost9,
+                        "Year": vm.year, "Month": vm.month, "Week": vm.week
+                    };
                     someArr.push(postArr);
                 };
                 console.log(someArr);
 
                 $.ajax({
-                        type: 'post',
-                        url: "/Personnel_Recruitment/RecruitmentInput",
-                        data: JSON.stringify(someArr),
-                        contentType: 'application/json;charset=utf-8', //上传后直接是List，不需要反序列化，直接向后台传对象集合
-                        async: false,
-                        datatype: 'json',
-                        cache: false,
-                        success: function (data) {
-                            if(data ==="保存成功"){
-                                alert(data);
-                                //document.getElementById("junp").click();;
-                                window.location.href = "/Personnel_Recruitment/Recruitment"
-                            }else{
-                                alert(data);
-                            }
-                            },
-                        error: function (err) {
-                            alert(err);
-                            }
+                    type: 'post',
+                    url: "/Personnel_Recruitment/RecruitmentInput",
+                    data: JSON.stringify(someArr),
+                    contentType: 'application/json;charset=utf-8', //上传后直接是List，不需要反序列化，直接向后台传对象集合
+                    async: false,
+                    datatype: 'json',
+                    cache: false,
+                    success: function (data) {
+                        if (data === "保存成功") {
+                            alert(data);
+                            //document.getElementById("junp").click();;
+                            window.location.href = "/Personnel_Recruitment/Recruitment"
+                        } else {
+                            alert(data);
+                        }
+                    },
+                    error: function (err) {
+                        alert(err);
+                    }
                 });
-            }
+            };
         }
          $("#comfirm").click(function(){    //除到岗日期外的输入区域，为空或者为负值则添加样式并提示
             var tsss = $("#tabletop input:not(#tabletop tbody tr td:nth-child(8) input)");
-            var tsval = tsss.val();
-            tsss.each(function(){
-                if ($(this).val() < 0){
-                    $(this).addClass("color");
-                    var thhh = $("#showtj");
-                    thhh.addClass("hide")
-                    //alert("除到岗日期栏外，所填数据不可为空或负数！")
-                }else if($(this).val() ==""){
-                    $(this).val("0");
-                }else{
-                    $(this).removeClass("color");
-                    var thhh = $("#showtj");
-                    thhh.removeClass("hide")
+            //var tsval = tsss.val();
+            tsss.each(function () {
+                if ($(this).val() < 0) {
+                   // $(this).parent().addClass("color");
+                    clearTr($(this));
+                    alert("负数无效：已清空,请重新输入！")
+                } else if ($(this).val() == "" && $(this).val() == "" >0) {
+                    var allBro = $(this).parent().siblings();
+                    var allBroArr = [];
+                    for (var i = 0; i < allBro.length; i++) {
+                        allBroArr.push(allBro[i].children[0].value);
+                    };
+                    var result = getSum(allBroArr);
+                    if (result != "0清空") {
+                        $(this).val("0");
+                    } else {
+                        removeTr($(this))
+                    }
+                   // console.log(result)
                 }
-            })
-
+            });
+         
+            var row = $(".rowNum");
+            var rows2 = [];
+            for (var i = 0; i < row.length; i++) {
+                rows2.push(row[i])
+            }
+           // console.log(rows2);
+            var aa = [];
+            for (var i = 0; i < rows2.length; i++) {
+                var one = rows2[i].children[0].children[0];
+                var one2 = rows2[i].children[1].children[0];
+                var cc = 0;
+                //console.log(one.value);
+                for (var j = 0; j < rows2.length; j++) {
+                    var two = rows2[j].children[0].children[0];
+                    var two2 = rows2[j].children[1].children[0];
+                    if (one.value == two.value && one2.value == two2.value) {
+                        cc++;
+                        aa.push(cc);
+                    }
+                };
+                if (cc > 1) {
+                    $(one).addClass("color2");
+                    $(one2).addClass("color2");
+                    //alert("部门重复且岗位重复，请合并！");
+                } else {
+                    $(one).removeClass("color2");
+                    $(one2).removeClass("color2");
+                    
+                    // alert("部门重复且岗位重复，请合并！");
+                }
+            };
+                var max = Math.max.apply(null, aa);
+                if (max > 1) {
+                    alert("部门重复且岗位重复，请合并！");
+                    console.log(aa);
+                    return false;
+                } else if (max <= 1) {
+                    countRate();
+                     postVal();
+                }
         });
-    </script>
+        //function samerow(){
+        //    var rows = $(".rowNum");
+        //    var tone = [];
+        //    var ttow = [];
+        //    for(var i=0;i<rows.length;i++){
+        //        var target1 = rows[i].children[0].children[0].value;
+        //        var target2 = rows[i].children[1].children[0].value;
+        //        tone.push(target1);
+        //        ttow.push(target2);
+        //    };
+        //    var departmentsame = refrain(tone);
+        //    var demandjobsame = refrain(ttow);
+                
+        //        if(departmentsame.length >0 && demandjobsame.length >0){
+        //            alert("有重复部门且岗位重复，请合并！");
+        //            return false;
+        //            console.log(departmentsame);
+        //            console.log(demandjobsame);
+        //        }
+        //};
 
+
+         function refrain(arr) {   //该方法返回数组重复元素
+             var tmp = [];
+             if (Array.isArray(arr)) {
+                 arr.concat().sort().sort(function (a, b) {
+                     if (a == b && tmp.indexOf(a) === -1) tmp.push(a);
+                 });
+             }
+             return tmp;
+         };
+         function getSum(ar){
+             arr = ar
+             var sum = 0;
+                 for (i=0;i<arr.length ;i++ )
+                         {
+                             sum+=arr[i];
+                              }
+                     return sum;
+                 }
+    </script>
 <div class="text-right">
     @Html.ActionLink("返回", "Recruitment")
 </div>

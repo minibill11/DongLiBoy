@@ -48,6 +48,13 @@ namespace JianHeMES.Models
         [Display(Name = "当天离职正式工")]
         public int Todoy_dimission_employees { get; set; }
 
+        [Display(Name = "当天离职正式工_入职满七天")]
+        public int Todoy_dimission_employees_over7days { get; set; }
+
+        [Display(Name = "当天离职正式工_入职未满七天")]
+        public int Todoy_dimission_employees_nvever_over7days { get; set; }
+
+
         [Display(Name = "当天离职劳务工")]
         public int Todoy_dimission_workers { get; set; }
 
@@ -66,31 +73,6 @@ namespace JianHeMES.Models
         public string Reporter { get; set; }
 
     }
-
-    //public class Personnel_daily_header
-    //{
-    //    [Key]
-    //    public int Id { get; set; }
-
-    //    [Display(Name = "排序序号")]
-    //    public int orderBy { get; set; }
-
-    //    [Display(Name = "部门")]
-    //    public string Department { get; set; }
-
-    //    [Display(Name = "负责人")]
-    //    public string Principal { get; set; }
-
-    //    [Display(Name = "编制人数")]
-    //    public int Aurhorized_personnel { get; set; }
-
-    //    [Display(Name = "刚需人数")]
-    //    public int Need_personnel { get; set; }
-
-    //    [Display(Name = "日期")]
-    //    public DateTime? Date { get; set; }
-
-    //}
 
     public class Personnel_of_Contrast
     {

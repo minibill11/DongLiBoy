@@ -355,6 +355,13 @@ namespace JianHeMES.Controllers
                     {
                         db.SMT_ProductionPlan.Add(item);
                         db.SaveChanges();
+                        int countItem = db.SMT_ProductionBoardTable.Count(c => c.OrderNum == item.OrderNum && c.JobContent == item.JobContent && c.LineNum == item.LineNum);
+                        if(countItem==0)
+                        {
+                            SMT_ProductionBoardTable new_record = new SMT_ProductionBoardTable { OrderNum= item.OrderNum ,JobContent= item.JobContent , LineNum = item.LineNum };
+                            db.SMT_ProductionBoardTable.Add(new_record);
+                            db.SaveChanges();
+                        }
                     }
                 }
                 return RedirectToAction("SMT_ProductionPlan");
@@ -598,6 +605,11 @@ namespace JianHeMES.Controllers
             return View();
         }
 
+        public ActionResult SMT_ProductionInfo1()
+        {
+            return View();
+        }
+
         public ActionResult SMT_ProductionLineInfo(int LineNum)
         {
             //内容:痴线号，时间，班组，组长，正在生产的订单，良品数量，不良品数量，不良率，产线累计个数，订单完成率，今天计划订单，产线状态
@@ -678,7 +690,7 @@ namespace JianHeMES.Controllers
         #endregion
 
 
-        #region------------------生产操作(数据录入、修改)
+        #region------------------生产操作Operator(数据录入、修改、删除)
         // GET: SMT产线未段工位输入操作
         #region----------数据生产录入
         public ActionResult SMT_Operator()
@@ -686,7 +698,7 @@ namespace JianHeMES.Controllers
             //ViewBag.OrderNumList = JsonConvert.SerializeObject(GetTodayPlanOrderNumList());//向View传递OrderNum订单号列表.
             //前端
             //var list = JSON.parse('@Html.Raw(ViewBag.OrderNumList)');
-            ViewBag.OrderNumList = GetTodayPlanOrderNumList();
+            ViewBag.OrderNumList = GetOrderList();
             if (Session["User"] == null)
             {
                 return RedirectToAction("Login", "Users");
@@ -705,7 +717,7 @@ namespace JianHeMES.Controllers
             //ViewBag.OrderNumList = JsonConvert.SerializeObject(GetTodayPlanOrderNumList());//向View传递OrderNum订单号列表.
             //前端
             //var list = JSON.parse('@Html.Raw(ViewBag.OrderNumList)');
-            ViewBag.OrderNumList = GetTodayPlanOrderNumList();
+            ViewBag.OrderNumList = GetOrderList();
             List<SMT_ProductionData> result = new List<SMT_ProductionData>();
             foreach(var item in SMT_ProductionDataList)
             {
@@ -760,7 +772,7 @@ namespace JianHeMES.Controllers
                 ViewBag.OrderNumValue = record.OrderNum;
                 return View(record);
             }
-            return Content("<script>alert('对不起，您的不能修改数据生产，请联系系统管理员！');history.go(-1);</script>");//window.location.href='../SMT_Mangage';
+            return Content("<script>alert('对不起，您的不能修改生产数据，请联系系统管理员！');history.go(-1);</script>");//window.location.href='../SMT_Mangage';
         }
 
         [HttpPost]
@@ -774,8 +786,42 @@ namespace JianHeMES.Controllers
             }
             return View(record);
         }
+        #endregion
 
+        #region----------数据生产删除
+        public async Task<ActionResult> SMT_ProductionDataDelete(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users");
+            }
+            if (((Users)Session["User"]).Role == "PC计划员" || ((Users)Session["User"]).Role == "系统管理员")
+            {
 
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                SMT_ProductionData record = await db.SMT_ProductionData.FindAsync(id);
+                if (record == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(record);
+            }
+            return Content("<script>alert('对不起，您的不能管理产线信息，请联系系统管理员！');window.location.href='../SMT_ProductionPlan';</script>");
+        }
+
+        // POST: SMT_ProductionData/Delete/
+        [HttpPost, ActionName("SMT_ProductionDataDelete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> SMT_ProductionDataDeleteConfirmed(int id)
+        {
+            SMT_ProductionData record = await db.SMT_ProductionData.FindAsync(id);
+            db.SMT_ProductionData.Remove(record);
+            await db.SaveChangesAsync();
+            return Content("<script>alert('SMT生产数据已经成功删除！');window.location.href='../SMT_ProductionData';</script>");
+        }
         #endregion
         #endregion
 
@@ -929,6 +975,7 @@ namespace JianHeMES.Controllers
             return items;
         }
         #endregion
+
 
         #region -----------------PlatformTypeList()取出整个OrderMgms的PlatformTypeList列表
         private List<SelectListItem> PlatformTypeList()

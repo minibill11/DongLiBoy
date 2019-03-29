@@ -3,6 +3,9 @@
     ViewBag.Title = "SMT生产信息";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
+<script src="~/Scripts/jquery-1.6.4.js"></script>
+<script src="~/Scripts/imgJS/jquery.artZoom.js"></script>
+<link href="~/Content/styleFile/jquery.artZoom.css" rel="stylesheet" />
 <style>
     .gotoDetail {
         color: #1449b7;
@@ -12,7 +15,7 @@
         background-color: rgba(77, 72, 72, 0.15);
     }*/
     .modal-header, .modal-body {
-        padding: 10px;
+        padding: 8px 10px 2px;
     }
 
     .showBtn {
@@ -94,6 +97,7 @@
                 <table id="fixed_table" class="table table-bordered">
                     <thead id="fixedHead">
                         <tr>
+                            <th rowspan="2">序号</th>
                             <th colspan="8">PC</th>
                             <th rowspan="2" style="width:44px">小样<br />进度</th>
                             <th rowspan="2">线别</th>
@@ -133,6 +137,7 @@
             <table id="top_fix_table" class="table table-bordered">
                 <thead id="contentHead">
                     <tr>
+                        <th rowspan="2">序号</th>
                         <th colspan="8">PC</th>
                         <th rowspan="2" style="width:44px">小样<br />进度</th>
                         <th rowspan="2">线别</th>
@@ -169,6 +174,7 @@
                     <template v-for="(val,index) in smtLineData_new">
                         <template v-for="(v,i) in val">
                             <tr v-if="i==0">
+                                <td v-bind:rowspan="val.length">{{index+1}}</td>
                                 <td v-bind:rowspan="val.length" v-on:click="orderDetail(v[0].OrderNum,v[0].Id)" class="gotoDetail">{{v[0].OrderNum}}</td>
                                 <td v-bind:rowspan="val.length">{{v[0].PlatformType}}</td>
                                 <td v-bind:rowspan="val.length">{{v[0].ProcessingRequire}}</td>
@@ -237,7 +243,8 @@
                                 &times;
                             </button>
                             <h4 class="modal-title text-center" id="myModalLabel">
-                                小样订单
+                                <span>小样订单</span>
+                                <span class="text-center" style="font-size:12px;color:#777;position:absolute;top:15px">点击图片可进行旋转</span>
                             </h4>
                         </div>
                         <div id="contentModal" class="modal-body text-center">
@@ -291,7 +298,7 @@
                 $(event.target).children(".showDiv").css({ "visibility": "visible", "opacity": "1" })
             },
             imgModal: function (OrderNumVal) {
-                $(".imgModalc").remove();
+                $(".imgRotateDiv").remove();
                 $("#pdfIframe").hide();
                 $.ajax({
                     url: "/OrderMgms/GetSmallSampleImg",
@@ -305,8 +312,20 @@
                         } else {
                             var json = JSON.parse(returnVal);
                             for (var img in json) {
-                                $("#contentModal").append('<img class="imgModalc" src="/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" />')
+                                $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                    '<img class="imgModalc artZoom" src="/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" />'+
+                                    '</div>');
                             }
+                            $('.artZoom').artZoom({
+                                path: '/SmallSample_Files/',	// 设置artZoom图片文件夹路径
+                                preload: true,		// 设置是否提前缓存视野内的大图片
+                                blur: true,			// 设置加载大图是否有模糊变清晰的效果
+
+                                // 语言设置
+                                left: '左旋转',		// 左旋转按钮文字
+                                right: '右旋转',		// 右旋转按钮文字
+                                source: '看原图'		// 查看原图按钮文字
+                            });
                             $("#showModal").click();
                         }
                     },
@@ -317,7 +336,7 @@
                 //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
             },
             pdfModal: function (OrderNumVal) {
-                $(".imgModalc").remove();
+                $(".imgRotateDiv").remove();
                 $("#pdfIframe").show();
                 $.ajax({
                     url: "/OrderMgms/preview_SmallSample_pdf",
@@ -399,10 +418,10 @@
     <script>
         $(function () {
             var mypush2 = $.connection.SMT;
-            mypush2.client.sendSMT_ProductionInfo = function (SMT_ProductionInfo) {
-                console.log(SMT_ProductionInfo)
+            mypush2.client.sendSMT_ProductionInfo1 = function (SMT_ProductionInfo1) {
+                console.log(SMT_ProductionInfo1)
                 app.smtLineData_new = [];
-                var linedata = SMT_ProductionInfo;
+                var linedata = SMT_ProductionInfo1;
                 for (var ordernum in linedata) {
                     var ordernumdata = JSON.parse(linedata[ordernum]);
                     var lineArr = [];

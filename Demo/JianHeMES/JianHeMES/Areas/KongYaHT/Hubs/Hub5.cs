@@ -64,8 +64,8 @@ namespace JianHeMES.Hubs
             JObject TH5_json = new JObject();
             using (var db = new kongyadbEntities())
             {
-                var TH_40000938_4 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "4") select m).FirstOrDefault();
-                var TH_40000938_5 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "5") select m).FirstOrDefault();
+                var TH_40021210_1 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021210" && m.NodeID == "1") select m).FirstOrDefault();
+                var TH_40021210_2 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40021210" && m.NodeID == "2") select m).FirstOrDefault();
                 var TH_40000938_6 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "6") select m).FirstOrDefault();
                 var TH_40000938_7 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "7") select m).FirstOrDefault();
                 var TH_40000938_8 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "8") select m).FirstOrDefault();
@@ -73,8 +73,8 @@ namespace JianHeMES.Hubs
                 var TH_40000938_10 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "10") select m).FirstOrDefault();
                 var TH_40000938_11 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "11") select m).FirstOrDefault();
                 var TH_40000938_12 = (from m in db.THhistory.OrderByDescending(p => p.id) where (m.DeviceID == "40000938" && m.NodeID == "12") select m).FirstOrDefault();
-                TH5_json.Add("TH_40000938_4", JsonConvert.SerializeObject(TH_40000938_4));
-                TH5_json.Add("TH_40000938_5", JsonConvert.SerializeObject(TH_40000938_5));
+                TH5_json.Add("TH_40021210_1", JsonConvert.SerializeObject(TH_40021210_1));
+                TH5_json.Add("TH_40021210_2", JsonConvert.SerializeObject(TH_40021210_2));
                 TH5_json.Add("TH_40000938_6", JsonConvert.SerializeObject(TH_40000938_6));
                 TH5_json.Add("TH_40000938_7", JsonConvert.SerializeObject(TH_40000938_7));
                 TH5_json.Add("TH_40000938_8", JsonConvert.SerializeObject(TH_40000938_8));

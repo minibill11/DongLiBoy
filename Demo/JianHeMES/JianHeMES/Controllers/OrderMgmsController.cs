@@ -675,19 +675,28 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-
-            ////1.修改后的订单模组数>原订单模组数
-            ////  询问是否修改？修改后在BarCodes表追加相应的条码号
+            int orginal_ordermgm_BoxsNum = (from m in db.OrderMgm where m.OrderNum == orderMgm.OrderNum select m.Boxes).SingleOrDefault();
+            //1.修改后的订单模组数>原订单模组数且模组条码已经生成，在BarCodes表追加相应的条码号
+            if (orderMgm.Boxes > orginal_ordermgm_BoxsNum && orderMgm.BarCodeCreated == 1)
+            {
+                int addcount = orderMgm.Boxes - orginal_ordermgm_BoxsNum;
+                var bc = db.BarCodes.Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模组").OrderByDescending(c => c.BarCodesNum).FirstOrDefault();
+                BarCodes barcode = new BarCodes { OrderNum = bc.OrderNum, ToOrderNum = bc.ToOrderNum, BarCode_Prefix = bc.BarCode_Prefix, BarCodesNum = bc.BarCodesNum, BarCodeType = bc.BarCodeType, CreateDate = DateTime.Now, Creator = bc.Creator, IsRepertory = bc.IsRepertory, Remark = bc.Remark };
+                for (int i = 1; i <= addcount; i++)
+                {
+                    string s = barcode.BarCodesNum.Substring(barcode.BarCodesNum.Length - 5, 5);
+                    int addbarcodenum = int.Parse(s) + 1;
+                    barcode.BarCodesNum = barcode.BarCode_Prefix + "A" + addbarcodenum.ToString("00000");
+                    db.BarCodes.Add(barcode);
+                    db.SaveChanges();
+                }
+            }
             ////2.修改后的订单模组数<原订单模组数
             ////  检查对应缩少的那部分条码号是否有生产记录，如果无生产记录，询问是否修改？如果有生产记录，反馈“有生产记录，不能修改！”
             ////  如果修改，修改后把BarCodes表中的缩少的那部分条码号删除
-
-            //var orginal_ordermgm = db.OrderMgm.Find(orderMgm.ID);
-
-            //if(orginal_ordermgm.Models<orderMgm.Models)
+            //else if (orderMgm.Boxes < orginal_ordermgm_BoxsNum)
             //{
             //}
-
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
@@ -707,7 +716,7 @@ namespace JianHeMESEntities.Controllers
             {
                 return RedirectToAction("Login", "Users");
             }
-            if (((Users)Session["User"]).Role == "小样调试员" || ((Users)Session["User"]).Role == "系统管理员" )
+            if (((Users)Session["User"]).Role == "小样调试员" || ((Users)Session["User"]).Role == "系统管理员")
             {
                 if (id == null)
                 {

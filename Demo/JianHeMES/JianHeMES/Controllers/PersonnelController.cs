@@ -294,6 +294,8 @@ namespace JianHeMES.Controllers
                 obj.Month_on_board_workers = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Today_on_board_workers);
                 //本月离职正式工和劳务工人数
                 obj.Month_dimission_employees = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Todoy_dimission_employees);
+                obj.Month_dimission_employees_over7days = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Todoy_dimission_employees_over7days);
+                obj.Month_dimission_employees_nvever_over7days = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Todoy_dimission_employees_nvever_over7days);
                 obj.Month_dimission_workers = Month_recordlist.Where(c => c.Date > mon_begin_date && c.Date < tomorrow && c.Department == item).Sum(c => c.Todoy_dimission_workers);
 
                 //(2)得到date对应是星期几后，根据星期几的值不同，做一个Switch处理不同数据
@@ -1029,7 +1031,7 @@ namespace JianHeMES.Controllers
         // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create([Bind(Include = "Id,Department,Principal,Aurhorized_personnel,Need_personnel,Employees_personnel,Workers_personnel,Today_on_board_employees,Today_on_board_workers,Interview,Todoy_dimission_employees,Todoy_dimission_workers,Resigned_that_month,Resigned_workers_that_month,Date,Reporter")] Personnel_daily personnel_daily)
+        public async Task<ActionResult> Create([Bind(Include = "Id,Department,Principal,Aurhorized_personnel,Need_personnel,Employees_personnel,Workers_personnel,Today_on_board_employees,Today_on_board_workers,Interview,Todoy_dimission_employees,Todoy_dimission_employees_over7days,Todoy_dimission_employees_nvever_over7days,Todoy_dimission_workers,Resigned_that_month,Resigned_workers_that_month,Date,Reporter")] Personnel_daily personnel_daily)
         {
             DateTime date = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
             var recordCount = db.Personnel_daily.Where(c => c.Date.Value.Year == date.Year && c.Date.Value.Month == date.Month && c.Date.Value.Day == date.Day && c.Department == personnel_daily.Department).Count();
@@ -1088,7 +1090,7 @@ namespace JianHeMES.Controllers
         // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit([Bind(Include = "Id,Department,Principal,Aurhorized_personnel,Need_personnel,Employees_personnel,Workers_personnel,Today_on_board_employees,Today_on_board_workers,Interview,Todoy_dimission_employees,Todoy_dimission_workers,Resigned_that_month,Resigned_workers_that_month,Date,Reporter")] Personnel_daily personnel_daily)
+        public async Task<ActionResult> Edit([Bind(Include = "Id,Department,Principal,Aurhorized_personnel,Need_personnel,Employees_personnel,Workers_personnel,Today_on_board_employees,Today_on_board_workers,Interview,Todoy_dimission_employees,Todoy_dimission_employees_over7days,Todoy_dimission_employees_nvever_over7days,Todoy_dimission_workers,Resigned_that_month,Resigned_workers_that_month,Date,Reporter")] Personnel_daily personnel_daily)
         {
             if (ModelState.IsValid)
             {

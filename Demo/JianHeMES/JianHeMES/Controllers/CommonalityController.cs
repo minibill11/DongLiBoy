@@ -23,26 +23,39 @@ namespace JianHeMES.Controllers
         public string GetBarcode_Each_Section_Prompt(string barcode)
         {
             JObject result = new JObject();
-
             var Accemble_Record = db.Assemble.Where(c => c.BoxBarCode == barcode && c.PQCCheckFinish == true && c.RepetitionPQCCheck == false).Count();
             result.Add("Accemble_Record", Accemble_Record > 0 ? true : false);
-
             var FQC_Record = db.FinalQC.Where(c => c.BarCodesNum == barcode && c.FQCCheckFinish == true && c.RepetitionFQCCheck == false).Count();
             result.Add("FQC_Record", FQC_Record > 0 ? true : false);
-
-            //var Spell_Screen=
-            //result.Add("Spell_Screen", Spell_Screen > 0 ? true : false);
-
             var Burn_in_Record = db.Burn_in.Where(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true).Count();
             result.Add("Burn_in_Record", Burn_in_Record > 0 ? true : false);
-
             var Calibration_Record = db.CalibrationRecord.Where(c => c.BarCodesNum == barcode && c.Normal == true && c.RepetitionCalibration == false).Count();
             result.Add("Calibration_Record", Calibration_Record > 0 ? true : false);
-
             var Appearance_Record = db.Appearance.Where(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true).Count();
             result.Add("Appearance_Record", Appearance_Record > 0 ? true : false);
+            return JsonConvert.SerializeObject(result);
+        }
 
-            return JsonConvert.SerializeObject(result);//"接收成功！";
+        [HttpPost]
+        public string GetBarcode_List_Each_Section_Prompt(List<string> barcodelist)
+        {
+            JObject result = new JObject();
+            foreach (var barcode in barcodelist)
+            {
+                JObject barcode_result = new JObject();
+                var Accemble_Record = db.Assemble.Where(c => c.BoxBarCode == barcode && c.PQCCheckFinish == true && c.RepetitionPQCCheck == false).Count();
+                barcode_result.Add("Accemble_Record", Accemble_Record > 0 ? true : false);
+                var FQC_Record = db.FinalQC.Where(c => c.BarCodesNum == barcode && c.FQCCheckFinish == true && c.RepetitionFQCCheck == false).Count();
+                barcode_result.Add("FQC_Record", FQC_Record > 0 ? true : false);
+                var Burn_in_Record = db.Burn_in.Where(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true).Count();
+                barcode_result.Add("Burn_in_Record", Burn_in_Record > 0 ? true : false);
+                var Calibration_Record = db.CalibrationRecord.Where(c => c.BarCodesNum == barcode && c.Normal == true && c.RepetitionCalibration == false).Count();
+                barcode_result.Add("Calibration_Record", Calibration_Record > 0 ? true : false);
+                var Appearance_Record = db.Appearance.Where(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true).Count();
+                barcode_result.Add("Appearance_Record", Appearance_Record > 0 ? true : false);
+                result.Add(barcode, barcode_result);
+            }
+            return JsonConvert.SerializeObject(result);
         }
 
 

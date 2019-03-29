@@ -17,6 +17,7 @@ using OfficeOpenXml.Style;
 using System.Net.Mail;
 using System.Text;
 using System.Web.Helpers;
+using System.Diagnostics;
 
 namespace JianHeMES.Areas.kongya.Controllers
 {
@@ -81,7 +82,7 @@ namespace JianHeMES.Areas.kongya.Controllers
 
         //首次打开页面
         [HttpGet]
-        public ActionResult HTCharts(string point= "三楼烤箱房")   
+        public ActionResult HTCharts(string point= "三楼插件")   
         {
             #region 监测点信息
             //Floor  point              DeviceID  NodeID
@@ -109,6 +110,8 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
             //四楼   四楼老化调试3号    40004493   5        2018-8-1新增
             //四楼   四楼仓库           40004493   3        2018-8-1新增
+            //四楼   四楼小样房         40004493   7        2019-3-20新增
+            //四楼   四楼首样房         40004493   8        2019-3-20新增
             //五楼   SMT               
             //五楼   SMT               
             //五楼   SMT               
@@ -126,16 +129,16 @@ namespace JianHeMES.Areas.kongya.Controllers
 
             //string ResultJson=null;
             kongyadbEntities db = new kongyadbEntities();
-            IQueryable<THhistory> firstRecords = null;
+            List<THhistory> firstRecords = new List<THhistory>();
+            int max_id = 0;
             #region   ---------------选择器------------------
             switch (point)
             {
-                
                 case "一楼篮球场": //一楼   一楼篮球场   40004493   1        2018-8-1新增
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "1")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -143,7 +146,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004518" && m.NodeID == "1")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -151,7 +154,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004518" && m.NodeID == "2")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -159,7 +162,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004518" && m.NodeID == "3")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -167,7 +170,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004518" && m.NodeID == "4")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -175,7 +178,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004518" && m.NodeID == "5")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -183,32 +186,32 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004518" && m.NodeID == "6")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
 
                 case "三楼烤箱房":
                     firstRecords = (from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "6")
-                                   orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    where (m.DeviceID == "40001676" && m.NodeID == "6")
+                                    orderby m.id descending
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
                 case "三楼插件":
                     firstRecords = (from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "9")
-                                   orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    where (m.DeviceID == "40001676" && m.NodeID == "9")
+                                    orderby m.id descending
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
                 case "三楼面罩":
                     firstRecords = (from m in db.THhistory
-                                  where (m.DeviceID == "40021209" && m.NodeID == "1")
-                                  orderby m.id descending
-                                  select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    where (m.DeviceID == "40021209" && m.NodeID == "1")
+                                    orderby m.id descending
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
@@ -216,89 +219,63 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "2")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
-                case "四楼烤箱房":
-                    firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40001676" && m.NodeID == "1")
-                                    orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
-                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
-                    firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
-                    break;
-                case "四楼老化":
-                    firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40001676" && m.NodeID == "2")
-                                    orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
-                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
-                    firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼组装":
-                    firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40001676" && m.NodeID == "3")
-                                    orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
-                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
-                    firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-
-                case "四楼小间距装配": //四楼   四楼小间距装配   40004518   7        2018-8-28从40001676转到40004518
-                    firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40004518" && m.NodeID == "7")
-                                    orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
-                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
-                    firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
-                    break;
-
-
-                //四楼   四楼喷墨房1号　    40021216   3        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
-                case "四楼喷墨房1号": //四楼   四楼小间距装配   40004518   7        2018-8-28从40001676转到40004518
+                case "四楼喷墨房1号": 
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40021216" && m.NodeID == "3" && m.DeviceName == "四楼喷墨房1号40021216#3")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.Tem, m.Hum, m.RecordTime });
                     break;
-
-                //四楼   四楼喷墨房2号      40021216   4　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
                 case "四楼喷墨房2号":
                     firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40021216" && m.NodeID == "4" &&m.DeviceName== "四楼喷墨房2号40021216#4")
+                                    where (m.DeviceID == "40021216" && m.NodeID == "4" && m.DeviceName == "四楼喷墨房2号40021216#4")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-
                 case "四楼组装线1号":
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40021216" && m.NodeID == "1" && m.DeviceName == "四楼组装线1号40021216#1")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-
                 case "四楼组装线2号":
                     firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40021216" && m.NodeID == "2" && m.DeviceName == "四楼组装线2号0021216#2")
+                                    where (m.DeviceID == "40021216" && m.NodeID == "2" && m.DeviceName == "四楼组装线2号40021216#2")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-
-
                 case "四楼线材":
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40001676" && m.NodeID == "4")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
+                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
+                    firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼小样房":
+                    firstRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004493" && m.NodeID == "7" && m.DeviceName == "四楼小样房40004493#7")
+                                    orderby m.id descending
+                                    select m).Take(1500).ToList();
+                    ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
+                    firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼首样房":
+                    firstRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004493" && m.NodeID == "8" && m.DeviceName == "四楼首样房40004493#8")
+                                    orderby m.id descending
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -306,7 +283,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "6")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -314,7 +291,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "4")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -322,7 +299,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "5")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -330,23 +307,18 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "3")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "五楼SMT产线4":
-                    firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40000938" && m.NodeID == "4")
-                                    orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                case "五楼SMT产线1":
+                    firstRecords = db.THhistory.Where(c => c.DeviceID == "40021210" && c.NodeID == "1" && c.DeviceName == "五楼SMT产线40021210#1").OrderByDescending(c=>c.id).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "五楼SMT产线5":
-                    firstRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40000938" && m.NodeID == "5")
-                                    orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                case "五楼SMT产线2":
+                    max_id = db.THhistory.Max(c => c.id);
+                    firstRecords = db.THhistory.Where(c => c.DeviceID == "40021210" && c.NodeID == "2" && c.DeviceName == "五楼SMT产线40021210#2").OrderByDescending(c => c.id).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -354,7 +326,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "6")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -362,7 +334,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "7")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -370,7 +342,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "8")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -378,7 +350,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "9")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -386,7 +358,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "10")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -394,7 +366,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "11")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList();
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -402,7 +374,7 @@ namespace JianHeMES.Areas.kongya.Controllers
                     firstRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40000938" && m.NodeID == "12")
                                     orderby m.id descending
-                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                                    select m).Take(1500).ToList(); 
                     ViewBag.Station = firstRecords.FirstOrDefault().DeviceName;
                     firstRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
@@ -413,6 +385,7 @@ namespace JianHeMES.Areas.kongya.Controllers
             List<Double> TemList = new List<double>();
             List<Double> HumList = new List<double>();
             List<DateTime> RecordTimeList = new List<DateTime>();
+            firstRecords = firstRecords.OrderBy(c => c.RecordTime).ToList();
             foreach (var firstRecord in firstRecords)
             {
                 TemList.Add(Convert.ToDouble(firstRecord.Tem));
@@ -465,6 +438,8 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
             //四楼   四楼老化调试3号    40004493   5        2018-8-1新增
             //四楼   四楼仓库           40004493   3        2018-8-1新增
+            //四楼   四楼小样房         40004493   7        2019-3-20新增
+            //四楼   四楼首样房         40004493   8        2019-3-20新增
             //五楼   SMT               
             //五楼   SMT               
             //五楼   SMT               
@@ -691,8 +666,6 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-
-                //四楼   四楼喷墨房1号　    40021216   3        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
                 case "四楼喷墨房1号40021216#3":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40021216" && m.NodeID == "3" && m.DeviceName == "四楼喷墨房1号40021216#3" && m.RecordTime < left)
@@ -705,8 +678,6 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-
-                //四楼   四楼喷墨房2号      40021216   4　　　　2018-12-3从四楼组装迁移到四楼喷墨房2号
                 case "四楼线材40021216#4":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40021216" && m.NodeID == "4" && m.RecordTime < left)
@@ -720,7 +691,30 @@ namespace JianHeMES.Areas.kongya.Controllers
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
 
-
+                case "四楼小样房40004493#7":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004493" && m.NodeID == "7" && m.RecordTime < left)
+                                    orderby m.id descending
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼首样房40004493#8":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004493" && m.NodeID == "8" && m.RecordTime < left)
+                                    orderby m.id descending
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
                 case "四楼老化调试40004493#6":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "6" && m.RecordTime < left)
@@ -769,9 +763,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "五楼SMT产线40000938#4":
+                case "五楼SMT产线40021210#1":
                     queryRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime < left)
+                                    where (m.DeviceID == "40021210" && m.NodeID == "1" && m.DeviceName == "五楼SMT产线40021210#1" && m.RecordTime < left)
                                     orderby m.id descending
                                     select m).Take(1500).OrderBy(m => m.RecordTime);
                     if (queryRecords.Count() == 0)
@@ -781,9 +775,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "五楼SMT产线40000938#5":
+                case "五楼SMT产线40021210#2":
                     queryRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40000938" && m.NodeID == "5" && m.RecordTime < left)
+                                    where (m.DeviceID == "40021210" && m.NodeID == "2" && m.DeviceName=="五楼SMT产线40021210#2" && m.RecordTime < left)
                                     orderby m.id descending
                                     select m).Take(1500).OrderBy(m => m.RecordTime);
                     if (queryRecords.Count() == 0)
@@ -936,6 +930,8 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
             //四楼   四楼老化调试3号    40004493   5        2018-8-1新增
             //四楼   四楼仓库           40004493   3        2018-8-1新增
+            //四楼   四楼小样房         40004493   7        2019-3-20新增
+            //四楼   四楼首样房         40004493   8        2019-3-20新增
             //五楼   SMT               
             //五楼   SMT               
             //五楼   SMT               
@@ -1206,6 +1202,30 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                case "四楼小样房40004493#7":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004493" && m.NodeID == "7" && m.RecordTime > right)
+                                    orderby m.id
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼首样房40004493#8":
+                    queryRecords = (from m in db.THhistory
+                                    where (m.DeviceID == "40004493" && m.NodeID == "8" && m.RecordTime > right)
+                                    orderby m.id
+                                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
                 case "四楼老化调试40004493#6":
                     queryRecords = (from m in db.THhistory
                                     where (m.DeviceID == "40004493" && m.NodeID == "6" && m.RecordTime > right)
@@ -1254,9 +1274,33 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                 case "五楼SMT产线40000938#4":
+                // case "五楼SMT产线40000938#4":
+                //    queryRecords = (from m in db.THhistory
+                //                    where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime > right)
+                //                    orderby m.id
+                //                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                //    if (queryRecords.Count() == 0)
+                //    {
+                //        return Content("无数据");
+                //    }
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
+                //case "五楼SMT产线40000938#5":
+                //    queryRecords = (from m in db.THhistory
+                //                    where (m.DeviceID == "40000938" && m.NodeID == "5" && m.RecordTime > right)
+                //                    orderby m.id
+                //                    select m).Take(1500).OrderBy(m => m.RecordTime);
+                //    if (queryRecords.Count() == 0)
+                //    {
+                //        return Content("无数据");
+                //    }
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
+                case "五楼SMT产线40021210#1":
                     queryRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime > right)
+                                    where (m.DeviceID == "40021210" && m.NodeID == "1" && m.RecordTime > right)
                                     orderby m.id
                                     select m).Take(1500).OrderBy(m => m.RecordTime);
                     if (queryRecords.Count() == 0)
@@ -1266,9 +1310,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "五楼SMT产线40000938#5":
+                case "五楼SMT产线40021210#2":
                     queryRecords = (from m in db.THhistory
-                                    where (m.DeviceID == "40000938" && m.NodeID == "5" && m.RecordTime > right)
+                                    where (m.DeviceID == "40021210" && m.NodeID == "2" && m.RecordTime > right)
                                     orderby m.id
                                     select m).Take(1500).OrderBy(m => m.RecordTime);
                     if (queryRecords.Count() == 0)
@@ -1421,6 +1465,8 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
             //四楼   四楼老化调试3号    40004493   5        2018-8-1新增
             //四楼   四楼仓库           40004493   3        2018-8-1新增
+            //四楼   四楼小样房         40004493   7        2019-3-20新增
+            //四楼   四楼首样房         40004493   8        2019-3-20新增
             //五楼   SMT               
             //五楼   SMT               
             //五楼   SMT               
@@ -1691,6 +1737,30 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                case "四楼小样房40004493#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "7" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼首样房40004493#8":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "8" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                    {
+                        return Content("无数据");
+                    }
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
                 case "四楼老化调试40004493#6":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40004493" && m.NodeID == "6" && m.RecordTime > begin && m.RecordTime < end)
@@ -1739,9 +1809,33 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                    case "五楼SMT产线40000938#4":
+                //case "五楼SMT产线40000938#4":
+                //    queryRecords = from m in db.THhistory
+                //                   where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
+                //                   orderby m.id
+                //                   select m;
+                //    if (queryRecords.Count() == 0)
+                //    {
+                //        return Content("无数据");
+                //    }
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
+                //case "五楼SMT产线40000938#5":
+                //    queryRecords = from m in db.THhistory
+                //                   where (m.DeviceID == "40000938" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
+                //                   orderby m.id
+                //                   select m;
+                //    if (queryRecords.Count() == 0)
+                //    {
+                //        return Content("无数据");
+                //    }
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
+                case "五楼SMT产线40021210#1":
                     queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40000938" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
+                                   where (m.DeviceID == "40021210" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
                                    orderby m.id
                                    select m;
                     if (queryRecords.Count() == 0)
@@ -1751,9 +1845,9 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "五楼SMT产线40000938#5":
+                case "五楼SMT产线40021210#2":
                     queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40000938" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
+                                   where (m.DeviceID == "40021210" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
                                    orderby m.id
                                    select m;
                     if (queryRecords.Count() == 0)
@@ -3185,6 +3279,8 @@ namespace JianHeMES.Areas.kongya.Controllers
             //四楼   四楼老化调试2号    40004493   4        2018-8-1新增
             //四楼   四楼老化调试3号    40004493   5        2018-8-1新增
             //四楼   四楼仓库           40004493   3        2018-8-1新增
+            //四楼   四楼小样房         40004493   7        2019-3-20新增
+            //四楼   四楼首样房         40004493   8        2019-3-20新增
             //五楼   SMT               
             //五楼   SMT               
             //五楼   SMT               
@@ -3206,46 +3302,6 @@ namespace JianHeMES.Areas.kongya.Controllers
             #region   ---------------选择器------------------
             switch (point)
             {
-                case "一楼篮球场40004493#1":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "一楼配套加工(1)40004518#1":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004518" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "一楼配套加工(2)40004518#2":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004518" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "一楼配套加工(3)40004518#3":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004518" && m.NodeID == "3" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "一楼配套加工(4)40004518#4":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004518" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
                 case "一楼配套加工(5)40004518#5":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40004518" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
@@ -3262,15 +3318,55 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-
-                case "三楼烤箱房40001676#6":
+                case "一楼配套加工(1)40004518#1":
                     queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "6" && m.RecordTime > begin && m.RecordTime < end)
+                                   where (m.DeviceID == "40004518" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
                                    orderby m.id
                                    select m;
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                case "一楼配套加工(4)40004518#4":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "一楼配套加工(2)40004518#2":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004518" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "一楼篮球场40004493#1":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                //case "一楼配套加工(3)40004518#3":
+                //    queryRecords = from m in db.THhistory
+                //                   where (m.DeviceID == "40004518" && m.NodeID == "3" && m.RecordTime > begin && m.RecordTime < end)
+                //                   orderby m.id
+                //                   select m;
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
+
+                //case "三楼烤箱房40001676#6":
+                //    queryRecords = from m in db.THhistory
+                //                   where (m.DeviceID == "40001676" && m.NodeID == "6" && m.RecordTime > begin && m.RecordTime < end)
+                //                   orderby m.id
+                //                   select m;
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
                 case "三楼插件40001676#9":
                     queryRecords = from m in db.THhistory
                                    where (m.DeviceID == "40001676" && m.NodeID == "9" && m.RecordTime > begin && m.RecordTime < end)
@@ -3295,90 +3391,14 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
-                case "四楼烤箱房40001676#1":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼老化40001676#2":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼组装40001676#3":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "3" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-
-                case "四楼线材40001676#4":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼老化调试40001676#5":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40001676" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼老化调试2号40004493#4":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004493" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼老化调试3号40004493#5":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004493" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-                case "四楼小间距装配40004518#7":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40004518" && m.NodeID == "7" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-
-                case "四楼组装线1号40021216#1":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40021216" && m.NodeID == "1" && m.DeviceName == "四楼组装线1号40021216#1" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-
-                case "四楼组装线2号40021216#2":
-                    queryRecords = from m in db.THhistory
-                                   where (m.DeviceID == "40021216" && m.NodeID == "2" && m.DeviceName == "四楼组装线2号40021216#2" && m.RecordTime > begin && m.RecordTime < end)
-                                   orderby m.id
-                                   select m;
-                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
-                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
-                    break;
-
+                //case "四楼烤箱房40001676#1":
+                //    queryRecords = from m in db.THhistory
+                //                   where (m.DeviceID == "40001676" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
+                //                   orderby m.id
+                //                   select m;
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
                 //四楼   四楼喷墨房1号　    40004518   7        2018-12-3从四楼小间距装配迁移到四楼喷墨房1号
                 case "四楼喷墨房1号40021216#3":
                     queryRecords = from m in db.THhistory
@@ -3397,6 +3417,79 @@ namespace JianHeMES.Areas.kongya.Controllers
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
+                case "四楼组装线1号40021216#1":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40021216" && m.NodeID == "1" && m.DeviceName == "四楼组装线1号40021216#1" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+
+                case "四楼组装线2号40021216#2":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40021216" && m.NodeID == "2" && m.DeviceName == "四楼组装线2号40021216#2" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼线材40001676#4":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40001676" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼老化调试3号40004493#5":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "5" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                //case "四楼老化40001676#2":
+                //    queryRecords = from m in db.THhistory
+                //                   where (m.DeviceID == "40001676" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
+                //                   orderby m.id
+                //                   select m;
+                //    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                //    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                //    break;
+                case "四楼小样房40004493#7":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "7" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼首样房40004493#8":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "8" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼老化调试40004493#6":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "6" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "四楼老化调试2号40004493#4":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40004493" && m.NodeID == "4" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
 
                 case "4#四楼仓库40004493#3":
                     queryRecords = from m in db.THhistory
@@ -3404,6 +3497,24 @@ namespace JianHeMES.Areas.kongya.Controllers
                                    orderby m.id
                                    select m;
                     ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼SMT产线40021210#2":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40021210" && m.NodeID == "2" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                        ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+                    queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+                    break;
+                case "五楼SMT产线40021210#1":
+                    queryRecords = from m in db.THhistory
+                                   where (m.DeviceID == "40021210" && m.NodeID == "1" && m.RecordTime > begin && m.RecordTime < end)
+                                   orderby m.id
+                                   select m;
+                    if (queryRecords.Count() == 0)
+                        ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
                     queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
                     break;
                 case "五楼SMT物料暂存40000938#6":
