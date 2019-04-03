@@ -4,7 +4,6 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <script src="~/Scripts/echarts.js"></script>
-<script src="~/Scripts/vue-resource.min.js"></script>
 <style>
     [v-cloak] {
         display: none;
@@ -259,7 +258,7 @@
         created: function () {
             let nowDate = new Date();
             this.year = nowDate.getFullYear();
-            this.month = nowDate.getMonth() + 1;
+            this.month = nowDate.getMonth();
         },
         mounted: function () {
             //this.$options.methods.getTurnoverrateYearlyLineChartData();
@@ -283,43 +282,53 @@
         },
         methods: {
             postTime: function (y, m) {
-                app.$http.post("/Personnel_Turnoverrate/Turnoverrate", {
-                    Year: y,
-                    Month: m,
-                }, { emulateJSON: true }).then(function (res) {
-                    //console.log(res)
-                    if (res.bodyText == "没有记录！") {
-                        app.turnoverrateList = [];
-                        app.emptyMessage = y + "年" + m + "月没有记录或尚未输入数据！";
-                        return false;
-                    };
-                    let targetdata = res.body;
-                    let arr = [];
-                    for (let i in targetdata) {
-                        if (i == "month_average") {
-                            app.monthAverageVal = targetdata[i];
-                        } else {
-                            arr.push(targetdata[i]);
+                $.ajax({
+                    url: "/Personnel_Turnoverrate/Turnoverrate",
+                    type: "post",
+                    data: {
+                        Year: y,
+                        Month: m,
+                    },
+                    success: function (data) {
+                        if (data == "没有记录！") {
+                            app.turnoverrateList = [];
+                            //console.log(y + "年" + m + "月没有记录或尚未输入数据！");
+                            app.emptyMessage = y + "年" + m + "月没有记录或尚未输入数据！";
+                            return false;
                         };
-                    };
-                    if (arr.length > 0) {
-                        app.turnoverrateList = arr;
-                    };
-                }, function (err) {
-                    alert("查询月流失率失败！")
+                        let targetdata = JSON.parse(data);
+                        let arr = [];
+                        //console.log(targetdata);
+                        for (let i in targetdata) {
+                            if (i == "month_average") {
+                                app.monthAverageVal = targetdata[i];
+                            } else {
+                                arr.push(targetdata[i]);
+                            };
+                        };
+                        if (arr.length > 0) {
+                            app.turnoverrateList = arr;
+                        };
+                    },
+                    error: function (err) {
+                        alert("查询月流失率失败！")
+                    }
                 });
             },
             getDepartmentYearMsg: function (departmentVal) {
-                app.$http.post("/Personnel_Turnoverrate/TurnoverrateYearly",
-                    {
+                $.ajax({
+                    url: "/Personnel_Turnoverrate/TurnoverrateYearly",
+                    type: "post",
+                    data: {
                         department: departmentVal,
                         year: app.year,
-                    }, { emulateJSON: true }).then(function (res) {
-                        if (res.bodyText == "没有记录！") {
+                    },
+                    success: function (data) {
+                        if (data == "没有记录！") {
                             alert("该部门没有数据！")
                             return false;
                         };
-                        let dataJson = res.body;
+                        let dataJson = JSON.parse(data);
                         let dataArray = [[], [], [], [], []];
                         app.departmentList = [];
                         //console.log(dataJson);
@@ -338,59 +347,66 @@
                         app.yearDepartment = departmentVal;
                         app.departmentList = dataArray;
                         app.yearAverageVal = dataJson.avgturnoverrate.toFixed(2);
-
-                    }, function (res) {
+                    },
+                    error: function (err) {
                         alert("查询部门年流失率失败！")
-                    });
+                    }
+                });
             },
             getTurnoverrateYearlyLineChartData: function () {
-                //发送 post 请求
-                app.$http.post('/Personnel_Turnoverrate/TurnoverrateYearlyLineChartData', { year: app.year }, { emulateJSON: true }).then(function (res) {
-                    //console.log(res)
-                    //清空图表
-                    app.lineArray = [];
-                    if (app.barArray != "") {
-                        let bar = app.barArray;
-                        for (let i in bar) {
-                            bar[i].data = [];
+                $.ajax({
+                    url: "/Personnel_Turnoverrate/TurnoverrateYearlyLineChartData",
+                    type: "post",
+                    data: {
+                        year: app.year,
+                    },
+                    success: function (data) {
+                        //清空图表
+                        app.lineArray = [];
+                        if (app.barArray != "") {
+                            let bar = app.barArray;
+                            for (let i in bar) {
+                                bar[i].data = [];
+                            };
                         };
-                    };
-                    LineChart.setOption({
-                        title: { subtext: '请选择年份' },
-                        series: [{ data: app.lineArray }]
-                    });
-                    BarChart.setOption({
-                        title: { subtext: '请选择年份' },
-                        series: app.barArray
-                    });
-                    app.barArray = [];
-                    if (res.bodyText == "没有记录！") {
-                        return false;
-                    };
-                    //处理数据
-                    let dataJson = res.body;
-                    app.lineArray = dataJson.line.split(",");
-                    let barval = dataJson.columnar;
-                    for (let i in barval) {
-                        app.barArray.push({
-                            name: barval[i].name,
-                            type: "bar",
-                            data: barval[i].data.split(",")
+                        LineChart.setOption({
+                            title: { subtext: '请选择年份' },
+                            series: [{ data: app.lineArray }]
                         });
-                    };
-                    //折线图渲染
-                    LineChart.setOption({
-                        title: { subtext: app.year + '年记录' },
-                        series: [{ data: app.lineArray }]
-                    });
-                    //柱状图渲染
-                    BarChart.setOption({
-                        title: { subtext: app.year + '年记录' },
-                        series: app.barArray
-                    });
-                }, function (res) {
-                    console.log(res.status);
-                    alert("折线图数据获取失败！")
+                        BarChart.setOption({
+                            title: { subtext: '请选择年份' },
+                            series: app.barArray
+                        });
+                        app.barArray = [];
+                        if (data == "没有记录！") {
+                            return false;
+                        };
+                        //处理数据
+                        let dataJson = JSON.parse(data);
+                        app.lineArray = dataJson.line.split(",");
+                        //console.log(dataJson)
+                        let barval = dataJson.columnar;
+                        for (let i in barval) {
+                            app.barArray.push({
+                                name: barval[i].name,
+                                type: "bar",
+                                data: barval[i].data.split(",")
+                            });
+                        };
+                        //折线图渲染
+                        LineChart.setOption({
+                            title: { subtext: app.year + '年记录' },
+                            series: [{ data: app.lineArray }]
+                        });
+                        //柱状图渲染
+                        BarChart.setOption({
+                            title: { subtext: app.year + '年记录' },
+                            series: app.barArray
+                        });
+                    },
+                    error: function (err) {
+                        alert("折线图数据获取失败！")
+                    }
                 });
             },
             bodyFireworks: function () {
@@ -438,7 +454,7 @@
                 Div.className = "colorFont";					//添加一个class
                 Div.innerHTML = app.$options.methods.randomppp();
                 document.body.appendChild(Div);
-                Div.style.left = (x - Div.offsetWidth / 2) + "px";						//把鼠标点击坐标给div
+                Div.style.left = (x-Div.offsetWidth/2) + "px";						//把鼠标点击坐标给div
                 Div.style.top = y + "px";
                 let speedX = (parseInt(Math.random() * 2) == 0 ? 1 : -1) * parseInt(Math.random() * 2);  //三目运算符随机移动方向，概率50%,为1时往正方向移动，负1时往反方向移动第二个随机数随机速度快慢
                 let speedY = parseInt(Math.random() * 2 + 1);
@@ -475,7 +491,7 @@
                             $(v).removeClass("hidden");
                         };
                     });
-                }, delayed1 + delayed2);//delayed1 + delayed2
+                }, 0);//delayed1 + delayed2
             },
             randomppp: function () {
                 let num = Math.floor(Math.random() * 10);
