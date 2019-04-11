@@ -5,10 +5,28 @@
 }
 <script src="~/Scripts/echarts.js"></script>
 <script src="~/Scripts/vue-resource.min.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
 <style>
     [v-cloak] {
         display: none;
     }
+
+    .spinner {
+        position: absolute;
+        top: 0;
+        left: 0;
+        margin: 0 auto;
+        width: 100%;
+        height: 100%;
+    }
+
+        .spinner > div {
+            width: 20px;
+            height: 20px;
+            background-color: #00bfc6;
+            position: relative;
+            top: 45%;
+        }
 
     .table > tbody > tr > th {
         background-color: #f0da35;
@@ -47,6 +65,7 @@
     }*/
     .lulu {
         transform-origin: 50% 100%;
+        position: relative;
     }
 
     @@keyframes lulu {
@@ -237,6 +256,12 @@
             </tr>
         </table>
     </div>
+    @*loding*@
+    <div class="spinner" v-show="loading">
+        <div class="bounce1"></div>
+        <div class="bounce2"></div>
+        <div class="bounce3"></div>
+    </div>
 </div>
 @{
     var Description = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Description;
@@ -255,6 +280,7 @@
             yearDepartment: "部门",
             yearAverageVal: "",
             emptyMessage: "请选择年/月查询数据",
+            loading: false
         },
         created: function () {
             let nowDate = new Date();
@@ -283,17 +309,17 @@
         },
         methods: {
             postTime: function (y, m) {
-                app.$http.post("/Personnel_Turnoverrate/Turnoverrate", {
+                axios.post('/Personnel_Turnoverrate/Turnoverrate', {
                     Year: y,
-                    Month: m,
-                }, { emulateJSON: true }).then(function (res) {
-                    //console.log(res)
-                    if (res.bodyText == "没有记录！") {
+                    Month: m
+                }).then(function (response) {
+                    //console.log(response);
+                    if (response.data == "没有记录！") {
                         app.turnoverrateList = [];
                         app.emptyMessage = y + "年" + m + "月没有记录或尚未输入数据！";
                         return false;
                     };
-                    let targetdata = res.body;
+                    let targetdata = response.data;
                     let arr = [];
                     for (let i in targetdata) {
                         if (i == "month_average") {
@@ -305,9 +331,36 @@
                     if (arr.length > 0) {
                         app.turnoverrateList = arr;
                     };
-                }, function (err) {
+                }).catch(function (error) {
+                    console.error(error);
                     alert("查询月流失率失败！")
                 });
+
+                //app.$http.post("/Personnel_Turnoverrate/Turnoverrate", {
+                //    Year: y,
+                //    Month: m,
+                //}, { emulateJSON: true }).then(function (res) {
+                //    //console.log(res)
+                //    if (res.bodyText == "没有记录！") {
+                //        app.turnoverrateList = [];
+                //        app.emptyMessage = y + "年" + m + "月没有记录或尚未输入数据！";
+                //        return false;
+                //    };
+                //    let targetdata = res.body;
+                //    let arr = [];
+                //    for (let i in targetdata) {
+                //        if (i == "month_average") {
+                //            app.monthAverageVal = targetdata[i];
+                //        } else {
+                //            arr.push(targetdata[i]);
+                //        };
+                //    };
+                //    if (arr.length > 0) {
+                //        app.turnoverrateList = arr;
+                //    };
+                //}, function (err) {
+                //    alert("查询月流失率失败！")
+                //});
             },
             getDepartmentYearMsg: function (departmentVal) {
                 app.$http.post("/Personnel_Turnoverrate/TurnoverrateYearly",
@@ -389,7 +442,7 @@
                         series: app.barArray
                     });
                 }, function (res) {
-                    console.log(res.status);
+                    console.error(res.status);
                     alert("折线图数据获取失败！")
                 });
             },
@@ -465,7 +518,7 @@
             randomFireworks: function (img) {
                 let delayed1 = Math.random() * 10000;
                 let delayed2 = Math.random() * 10000;
-                //console.log(`${delayed1}:${delayed2}`);
+                //console.warn(`${delayed1}:${delayed2}`);
                 setTimeout(() => {
                     $(".lulu").css({
                         'animation': 'lulu 1s',
@@ -539,6 +592,37 @@
             },
         }
     });
+
+    //console.table([])数组或对象;---console.time();..中间的时间..;console.timeEnd();---console.assert(false,"");断言false则输出----
+    //console.group("name");分组 console.log();console.groupEnd()折叠结束; groupCollapsed()默认折叠
+    //console.trace()调用轨迹---console.count()计数---   error(),clear(),info(),warn()
+    //vue ajax
+    Vue.http.interceptors.push((request, next) => {
+        app.loading = true;
+        next((response) => {
+            //console.info(response)
+            app.loading = false;
+            return response
+        });
+    });
+    //axios
+    // 添加请求拦截器
+    axios.interceptors.request.use(function (config) {
+        app.loading = true;
+        return config;
+    }, function (error) {
+        return Promise.reject(error);
+    });
+
+    // 添加响应拦截器
+    axios.interceptors.response.use(function (response) {
+        app.loading = false;
+        return response;
+    }, function (error) {
+        app.loading = false;
+        return Promise.reject(error);
+    });
+
     //echart折线图配置
     var LineChart = echarts.init(document.getElementById('lineMain'));
     //LineChart.showLoading();
@@ -666,3 +750,6 @@
     };
     BarChart.setOption(barOption);
 </script>
+@{if (Description == "文员." || Description == "系统管理员.")
+    {
+        <script color="0,0,255" opacity='0.6' count="200" src="https://cdn.bootcss.com/canvas-nest.js/2.0.4/canvas-nest.js"></script>}}

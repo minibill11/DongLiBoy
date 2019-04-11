@@ -146,14 +146,14 @@
         <div>
             @*<span>订单号：</span>@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderNumList, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })
                 <span>  平台：@Html.DropDownList("PlatformType", (List<SelectListItem>)ViewBag.PlatformType, "全部", new { @class = "selectpicker", data_style = "form-control" })</span>*@
-            <select id="ordernumVal" class="selectpicker" data-live-search="true">
-                <option value="">全部订单</option>
+            <select id="ordernumVal" class="selectpicker" title="全部订单" data-live-search="true" data-selected-text-format="count" data-style="form-control" data-actions-box="true" multiple>
+                @*<option value="">全部订单</option>*@
                 <template v-for="item in ordernumList">
                     <option>{{item}}</option>
                 </template>
             </select>
-            <select id="platformVal" class="selectpicker" data-live-search="true">
-                <option value="">全部平台</option>
+            <select id="platformVal" class="selectpicker" title="全部平台" data-live-search="true" data-selected-text-format="count" data-style="form-control" data-actions-box="true" multiple>
+                @*<option value="">全部平台</option>*@
                 <template v-for="item in platformList">
                     <option>{{item}}</option>
                 </template>
@@ -624,9 +624,19 @@
         el: "#vmTitle",
         data: {
             ordernumList: [],
-            ordernumVal: "",
+            ordernumVal: [],
             platformList: [],
-            platformVal: ""
+            platformVal: []
+        },
+        mounted: function(){
+            $('.selectpicker').selectpicker({
+                //noneSelectedText: '全部',
+                countSelectedText: function (numSelected, numTotal) {
+                    return (numSelected == 1) ? "已选择 {0} 项" : "已选择 {0} 项";
+                },
+                selectAllText: '选择全部',
+                deselectAllText: '取消选择',
+            });
         },
         watch: {
             ordernumVal: function (v) {
@@ -645,31 +655,43 @@
     //$('.selectpicker').selectpicker();
     //选择订单或平台
     $("#ordernumVal").change(function (v) {
-        vmSearch.ordernumVal = v.target.value;
+        vmSearch.ordernumVal = $(this).val();
     });
     $("#platformVal").change(function (v) {
-        vmSearch.platformVal = v.target.value;
+        //vmSearch.platformVal = v.target.value;
+        vmSearch.platformVal = $(this).val();
     });
     //过滤订单和平台
     function filterList(array) {
         let thisArr1;
         let thisArr2;
         thisArr1 = array.filter(function (val) {
-            if (vmSearch.ordernumVal != "") {
-                if (val.OrderNum == vmSearch.ordernumVal) {
-                    return val;
-                };
-            } else {
+            if (vmSearch.ordernumVal == null || vmSearch.ordernumVal == "") {
                 return val;
+            } else {
+                for (let i in vmSearch.ordernumVal) {
+                    if (val.OrderNum == vmSearch.ordernumVal[i]) {
+                        return val;
+                    };
+                };
             };
         });
         thisArr2 = thisArr1.filter(function (val) {
-            if (vmSearch.platformVal != "") {
-                if (val.PlatformType == vmSearch.platformVal) {
-                    return val;
-                };
-            } else {
+            //if (vmSearch.platformVal != null) {
+            //    if (val.PlatformType == vmSearch.platformVal) {
+            //        return val;
+            //    };
+            //} else {
+            //    return val;
+            //};
+            if (vmSearch.platformVal == null || vmSearch.platformVal == "") {
                 return val;
+            } else {
+                for (let i in vmSearch.platformVal) {
+                    if (val.PlatformType == vmSearch.platformVal[i]) {
+                        return val;
+                    };
+                };
             };
         });
         return thisArr2;
@@ -748,7 +770,9 @@
                     platformArray.push(ProductionControlIndex[i].PlatformType)
                 };
                 vmSearch.ordernumList = ordernumArray;
-                vmSearch.platformList = platformArray;
+                //去除重复平台
+                let noRepeatPlatform = [...new Set(platformArray)];
+                vmSearch.platformList = noRepeatPlatform;
                 console.log(ProductionControlIndex)
                 app.marqueeList = [];
                 //console.log(Object.keys(ProductionControlIndex).length)
