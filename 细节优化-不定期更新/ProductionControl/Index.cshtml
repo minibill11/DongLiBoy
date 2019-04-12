@@ -37,7 +37,10 @@
         cursor: pointer;
     }
 
-    .table > tbody > tr > td:nth-child(n+18) {
+    .table > tbody > tr > td:nth-child(n+19),
+    .table > tbody > tr > td:nth-child(8),
+    .table > tbody > tr > td:nth-child(11),
+    .table > tbody > tr > td:nth-child(16) {
         cursor: auto;
     }
 
@@ -121,11 +124,11 @@
     }
 
     #content {
-        width: 1370px;
+        width: 1410px;
     }
 
     .table {
-        width: 1353px;
+        width: 1393px;
     }
 
         .table > tbody > tr:first-child > td {
@@ -177,20 +180,26 @@
                 <col width="69 ">
                 <col width="69 ">
                 <col width="71 ">
+
+                <col width="60 ">
                 <col width="66 ">
                 <col width="66 ">
+                @*<col width="66 ">
+                    <col width="66 ">*@
+                <col width="60 ">
                 <col width="66 ">
                 <col width="66 ">
+
                 <col width="66 ">
                 <col width="66 ">
-                <col width="66 ">
-                <col width="66 ">
+
+                <col width="60 ">
                 <col width="66 ">
                 <col width="66 ">
                 <col width="71 ">
                 <col width="68 ">
-                <col width="68 ">
-                <col width="68 ">
+                <col width="64 ">
+                <col width="64 ">
             </colgroup>
             <thead>
                 <tr class="rowTitle1">
@@ -200,11 +209,11 @@
                     <th rowspan="2">平台型号</th>
                     <th colspan="2">生产排期</th>
                     <th rowspan="2">实际开始<br />生产时间</th>
-                    <th colspan="2">组装工序</th>
-                    <th colspan="2">FQC</th>
-                    <th colspan="2">调试老化</th>
+                    <th colspan="3">组装PQC</th>
+                    @*<th colspan="2">FQC</th>*@
+                    <th colspan="3">老化调试</th>
                     <th colspan="2">校正</th>
-                    <th colspan="2">包装</th>
+                    <th colspan="3">包装</th>
                     <th rowspan="2">完成时间</th>
                     <th rowspan="2">生产时长</th>
                     <th rowspan="2">特采描述</th>
@@ -213,15 +222,19 @@
                 <tr class="rowTitle2">
                     <th>起始日期</th>
                     <th>出货时间</th>
+                    <th>首件</th>
                     <th>完成率</th>
                     <th>合格率</th>
-                    <th style="font-size:12px">抽检率</th>
-                    <th style="font-size:12px">抽检<br />合格率</th>
+                    @*<th style="font-size:12px">抽检率</th>
+                        <th style="font-size:12px">抽检<br />合格率</th>*@
                     @*<th>老化数</th>*@
+                    <th>首件</th>
                     <th>老化数</th>
                     <th>合格率</th>
                     <th>完成率</th>
                     <th>合格率</th>
+
+                    <th>首件</th>
                     <th>完成率</th>
                     <th>合格率</th>
                 </tr>
@@ -237,20 +250,26 @@
                     <col width="69 ">
                     <col width="69 ">
                     <col width="71 ">
+
+                    <col width="60 ">
                     <col width="66 ">
                     <col width="66 ">
+                    @*<col width="66 ">
+                        <col width="66 ">*@
+                    <col width="60 ">
                     <col width="66 ">
                     <col width="66 ">
+
                     <col width="66 ">
                     <col width="66 ">
-                    <col width="66 ">
-                    <col width="66 ">
+
+                    <col width="60 ">
                     <col width="66 ">
                     <col width="66 ">
                     <col width="71 ">
                     <col width="68 ">
-                    <col width="68 ">
-                    <col width="68 ">
+                    <col width="64 ">
+                    <col width="64 ">
                 </colgroup>
                 <tbody>
                     <tr v-for="(item, index) in sortmarqueeList">
@@ -262,6 +281,15 @@
                         <td>{{item.PlanCompleteTime.split(" ")[0]}}</td>
                         <td>{{item.ActualProductionTime}}</td>
                         @*组装*@
+                        <td v-bind:class="(item.Assemble_Description)?'showBtn':''"
+                            v-on:click="(item.Assemble_Description)?clickBtn($event):''"
+                            v-bind:style="(item.Assemble_Description=='OK')?({color:'blue'}):({color:'#d75b00'})">
+                            {{item.Assemble_Description}}
+                            <div v-if="(item.Assemble_Description)" class="showDiv">
+                                <button v-on:click.stop="imgModal_Assemble(item.OrderNum)" class="btn btn-info btnSty" style="right: 50%;">IMG</button>
+                                <button v-on:click.stop="pdfModal_Assemble(item.OrderNum)" class="btn btn-warning btnSty" style="left: 50%;">PDF</button>
+                            </div>
+                        </td>
                         <td v-on:click="Detail(item.OrderNum,'Assemble')"
                             v-bind:class="(item.Assemble_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
                             {{item.Assemble_Finish_Rate}}
@@ -274,20 +302,29 @@
                         </td>
 
                         @*FQC*@
-                        <td v-on:click="Detail(item.OrderNum,'FinalQC')"
-                            v-bind:class="(item.FinalQC_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
-                            {{item.FinalQC_Finish_Rate}}
-                            <span v-show="item.FinalQC_Record_Count"><br />({{item.FinalQC_Finish}}/{{item.Quantity}})</span>
-                        </td>
-                        <td v-on:click="Detail(item.OrderNum,'FinalQC')"
-                            v-bind:class="(item.FinalQC_Pass_Rate.split('%')[0])>=100?'bgcolor100':(item.FinalQC_Pass_Rate.split('%')[0])<80?'bgcolor80':(item.FinalQC_Pass_Rate.split('%')[0])<90?'bgcolor90':''">
-                            {{item.FinalQC_Pass_Rate}}
-                            <span v-show="item.FinalQC_Record_Count"><br />({{item.FinalQC_Finish}}/{{item.FinalQC_Record_Count}})</span>
-                        </td>
+                        @*<td v-on:click="Detail(item.OrderNum,'FinalQC')"
+                                v-bind:class="(item.FinalQC_Finish_Rate.split('%')[0])>=100?'bgcolor100':''">
+                                {{item.FinalQC_Finish_Rate}}
+                                <span v-show="item.FinalQC_Record_Count"><br />({{item.FinalQC_Finish}}/{{item.Quantity}})</span>
+                            </td>
+                            <td v-on:click="Detail(item.OrderNum,'FinalQC')"
+                                v-bind:class="(item.FinalQC_Pass_Rate.split('%')[0])>=100?'bgcolor100':(item.FinalQC_Pass_Rate.split('%')[0])<80?'bgcolor80':(item.FinalQC_Pass_Rate.split('%')[0])<90?'bgcolor90':''">
+                                {{item.FinalQC_Pass_Rate}}
+                                <span v-show="item.FinalQC_Record_Count"><br />({{item.FinalQC_Finish}}/{{item.FinalQC_Record_Count}})</span>
+                            </td>*@
 
                         @*老化*@
                         @*<td v-on:click="Detail(item.OrderNum,'Burn_in')" >{{item.Burn_in_Doing_Count}}</td>*@
                         @*组装完成且24h未进入老化*@
+                        <td v-bind:class="(item.BurnIn_Description)?'showBtn':''"
+                            v-on:click="(item.BurnIn_Description)?clickBtn($event):''"
+                            v-bind:style="(item.BurnIn_Description=='OK')?({color:'blue'}):({color:'#d75b00'})">
+                            {{item.BurnIn_Description}}
+                            <div v-if="(item.BurnIn_Description)" class="showDiv">
+                                <button v-on:click.stop="imgModal_BurnIn(item.OrderNum)" class="btn btn-info btnSty" style="right: 50%;">IMG</button>
+                                <button v-on:click.stop="pdfModal_BurnIn(item.OrderNum)" class="btn btn-warning btnSty" style="left: 50%;">PDF</button>
+                            </div>
+                        </td>
                         <td v-on:click="Detail(item.OrderNum,'Burn_in')"
                             v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" v-bind:style="(item.Overtime_never_join_burn_in=='')?'':'border:3px solid red;'">
                             {{item.Burn_in_Finish_Rate}}
@@ -311,6 +348,15 @@
                         </td>
                         @*包装*@
                         @*老化完成且72h未结束包装*@
+                        <td v-bind:class="(item.Appearance_Description)?'showBtn':''"
+                            v-on:click="(item.Appearance_Description)?clickBtn($event):''"
+                            v-bind:style="(item.Appearance_Description=='OK')?({color:'blue'}):({color:'#d75b00'})">
+                            {{item.Appearance_Description}}
+                            <div v-if="(item.Appearance_Description)" class="showDiv">
+                                <button v-on:click.stop="imgModal_Appearance(item.OrderNum)" class="btn btn-info btnSty" style="right: 50%;">IMG</button>
+                                <button v-on:click.stop="pdfModal_Appearance(item.OrderNum)" class="btn btn-warning btnSty" style="left: 50%;">PDF</button>
+                            </div>
+                        </td>
                         <td v-on:click="Detail(item.OrderNum,'Appearance')"
                             v-bind:class="(item.Appearances_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" v-bind:style="(item.Overtime_never_join_appearances=='')?'':'border:3px solid red;'">
                             {{item.Appearances_Finish_Rate}}
@@ -513,6 +559,123 @@
                 });
                 //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
             },
+            imgModal_Assemble: function (OrderNumVal) {
+                $(".imgRotateDiv").remove();
+                $("#pdfIframe").hide();
+                $.ajax({
+                    url: "/OrderMgms/GetAssembleSampleImg",
+                    type: "post",
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (returnVal) {
+                        if (returnVal == "图片文档未上传或不存在！") {
+                            alert(returnVal)
+                        } else {
+                            var json = JSON.parse(returnVal);
+                            for (var img in json) {
+                                $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                    '<img class="imgModalc artZoom" src="/AssembleSample_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该组装首样照片尚未上传！" />' +
+                                     '</div>');
+                            };
+                            $('.artZoom').artZoom({
+                                path: '/AssembleSample_Files/',	// 设置artZoom图片文件夹路径
+                                preload: true,		// 设置是否提前缓存视野内的大图片
+                                blur: true,			// 设置加载大图是否有模糊变清晰的效果
+
+                                // 语言设置
+                                left: '左旋转',		// 左旋转按钮文字
+                                right: '右旋转',		// 右旋转按钮文字
+                                source: '看原图'		// 查看原图按钮文字
+                            });
+                            $("#titlelabel").text("组装首样");
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("组装首样图片尝未上传！", err);
+                    }
+                });
+                //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+            },
+            imgModal_BurnIn: function (OrderNumVal) {
+                $(".imgRotateDiv").remove();
+                $("#pdfIframe").hide();
+                $.ajax({
+                    url: "/OrderMgms/GetBurnInSampleImg",
+                    type: "post",
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (returnVal) {
+                        if (returnVal == "图片文档未上传或不存在！") {
+                            alert(returnVal)
+                        } else {
+                            var json = JSON.parse(returnVal);
+                            for (var img in json) {
+                                $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                    '<img class="imgModalc artZoom" src="/BurnInSample_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该老化首样照片尚未上传！" />' +
+                                     '</div>');
+                            };
+                            $('.artZoom').artZoom({
+                                path: '/BurnInSample_Files/',	// 设置artZoom图片文件夹路径
+                                preload: true,		// 设置是否提前缓存视野内的大图片
+                                blur: true,			// 设置加载大图是否有模糊变清晰的效果
+
+                                // 语言设置
+                                left: '左旋转',		// 左旋转按钮文字
+                                right: '右旋转',		// 右旋转按钮文字
+                                source: '看原图'		// 查看原图按钮文字
+                            });
+                            $("#titlelabel").text("老化首样");
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("老化首样图片尝未上传！", err);
+                    }
+                });
+                //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+            },
+            imgModal_Appearance: function (OrderNumVal) {
+                $(".imgRotateDiv").remove();
+                $("#pdfIframe").hide();
+                $.ajax({
+                    url: "/OrderMgms/GetAppearanceSampleImg",
+                    type: "post",
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (returnVal) {
+                        if (returnVal == "图片文档未上传或不存在！") {
+                            alert(returnVal)
+                        } else {
+                            var json = JSON.parse(returnVal);
+                            for (var img in json) {
+                                $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                    '<img class="imgModalc artZoom" src="/AppearanceSample_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该包装首样照片尚未上传！" />' +
+                                     '</div>');
+                            };
+                            $('.artZoom').artZoom({
+                                path: '/AppearanceSample_Files/',	// 设置artZoom图片文件夹路径
+                                preload: true,		// 设置是否提前缓存视野内的大图片
+                                blur: true,			// 设置加载大图是否有模糊变清晰的效果
+
+                                // 语言设置
+                                left: '左旋转',		// 左旋转按钮文字
+                                right: '右旋转',		// 右旋转按钮文字
+                                source: '看原图'		// 查看原图按钮文字
+                            });
+                            $("#titlelabel").text("包装首样");
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("包装首样图片尝未上传！", err);
+                    }
+                });
+                //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+            },
             pdfModal_AOD: function (OrderNumVal) {
                 $(".imgRotateDiv").remove();
                 $("#pdfIframe").show();
@@ -575,6 +738,100 @@
                     }
                 });
             },
+            //组装首样
+            pdfModal_Assemble: function (OrderNumVal) {
+                $(".imgRotateDiv").remove();
+                $("#pdfIframe").show();
+                $.ajax({
+                    url: "/OrderMgms/preview_AssembleSample_pdf",
+                    type: "post",
+                    cache: false,
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (address) {
+                        if (address == "此组装首样pdf版文件尚未上传，无pdf文件可下载！") {
+                            alert(address)
+                        } else {
+                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\AssembleSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_AssembleSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            document.getElementById("temporary").click();
+                            $("#temporary").remove();
+                            $("#titlelabel").text("组装首样");
+                            if (isMobile()) {
+                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            } else {
+                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            }
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("查看组装首样PDF失败", err);
+                    }
+                });
+            },
+            pdfModal_BurnIn: function (OrderNumVal) {
+                $(".imgRotateDiv").remove();
+                $("#pdfIframe").show();
+                $.ajax({
+                    url: "/OrderMgms/preview_BurnInSample_pdf",
+                    type: "post",
+                    cache: false,
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (address) {
+                        if (address == "此老化首样pdf版文件尚未上传，无pdf文件可下载！") {
+                            alert(address)
+                        } else {
+                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\BurnInSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_BurnInSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            document.getElementById("temporary").click();
+                            $("#temporary").remove();
+                            $("#titlelabel").text("老化首样");
+                            if (isMobile()) {
+                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            } else {
+                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            }
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("查看老化首样PDF失败", err);
+                    }
+                });
+            },
+            pdfModal_Appearance: function (OrderNumVal) {
+                $(".imgRotateDiv").remove();
+                $("#pdfIframe").show();
+                $.ajax({
+                    url: "/OrderMgms/preview_AppearanceSample_pdf",
+                    type: "post",
+                    cache: false,
+                    data: {
+                        ordernum: OrderNumVal,
+                    },
+                    success: function (address) {
+                        if (address == "此包装首样pdf版文件尚未上传，无pdf文件可下载！") {
+                            alert(address)
+                        } else {
+                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\AppearanceSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_AppearanceSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            document.getElementById("temporary").click();
+                            $("#temporary").remove();
+                            $("#titlelabel").text("包装首样");
+                            if (isMobile()) {
+                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            } else {
+                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            }
+                            $("#showModal").click();
+                        };
+                    },
+                    error: function (err) {
+                        alert("查看包装首样PDF失败", err);
+                    }
+                });
+            },
             imgRotate: function (obj) {
                 //创建一个画布
                 var oc = document.createElement('canvas');
@@ -628,7 +885,7 @@
             platformList: [],
             platformVal: []
         },
-        mounted: function(){
+        mounted: function () {
             $('.selectpicker').selectpicker({
                 //noneSelectedText: '全部',
                 countSelectedText: function (numSelected, numTotal) {
@@ -843,6 +1100,12 @@
                         Appearances_Record_Count: ProductionControlIndex[index].Appearances_Record_Count,
                         AOD_Description: ProductionControlIndex[index].AOD_Description,
                         AbnormalOrder_Description: ProductionControlIndex[index].AbnormalOrder_Description,
+
+                        //首样
+                        Assemble_Description: ProductionControlIndex[index].AssembleFirstSample_Description,
+                        BurnIn_Description: ProductionControlIndex[index].BurnInFirstSample_Description,
+                        Appearance_Description: ProductionControlIndex[index].AppearanceFirstSample_Description,
+
 
                         Overtime_never_join_burn_in: ProductionControlIndex[index].Overtime_never_join_burn_in,
                         Overtime_never_join_appearances: ProductionControlIndex[index].Overtime_never_join_appearances,
