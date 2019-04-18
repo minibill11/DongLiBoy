@@ -4,13 +4,13 @@
     ViewBag.Title = "FQC信息查询";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-
+@Scripts.Render("~/Scripts/highcharts")
 <link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
 <script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 
 <style type="text/css">
      /*LOADING-begin*/
-    .spinner {
+    .spinner2 {
         width: 40px;
         height: 40px;
         position: absolute;
@@ -31,7 +31,7 @@
         animation-fill-mode: both;
     }
 
-    .spinner .spinner-container {
+    .spinner2 .spinner-container {
         position: absolute;
         width: 100%;
         height: 100%;
@@ -540,7 +540,7 @@
         }
 
         .fqc-hidden-content {
-            height: 350px;
+            height: 222px;
             border-bottom: 1px solid #808080;
         }
     }
@@ -601,7 +601,7 @@
 <div class="container text-center fqc-first">
     @Html.ActionLink("开始FQC检验", "FinalQC_B", "", new { @class = "btn fqc-content-topbutton" })
 </div>
-<div class="spinner">
+<div class="spinner2">
     <div class="spinner-container container1">
         <div class="circle1"></div>
         <div class="circle2"></div>
@@ -649,6 +649,131 @@
         </form>
     </div>
 }
+
+
+
+<div id="query" class="container fqc-hidden-content" style="@ViewBag.Display">
+    <div class="fqc-medle-content-left">
+        <div id="theTop" class="fqc-medle-content-left-top">
+            <span style="height:25px;">订单 <strong class="testcolor">@ViewBag.orderNum</strong>模组FQC基本情况</span>
+            <div class="fqc-medle-content-left-top-inner">
+                <p>订单的模组总量：<strong>@ViewBag.Quantity</strong></p>
+            </div>
+            <div class="fqc-medle-content-left-top-inner">
+                <p>经过FQC次数：<strong>@ViewBag.RecordCount</strong></p>
+            </div>
+            <div class="fqc-medle-content-left-top-inner">
+                <p>正常数量：<strong>@ViewBag.NormalCount</strong></p>
+            </div>
+            <div class="fqc-medle-content-left-top-inner">
+                <p>异常数量：<strong>@ViewBag.AbnormalCount</strong></p>
+            </div>
+            <div class="fqc-medle-content-left-top-inner">
+                <p>完成率：<strong><span>{{FinishRate}}</span>%</strong> </p>
+            </div>
+            <div class="fqc-medle-content-left-top-inner" style="width:295px">
+                <p>查询时间： <strong><span>{{message}}</span> </strong></p>
+            </div>
+        </div>
+        @if (ViewBag.NotDo != null)
+            {
+
+            <div class="fqc-medle-content-left-bottom">
+                <span class="testspan">未进行FQC模组 <strong>@ViewBag.NotDoCount</strong> 个：</span>
+                <div class="fqc-medle-content-left-bottom-inner">
+                    @foreach (var item in ViewBag.NotDo)
+                    {
+                        <p>@item</p>
+                    }
+                </div>
+            </div>
+        }
+        @if (ViewBag.DoingNowList != null)
+            {
+
+            <div class="fqc-medle-content-left-bottom">
+                <span class="testspan">正在FQC模组<strong>@ViewBag.DoingNowListCount</strong> 个：</span>
+                <div class="fqc-medle-content-left-bottom-inner">
+                    @foreach (var item in ViewBag.DoingNowList)
+                    {
+                        <p>@item</p>
+                    }
+                </div>
+            </div>
+        }
+        @if (ViewBag.NeverFinishList != null)
+            {
+
+            <div class="fqc-medle-content-left-bottom">
+                <span class="testspan">未完成FQC模组<strong>@ViewBag.NeverFinishListCount</strong> 个：</span>
+                <div class="fqc-medle-content-left-bottom-inner">
+                    @foreach (var item in ViewBag.NeverFinishList)
+                    {
+                        <p>@item</p>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+    <div id="container2" class="fqc-medle-content-right"></div>
+</div>
+<script type="text/javascript">
+    var query = new Vue({
+        el: '#query',    //与div中的id名对应
+        data: {
+            message: new Date().toLocaleString(),  //输出查询时间
+            floatmessage: '订单号'+'@ViewBag.orderNum',
+            Quantity:@ViewBag.Quantity,
+            NormalCount:@ViewBag.NormalCount,
+        },
+        computed:{
+            FinishRate: function (){
+                return (this.NormalCount/this.Quantity*100).toFixed(1)
+            }
+        }
+    });
+
+    Highcharts.chart('container2', {
+        chart: {
+            type: 'pie',
+            options3d: {
+                enabled: true,
+                alpha: 30,
+                beta: 0
+            }
+        },
+        title: {
+            text: '订单 @ViewBag.orderNum 基本情况'
+        },
+        tooltip: {
+            pointFormat: '<b>{point.percentage:.1f}%</b>'//'{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                depth: 35,
+                dataLabels: {
+                    enabled: true,
+                    formatter:function(){           // '{point.name}'
+                        if(this.percentage >0 )
+                        { return this.point.name;}
+                        else if (this.percentage >=100 )
+                        { return '已全部完成';}
+                    }
+                }
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: '',
+            data: [
+                ['已完成 @ViewBag.NormalCount 个',@ViewBag.NormalCount],
+                ['未完成 @ViewBag.NeverFinish 个',@ViewBag.NeverFinish]
+            ]
+        }]
+    });
+</script>
 <div style="width:1140px;clear:left;">
     <table>
         <tr>
@@ -752,6 +877,7 @@
             }
         }
     </table>
+    <input class="hidden" id="overtime" value="@ViewBag.Overtime" />
     <form id="gotoBarCode" action="/BarCodes/Index" method="post" target="_blank" style="display:none">
         @Html.AntiForgeryToken()
         <input type="text" name="OrderNum" value="" />
@@ -761,22 +887,31 @@
 </div>
 <script>
     $(function () {
-        $(".barcodeNum").each(function (index, val) {
-            $(this).css("cursor", "pointer");
-            $(this).click(function (v) {
+        var overTimeList = JSON.parse($("#overtime").val());
+        $(".barcodeNum").each(function(index,val){
+            for(var item in overTimeList){
+                if(val.textContent==item){
+                    $(this).css("color","red");
+                    $(this).popover({trigger:'hover',title:"条码号\"<span style=\"color:blue\">"+item+"</span>\"异常原因",html:true,content:overTimeList[item],placement:"top"});
+                };
+            };
+
+            $(this).css("cursor","pointer");
+            $(this).click(function(v){
                 $("#formBarCodeNum").val(v.target.textContent);
                 $("#gotoBarCode").submit();
             });
         });
     });
+
     $("#searchButton").click(function(){
-        $(".spinner").show();
+        $(".spinner2").show();
     })
 
     document.onreadystatechange = loadingChange;  //已 证实为生效句柄
     function loadingChange(){
         if(document.readyState == "complete"){   //当页面加载状态为：全部加载完成时执行这个分支
-            $(".spinner").hide();
+            $(".spinner2").hide();
         }
     }
 
@@ -812,7 +947,7 @@
             });
             $("#searchcButton").click(function (event) {
                 event.preventDefault();
-                if ($("#orderNum").val() != "") {
+                if ($("#orderNum").val() != "" || $("#barcodeNumber").val() != "") {
                     $("#searchButton").click();
                 }
             })

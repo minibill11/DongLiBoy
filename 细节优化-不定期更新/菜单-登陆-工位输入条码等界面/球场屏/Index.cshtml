@@ -1,0 +1,138 @@
+﻿@model IEnumerable<JianHeMES.Models.CourtScreenModuleInfo>
+
+@{
+    ViewBag.Title = "球场屏条码管理";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+</style>
+<h3>球场屏条码管理</h3>
+
+@using (Html.BeginForm("Index", "CourtScreenModuleInfoes", FormMethod.Post, new { @class = "text-center" }))
+{
+    @Html.AntiForgeryToken()
+    <div>
+        <span>订单号：</span>@Html.DropDownList("orderNum", (List<SelectListItem>)ViewBag.OrderList, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })
+        <span>备注:</span>
+        <input type="text" class="form-control" style="display:inline;width:150px;" name="Remark" />
+        <button id="searchcButton" class="btn btn-default">查找</button>
+        @*<input type="submit" id="searchButton" class="btn btn-default hidden" value="查找" />*@
+    </div>
+}
+@using (Html.BeginForm("OutputExcel", "CourtScreenModuleInfoes", FormMethod.Post))
+{
+    @Html.AntiForgeryToken()
+    <input id="order" name="orderNum" class="hidden" />
+    <input type="submit" id="excelBtn" class="btn btn-success" value="导出球场屏记录到Excel表" />
+}
+
+@*<input type="button" id="excelBtn" onclick="postExcel()" class="btn btn-success" value="导出球场屏Excel表记录" />*@
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.OrderNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ModuleNum)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Type)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.BarCode)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Status)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Remark)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Creater)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.CreateDate)
+        </th>
+        <th></th>
+    </tr>
+
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.OrderNum)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ModuleNum)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Type)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.BarCode)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Status)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Remark)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Creater)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.CreateDate)
+            </td>
+            <td>
+                @{var UserRoles = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role; }
+
+                @if (((JianHeMES.Models.Users)Session["User"]) != null)
+                {
+                    if (UserRoles == "系统管理员")
+                    {
+
+                        <span>
+                            @Html.ActionLink("修改", "Edit", new { id = item.Id }) |
+                            @Html.ActionLink("详细", "Details", new { id = item.Id }) |
+                            @Html.ActionLink("删除", "Delete", new { id = item.Id })
+                        </span>
+                    }
+                }
+            </td>
+        </tr>
+    }
+
+</table>
+<script>
+    if ($("#orderNum").val() == "") {
+        $("#excelBtn").attr("disabled", "disabled");
+        $("#searchcButton").attr("disabled", "disabled");
+    } else {
+        $("#order").val($("#orderNum").val());
+    };
+    //function postExcel() {
+    //    axios.post("/CourtScreenModuleInfoes/OutputExcel", {
+    //        orderNum: $("#orderNum").val()
+    //    }).then(response=> {
+    //        console.log(response)
+    //    }).catch(error=> {
+    //        alert("post失败")
+    //    });
+    //};
+    $("#orderNum").change(function (v) {
+        if (v.target.value == "") {
+            $("#excelBtn").attr("disabled", "disabled");
+            $("#searchcButton").attr("disabled", "disabled");
+        } else {
+            $("#excelBtn").removeAttr("disabled");
+            $("#searchcButton").removeAttr("disabled");
+        };
+        $("#order").val(v.target.value);
+    });
+</script>
