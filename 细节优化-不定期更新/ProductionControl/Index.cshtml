@@ -166,7 +166,7 @@
             <span class="btn btn-default">
                 @Html.ActionLink("历史记录", "ProductionControlHistory", new { id = "" }, new { target = "_blank" })
             </span><br />
-            <span id="nowtime" style="width:140px"></span>
+            <span style="width:140px">{{nowtime}}</span>
         </div>
     </div>
 
@@ -208,21 +208,21 @@
                     <th rowspan="2">订单<br />数量</th>
                     <th rowspan="2">平台型号</th>
                     <th colspan="2">生产排期</th>
-                    <th rowspan="2">FQC<br />开始时间</th>
-                    <th rowspan="2">组装<br />首件</th>
-                    <th colspan="2">FQC</th>
+                    <th rowspan="2">生产<br />开始时间</th>
+                    <th colspan="3">组装</th>
+                    @*<th colspan="2">FQC</th>*@
                     <th colspan="3">老化调试</th>
                     <th colspan="2">校正</th>
                     <th colspan="3">包装</th>
                     <th rowspan="2">完成时间</th>
-                    <th rowspan="2">生产时长</th>
+                    <th rowspan="2">生产时长<br /><span class="text-center" style="font-size:10px;color:#888;font-weight:300;">(已生产时长)</span></th>
                     <th rowspan="2">特采描述</th>
                     <th rowspan="2">异常描述</th>
                 </tr>
                 <tr class="rowTitle2">
                     <th>起始日期</th>
                     <th>出货时间</th>
-                    @*<th>首件</th>*@
+                    <th>首件</th>
                     <th>完成率</th>
                     <th>合格率</th>
                     @*<th style="font-size:12px">抽检率</th>
@@ -326,7 +326,7 @@
                             </div>
                         </td>
                         <td v-on:click="Detail(item.OrderNum,'Burn_in')"
-                            v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" v-bind:style="(item.Overtime_never_join_burn_in=='')?'':'border:3px solid red;'">
+                            v-bind:class="(item.Burn_in_Finish_Rate.split('%')[0])>=100?'bgcolor100':''" v-bind:style="(item.FinalQC_Overtime_never_join_burn_in=='')?'':'border:3px solid red;'">
                             {{item.Burn_in_Finish_Rate}}
                             <span v-show="item.Burn_in_Count"><br />({{item.Burn_in_Record_Count}}/{{item.Quantity}})</span>
                         </td>
@@ -370,7 +370,9 @@
                         <td>{{item.ActualFinishTime}}</td>
                         <td style="white-space:nowrap;" v-if="item.TotalTime.length==4">{{item.TotalTime[0]+"天"+item.TotalTime[1]+"时"}}<br />{{item.TotalTime[2]+"分"+item.TotalTime[3]+"秒"}}</td>
                         <td style="white-space:nowrap;" v-else-if="item.TotalTime.length==3">{{item.TotalTime[0]+"时"}}<br />{{item.TotalTime[1]+"分"+item.TotalTime[2]+"秒"}}</td>
-                        <td style="white-space:nowrap;" v-else></td>
+                        <td style="white-space:pre-wrap;" v-else>
+                            <span class="text-center" style="font-size:12px;color:#888;font-weight:300;">{{nowtimelong(item.ActualProductionTime)}}</span>
+                        </td>
                         @*<td v-bind:style="(item.AOD_Description)?'cursor:pointer':''" v-on:click="(item.AOD_Description)?imgModal(item.OrderNum):''"><span>{{item.AOD_Description}}</span></td>*@
                         <td v-bind:class="(item.AOD_Description)?'showBtn':''"
                             v-on:click="(item.AOD_Description)?clickBtn($event):''">
@@ -458,14 +460,34 @@
                 var thirdSort = sortByPlanInputTime(secondSort, "PlanInputTime");
                 var lastVal = filterList(thirdSort);
                 return lastVal;
-            }
-        },
-        created: function () {
-            setInterval(function () {
-                $("#nowtime").text(new Date().Format("yyyy-MM-dd hh:mm:ss"));
-            }, 1000);
+            },
         },
         methods: {
+            nowtimelong(ActualProductionTime) {
+                if (ActualProductionTime != "未开始") {
+                    let startTime = new Date(ActualProductionTime); // 开始时间
+                    let endTime = new Date(vmSearch.nowtime); // 结束时间
+                    let timespan = (endTime - startTime);
+                    //计算出相差天数
+                    let days = Math.floor(timespan / (24 * 3600 * 1000));
+                    //计算出小时数
+                    let leave1 = timespan % (24 * 3600 * 1000);    //计算天数后剩余的毫秒数
+                    let hours = Math.floor(leave1 / (3600 * 1000));
+                    //计算相差分钟数
+                    let leave2 = leave1 % (3600 * 1000);        //计算小时数后剩余的毫秒数
+                    let minutes = Math.floor(leave2 / (60 * 1000));
+                    //计算相差秒数
+                    let leave3 = leave2 % (60 * 1000);      //计算分钟数后剩余的毫秒数
+                    let seconds = Math.round(leave3 / 1000);
+                    if (days == 0) {
+                        return `${hours}时
+${minutes}分${seconds}秒`;
+                    } else {
+                        return `${days}天${hours}时
+${minutes}分${seconds}秒`;
+                    };
+                };
+            },
             Detail: function (val, station) {
                 this.$options.methods.postForm("/ProductionControl/" + station, val);
             },
@@ -883,7 +905,15 @@
             ordernumList: [],
             ordernumVal: [],
             platformList: [],
-            platformVal: []
+            platformVal: [],
+            nowtime: "",
+            changeData:true
+        },
+        created: function () {
+            setInterval(function () {
+                let now = new Date().Format("yyyy-MM-dd hh:mm:ss");
+                vmSearch.nowtime = now;
+            }, 1000);
         },
         mounted: function () {
             $('.selectpicker').selectpicker({
@@ -905,7 +935,10 @@
         },
         updated: function () {
             this.$nextTick(function () {
-                $('.selectpicker').selectpicker("refresh");
+                if (vmSearch.changeData == true) {
+                    $('.selectpicker').selectpicker("refresh");
+                    vmSearch.changeData = false;
+                };
             })
         }
     });
@@ -1108,8 +1141,10 @@
 
 
                         Overtime_never_join_burn_in: ProductionControlIndex[index].Overtime_never_join_burn_in,
+                        FinalQC_Overtime_never_join_burn_in: ProductionControlIndex[index].FinalQC_Overtime_never_join_burn_in,
                         Overtime_never_join_appearances: ProductionControlIndex[index].Overtime_never_join_appearances,
                     });
+                    vmSearch.changeData = true;
                 };
             };
             //启动
