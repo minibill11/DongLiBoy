@@ -1,0 +1,151 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+
+namespace JianHeMES.Controllers
+{
+    public class Personnel_FrameworkController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController comm = new CommonalityController();
+
+        // GET: Personnel_Framework
+        public async Task<ActionResult> Index()
+        {
+           
+            return View(await db.Personnel_Framework.ToListAsync());
+        }
+
+
+        [HttpPost]
+        public ActionResult Index(string manage, string department = null, string group = null)
+        {
+            List<string> info = new List<string>();
+            if (manage != null && department == null && group == null)
+                info = db.Personnel_Framework.Where(c => c.Central_layer == manage).Select(c => c.Department).Distinct().ToList();
+            else if (manage != null && department != null && group == null)
+                info = db.Personnel_Framework.Where(c => c.Central_layer == manage && c.Department == department).Select(c => c.Group).Distinct().ToList();
+
+            else if (manage != null && department != null && group != null)
+                info = db.Personnel_Framework.Where(c => c.Central_layer == manage && c.Department == department && c.Group == group).Select(c => c.Position).Distinct().ToList();
+            else
+                return Content("获取数据失败");
+            if (info.Count != 0)
+            { return Content(JsonConvert.SerializeObject(info)); }
+            return Content("获取数据失败");
+        }
+
+        // GET: Personnel_Framework/Details/5
+        public async Task<ActionResult> Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            if (personnel_Framework == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Framework);
+        }
+
+        // GET: Personnel_Framework/Create
+        public ActionResult CreateFramework()
+        {
+            return View();
+        }
+
+        // POST: Personnel_Framework/Create
+        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> CreateFramework([Bind(Include = "Id,Central_layer,Department,Group,Position,CreateDate,Creator")] Personnel_Framework personnel_Framework)
+        {
+
+            if (ModelState.IsValid)
+            {
+                db.Personnel_Framework.Add(personnel_Framework);
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+
+            return View(personnel_Framework);
+        }
+
+        // GET: Personnel_Framework/Edit/5
+        public async Task<ActionResult> Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            if (personnel_Framework == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Framework);
+        }
+
+        // POST: Personnel_Framework/Edit/5
+        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Edit([Bind(Include = "Id,Central_layer,Department,Group,Position,CreateDate,Creator")] Personnel_Framework personnel_Framework)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(personnel_Framework).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(personnel_Framework);
+        }
+
+        // GET: Personnel_Framework/Delete/5
+        public async Task<ActionResult> Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            if (personnel_Framework == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Framework);
+        }
+
+        // POST: Personnel_Framework/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> DeleteConfirmed(int id)
+        {
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            db.Personnel_Framework.Remove(personnel_Framework);
+            await db.SaveChangesAsync();
+            return RedirectToAction("Index");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

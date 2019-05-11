@@ -1,0 +1,456 @@
+﻿@model JianHeMES.Models.CourtScreenModuleInfo
+
+@{
+    ViewBag.Title = "球场屏条码输入";
+}
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+<h3>@ViewBag.Title</h3>
+<style>
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn), .form-control {
+        max-width: 280px;
+    }
+
+    .table > tbody > tr > td, .table > tbody > tr > th {
+        padding: 1px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    a {
+        cursor: pointer;
+    }
+
+    .green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }
+
+    .spanBorder {
+        border: 1px solid red;
+        cursor: pointer;
+    }
+
+        .spanBorder:hover {
+            font-size: 20px;
+        }
+
+    @@media screen and (max-width: 992px) {
+        img, br {
+            display: none;
+        }
+    }
+</style>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <hr style="margin: 10px 0;" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            <div class="col-md-6">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-3" })
+                <div class="col-md-9">
+                    @Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control", style = "text-transform:uppercase" } })
+                    @*@Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })*@
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+                <br /><br />
+                @Html.LabelFor(model => model.ModuleNum, htmlAttributes: new { @class = "control-label col-md-3" })
+                <div class="col-md-9">
+                    @Html.EditorFor(model => model.ModuleNum, new { htmlAttributes = new { @class = "form-control", maxlength = "23", onKeyUp = "value = value.replace(/[^A-Za-z0-9-\\/\\s]/g, '')", style = "text-transform:uppercase" } })
+                    @Html.ValidationMessageFor(model => model.ModuleNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="col-md-6">
+                @*<p class="text-primary" style="font-size:18px;cursor:default;height:30px;">
+                        P/N &nbsp;
+                        <span class="spanBorder">0019</span> -
+                        <span class="spanBorder">01</span> -
+                        <span class="spanBorder">0001</span> -
+                        <span class="spanBorder">1</span>
+                        <span class="spanBorder">00001</span>
+                    </p>*@
+                @*<canvas id="legend" width="500" height="50"></canvas>*@
+                @*年份（17年，18年。。）
+                    批次序号（1次，2次）
+                    屏体套数序号（1套，2套。。）
+                    箱体(1..)/接收卡(2..)/HUB上(3..)/HUB下(4..)/电源(5..)/模块(6..)
+                    数量流水号*@
+                <img src="~/Content/Images/cc.png" style="position:absolute;" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-6">
+                <label class="control-label col-md-3" for="content">输入条码</label>
+                <div class="col-md-9">
+                    <input type="text" class="form-control" placeholder="请输入条码" v-model.trim="newTask" maxlength="23" id="content" onKeyUp="value = value.replace(/[^A-Za-z0-9-\/\s]/g, '')" style="display:inline;text-transform:uppercase" autocomplete="off">
+                    <button id="addclick" class="btn btn-default" v-on:click="addTask">添加</button>
+                    <br /><span v-show="prompt" style="color: red;">不能输入相同条码</span>
+                </div>
+                <div class="form-group"><div class="col-md-12"></div></div>
+                <div class="col-md-9 col-md-offset-3">
+                    <button class="btn btn-default" style="color:dodgerblue" v-on:click="inspect">检查条码</button>
+                    @*<input type="submit" value="开始老化" class="btn btn-default" v-on:click="clearTask" />*@
+                    <input type="button" value="输入条码" class="btn btn-default" v-on:click="submitANDclearTask" v-show="beginShow" />
+                </div>
+            </div>
+            <div class="form-group"><div class="col-md-12"></div></div>
+            <hr style="margin: 10px 0;" />
+            <label class="control-label col-md-2">模块条码清单:</label>
+            <div class="col-md-10" style="width:800px;height:450px;overflow:auto">
+                <p v-if="modelList.length>0" style="margin:2px;color:#333">
+                    <span>接收卡数量:{{countNum.jsk}}个</span>&nbsp;,&nbsp;
+                    <span>HUB板上数量:{{countNum.bs}}个</span>&nbsp;,&nbsp;
+                    <span>HUB板下数量:{{countNum.bx}}个</span>&nbsp;,&nbsp;
+                    <span>电源数量:{{countNum.dy}}个</span>&nbsp;,&nbsp;
+                    <span>模块数量:{{countNum.mk}}个</span>&nbsp;,&nbsp;
+                    <span>其它类型数量:{{countNum.qt}}个</span>&nbsp;,&nbsp;
+                    <span>总数量:{{countNum.zl}}个</span>
+                </p>
+                <table v-if="modelList.length>0" class="table table-bordered">
+                    <colgroup>
+                        <col width="200" />
+                        <col width="400" />
+                        <col width="80" />
+                        <col width="80" />
+                    </colgroup>
+                    <tr>
+                        <th>条码</th>
+                        <th>备注&nbsp;<span class="text-center" style="font-size:11px;color:#888;position:relative;font-weight:300;">(单击编辑)</span></th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                    <tr v-for="(item,index) in modelList">
+                        <td>{{item.BarCode}}</td>
+                        <td v-on:click="editRemark(item.BarCode,$event)">{{item.Remark}}</td>
+                        <td><span v-bind:class="item.isOK=='OK'?trueclass:item.isOK=='NO'?falseclass:''"></span></td>
+                        <td><a v-on:click="removeTask(item.BarCode)">移除</a></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="form-group"><div class="col-md-12"></div></div>
+    </div>
+}
+<div>
+    @Html.ActionLink("返回", "Index")
+</div>
+@{
+    var userName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+}
+<script type="text/javascript">
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            modelList: [],
+            newTask: "", //input默认值
+            prompt: false,//相同条码提示
+            beginShow: false,//提交按钮
+            trueclass: {
+                'glyphicon': true,
+                'glyphicon-ok': true,
+                'green': true
+            },
+            falseclass: {
+                'glyphicon': true,
+                'glyphicon-remove': true,
+                'red': true
+            },
+        },
+        methods: {
+            addTask: function (event) {
+                event.preventDefault();
+                this.beginShow = false;
+                this.prompt = false;
+                if ("@Session["User"]" == "") {
+                    $("#login").modal();
+                    return false;
+                };
+                let moduleVal = $("#ModuleNum").val();
+                if (moduleVal != "" && moduleVal.length >= 23) {//不为空
+                    let cutModuleVal = moduleVal.split("-");
+                    if (cutModuleVal.length != 4 || cutModuleVal[3].split("")[0] != 1) {
+                        alert("模组格式不正确");
+                        $("#ModuleNum").select();
+                        return false;
+                    };
+                } else {
+                    alert("模组长度不符合标准");
+                    $("#ModuleNum").select();
+                };
+                let sames = true;//相同验证
+                if (app.newTask != "" && app.newTask.length >= 23) {//不为空
+                    app.newTask = app.newTask.toUpperCase();
+                    app.newTask = app.newTask.substr(0, 23);
+                    app.newTask = app.newTask.replace(/[^A-Za-z0-9-\/\s]/g, '');
+                    let taskVal = app.newTask.split("-");//按“-”切割
+                    if (taskVal.length != 4) {//格式
+                        alert("条码格式不正确");
+                        $("#content").select();
+                        return false;
+                    };
+                    if (taskVal[3].split("")[0] == 1) {//格式
+                        alert("模组条码不在此处输入");
+                        $("#content").select();
+                        return false;
+                    };
+                    //是否和模组相同
+                    let cutModuleVal = moduleVal.split("-");
+                    if (taskVal[0] != cutModuleVal[0]) {
+                        alert(`模组 ‘${taskVal[0]}’ 部分与条码 ‘${cutModuleVal[0]}’ 部分 不一致`);
+                        return false;
+                    } else if (taskVal[1] != cutModuleVal[1]) {
+                        alert(`模组 ‘${taskVal[1]}’ 部分与条码 ‘${cutModuleVal[1]}’ 部分 不一致`);
+                        return false;
+                    } else if (taskVal[2] != cutModuleVal[2]) {
+                        alert(`模组 ‘${taskVal[2]}’ 部分与条码 ‘${cutModuleVal[2]}’ 部分 不一致`);
+                        return false;
+                    };
+
+                    if (app.modelList != "") {//是否已有数据
+                        app.modelList.forEach(function (item, index) {
+                            if (app.newTask == item.BarCode) {
+                                //console.log(index);
+                                sames = false;
+                                app.prompt = true;
+                                app.newTask = "";
+                            };
+                        });
+                    };
+                    if (sames) { //没有相同数据才允许添加
+                        app.modelList.push({
+                            OrderNum: $("#OrderNum").val(),
+                            ModuleNum: $("#ModuleNum").val(),
+                            Type: taskVal[3].split("")[0],
+                            BarCode: app.newTask,
+                            Status: 0,
+                            Remark: " ",
+                            Creater: "@userName",
+                            CreateDate: "@DateTime.Now",
+                            isOK: "",
+                        });
+                        app.newTask = "";
+                        $("#content").focus();
+                        console.log(app.modelList); //数组
+                    };
+                } else {
+                    alert("条码长度不符合标准");
+                    $("#content").select();
+                };
+            },
+            editRemark: function (item, thistd) { //编辑备注
+                this.beginShow = false;
+                this.prompt = false;
+                //指向Vue实例中的modelList
+                let editThis = this.modelList;
+                //获取点击对象和新建input对象
+                let target = $(thistd.target);
+                let input = $("<input id='remarkInput' class='form-control text-center' style='width:100%;max-width:none;height:23px;' />");
+                let thisIndex;//记录索引
+                //edit,将值变成input输入框
+                editThis.forEach(function (val, index) {
+                    if (val.BarCode == item) {
+                        let nowRemark = val.Remark;
+                        thisIndex = index;
+                        val.Remark = "";
+                        target.append(input);
+                        $("#remarkInput").val(nowRemark.trim());
+                    };
+                });
+                let thisInput = $("#remarkInput");//获取输入框
+                thisInput.focus();//赋予焦点
+                thisInput.click(e=> {
+                    e.preventDefault;
+                    e.stopPropagation();
+                    return false;
+                });
+                //失焦事件
+                thisInput.blur(v=> {
+                    let nowRemark = v.target.value;
+                    thisInput.remove();
+                    editThis[thisIndex].Remark = nowRemark.trim();
+                });
+                //回车事件
+                thisInput.keypress(e=> {
+                    if (e.keyCode == 13) {
+                        thisInput.blur();
+                    };
+                });
+            },
+            removeTask: function (item) { //删除条码，重新排序数组，焦点回到input，保存删除后的数据
+                this.beginShow = false;
+                this.prompt = false;
+                //指向Vue实例中的modelList
+                let removeThis = this.modelList;
+                //remove
+                removeThis.forEach(function (val, index) {
+                    if (val.BarCode == item) {
+                        removeThis.splice(index, 1);
+                    };
+                });
+                console.log(app.modelList); //数组
+                $("#content").focus();
+            },
+            submitANDclearTask: function (event) { //提交post内容，清空本地存储表单
+                event.preventDefault();
+                $.ajax({
+                    type: 'post',
+                    url: '/CourtScreenModuleInfoes/Input',
+                    data: {
+                        orderNum: $("#OrderNum").val(),
+                        modelNum: $("#ModuleNum").val().toUpperCase(),
+                        recordList: app.modelList
+                    },
+                    success: function (data) {
+                        console.log(data);
+                        if (data == "全部插入成功") {
+                            alert("输入成功");
+                            app.beginShow = false;
+                            app.prompt = false;
+                            app.modelList = [];
+                            location.reload();
+                            $("#ModuleNum").focus();
+                        };
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert("球场屏条码输入失败");
+                        $("#ModuleNum").focus();
+                    }
+                });
+            },
+            inspect: function (event) {
+                event.preventDefault();
+                this.beginShow = false;
+                this.prompt = false;
+                if (app.modelList != '') {
+                    event.target.disabled = "disabled";
+                    $.ajax({
+                        type: 'post',
+                        url: '/CourtScreenModuleInfoes/CheckList',
+                        data: {
+                            orderNum: $("#OrderNum").val(),
+                            modelNum: $("#ModuleNum").val().toUpperCase(),
+                            recordList: app.modelList
+                        },
+                        success: function (data) {
+                            //console.log(data);
+                            if (data == "成功") {
+                                let modelArr = app.modelList;//表格内容
+                                for (let i in modelArr) {
+                                    modelArr[i].isOK = "OK";
+                                };
+                                app.beginShow = true;
+                            } else if (data == "请输入正确的数据") {
+                                alert(data);
+                            } else {
+                                let ruturnArr = data.split(",");//切割成数组
+                                ruturnArr.pop();//去掉最后一个
+                                let modelArr = app.modelList;//表格内容
+                                //对比数据
+                                for (let i in modelArr) {
+                                    for (let j in ruturnArr) {
+                                        if (modelArr[i].BarCode == ruturnArr[j]) {
+                                            modelArr[i].isOK = "NO";//重复
+                                        };
+                                    };
+                                    if (modelArr[i].isOK != "NO") {
+                                        modelArr[i].isOK = "OK";//不是重复
+                                    };
+                                };
+                            };
+                            event.target.disabled = "";
+                        },
+                        error: function (XMLHttpRequest, textStatus, errorThrown) {
+                            alert("请输入条码");
+                            $("#content").focus();
+                        }
+                    });
+                };
+            }
+        },
+        computed: {
+            countNum: function () {
+                let countArr = this.modelList;
+                let resultObj = {
+                    jsk: 0, bs: 0, bx: 0, dy: 0, mk: 0, qt: 0, zl: countArr.length
+                };
+                for (let i in countArr) {
+                    let thisType = countArr[i].BarCode.split("-")[3].split("")[0];
+                    //console.log(thisType)
+                    switch (thisType) {
+                        case "2": resultObj.jsk++; break;
+                        case "3": resultObj.bs++; break;
+                        case "4": resultObj.bx++; break;
+                        case "5": resultObj.dy++; break;
+                        case "6": resultObj.mk++; break;
+                        default: resultObj.qt++; break;
+                    };
+                };
+                return resultObj;
+            }
+        },
+        watch: {
+            newTask: function (val) {
+                if (val.length >= 23) {//P/N 0019-01-0002-100176
+                    val.substr(0, 23);
+                    val.replace(/[^A-Za-z0-9-\/\s]/g, '');
+                    $("#addclick").click();
+                };
+            }
+        },
+        //mounted: function () {
+        //    //制作解析
+        //    var c = document.getElementById("legend");
+        //    var ctx = c.getContext("2d");
+        //}
+    });
+</script>
+<script>
+    //var localOrder = localStorage.getItem('Order');
+    //if (localOrder != null) {
+    //    $("#OrderNum").val(localOrder);
+    //};
+    //$("#OrderNum").change(function (val) {
+    //    localStorage.setItem('Order', val.target.value);
+    //    $("#ModuleNum").select();
+    //});
+    $("#OrderNum").focus();
+    $("#ModuleNum").keypress(e=> {
+        if ("@Session["User"]" == "") {
+            $("#login").modal();
+            return false;
+        };
+        if (e.keyCode == 13) {
+            e.preventDefault();
+            if (e.target.value != "" && e.target.value.length >= 23) {//不为空
+                let cutThisVal = e.target.value.split("-");
+                if (cutThisVal.length != 4) {//格式
+                    alert("模组格式不正确");
+                    $("#ModuleNum").select();
+                    return false;
+                };
+                if (cutThisVal[3].split("")[0] != 1) {//格式
+                    alert("此处只能输入模组条码");
+                    $("#ModuleNum").select();
+                    return false;
+                };
+                $("#content").focus();
+            } else {
+                alert("模组长度不符合标准");
+                $("#ModuleNum").select();
+            };
+        };
+    });
+</script>
+
+
+
