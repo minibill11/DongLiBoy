@@ -2,7 +2,6 @@
 
 @{
     ViewBag.Title = "老化信息查询";
-    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 @Scripts.Render("~/Scripts/highcharts")
 <link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
@@ -10,6 +9,9 @@
 
 <h3 class="text-center">@ViewBag.Title</h3>
 <style>
+    span:hover{
+        background-color:#888888;
+    }
      /*LOADING-begin*/
     .spinner {
         width: 40px;
@@ -513,39 +515,39 @@
         padding:0px;
     }
     .table-fortop> tbody>tr>th:nth-child(1),.table>tbody>tr>td:nth-child(1){
-        width:115px;
+        width:95px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(2),.table>tbody>tr>td:nth-child(2){
-        width:140px;
+        width:135px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(3),.table>tbody>tr>td:nth-child(3){
-        width:140px;
+        width:100px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(4),.table>tbody>tr>td:nth-child(4){
-        width:74px;
+        width:100px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(5),.table>tbody>tr>td:nth-child(5){
-        width:140px;
+        width:100px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(6),.table>tbody>tr>td:nth-child(6){
-        width:125px;
+        width:100px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(7),.table>tbody>tr>td:nth-child(7){
-        width:180px;
+        width:130px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(8),.table>tbody>tr>td:nth-child(8){
-        width:65px;
+        width:100px;
         text-align:center;
     }
     .table-fortop> tbody>tr>th:nth-child(9),.table>tbody>tr>td:nth-child(9){
-        width:98px;
+        width:155px;
         text-align:center;
     }
 </style>
@@ -758,18 +760,31 @@
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.BarCodesNum)
+                <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('tableBottom',1,'up','tt')"></span>
+                <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('tableBottom',1,'down','tt')"></span>
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.BurnInShelfNum)
+                <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('tableBottom',2,'up','init')"></span>
+                <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('tableBottom',2,'down','init')"></span>
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.OQCCheckBT)
+                <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('tableBottom',3,'up','times')"></span>
+                <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('tableBottom',3,'down','times')"></span>
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.OQCPrincipal)
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.OQCCheckFT)
+                <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('tableBottom',5,'up','times')"></span>
+                <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('tableBottom',5,'down','times')"></span>
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.OQCCheckTimeSpan)
+                <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('tableBottom',6,'up','tt')"></span>
+                <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('tableBottom',6,'down','tt')"></span>
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.Burn_in_OQCCheckAbnormal)
@@ -779,13 +794,15 @@
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.OQCCheckFinish)
+                <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('tableBottom',9,'up','checkbox')"></span>
+                <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('tableBottom',9,'down','checkbox')"></span>
             </th>
-            <th></th>
+            <th>操作</th>
         </tr>
     </table>
 </div>
 <div style="width:1140px;height:400px;overflow:auto;">
-    <table class="table">
+    <table class="table" id="tableBottom">
         @if (Model != null)
         {
             foreach (var item in Model)
@@ -796,6 +813,9 @@
                     </td>
                     <td>
                         <span class="barcodeNum">@Html.DisplayFor(modelItem => item.BarCodesNum)</span>
+                    </td>
+                    <td>
+                        <span class="barcodeNum">@Html.DisplayFor(modelItem => item.BurnInShelfNum)</span>
                     </td>
                     <td>
                         @Html.DisplayFor(modelItem => item.OQCCheckBT)
@@ -841,6 +861,197 @@
     </form>
 </div>
 <script>
+    function sortTable(tableId,indexs,upOrDown,types) {//点击按钮实现表格排序的方法；目前支持纯字符串排序+整数排序+标准时间格式排序
+        var oTab = document.getElementById(tableId);
+        var arr = [];
+        var indexs = indexs;
+        if (upOrDown === "up") {
+            if (types === "init") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //整数排序
+                    var n1 = parseInt(tr1.cells[indexs].innerHTML);
+                    var n2 = parseInt(tr2.cells[indexs].innerHTML);
+                    return n2 - n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "times") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //标准时间格式排序排序
+                    var n1 = new Date((tr1.cells[indexs].innerHTML)).getTime();
+                    var n2 = new Date((tr2.cells[indexs].innerHTML)).getTime();
+                    return n2 - n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "strings") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //纯字符串排序
+                    var n1 = (tr1.cells[indexs].innerHTML).charCodeAt();
+                    var n2 = (tr2.cells[indexs].innerHTML).charCodeAt();
+                    return n2 - n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "checkbox") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //选择框排序
+                    var n1 = tr1.cells[indexs].children;
+                    var n2 = tr2.cells[indexs].children;
+                    if ($(n1).attr('checked')) {
+                        n1.value = 1
+                    } else {
+                        n1.value = 0
+                    }
+                    if ($(n2).attr('checked')) {
+                        n2.value = 1
+                    } else {
+                        n2.value = 0
+                    }
+                    return n2.value - n1.value
+
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "tt") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                arr.sort(function (tr1, tr2) {        //时分秒排序
+                    var n1 = timeToSec(tr1.cells[indexs].innerText);
+                    var n2 = timeToSec(tr2.cells[indexs].innerText);
+                    return n2 - n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            }
+        } else if (upOrDown === "down") {
+            if (types === "init") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //整数排序
+                    var n1 = parseInt(tr1.cells[indexs].innerHTML);
+                    var n2 = parseInt(tr2.cells[indexs].innerHTML);
+                    return n1 - n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "times") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //标准时间格式排序排序
+                    var n1 = new Date((tr1.cells[indexs].innerHTML)).getTime();
+                    var n2 = new Date((tr2.cells[indexs].innerHTML)).getTime();
+                    return n1 - n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "strings") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //纯字符串排序
+                    var n1 = (tr1.cells[indexs].innerHTML).charCodeAt();
+                    var n2 = (tr2.cells[indexs].innerHTML).charCodeAt();
+                    return n1 - n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "checkbox") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                console.log(arr)
+                arr.sort(function (tr1, tr2) {       //选择框排序
+                    var n1 = tr1.cells[indexs].children;
+                    var n2 = tr2.cells[indexs].children;
+                    if ($(n1).attr('checked')) {
+                        n1.value = 1
+                    } else {
+                        n1.value = 0
+                    }
+                    if ($(n2).attr('checked')) {
+                        n2.value = 1
+                    } else {
+                        n2.value = 0
+                    }
+                    return n1.value - n2.value
+                        
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "tt") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                arr.sort(function (tr1, tr2) {        //时分秒排序
+                    var n1 = timeToSec(tr1.cells[indexs].innerText);
+                    var n2 = timeToSec(tr2.cells[indexs].innerText);
+                    return n1 - n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            }
+        }
+    }
+
+    function timeToSec(time) {     //时分秒字符串格式转换为毫秒
+        if(time.indexOf("时")!=-1 || time.indexOf("分")!=-1 || time.indexOf("秒")!=-1){
+            var time = time.replace(/天/, ":");
+            var time = time.replace(/时/, ":");
+            var time = time.replace(/分/, ":");
+            var time = time.replace(/秒/, ":");
+            var day = time.split(':')[0]
+            var hour = time.split(':')[1]
+            var min = time.split(':')[2]
+            var sec = time.split(':')[3]
+            var s =Number(day * 86400) +  Number(hour * 3600) + Number(min * 60) + Number(sec)
+            return s * 1000
+            consolelog(time)
+        }else if(time.indexOf("A")!=-1 || time.indexOf("B")!=-1){
+            var targetNum = time.substring(10);
+            return Number(targetNum,10);
+        }
+        
+    }
+
+
+    function chackboxVal(input) {    //checkbox状态转换为数值
+
+        if (input.checked == false) {
+            input = 1
+        } else {
+            input = 0
+        }
+        return input;
+    }
 
     $("#searchButton").click(function(){
         $(".spinner").show();
@@ -889,6 +1100,7 @@
 <script>
     function settime(){
         var target_td = $(".aaa");
+        if(target_td.val() =="")return;   //值空不操作
         if(target_td){
             var dateNow = new Date().getTime();
             $(".aaa").each(function(){

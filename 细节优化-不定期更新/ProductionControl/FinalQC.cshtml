@@ -1,0 +1,190 @@
+﻿@model JianHeMES.Models.FinalQC
+
+@{
+    ViewBag.Title = "FinalQC";
+}
+
+<style>
+    .barcodeFrame {
+        width: 250px;
+        height: 100px;
+        border: 1px solid #000000;
+        overflow: auto;
+    }
+
+    .abnormalFrame {
+        width: 350px;
+        height: 400px;
+        border: 1px solid #000000;
+        overflow: auto;
+    }
+
+    .titlerow div {
+        font-size: 15px;
+        font-weight: bold;
+    }
+
+    .titlerowone div {
+        font-size: 16px;
+        font-weight: bold;
+    }
+</style>
+@{
+    var JsonObj = ViewBag.JsonObj;
+}
+<div style="margin-top: 20px;margin-bottom: 10px;">
+    <h2 style="display:inline">@ViewBag.OrderNum FQC工序详细情况</h2>
+    <form action="/ProductionControl/Assemble" target='_blank' method='post' style="display:inline">
+        <input name='OrderNum' value="@JsonObj.OrderNum" class="hidden">
+        <button class="btn-link" style="border:0;">查看组装工序详细情况</button>
+    </form>
+</div>
+
+
+<hr />
+<div class="row titlerowone">
+    <div class="col-md-3">
+        订单号：<a href="#" class="aOrderNum" myAttr="">@JsonObj.OrderNum</a>
+    </div>
+    <div class="col-md-3">
+        平台类型：@JsonObj.PlatformType
+    </div>
+    <div class="col-md-3">
+        出货日期：<span id="deliveryDate">@JsonObj.DeliveryDate</span>
+    </div>
+    <div class="col-md-3">
+        模组数：@JsonObj.Boxes
+    </div>
+</div>
+<br />
+<div class="row titlerow">
+    <div class="col-md-3">
+        异常次数：<a href="#" class="aOrderNum" myAttr="异常">@JsonObj.FQC_Abnormal_Count</a>
+    </div>
+    <div class="col-md-3">
+        已完成FQC数：<a href="#" class="aOrderNum" myAttr="正常" firstFQC="首次FQC">@JsonObj.FQC_Finish_Count</a>
+    </div>
+    <div class="col-md-3">
+        总FQC次数：<a href="#" class="aOrderNum" myAttr="">@JsonObj.FQC_Record_Count</a>
+    </div>
+    <div class="col-md-3">
+        直通个数：@JsonObj.FirstPassYieldCount
+    </div>
+</div>
+<br />
+<div class="row titlerow">
+    <div class="col-md-3">
+        异常工时：@*@JsonObj.abnormal_time*@
+    </div>
+    <div class="col-md-3">
+        完成率：@JsonObj.FinalQC_Finish_Rate 
+    </div>
+    <div class="col-md-3">
+        合格率：@JsonObj.FinalQC_Pass_Rate 
+    </div>
+    <div class="col-md-3">
+        直通率：@JsonObj.FirstPassYield_Rate 
+    </div>
+</div>
+<hr />
+@*@{
+    var going_list = JsonObj.going_list;
+    var passed_list = JsonObj.passed_list;
+    var abnormalList = JsonObj.abnormalList;
+}*@
+
+<div class="row">
+    <div class="col-md-4">
+        <div>
+            正在进行FQC条码清单：（@JsonObj.going_list_Count 个）
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.going_list as List<JianHeMES.Models.FinalQC>)
+                    {
+                        <li>@Html.RouteLink(item.BarCodesNum, "Default", new { Controller = "FinalQCs", Action = "Details", id = item.Id }, new { target = "_blank" })</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <br />
+        <div>
+            已完成FQC条码清单：（@JsonObj.FQC_Finish_Count 个）
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.passed_list as List<JianHeMES.Models.FinalQC>)
+                    {
+                        <li>@Html.RouteLink(item.BarCodesNum, "Default", new { Controller = "FinalQCs", Action = "Details", id = item.Id }, new { target = "_blank" })</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div>
+            未完成FQC条码清单：（@JsonObj.Never_FinishFQC_List_Count 个）
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.unbeginRecord_temp as List<string>)
+                    {
+                        <li>@item</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <br />
+        <div>
+            <span style="color:red">超24小时未进入老化工序清单：（@JsonObj.Overtime_never_join_burn_in_Count 个）</span>
+            <div class="barcodeFrame">
+                <ul>
+                    @foreach (var item in ViewBag.Overtime_never_join_burn_in as List<JianHeMES.Models.FinalQC>)
+                    {
+                        <li>@Html.RouteLink(item.BarCodesNum, "Default", new { Controller = "FinalQCs", Action = "Details", id = item.Id }, new { target = "_blank" })</li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <br />
+    </div>
+    <div class="col-md-4">
+        <div>
+            异常记录清单与异常信息：（@JsonObj.abnormalList_Count 个）
+            <div class="abnormalFrame">
+                <ol>
+                    @foreach (var item in ViewBag.abnormalList as List<JianHeMES.Models.FinalQC>)
+                    {
+                        <li>@Html.RouteLink(item.BarCodesNum, "Default", new { Controller = "FinalQCs", Action = "Details", id = item.Id }, new { target = "_blank" })<br />@item.FinalQC_FQCCheckAbnormal</li>
+                    }
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+<form action="/FinalQCs/Index" method="post" target="_blank" style="display:none">
+    <input type="text" name="orderNum" value="@JsonObj.OrderNum" id="formOrderNum" />
+    @*<input type="text" name="BarCodesNum" value="" />*@
+    <input type="text" name="repetition" value="" id="firstFQC"/>
+    <input type="text" name="Remark" value="" />
+    <input type="text" name="FQCNormal" value="" id="formNormal" />
+</form>
+
+<script>
+    $(function () {
+        $(".aOrderNum").click(function (event) {
+            event.preventDefault();
+            $("#formNormal").val($(this).attr("myAttr"));
+            $("#firstFQC").val($(this).attr("firstFQC"));
+            //$("form").attr("action", event.target.pathname).submit();
+            $("form").submit();
+        });
+        $("#deliveryDate").text('@ViewBag.DeliveryDate'.split(" ")[0]);
+    });
+    //formpost(event.target.pathname, event.target.text)
+    //function formpost(url,params) {
+    //    var newForm = $("<form action=" + url + " target='_blank' method='post' style='display:none' ><input name='OrderNum' value=" + params + " ><input type='text' name='BoxBarCode' value='' /></form>");
+    //    $("#setForm").append(newForm);
+    //    newForm.submit();
+    //    newForm.remove();
+    //}
+</script>
+
+

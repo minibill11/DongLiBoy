@@ -1,10 +1,14 @@
 ﻿
 @{
     ViewBag.Title = "SMT生产信息";
-    Layout = "~/Views/Shared/_Layout.cshtml";
 }
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
 <script src="~/Scripts/imgJS/jquery.artZoom.js"></script>
 <link href="~/Content/styleFile/jquery.artZoom.css" rel="stylesheet" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<base target="_blank" />
+
 <style>
     .gotoDetail {
         color: #1449b7;
@@ -25,10 +29,10 @@
 
     .showDiv {
         position: absolute;
-        width: 88px;
+        width: 100%;
         height: 100%;
         top: 0px;
-        left: -22px;
+        left: 0px;
         visibility: hidden;
         opacity: 0;
         transition: opacity 1s;
@@ -36,7 +40,7 @@
 
     .btnSty {
         position: absolute;
-        width: 44px;
+        width: 100%;
         height: 100%;
         padding: 0;
     }
@@ -76,7 +80,7 @@
         }
     }
 
-    #app {
+    #app, #vmTitle {
         width: 1370px;
     }
 
@@ -93,23 +97,67 @@
     .table > tbody > tr:first-child > td {
         border-top: none;
     }
+
+    .container > .navbar-collapse {
+        margin-left: 0;
+    }
+
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .table-bordered > tbody > tr:hover {
+        background-color: #e0ecff;
+    }
 </style>
-<h2 class="text-center" style="margin:5px 0 20px;">SMT生产信息</h2>
-<div id="app" style="position:relative;">
-    <div style="position:absolute;top:-23px;right:23px;">{{nowtime}}</div>
+<div id="vmTitle" class="row text-center" style="position:relative;padding:15px 20px;" v-cloak>
+    <span class="text-center" style="font-size:24px;font-family: inherit;font-weight: 500;">SMT生产信息</span>
+    <div>
+        <select id="ordernumVal" class="selectpicker" title="全部订单" data-live-search="true" data-selected-text-format="count" data-style="form-control" data-actions-box="true" multiple>
+            @*<option value="">全部订单</option>*@
+            <template v-for="item in ordernumList">
+                <option>{{item}}</option>
+            </template>
+        </select>
+        <select id="platformVal" class="selectpicker" title="全部平台" data-live-search="true" data-selected-text-format="count" data-style="form-control" data-actions-box="true" multiple>
+            @*<option value="">全部平台</option>*@
+            <template v-for="item in platformList">
+                <option>{{item}}</option>
+            </template>
+        </select>
+        <select id="jobContentVal" class="selectpicker" title="工作内容" data-live-search="true" data-selected-text-format="count" data-style="form-control" data-actions-box="true" multiple>
+            @*<option value="">全部平台</option>*@
+            <template v-for="item in jobContentList">
+                <option>{{item}}</option>
+            </template>
+        </select>
+    </div>
+    <div class="row form-group" style="position:absolute;width:150px;right:20px;top:40px">
+        <span class="btn btn-default">
+            @Html.ActionLink("历史记录", "SMT_ProductionInfoHistory", new { id = "" }, new { target = "_blank" })
+        </span><br />
+        <span style="width:140px">{{nowtime}}</span>
+    </div>
+</div>
+<div id="app" v-cloak>
     <table class="table table-bordered" style="margin-bottom:0;">
         <colgroup>
             <col width="30 ">
+            <col width="40 ">
             <col width="66 ">
             <col width="56 ">
             <col width="48 ">
             <col width="48 ">
             <col width="60 ">
+            <col width="66 ">
             <col width="56 ">
             <col width="56 ">
-            <col width="56 ">
-            <col width="44 ">
-            <col width="56 ">
+            <col width="50 ">
+
             <col width="54 ">
             <col width="54 ">
             <col width="60 ">
@@ -127,9 +175,9 @@
         <thead>
             <tr>
                 <th rowspan="2">序号</th>
-                <th colspan="8">PC</th>
-                <th rowspan="2" style="width:44px">小样<br />进度</th>
                 <th rowspan="2">线别</th>
+                <th colspan="8">PC</th>
+                <th rowspan="2" style="width:50px">小样<br />进度</th>
                 <th colspan="4">今天产量</th>
                 <th colspan="2">订单在对应线别</th>
                 <th colspan="2">订单在对应工作内容</th>
@@ -165,16 +213,17 @@
         <table class="table table-bordered">
             <colgroup>
                 <col width="30 ">
+                <col width="40 ">
                 <col width="66 ">
                 <col width="56 ">
                 <col width="48 ">
                 <col width="48 ">
                 <col width="60 ">
+                <col width="66 ">
                 <col width="56 ">
                 <col width="56 ">
-                <col width="56 ">
-                <col width="44 ">
-                <col width="56 ">
+                <col width="50 ">
+
                 <col width="54 ">
                 <col width="54 ">
                 <col width="60 ">
@@ -190,10 +239,11 @@
                 <col width="68 ">
             </colgroup>
             <tbody>
-                <template v-for="(val,index) in smtLineData_new">
+                <template v-for="(val,index) in sortmarqueeList">
                     <template v-for="(v,i) in val">
                         <tr v-if="i==0">
                             <td v-bind:rowspan="val.length">{{index+1}}</td>
+                            <td>{{v[0].LineNum}}</td>
                             <td v-bind:rowspan="val.length" v-on:click="orderDetail(v[0].OrderNum,v[0].Id)" class="gotoDetail">{{v[0].OrderNum}}</td>
                             <td v-bind:rowspan="val.length">{{v[0].PlatformType}}</td>
                             <td v-bind:rowspan="val.length">{{v[0].ProcessingRequire}}</td>
@@ -204,14 +254,23 @@
                             <td>{{v[0].Capacity |zerocut}}</td>
                             <td v-bind:rowspan="val.length"
                                 v-bind:class="(v[0].HandSampleScedule=='未开始')?'':'showBtn'"
-                                v-on:click="(v[0].HandSampleScedule=='未开始')?'':clickBtn($event)">
+                                v-on:click.stop.prevent="(v[0].HandSampleScedule=='未开始')?'':clickBtn($event)">
                                 {{v[0].HandSampleScedule}}
-                                <div v-if="(v[0].HandSampleScedule!='未开始')" class="showDiv">
-                                    <button v-on:click.stop="imgModal(v[0].OrderNum)" class="btn btn-info btnSty" style="right: 44px;">IMG</button>
-                                    <button v-on:click.stop="pdfModal(v[0].OrderNum)" class="btn btn-warning btnSty" style="left: 44px;">PDF</button>
+                                <div v-if="(v[0].HandSampleScedule!='未开始')&&(v[0].HandSampleSceduleJpg=='true')&&(v[0].HandSampleScedulePdf=='true')" class="showDiv" v-on:click.stop.prevent>
+                                    <button v-on:click.stop.prevent="imgModal(v[0].OrderNum)" class="btn btn-info btnSty" style="width: 100%;right: 50%;">IMG</button>
+                                    <button v-on:click.stop.prevent="pdfModal(v[0].OrderNum)" class="btn btn-warning btnSty" style="width: 100%;left: 50%;">PDF</button>
+                                </div>
+                                <div v-else-if="(v[0].HandSampleScedule!='未开始')&&(v[0].HandSampleSceduleJpg=='true')&&(v[0].HandSampleScedulePdf=='false')" class="showDiv">
+                                    <button v-on:click.stop.prevent="imgModal(v[0].OrderNum)" class="btn btn-info btnSty" style="width: 100%;right: 0;">IMG</button>
+                                </div>
+                                <div v-else-if="(v[0].HandSampleScedule!='未开始')&&(v[0].HandSampleSceduleJpg=='false')&&(v[0].HandSampleScedulePdf=='true')" class="showDiv">
+                                    <button v-on:click.stop.prevent="pdfModal(v[0].OrderNum)" class="btn btn-warning btnSty" style="width: 100%;left: 0;">PDF</button>
+                                </div>
+                                <div v-else class="showDiv">
+                                    <button class="btn btn-default btnSty" style="width: 100%;left: 0;">未上传</button>
                                 </div>
                             </td>
-                            <td>{{v[0].LineNum}}</td>
+
                             <td>{{v[0].NormalCount}}</td>
                             <td>{{v[0].AbnormalCount}}</td>
                             <td>{{v[0].TodayFinishRate==""?0:v[0].TodayFinishRate|zerocut}}%</td>
@@ -227,11 +286,12 @@
                             <td>{{v[0].TotalTime}}</td>
                         </tr>
                         <tr v-else>
+                            <td>{{v[0].LineNum}}</td>
                             <td>{{v[0].Models}}</td>
                             <td>{{v[0].JobContent}}</td>
                             <td>{{v[0].PlanQuantity}}</td>
                             <td>{{v[0].Capacity|zerocut}}</td>
-                            <td>{{v[0].LineNum}}</td>
+
                             <td>{{v[0].NormalCount}}</td>
                             <td>{{v[0].AbnormalCount}}</td>
                             <td>{{v[0].TodayFinishRate==""?0:v[0].TodayFinishRate|zerocut}}%</td>
@@ -279,18 +339,18 @@
 <div id="setForm"></div>
 <script>
     var isHoverNum = "true";
+    var firstclick = true;
     var app = new Vue({
         el: "#app",
         data: {
-            smtLineData: [],
             smtLineData_new: [],
-            nowtime: ""
         },
-        created: function () {
-            //this.$options.methods.smtProductionInfo();
-            setInterval(function () {
-                app.nowtime = new Date().Format("yyyy-MM-dd hh:mm:ss");
-            }, 1000);
+        computed: {
+            sortmarqueeList() {
+                var initialList = this.smtLineData_new;
+                var lastVal = filterList(initialList);
+                return lastVal;
+            },
         },
         mounted: function () {
             if (isMobile()) {
@@ -306,15 +366,21 @@
                 this.$options.methods.postForm("/OrderMgms/Details/" + station, val);
             },
             postForm: function (url, params) {
-                var newForm = $("<form action=" + url + " target='_blank' method='post' style='display:none' ><input name='OrderNum' value=" + params + " ></form>");
+                let newForm = $("<form action=" + url + " target='_blank' method='post' style='display:none' ><input name='OrderNum' value=" + params + " ></form>");
                 $("#setForm").append(newForm);
                 newForm.submit();
                 newForm.remove();
             },
             clickBtn: function (event) {
+                event.preventDefault();
+                event.stopPropagation();
                 $(event.target).children(".showDiv").css({ "visibility": "visible", "opacity": "1" })
             },
             imgModal: function (OrderNumVal) {
+                if (firstclick == true && isMobile()) {
+                    firstclick = false;
+                    return;
+                };
                 $(".imgRotateDiv").remove();
                 $("#pdfIframe").hide();
                 $.ajax({
@@ -330,7 +396,7 @@
                             var json = JSON.parse(returnVal);
                             for (var img in json) {
                                 $("#contentModal").append('<div class="imgRotateDiv" >' +
-                                    '<img class="imgModalc artZoom" src="/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" />' +
+                                    '<img class="imgModalc artZoom" src="/MES_Data/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" />' +
                                     '</div>');
                             }
                             $('.artZoom').artZoom({
@@ -353,8 +419,12 @@
                 //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
             },
             pdfModal: function (OrderNumVal) {
-                $(".imgRotateDiv").remove();
-                $("#pdfIframe").show();
+                if (firstclick == true && isMobile()) {
+                    firstclick = false;
+                    return;
+                };
+                //$(".imgRotateDiv").remove();
+                //$("#pdfIframe").show();
                 $.ajax({
                     url: "/OrderMgms/preview_SmallSample_pdf",
                     type: "post",
@@ -366,22 +436,30 @@
                         if (address == "pdf文档未上传或不存在！") {
                             alert(address)
                         } else {
-                            $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\SmallSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_SmallSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
-                            document.getElementById("temporary").click();
-                            $("#temporary").remove();
-                            if (isMobile()) {
-                                $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
-                            } else {
-                                $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
-                            }
-                            $("#showModal").click();
+                            //let newForm = $("<form action='/Commonality/PDFRedirectToAction/'  method='get' style='display:none' >" +
+                            //    "<input name='address' value=" + address + " >" +
+                            //    "</form>");
+                            //$("#setForm").append(newForm);
+                            //newForm.submit();
+                            //newForm.remove();
+                            window.location.href = '..' + address + '?' + Math.random();
+
+                            //$("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=\\MES_Data\\SmallSample_Files\\' + OrderNumVal + '\\' + OrderNumVal + '_SmallSample.pdf?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                            //document.getElementById("temporary").click();
+                            //$("#temporary").remove();
+                            //if (isMobile()) {
+                            //    $("#pdfIframe").css({ "height": $(window).height() })//.attr("src", "");
+                            //} else {
+                            //    $("#pdfIframe").css({ "height": $(window).height() - 93 })//.attr("src", "");
+                            //}
+                            //$("#showModal").click();
                         };
                     },
                     error: function (err) {
                         alert("查看PDF失败", err);
                     }
                 });
-            },
+            }
         },
         updated: function () {
             this.$nextTick(function () {
@@ -395,6 +473,122 @@
         }
     });
 
+    var vmSearch = new Vue({
+        el: "#vmTitle",
+        data: {
+            ordernumList: [],
+            ordernumVal: [],
+            platformList: [],
+            platformVal: [],
+            jobContentList: [],
+            jobContentVal: [],
+            nowtime: "",
+            changeData: 0
+        },
+        created: function () {
+            setInterval(function () {
+                let now = new Date().Format("yyyy-MM-dd hh:mm:ss");
+                vmSearch.nowtime = now;
+            }, 1000);
+        },
+        mounted: function () {
+            $('.selectpicker').selectpicker({
+                //noneSelectedText: '全部',
+                countSelectedText: function (numSelected, numTotal) {
+                    return (numSelected == 1) ? "已选择 {0} 项" : "已选择 {0} 项";
+                },
+                selectAllText: '选择全部',
+                deselectAllText: '取消选择',
+            });
+        },
+        //watch: {
+        //    ordernumVal: function (v) {
+        //        console.log(`这是监听${v}`);
+        //    },
+        //    platformVal: function (v) {
+        //        console.log(`这是监听${v}`);
+        //    },
+        //    jobContentVal: function (v) {
+        //        console.log(`这是监听${v}`);
+        //    },
+        //},
+        updated: function () {
+            this.$nextTick(function () {
+                if (vmSearch.changeData == 1) {
+                    $('.selectpicker').selectpicker("refresh");
+                    vmSearch.changeData++;
+                    setTimeout(function () {
+                        vmSearch.changeData = 0;
+                    }, 300000);
+                };
+            })
+        }
+    });
+    //选择订单或平台
+    $("#ordernumVal").change(function (v) {
+        vmSearch.ordernumVal = $(this).val();
+    });
+    $("#platformVal").change(function (v) {
+        //vmSearch.platformVal = v.target.value;
+        vmSearch.platformVal = $(this).val();
+    });
+    $("#jobContentVal").change(function (v) {
+        vmSearch.jobContentVal = $(this).val();
+    });
+    //过滤订单和平台
+    function filterList(array) {
+        let thisArr, finalFilterArray = [];
+        //去除空数组
+        thisArr = array.filter(function (val) {
+            if (val.length != 0) {
+                return val;
+            };
+        });
+        //根据选择框条件过滤
+        thisArr.filter(function (val) {
+            let o = false, p = false, j = false;
+            if (vmSearch.ordernumVal != null && vmSearch.ordernumVal != "") {
+                for (let i in vmSearch.ordernumVal) {
+                    if (val[0][0].OrderNum == vmSearch.ordernumVal[i]) {
+                        o = true;
+                    };
+                };
+            } else {
+                o = true;
+            };
+            if (vmSearch.platformVal != null && vmSearch.platformVal != "") {
+                for (let i in vmSearch.platformVal) {
+                    if (val[0][0].PlatformType == vmSearch.platformVal[i]) {
+                        p = true;
+                    };
+                };
+            } else {
+                p = true;
+            };
+            if (vmSearch.jobContentVal != null && vmSearch.jobContentVal != "") {
+                val = val.filter(function (v) {
+                    for (let i in vmSearch.jobContentVal) {
+                        if (v[0].JobContent == vmSearch.jobContentVal[i]) {
+                            return v;
+                        };
+                    };
+                });
+                if (val.length != 0) {
+                    j = true;
+                };
+                //if (val[0][0].JobContent  == vmSearch.jobContentVal[i]) {
+                //    j = true;
+                //};
+            } else {
+                j = true;
+            };
+            if (o == true && p == true && j == true) {
+                finalFilterArray.push(val);
+            };
+        });
+        return finalFilterArray;
+    };
+
     Vue.filter('zerocut', function (value) {
         let _thisnum = value.toString().split(".");
         if (_thisnum.length == 1) {
@@ -402,7 +596,7 @@
         } else if (_thisnum[1] == "00") {
             return _thisnum[0];
         } else if (_thisnum[1].split("")[1] == "0") {
-            return _thisnum[0] +"."+ _thisnum[1].split("")[0];
+            return _thisnum[0] + "." + _thisnum[1].split("")[0];
         } else {
             return value;
         }
@@ -443,16 +637,39 @@
         $(function () {
             var mypush2 = $.connection.SMT;
             mypush2.client.sendSMT_ProductionInfo1 = function (SMT_ProductionInfo1) {
+                let linedata = SMT_ProductionInfo1;
+                //选择框
+                let ordernumArray = [];
+                let platformArray = [];
+                let jobContentArray = [];
+                for (let ordernum in linedata) {
+                    let ordernumdata = JSON.parse(linedata[ordernum]);
+                    for (let order in ordernumdata) {
+                        let itemdata = JSON.parse(ordernumdata[order]);
+                        //console.log(itemdata);
+                        ordernumArray.push(itemdata.OrderNum);
+                        platformArray.push(itemdata.PlatformType)
+                        jobContentArray.push(itemdata.JobContent)
+                    };
+                }
+                //去除重复
+                let noRepeatOrdernum = [...new Set(ordernumArray)];
+                let noRepeatPlatform = [...new Set(platformArray)];
+                let noRepeatJobContent = [...new Set(jobContentArray)];
+                vmSearch.ordernumList = noRepeatOrdernum;
+                vmSearch.platformList = noRepeatPlatform;
+                vmSearch.jobContentList = noRepeatJobContent;
+
                 //console.log(SMT_ProductionInfo1)
+                //表数据
                 app.smtLineData_new = [];
-                var linedata = SMT_ProductionInfo1;
-                for (var ordernum in linedata) {
-                    var ordernumdata = JSON.parse(linedata[ordernum]);
-                    var lineArr = [];
-                    var oneline = [];
-                    for (var order in ordernumdata) {
+                for (let ordernum in linedata) {
+                    let ordernumdata = JSON.parse(linedata[ordernum]);
+                    let lineArr = [];
+                    let oneline = [];
+                    for (let order in ordernumdata) {
                         oneline = []
-                        var itemdata = JSON.parse(ordernumdata[order]);
+                        let itemdata = JSON.parse(ordernumdata[order]);
                         //console.log(itemdata);
                         oneline.push({
                             OrderNum: ordernum,
@@ -464,7 +681,11 @@
                             StandardRequire: itemdata.StandardRequire,
                             PlanQuantity: itemdata.PlanQuantity,
                             Capacity: itemdata.Capacity,
+                            //小样
                             HandSampleScedule: itemdata.HandSampleScedule,
+                            HandSampleSceduleJpg: itemdata.HandSampleSceduleJpg,
+                            HandSampleScedulePdf: itemdata.HandSampleScedulePdf,
+
                             LineNum: itemdata.LineNum,
                             NormalCount: itemdata.NormalCount,
                             AbnormalCount: itemdata.AbnormalCount,
@@ -484,8 +705,9 @@
                     };
                     app.smtLineData_new.push(lineArr);
                     //app.smtLineData_new[app.smtLineData_new.length - 1][0].push(((normal + abnormal) * 100 / count).toFixed(2) + "%");
-                }
+                };
                 //console.log(app.smtLineData_new);
+                vmSearch.changeData++;
             };
             //启动
             $.connection.hub.start();

@@ -1,9 +1,9 @@
 ﻿@model IEnumerable<JianHeMES.Models.Personnel_of_Contrast>
 
 @{
-    ViewBag.Title = "周对比表";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "人工成本周对比表";
 }
+<script src="~/Scripts/axios.min.js"></script>
 <style>
     .table-bordered > tbody > tr > th, .table-bordered > tbody > tr > td, .table > colgroup + thead > tr:first-child > td {
         border: 1px solid #555;
@@ -51,7 +51,7 @@
         border-right: 2px solid #000;
     }
 </style>
-<h3 class="text-center">周对比表查看</h3>
+<h3 class="text-center">人工成本周对比表查看</h3>
 <p>| @Html.ActionLink("输入周报", "ContrastInput") | @Html.ActionLink("月对比表", "ContrastMonth")</p>
 <hr />
 <div id="app" class="form-group text-center">
@@ -256,6 +256,10 @@
             rightIsEmpty: 0,//右表是否为空（0为空）
             leftVal: [],//记录左表值
             rightVal: [],//记录右表值
+        },
+        mounted() {
+            this.getDefualtInfo();
+            //console.log(this.rightIsEmpty == 0)  //挂载之时数据为空；挂载完成后才执行监听--监听到时间不为空post--此时数据已经发生改变但是在mounted阶段不可能知道表格数据是否已有变化。所以在mounted阶段得到的rightIsEmpty值都是0；
         },
         created: function () {
             //初始化表格，默认部门数为13
@@ -549,6 +553,31 @@
                     };
                     app.rightIsEmpty = 0;
                 };
+            },
+            getDefualtInfo: function () {
+                axios.post('/Personnel_of_Contrast/DefaualInfo').then(res=> {
+                    var defualtTimeStrRigth = res.data.countdown_Second.Time
+                    var firstStep = defualtTimeStrRigth.split(",");
+                    var secondStep = [];
+                    for (let i = 0; i < firstStep.length; i++) {
+                        secondStep.push(firstStep[i].split(':'))
+                    }
+                    this.leftYear = secondStep[0][1]
+                    this.leftMonth = secondStep[1][1]
+                    this.leftWeek = secondStep[2][1]
+
+                    var defualtTimeStrLeft = res.data.last.Time;
+                    var firstSteps = defualtTimeStrLeft.split(",");
+                    var secondSteps = [];
+                    for (let i = 0; i < firstSteps.length; i++) {
+                        secondSteps.push(firstSteps[i].split(':'))
+                    }
+                    this.rigthYear = secondSteps[0][1]
+                    this.rigthMonth = secondSteps[1][1]
+                    this.rigthWeek = secondSteps[2][1]
+                }).catch(eer=>{
+                    alert("获取最新数据失败！")
+                })
             }
         },
         watch: {
@@ -569,8 +598,17 @@
                 this.$options.methods.gotoPost(this.rigthYear, this.rigthMonth, this.rigthWeek, 'right');
             },
             rigthWeek: function () {
+               // console.log(66666666666666)      
                 this.$options.methods.gotoPost(this.rigthYear, this.rigthMonth, this.rigthWeek, 'right');
             },
+            //rightIsEmpty() {
+            //    console.log(123456)
+            //    if (this.rightIsEmpty == 0) {
+            //        console.log(123456)
+            //        this.rigthWeek-1
+            //        this.$options.methods.gotoPost(this.rigthYear, this.rigthMonth, this.rigthWeek, 'right');
+            //    }
+            //}
         },
         computed: {
             //左表总计，根据是否有值来返回值
@@ -731,4 +769,15 @@
             },
         }
     });
+    function computedWeek(y, m, d) {                //返回当前日期在本月的第几周
+        let one = y + "-" + m + "-" + "1";
+        let onetime = new Date(one);
+        let firstweekdaycount = 7 - onetime.getDay();
+        if (d - firstweekdaycount <= 0) {
+            return 1;
+        } else {
+            let cc = Math.ceil((d - firstweekdaycount) / 7) + 1;
+            return cc;
+        };
+    };
 </script>

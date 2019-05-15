@@ -8,6 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@ViewBag.Title - 健和光电MES</title>
+
     @Scripts.Render("~/Scripts/jquery")
     @Scripts.Render("~/Scripts/jqueryval")
     @*@Scripts.Render("~/Scripts_home")*@
@@ -43,6 +44,11 @@
             .navbar-nav .open .dropdown-menu > li > a {
                 padding: 3px;
             }
+
+            .navbar-nav .open .dropdown-menu li{
+                text-align:left;
+                padding:0 25px
+            }
         }
 
         @@media (min-width:768px) and (max-width: 992px) {
@@ -75,6 +81,7 @@
         }
     </style>
 </head>
+@*@using StackExchange.Profiling;*@
 
 <body>
     <div class="navbar navbar-inverse navbar-fixed-top">
@@ -90,6 +97,7 @@
             <div class="navbar-collapse collapse">
                 <div class="dropdownToolbarButton">
                     <ul class="nav navbar-nav titleul">
+
                         @*全厂温湿度*@
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
@@ -130,7 +138,8 @@
 
                         @*生产管控*@
                         <li>@Html.RouteLink("生产管控", "Default", new { controller = "ProductionControl", Action = "Index" })</li>
-                        @*订单*@
+
+                        @*PC部*@
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                                 PC部
@@ -148,13 +157,15 @@
                         @*装配部*@
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-                                装配1/2部
+                                装配一/二部
                                 <b class="caret"></b>
                             </a>
                             <ul class="dropdown-menu collapse" style="text-align: center; min-width: 114px;">
                                 <li>@Html.RouteLink("组装产线", "Default", new { controller = "Assembles", Action = "AssembleIndex" }, new { @class = "checkstatus" })</li>
                                 <li class="divider"></li>
                                 <li>@Html.RouteLink("校正信息", "Default", new { controller = "CalibrationRecords", Action = "Index" }, new { @class = "checkstatus" })</li>
+                                <li class="divider"></li>
+                                <li>@Html.RouteLink("球场屏", "Default", new { controller = "CourtScreenModuleInfoes", Action = "Index" }, new { @class = "checkstatus" })</li>
                             </ul>
                         </li>
 
@@ -174,18 +185,17 @@
                                 <li>@Html.RouteLink("IQC管理", "Default", new { controller = "IQCReports", Action = "Index" })</li>
                             </ul>
                         </li>
-                        @{var UserRoles = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role; }
+
+                        @*SMT部*@
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                                 SMT部
                                 <b class="caret"></b>
                             </a>
                             <ul class="dropdown-menu collapse" style="text-align: center; min-width: 114px;">
-                                <li>@Html.RouteLink("看板管理", "Default", new { controller = "SMT", Action = "SMT_Mangage" })</li>
+                                <li>@Html.RouteLink("看板管理", "Default", new { controller = "SMT", Action = "SMT_Manage" })</li>
                                 <li class="divider"></li>
                                 <li>@Html.RouteLink("生产信息", "Default", new { controller = "SMT", Action = "SMT_ProductionInfo" })</li>
-                                @*<li class="divider"></li>
-                                    <li>@Html.RouteLink("生产信息(以前)", "Default", new { controller = "SMT", Action = "SMT_ProductionInfo_old" })</li>*@
                                 <li class="divider"></li>
                                 <li>@Html.RouteLink("产线操作", "Default", new { controller = "SMT", Action = "SMT_Operator" }, new { @class = "checkstatus" })</li>
                                 <li class="divider"></li>
@@ -193,22 +203,51 @@
                             </ul>
                         </li>
 
-                        <li>@Html.RouteLink("人事日报表", "Default", new { controller = "Personnel", Action = "Daily" })</li>
+                        @*获取UserRoles*@
+                        @{var UserRoles = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role; }
 
-                        @*<li class="dropdown">
-                             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-                             人力资源部
-                             <b class="caret"></b>
-                             </a>
-                            <ul class="dropdown-menu collapse" style="text-align: center; min-width: 114px;">
-                            <li>@Html.RouteLink("人事日报表", "Default", new { controller = "Personnel", Action = "Daily" })</li>
-                            @if (UserRoles == "系统管理员")
+                        @*人力资源部*@
+                        @if (((JianHeMES.Models.Users)Session["User"]) != null)
+                        {
+                            if (UserRoles == "系统管理员" || ((JianHeMES.Models.Users)Session["User"]).Department == "人力资源部" || ((JianHeMES.Models.Users)Session["User"]).Department == "总经办")
                             {
-                               <li class="divider"></li>
-                               <li>@Html.RouteLink("日报明细查询", "Default", new { controller = "Personnel", Action = "Index" })</li>
+                                <li class="dropdown">
+                                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                        人力资源部
+                                        <b class="caret"></b>
+                                    </a>
+                                    <ul class="dropdown-menu collapse" style="text-align: center; min-width: 114px;">
+                                        <li>@Html.RouteLink("人事日报表", "Default", new { controller = "Personnel", Action = "Daily" })</li>
+                                        <li class="divider"></li>
+                                        <li>@Html.RouteLink("人工成本周对比", "Default", new { controller = "Personnel_of_Contrast", Action = "Contrast" })</li>
+                                        <li class="divider"></li>
+                                        <li>@Html.RouteLink("月流失率", "Default", new { controller = "Personnel_Turnoverrate", Action = "Turnoverrate" })</li>
+                                        <li class="divider"></li>
+                                        <li>@Html.RouteLink("招聘周报", "Default", new { controller = "Personnel_Recruitment", Action = "Recruitment" })</li>
+                                        <li class="divider"></li>
+                                        <li>@Html.RouteLink("离职员工工龄分布", "Default", new { controller = "Personnel_Roster", Action = "LeavedPersonServiceLength" })</li>
+                                        @if (UserRoles == "系统管理员" || ((JianHeMES.Models.Users)Session["User"]).Department == "人力资源部")
+                                        {
+                                            <li class="divider"></li>
+                                            <li>@Html.RouteLink("花名册", "Default", new { controller = "Personnel_Roster", Action = "Index" })</li>
+                                            <li class="divider"></li>
+                                            <li>@Html.RouteLink("组织架构", "Default", new { controller = "Personnel_Framework", Action = "Index" })</li>
+
+                                        }
+                                    </ul>
+                                </li>
                             }
-                            </ul>
-                            </li>*@
+                            else
+                            {
+                                <li>@Html.RouteLink("人事日报表", "Default", new { controller = "Personnel", Action = "Daily" })</li>
+                            }
+                        }
+                        else
+                        {
+                            <li>@Html.RouteLink("人事日报表", "Default", new { controller = "Personnel", Action = "Daily" })</li>
+                        }
+
+                        @*用户管理*@
                         @if (UserRoles == "系统管理员")
                         {
                             <li>@Html.RouteLink("用户管理", "Default", new { controller = "Users", Action = "Index" })</li>
@@ -217,10 +256,11 @@
                             var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
                             var Userid = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).ID.ToString();
                         }
+
+                        @*用户状态*@
                         @if (Session["User"] == null)
                         {
                             <li class="navbar-right">
-                                @*<a href="/Users/Login"><span class="glyphicon glyphicon-log-in"></span>  登录</a>*@
                                 <a id="logingo" data-toggle="modal" data-target="#login" href=""><span class="glyphicon glyphicon-log-in"></span>  登录</a>
                             </li>
                         }
@@ -372,4 +412,5 @@
         });
     </script>
 </body>
+@*@MiniProfiler.RenderIncludes();*@
 </html>
