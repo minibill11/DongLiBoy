@@ -1,0 +1,504 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using System.IO;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace JianHeMES.Controllers
+{
+    public class Personnel_LeaveController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController com = new CommonalityController();
+
+        #region index 
+        public ActionResult Index()
+        {
+            return View(db.Personnel_Leave.ToList());
+        }
+        [HttpPost]
+        public async Task<ActionResult> index(string jobNum, string userName, string department)
+        {
+            JObject userItem = new JObject();
+            JObject userJobject = new JObject();
+            var personnel_leave = await db.Personnel_Leave.ToListAsync();
+            if (jobNum != null)
+            {
+                personnel_leave = personnel_leave.Where(c => c.jobNum == jobNum).ToList();
+            }
+            if (userName != null)
+            {
+                personnel_leave = personnel_leave.Where(c => c.Name == userName).ToList();
+            }
+            if (department != null)
+            {
+                personnel_leave = personnel_leave.Where(c => c.department == department).ToList();
+            }
+            int i = 0;
+            foreach (var item in personnel_leave)
+            {
+                //ID
+                userItem.Add("Id", item.Id);
+                //名字
+                userItem.Add("Name", item.Name);
+                //工号
+                userItem.Add("jobNum", item.jobNum);
+                //部门
+                userItem.Add("department", item.department);
+                //组
+                userItem.Add("DP_group", item.DP_group);
+                //岗位
+                userItem.Add("position", item.position);
+                //代理人
+                userItem.Add("agent", item.agent);
+                //请假类型
+                userItem.Add("leaveType", item.leaveType);
+                //申请日期
+                userItem.Add("applydate", item.applydate);
+                //请假开始时间
+                userItem.Add("leaveStartTime", item.leaveStartTime);
+                //请假结束时间
+                userItem.Add("leaveEndTime", item.leaveEndTime);
+                //请假时长
+                userItem.Add("leaveTimeNum", item.leaveTimeNum);
+                userItem.Add("leaveReason", item.leaveReason);
+                userItem.Add("remark", item.remark);
+                string leavetostring = string.Format("{0:yyyy-MM-dd--HH-mm-ss}", item.leaveStartTime);
+                if (!checkfile(item.Name, leavetostring, "jpg"))
+                {
+                    userItem.Add("IsImg", "ture");
+                }
+                else
+                    userItem.Add("IsImg", "false");
+
+                if (!checkfile(item.Name, leavetostring, "pdf"))
+                {
+                    userItem.Add("pdf", "ture");
+                }
+                else
+                    userItem.Add("pdf", "false");
+
+
+                userJobject.Add(i.ToString(), userItem);
+                i++;
+                userItem = new JObject();
+            }
+            return Content(JsonConvert.SerializeObject(userJobject));
+        }
+
+        #endregion
+
+        #region 详细
+        public ActionResult Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Leave personnel_Leave = db.Personnel_Leave.Find(id);
+            if (personnel_Leave == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Leave);
+        }
+        #endregion
+
+        #region 单个增加
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        //,departmentApprover,centerApprover,personnelApprover,factoryApprover,managerApprover
+        public ActionResult Create([Bind(Include = "Id,Name,jobNum,department,DP_group,position,agent,leaveType,applydate,leaveStartTime,leaveEndTime,leaveTimeNum,leaveReason,remark")] Personnel_Leave personnel_Leave)
+        {
+            if (ModelState.IsValid)
+            {
+                if (db.Personnel_Leave.Count(c => c.jobNum == personnel_Leave.jobNum && c.leaveStartTime == personnel_Leave.leaveStartTime) > 0)
+                {
+                    return Content("已有重复数据，请确认是否数据是否正确");
+                }
+                db.Personnel_Leave.Add(personnel_Leave);
+                db.SaveChanges();
+                return Content("true");
+            }
+            return Content("新增出错，请确认数据是否规范");
+        }
+        //根据给出的工号提供基本信息
+        [HttpPost]
+        public ActionResult getInfo(string jobnum)
+        {
+            var info = db.Personnel_Roster.Where(c => c.JobNum == jobnum).Select(c => new { c.Name, c.Department, c.DP_Group, c.Position }).FirstOrDefault();
+            return Content(JsonConvert.SerializeObject(info));
+        }
+        #endregion
+
+        #region 批量增加
+        public ActionResult Batch_InputStaff()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult Batch_InputStaff(List<Personnel_Leave> inputList)
+        {
+            string repeat = null;
+            foreach (var item in inputList)
+            {
+                if (db.Personnel_Leave.Count(c => c.jobNum == item.jobNum && c.leaveStartTime == item.leaveStartTime) != 0)
+                    repeat = repeat + item.jobNum + ",";
+            }
+            if (!string.IsNullOrEmpty(repeat))
+            {
+                return Content(repeat + "已经有相同的数据，请重新输入");
+            }
+            if (ModelState.IsValid)
+            {
+                db.Personnel_Leave.AddRange(inputList);
+                db.SaveChangesAsync();
+                return Content("true");
+            }
+            #region 测试modelstate 为什么为false
+            //else
+            //{
+            //    //获取所有错误的Key
+            //    List<string> Keys = ModelState.Keys.ToList();
+            //    //获取每一个key对应的ModelStateDictionary
+            //    foreach (var key in Keys)
+            //    {
+            //        var errors = ModelState[key].Errors.ToList();
+            //        //将错误描述输出到控制台
+            //        foreach (var error in errors)
+            //        {
+            //            Console.WriteLine(error.ErrorMessage);
+            //        }
+            //    }
+            //}
+            #endregion
+            return Content("添加失败");
+        }
+
+        #endregion
+
+        #region 修改
+        public ActionResult Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Leave personnel_Leave = db.Personnel_Leave.Find(id);
+            if (personnel_Leave == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Leave);
+        }
+
+        [HttpPost]
+
+        public ActionResult Edit([Bind(Include = "Id,Name,jobNum,department,DP_group,position,agent,leaveType,applydate,leaveStartTime,leaveEndTime,leaveTimeNum,leaveReason,remark")] Personnel_Leave personnel_Leave)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(personnel_Leave).State = EntityState.Modified;
+                db.SaveChangesAsync();
+                return Content("true");
+            }
+            return Content("修改出错，请确认数据是否正确");
+        }
+        #endregion
+
+        #region 删除
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Leave personnel_Leave = db.Personnel_Leave.Find(id);
+            if (personnel_Leave == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Leave);
+        }
+
+        [HttpPost, ActionName("Delete")]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            Personnel_Leave personnel_Leave = db.Personnel_Leave.Find(id);
+            db.Personnel_Leave.Remove(personnel_Leave);
+            db.SaveChanges();
+            return Content("true");
+        }
+
+        #endregion
+
+        #region  单个添加上传（JPG、PDF文件）
+
+        #region --------------------上传请假文件(jpg、pdf)方法
+        [HttpPost]
+        public ActionResult UploadLeavefile(string userneme, string leavestarttime)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["uploadfile"];
+                var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
+                var re = String.Equals(fileType, ".jpg") == true || String.Equals(fileType, ".jpeg") || String.Equals(fileType, ".pdf") == true ? false : true;
+                if (re)
+                {
+                    return Content("<script>alert('您选择文件的文件类型不正确，请选择jpg、jpeg或pdf类型文件！');history.go(-1);</script>");
+                }
+                string ReName = leavestarttime + "_Leavefile";
+                if (Directory.Exists(@"D:\MES_Data\Leavefile_Files\" + leavestarttime + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Leavefile_Files\" + leavestarttime + "\\");
+                }
+                file.SaveAs(@"D:\MES_Data\Leavefile_Files\" + leavestarttime + "\\" + ReName + fileType);
+                return Content("<script>alert('上传成功！');window.location.href='../leavestarttime/Details/" + userneme + "';</script>");
+            }
+            return Content("<script>alert('上传失败');history.go(-1);</script>");
+        }
+        #endregion
+
+        #region --------------------查看请假JPG图片预览
+        [HttpPost]
+        public ActionResult Get_LeavefileImg(string userneme)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\Leavefile_Files\\" + userneme + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(userneme + "_Leavefile") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
+        }
+        #endregion
+
+        #region --------------------查看请假pdf文档页面
+
+        [HttpPost]
+        public ActionResult preview_Leavefile_pdf(string userneme)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\Leavefile_Files\\" + userneme + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(userneme + "_Leavefile") && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
+        }
+        #endregion
+
+        #endregion
+
+        #region  批量添加上传（JPG、PDF文件）
+
+        #region --------------------上传请假文件(jpg、pdf)方法
+        [HttpPost]
+        public ActionResult UploadFiles(string userneme, string leavestarttime)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["uploadfile"];
+                var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
+                var re = String.Equals(fileType, ".jpg") == true || String.Equals(fileType, ".jpeg") || String.Equals(fileType, ".pdf") == true ? false : true;
+                if (re)
+                {
+                    return Content("<script>alert('您选择文件的文件类型不正确，请选择jpg、jpeg或pdf类型文件！');history.go(-1);</script>");
+                }
+                string ReName = leavestarttime + "_Leavefile";
+                if (Directory.Exists(@"D:\MES_Data\Leavefile_Files\" + leavestarttime + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Leavefile_Files\" + leavestarttime + "\\");
+                }
+                file.SaveAs(@"D:\MES_Data\Leavefile_Files\" + leavestarttime + "\\" + ReName + fileType);
+                return Content("<script>alert('上传成功！');window.location.href='../leavestarttime/Details/" + userneme + "';</script>");
+            }
+            return Content("<script>alert('上传失败');history.go(-1);</script>");
+        }
+        #endregion
+
+        #region --------------------查看请假JPG图片预览
+        [HttpPost]
+        public ActionResult Get_fileImg(string userneme)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\Leavefile_Files\\" + userneme + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(userneme + "_Leavefile") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
+        }
+        #endregion
+
+        #region --------------------查看请假pdf文档页面
+
+        [HttpPost]
+        public ActionResult preview_file_pdf(string userneme)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\Leavefile_Files\\" + userneme + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(userneme + "_Leavefile") && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
+        }
+        #endregion
+
+        #endregion
+
+
+        #region 上传请假证明文件
+
+        [HttpPost]
+        public ActionResult uploadLeaveFiles(string userneme, string leavestarttime)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["uploadfile"];
+                var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
+                var re = String.Equals(fileType, ".jpg") == true || String.Equals(fileType, ".pdf") == true ? false : true;
+                if (re)
+                {
+                    return Content("<script>alert('您选择文件的文件类型不正确，请选择jpg或pdf类型文件！');history.go(-1);</script>");
+                }
+                string ReName = userneme + "_" + leavestarttime;
+                if (Directory.Exists(@"D:\\MES_Data\\LeaveFiles\\" + userneme + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\LeaveFiles\" + userneme + "\\");
+                }
+                var aa = @"D:\MES_Data\LeaveFiles\" + userneme + "\\" + ReName + fileType;
+                file.SaveAs(@"D:\MES_Data\LeaveFiles\" + userneme + "\\" + ReName + fileType);
+                return Content("上传成功！");
+            }
+            return Content("上传失败！");
+        }
+
+
+        #region  判断是否有请假证明图片
+        public bool checkfile(string userneme, string leavestarttime, string leaveFilepdf)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\LeaveFiles" + "\\" + userneme + "\\");
+            var filesInfojpg = filesInfo.Where(c => c.Name.StartsWith(userneme + "_" + leavestarttime) && c.Name.Substring(c.Name.Length - 4, 4) == "." + leaveFilepdf).ToList();
+            return filesInfojpg.Count() == 0;
+        }
+        #endregion
+
+        #region 查看请假证明图片JPG
+        public ActionResult displayImg(string userneme, string leavestarttime)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\LeaveFiles\\" + userneme + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(userneme + "_" + leavestarttime) && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
+        }
+        #endregion
+
+        #region  查看请假证明图片PDF
+        public ActionResult display_pdf(string userneme, string leavestarttime)
+        {
+            List<FileInfo> filesInfo = com.GetAllFilesInDirectory(@"D:\\MES_Data\\LeaveFiles\\" + userneme + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(userneme + "_" + leavestarttime) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+            JObject json = new JObject();
+            int i = 1;
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    json.Add(i.ToString(), item.Name);
+                    i++;
+                }
+                ViewBag.jpgjson = json;
+                return Content(json.ToString());
+            }
+            else
+            {
+                return Content("图片文档未上传或不存在！");
+            }
+        }
+        #endregion
+
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

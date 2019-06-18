@@ -1,0 +1,316 @@
+﻿@{
+    ViewBag.Title = "SMT产线看板";
+}
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .table-bordered > thead > tr > th, .table-bordered > tbody > tr > td {
+        border: 1px solid #000;
+        padding: 0;
+    }
+
+    .table-bordered > tfoot > tr > th {
+        border: none;
+    }
+
+    .hdDiv {
+        width: 100%;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .scroll_table_content {
+        width: 100%;
+        max-height: 600px;
+        overflow: auto;
+    }
+
+    #app {
+        width: 1170px;
+    }
+
+    .table {
+        width: 1153px;
+        margin-bottom: 0;
+    }
+
+        .table > tbody > tr:first-child > td {
+            border-top: none;
+        }
+
+        .table > thead:first-child > tr:first-child > th, .table > colgroup + thead > tr:first-child > th {
+            border-top: 1px solid rgba(35, 35, 35, 0.9);
+        }
+
+    .bgYellow {
+        background-color: yellow;
+    }
+
+    #lineSelect {
+        border: 1px solid #808080;
+        -moz-appearance: none;
+        -webkit-appearance: none;
+        text-align: center;
+        padding-right: 11px;
+    }
+        #lineSelect option{
+            text-align:center;
+            width:45px;
+            font-size:15px;
+        }
+        [v-cloak] {
+            display: none;
+        }
+</style>
+<div id="app" v-cloak>
+    <div class="row text-center" style="position:relative;padding:0 0 10px;">
+        <h2 class="text-center">
+            SMT <select id="lineSelect" v-model="lineSelect">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+            </select> 线 生产看板
+        </h2>
+        <div class="row form-group" style="position:absolute;right:65px;top:35px">
+            <span class="btn btn-default">
+                @Html.ActionLink("查询历史记录", "SMT_ProductionLineInfoHistory", new { id = "" }, new { target = "_blank" })
+            </span>
+        </div>
+    </div>
+    <div class="row">
+        <table class="table table-bordered" style="margin-bottom:0;">
+            <colgroup>
+                <col width="130 ">
+                <col width="110 ">
+                <col width="130 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="282 ">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th colspan="2"><div class="hdDiv">生产日期：{{titleList.todaty}}</div></th>
+                    <th colspan="2"><div class="hdDiv">组长：{{titleList.groupLeader}}</div></th>
+                    <th colspan="4"><div class="hdDiv">生产人数：{{titleList.personNum}}</div></th>
+                    <th rowspan="2"><div class="hdDiv" style="height:80px;">备注</div></th>
+                </tr>
+                <tr>
+                    <th><div class="hdDiv">订单号</div></th>
+                    <th><div class="hdDiv">制程面</div></th>
+                    <th>
+                        <div class="hdDiv" style="display:block">
+                            <span>生产时段</span><br />
+                            <span v-if="nowHourTime>=8&&nowHourTime<20">(白班)</span>
+                            @*<span v-else-if="nowHourTime<8||nowHourTime>=20">(夜班)</span>*@
+                            <span v-else>(夜班)</span>
+                        </div>
+                    </th>
+                    <th><div class="hdDiv bgYellow">标准产能<br />(PCS/H)</div></th>
+                    <th><div class="hdDiv bgYellow">实际完成<br />(PCS)</div></th>
+                    <th><div class="hdDiv bgYellow">达成率(%)</div></th>
+                    <th><div class="hdDiv bgYellow">不良数<br />(PCS)</div></th>
+                    <th><div class="hdDiv bgYellow">不良率(%)</div></th>
+                </tr>
+            </thead>
+        </table>
+        <div class="scroll_table_content">
+            <table class="table table-bordered">
+                <colgroup>
+                    <col width="130 ">
+                    <col width="110 ">
+                    <col width="130 ">
+                    <col width="100 ">
+                    <col width="100 ">
+                    <col width="100 ">
+                    <col width="100 ">
+                    <col width="100 ">
+                    <col width="282 ">
+                </colgroup>
+                <tbody>
+                    <template v-if="nowHourTime>=8&&nowHourTime<20">
+                        <tr v-for="day in tablelist.day">
+                            <td><div class="hdDiv">{{day.ordernmu}}</div></td>
+                            <td><div class="hdDiv">{{day.jobContent}}</div></td>
+                            <td><div class="hdDiv">{{day.ProductionBegin}}-{{day.ProductionEnd}}</div></td>
+                            <td><div class="hdDiv">{{day.Capacity}}</div></td>
+                            <td><div class="hdDiv">{{day.NormalCount}}</div></td>
+                            <td><div class="hdDiv">{{day.achievement}}</div></td>
+                            <td><div class="hdDiv">{{day.AbnormalCount}}</div></td>
+                            <td><div class="hdDiv">{{day.Defective}}</div></td>
+                            <td><div class="hdDiv">{{day.Remark}}</div></td>
+                        </tr>
+                    </template>
+                    <template v-else>
+                        <tr v-for="night in tablelist.night">
+                            <td><div class="hdDiv">{{night.ordernmu}}</div></td>
+                            <td><div class="hdDiv">{{night.jobContent}}</div></td>
+                            <td><div class="hdDiv">{{night.ProductionBegin}}-{{night.ProductionEnd}}</div></td>
+                            <td><div class="hdDiv">{{night.Capacity}}</div></td>
+                            <td><div class="hdDiv">{{night.NormalCount}}</div></td>
+                            <td><div class="hdDiv">{{night.achievement}}</div></td>
+                            <td><div class="hdDiv">{{night.AbnormalCount}}</div></td>
+                            <td><div class="hdDiv">{{night.Defective}}</div></td>
+                            <td><div class="hdDiv">{{night.Remark}}</div></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        <table class="table table-bordered" style="margin-bottom:0;border:none;">
+            <colgroup>
+                <col width="130 ">
+                <col width="110 ">
+                <col width="130 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="100 ">
+                <col width="282 ">
+            </colgroup>
+            <tfoot>
+                <tr>
+                    <th colspan="9">
+                        <div style="padding:5px 0 0;">
+                            统计：{{totalList.totalNum}}.&nbsp;&nbsp;
+                            计划生产总数：{{totalList.totalCapacity?totalList.totalCapacity.toFixed(0):""}}；&nbsp;
+                            实际完成：{{totalList.totalNormalCount}}；&nbsp;
+                            总达成率：{{totalList.totalAchievement}}；&nbsp;
+                            总不良数：{{totalList.totalAbnormalCount}}；&nbsp;
+                            良率：{{totalList.totalDefective}}；&nbsp;
+                        </div>
+                    </th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    @*loding*@
+    <div class="spinnerModel" v-show="loading">
+        <div class="bounce1"></div>
+        <div class="bounce2"></div>
+        <div class="bounce3"></div>
+    </div>
+    <div class="row col-md-12">
+        @Html.ActionLink("返回", "SMT_Manage")
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            lineSelect: "@ViewBag.LineNum",
+            nowHourTime: "",
+            tablelist: {
+                day: "d",
+                night: "n"
+            },
+            titleList: "",
+            totalList: "",
+            loading: false
+        },
+        methods: {
+            //获取产线数据
+            postLineNum: (L) => {
+                axios.post("/SMT/SMT_ProductionLineInfo", { LineNum: L }).then(response=> {
+                    console.log(response);
+                    let nowData = response.data;
+                    app.titleList = {
+                        todaty: nowData.todaty,
+                        groupLeader: nowData.groupLeader,
+                        personNum: nowData.personNum,
+                    };
+                    app.totalList = {
+                        totalNum: nowData.totalNum,
+                        totalCapacity: nowData.totalCapacity,
+                        totalNormalCount: nowData.totalNormalCount,
+                        totalAchievement: nowData.totalAchievement,
+                        totalAbnormalCount: nowData.totalAbnormalCount,
+                        totalDefective: nowData.totalDefective,
+                    };
+                    let thisday = [], thisnight = [];
+                    if (Object.keys(nowData.day).length == 0) {
+                        thisday = "d";
+                    } else {
+                        for (let i in nowData.day) {
+                            thisday.push(nowData.day[i]);
+                        };
+                    };
+                    if (Object.keys(nowData.night).length == 0) {
+                        thisnight = "n"
+                    } else {
+                        for (let i in nowData.night) {
+                            thisnight.push(nowData.night[i]);
+                        };
+                    };
+                    app.tablelist = {
+                        day: thisday,
+                        night: thisnight,
+                    };
+                }).catch(error=> {
+                    console.warn(error);
+                });
+            }
+        },
+        watch: {
+            //选择产线
+            lineSelect: (v) => {
+                app.$options.methods.postLineNum(v);
+            }
+        },
+        created: function () {
+            //计时器（小时）
+            setInterval(function () {
+                let now = new Date().getHours();
+                app.nowHourTime = now;
+            }, 1000);
+            //开始加载数据
+            if (this.lineSelect != "") {
+                this.$options.methods.postLineNum(this.lineSelect);
+            };
+            //定时加载
+            setInterval(function () {
+                if (app.lineSelect != "") {
+                    app.$options.methods.postLineNum(app.lineSelect);
+                };
+            }, 60000);
+        }
+    });
+    // 添加请求拦截器
+    axios.interceptors.request.use(function (config) {
+        app.loading = true;
+        return config;
+    }, function (error) {
+        return Promise.reject(error);
+    });
+
+    // 添加响应拦截器
+    axios.interceptors.response.use(function (response) {
+        app.loading = false;
+        return response;
+    }, function (error) {
+        app.loading = false;
+        return Promise.reject(error);
+    });
+</script>
