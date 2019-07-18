@@ -1,0 +1,312 @@
+﻿@{
+    ViewBag.Title = "内箱标签打印";
+}
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+@*<link href="~/Content/styleFile/printStyle.css" rel="stylesheet" />*@
+
+<style>
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 15px 0 0;
+    }
+
+
+    /*全局样式*/
+    *, body {
+        margin: 0;
+        padding: 0;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-input {
+        width: 220px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    /*内箱条码样式*/
+    #innerBarcode {
+        width: 268px;
+    }
+
+    .mozhu {
+        font-size: 88px;
+        line-height: 58px;
+    }
+
+    #innerCarton {
+        margin: 15px auto 10px;
+        padding: 20px 0 10px;
+        max-width: 400px
+    }
+
+
+    /*外箱条码样式*/
+    #masterCarton {
+        margin: 20px 0 10px;
+        padding: 5px;
+    }
+
+    #masterBarcode {
+        width: 240px;
+    }
+
+    .mcFrame {
+        margin: 0 auto;
+        width: 368px;
+        height: 484px;
+        border: 1px solid #000;
+    }
+
+    .mcFrame_top, .mcFrame_bottom {
+        height: 240px;
+    }
+
+        .mcFrame_top > div {
+            height: 80px;
+        }
+
+
+    .mcFrame_top_1 {
+        position: relative;
+    }
+
+    .imgicon {
+        position: absolute;
+        width: 120px;
+        top: 5px;
+        left: 5px;
+    }
+
+    .mcFrame_top_1_h {
+        margin: 0;
+        padding-top: 35px;
+        text-align: center;
+    }
+
+
+    .mcFrame_top_3_1_1, .mcFrame_top_3_1_2 {
+        display: inline-block;
+        height: 38px;
+        line-height: 38px;
+        text-align: center;
+    }
+
+    .mcFrame_top_3_1_1 {
+        width: 87px;
+        font-size: 15px;
+    }
+
+        .mcFrame_top_3_1_1 > span {
+            font-weight: 600;
+        }
+
+    .mcFrame_top_3_1_2 {
+        width: 272px;
+        font-size: 20px;
+    }
+
+    .mcFrame_top_3_1_1:not(:last-child) {
+        border-right: 1px solid #000;
+    }
+
+    .borderTop {
+        border-top: 1px solid #000;
+    }
+
+    .mcFrame_bottom_1 {
+        /*width: 100%;
+    height: 100%;*/
+        padding: 10px 25px;
+        font-size: 30px;
+    }
+
+    .mcFrame_top_2 {
+        position: relative;
+    }
+
+    .masterBarDiv {
+        width: 100%;
+        position: absolute;
+        top: -10px;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .inputframe {
+        width: 280px;
+        text-align: right;
+        margin: 1px auto;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3>@ViewBag.Title</h3>
+            <el-dropdown placement="bottom">
+                <el-button size="medium ">
+                    更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                </el-button>
+                <el-dropdown-menu slot="dropdown">
+                    <a href="/Packagings/inputPackaging"><el-dropdown-item>录入包装箱基本信息</el-dropdown-item></a>
+                    <a href="/Packagings/insidePrint"><el-dropdown-item>内箱标签打印</el-dropdown-item></a>
+                    <a href="/Packagings/insideConfirm"><el-dropdown-item>内箱装箱确认</el-dropdown-item></a>
+                    <a href="/Packagings/outsideBinningPrint"><el-dropdown-item>外箱(重新)装箱和标签打印</el-dropdown-item></a>
+                    <a href="/Packagings/outsideConfirm"><el-dropdown-item>外箱装箱确认</el-dropdown-item></a>
+                    <a href="/Packagings/inStockConfirm"><el-dropdown-item>外箱入库确认</el-dropdown-item></a>
+                    <a href="/Packagings/PingZhioutStockConfirm"><el-dropdown-item>品质外箱入库确认</el-dropdown-item></a>
+                    <a href="/Packagings/stockNumEdit"><el-dropdown-item>外箱库位号修改</el-dropdown-item></a>
+                    <a href="/Packagings/outStockConfirm"><el-dropdown-item>外箱出库确认</el-dropdown-item></a>
+                </el-dropdown-menu>
+            </el-dropdown>
+        </el-header>
+        <el-main>
+            <div class="grid-content textCenter">
+                <el-row>
+                    <div class="inputframe">
+                        <span>订单号：</span>
+                        <el-select v-model="selectVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                            <el-option v-for="item in selectOptions"
+                                       :key="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </div>
+                </el-row>
+                <el-row>
+                    <div class="inputframe">
+                        <span>条码：</span>
+                        <el-input placeholder="请输入条码号"
+                                  v-model.trim="innerVal"
+                                  style="text-align:right;display:inline-block;"
+                                  onKeyUp="value=value.replace(/[^A-Za-z0-9]/g, '')"
+                                  size="medium"
+                                  clearable>
+                        </el-input>
+                    </div>
+                </el-row>
+                <el-row>
+                    <div class="inputframe">
+                        <span>箱体：</span>
+                        <el-input placeholder="请输入箱体号"
+                                  v-model.trim="printMozhu"
+                                  style="text-align:right;display:inline-block;"
+                                  size="medium"
+                                  clearable>
+                        </el-input>
+                    </div>
+                </el-row>
+                <el-row>
+                    <div id="innerCarton">
+                        <div class="textCenter">
+                            <b class="mozhu">{{printMozhu}}</b>
+                            <div class="innerBarDiv">
+                                <svg id="innerBarcode"></svg>
+                            </div>
+                            @*<canvas id="innerBarcode"></canvas>
+                                <img id="innerBarcode" />*@
+                        </div>
+                    </div>
+                </el-row>
+                <el-row>
+                    <el-button v-on:click="innerPrint" v-bind:disabled="innerVal==''||printMozhu==''" type="primary">打印pdf</el-button>
+                </el-row>
+            </div>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            innerVal: "",
+            printMozhu: "",
+            selectOptions: [],
+            selectVal: '',
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+        },
+        methods: {
+            innerPrint: () => {
+                //判断iframe是否存在，不存在则创建iframe
+                var iframe = document.getElementById("innerprint-iframe");
+                if (!iframe) {
+                    var el = document.getElementById("innerCarton");
+                    iframe = document.createElement('IFRAME');
+                    var doc = null;
+                    iframe.setAttribute("id", "innerprint-iframe");
+                    iframe.setAttribute('style', 'position:absolute;width:600px;height:320px;left:-1000px;top:-500px;');
+                    document.body.appendChild(iframe);
+                    doc = iframe.contentWindow.document;
+                    //这里可以自定义样式
+                    doc.write("<link href='/Content/styleFile/printStyle.css' rel='stylesheet' />");
+                    doc.write('<div>' + el.innerHTML + '</div>');
+                    doc.close();
+                    iframe.contentWindow.focus();
+                };
+                iframe.onload = function () {
+                    iframe.contentWindow.print();
+                    document.body.removeChild(iframe);
+                };
+            },
+            setinnerBarDiv: (v) => {
+                JsBarcode("#innerBarcode", v.toUpperCase(), {
+                    height: 75, //条形码的高度
+                    fontOptions: "bold",//使文字加粗体或变斜体
+                    format: "CODE128",
+                    font: "monospace",
+                    textAlign: "center",
+                    textMargin: 0,//设置条形码和文本之间的间距
+                    fontSize: 48,//设置文本的大小
+                    lineColor: "#000",//条形码颜色
+                    margin: 0,//设置条形码周围的空白边距
+                    marginTop: 0
+                });
+            },
+        },
+        watch: {
+            innerVal: (val) => {
+                if (val != "") {
+                    app.setinnerBarDiv(val);
+                } else {
+                    $(".innerBarDiv").html('<svg id="innerBarcode"></svg>');
+                };
+            },
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+            },
+        },
+    });
+</script>

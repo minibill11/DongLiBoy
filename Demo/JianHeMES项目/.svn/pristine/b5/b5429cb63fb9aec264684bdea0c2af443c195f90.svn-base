@@ -1,0 +1,337 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace JianHeMES.Controllers
+{
+    public class Personnel_FrameworkController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController comm = new CommonalityController();
+        private static Dictionary<int, Personnel_Framework> info = new Dictionary<int, Personnel_Framework>();
+
+        // GET: Personnel_Framework
+        public async Task<ActionResult> Index()
+        {
+            return View(await db.Personnel_Framework.ToListAsync());
+        }
+
+        public async Task<ActionResult> Index2()
+        {
+            return View(await db.Personnel_Framework.ToListAsync());
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> Index(string a)
+        {
+            if (info.Count != 0)
+            {
+                info.Clear();
+            }
+            JObject manageJobect = new JObject();
+            JObject depatmentJobject = new JObject();
+            JObject groupJobject = new JObject();
+            JObject positionjobject = new JObject();
+            var manageList = await db.Personnel_Framework.Select(c => c.Central_layer).Distinct().ToListAsync();
+            //manageList.RemoveAll(null);
+            int i = 0;
+            foreach (var manage in manageList)
+            {
+                var depatmentList = await db.Personnel_Framework.Where(c => c.Central_layer == manage).Select(c => c.Department).Distinct().ToListAsync();
+                //depatmentList.RemoveAll(null);
+                foreach (var department in depatmentList)
+                {
+                    var dp_groupList = await db.Personnel_Framework.Where(c => c.Central_layer == manage && c.Department == department).Select(c => c.Group).Distinct().ToListAsync();
+                    //dp_groupList.RemoveAll(null);
+                    foreach (var group in dp_groupList)
+                    {
+                        var positionList = await db.Personnel_Framework.Where(c => c.Central_layer == manage && c.Department == department && c.Group == group).Select(c => c.Position).Distinct().ToListAsync();
+
+                        foreach (var position in positionList)
+                        {
+                            var count = await db.Personnel_Roster.CountAsync(c => c.Department == department && c.DP_Group == group && c.Position == position && c.Status != "离职员工");
+                            positionjobject.Add(i.ToString(), position + "(" + count + ")");
+                            Personnel_Framework item = new Personnel_Framework { Central_layer = manage, Department = department, Group = group, Position = position };
+                            info.Add(i, item);
+                            i++;
+                        }
+                        groupJobject.Add(group == null ? "其他" : group, positionjobject);
+                        positionjobject = new JObject();
+                    }
+                    depatmentJobject.Add(department == null ? "其他" : department, groupJobject);
+                    groupJobject = new JObject();
+
+                }
+                manageJobect.Add(manage == null ? "其他" : manage, depatmentJobject);
+                depatmentJobject = new JObject();
+
+            }
+            if (manageList.Count != 0)
+            {
+                var cc = Content(JsonConvert.SerializeObject(manageJobect));
+                return Content(JsonConvert.SerializeObject(manageJobect));
+            }
+            return Content("获取数据失败");
+        }
+
+        //框架输出
+        [HttpPost]
+        public ActionResult Framework()
+        {
+            var result = new JObject();
+            JArray b = new JArray();
+            result.Add("name", "工厂厂长");
+            result.Add("title", "钟胜雄");
+            result.Add("userid", b);
+            result.Add("children", b);
+            var All = Find_list("工厂厂长", null);
+            if (All.Count > 0)
+            {
+                result["children"] = Foreach_iterator(All);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //查询
+        public List<Personnel_Organization> Find_list(string str, string department)
+        {
+            var result = db.Personnel_Organization.Where(c => c.Superior == str && c.SuperiorDepartment == department).ToList();
+            return result;
+        }
+        //查找角色ID，需要角色+角色部门+组
+        public JArray FindUserID(string firstdepar, string current, string currentdepa)
+        {
+            JArray aa = new JArray();
+            var result = db.Personnel_Roster.Where(c => c.DP_Group == firstdepar && c.Position == current && c.Department == currentdepa).Select(c => c.JobNum).ToList();
+            aa.Add(result);
+            return aa;
+        }
+        //查找职位的人数
+        public string FindUserCount(string firstdepar, string current, string currentdepa)
+        {
+            var result = db.Personnel_Roster.Count(c => c.DP_Group == firstdepar && c.Position == current && c.Department == currentdepa);
+            return result.ToString();
+        }
+
+        public string FindUserNmae(string group, string position, string department)
+        {
+            var result = db.Personnel_Roster.Where(c => c.Position == position && c.Department == department && c.DP_Group == group && c.Status != "离职员工").Select(c => c.Name).ToList();
+            if (result.Count!=0)
+                return string.Join(",", result);
+            else
+                return "";
+        }
+
+        public JArray Foreach_username(string[] name)
+        {
+            JArray usernameArray = new JArray();
+            foreach (var item in name)
+            {
+                var b = new JArray();
+                var a = new JObject();
+                a.Add("name", item);
+                a.Add("userid", b);
+                a.Add("children", b);
+                a.Add("title", b);
+                usernameArray.Add(a);
+                
+            }
+            return usernameArray;
+        }
+
+        //迭代器
+        public JArray Foreach_iterator(List<Personnel_Organization> list_str)
+        {
+            var result = new JArray();
+            if (list_str.Count > 0)
+            {
+                var obj_result = new JArray();
+                var b = new JArray();
+                var a = new JObject();
+                foreach (var i in list_str)
+                {
+                    var name = i.Subordinate;
+                    var title = "";
+                    if (i.Subordinate.Contains(","))
+                    {
+                        var info = i.Subordinate.Split(',');
+                        name = info[0];
+                        title = info[1] + ":" + FindUserNmae(info[0], info[1], i.SubordinateDepartment);
+                    }
+                    a.Add("name", name);
+                    if (title != "")
+                    {
+                        a.Add("title", title);
+                    }
+                    else
+                    {
+                        a.Add("title", b);
+                    }
+
+                    a.Add("userid", b);
+                    a.Add("children", b);
+                    obj_result.Add(a);
+                    if (Find_list(name, i.SubordinateDepartment).Count > 0)
+                    {
+                        a["children"] = Foreach_iterator(Find_list(name, i.SubordinateDepartment));
+
+                    }
+                    else
+                    {
+                        string usernametostring = FindUserNmae(i.Superior, name, i.SubordinateDepartment);
+                        if (usernametostring != "")
+                        {
+                            string[] userList = usernametostring.Split(',');
+                            a["children"] = Foreach_username(userList);
+                            a["userid"] = FindUserID(i.Superior, name, i.SubordinateDepartment);
+                        }
+                    }
+                    a = new JObject();
+                }
+                return obj_result;
+            }
+            else return result;
+        }
+
+
+        //修改用户的信息状态
+
+
+
+        public async Task<ActionResult> GetUersInfo(List<int> idList)
+        {
+            JObject userJobject = new JObject();
+            List<Personnel_Framework> framworksList = new List<Personnel_Framework>();
+            foreach (var id in idList)
+            {
+                var personnel_framework = new Personnel_Framework();
+                info.TryGetValue(id, out personnel_framework);
+                framworksList.Add(personnel_framework);
+            }
+            foreach (var item in framworksList)
+            {
+                var userIonf = await db.Personnel_Roster.Where(c => c.Department == item.Department && c.DP_Group == item.Group && c.Position == item.Position && c.Status != "离职员工").Select(c => c.Name).ToListAsync();
+                foreach (var user in userIonf)
+                {
+                    var usermessage = await db.Personnel_Roster.Where(c => c.Department == item.Department && c.DP_Group == item.Group && c.Position == item.Position && c.Name == user).Select(c => new { c.Name, c.JobNum, c.HireDate, c.levelType, c.Position, c.Sex, c.Status, c.Education, c.Department, c.DP_Group }).FirstOrDefaultAsync();
+                    userJobject.Add(usermessage.JobNum, JsonConvert.DeserializeObject<JToken>(JsonConvert.SerializeObject(usermessage)));
+                }
+            }
+            return Content(JsonConvert.SerializeObject(userJobject));
+        }
+
+        // GET: Personnel_Framework/Details/5
+        public async Task<ActionResult> Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            if (personnel_Framework == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Framework);
+        }
+
+        // GET: Personnel_Framework/Create
+        public ActionResult CreateFramework()
+        {
+            return View();
+        }
+
+        // POST: Personnel_Framework/Create
+        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> CreateFramework([Bind(Include = "Id,Central_layer,Department,Group,Position,CreateDate,Creator")] Personnel_Framework personnel_Framework)
+        {
+
+            if (ModelState.IsValid)
+            {
+                db.Personnel_Framework.Add(personnel_Framework);
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+
+            return View(personnel_Framework);
+        }
+
+        // GET: Personnel_Framework/Edit/5
+        public async Task<ActionResult> Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            if (personnel_Framework == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Framework);
+        }
+
+        // POST: Personnel_Framework/Edit/5
+        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Edit([Bind(Include = "Id,Central_layer,Department,Group,Position,CreateDate,Creator")] Personnel_Framework personnel_Framework)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(personnel_Framework).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(personnel_Framework);
+        }
+
+        // GET: Personnel_Framework/Delete/5
+        public async Task<ActionResult> Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            if (personnel_Framework == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Framework);
+        }
+
+        // POST: Personnel_Framework/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> DeleteConfirmed(int id)
+        {
+            Personnel_Framework personnel_Framework = await db.Personnel_Framework.FindAsync(id);
+            db.Personnel_Framework.Remove(personnel_Framework);
+            await db.SaveChangesAsync();
+            return RedirectToAction("Index");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

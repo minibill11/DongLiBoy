@@ -1,0 +1,205 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+using JianHeMES.Hubs;
+using JianHeMES.Areas.KongYaHT.Models;
+using Newtonsoft.Json.Linq;
+
+namespace JianHeMES.Controllers
+{
+    public class TestController : Controller
+    {
+        private kongyadbEntities db = new kongyadbEntities();
+        private ApplicationDbContext mesdb = new ApplicationDbContext();
+        
+        // GET: Test
+        public ActionResult Index()
+        {
+
+            return View();
+        }
+
+        public ActionResult printTest()
+        {
+
+            return View();
+        }
+
+        //public ActionResult b_a_list()   //没老化就包装
+        //{
+        //    string ordernum = "2018-YA403-4";
+        //    var list = mesdb.BarCodes.Where(c => c.OrderNum == ordernum).ToList();
+        //    List<string> barcodeslist = new List<string>();
+        //    var appearancefinistlist = mesdb.Appearance.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+        //    var burn_in = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+        //    var result = appearancefinistlist.Except(burn_in).ToList();
+        //    ViewBag.resultlist = result;
+        //    return View(result);
+        //}
+
+        public ActionResult b_a_list()   //老化未完成　就校正
+        {
+            string ordernum = "2018-YA403-4";
+            var list = mesdb.BarCodes.Where(c => c.OrderNum == ordernum).ToList();
+            List<string> barcodeslist = mesdb.BarCodes.Where(c=>c.OrderNum==ordernum).Select(c=>c.BarCodesNum).ToList();
+            //var appearancefinistlist = mesdb.Appearance.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+            //老化已完成
+            var burn_infinish = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).OrderBy(c=>c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+            //老化未开始
+            var burn_in_nverebegin = barcodeslist.Except(mesdb.Burn_in.Where(c=>c.OrderNum==ordernum).Select(c=>c.BarCodesNum).ToList()).ToList();
+            //老化正在进行，未完成217个
+            var burn_in_neverfinish = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == false).OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+
+            //校正完成
+            var calibrationlist=mesdb.CalibrationRecord.Where(c => c.OrderNum == ordernum && c.Normal==true).OrderBy(c => c.BarCodesNum).Select(c => c.BarCodesNum).ToList();
+
+            //校正除去老化已完成
+            var result = calibrationlist.Except(burn_infinish).Except(burn_in_nverebegin).ToList();//38个
+
+            //result = result.Intersect(burn_in_nverebegin).ToList();
+            //for (int i=0;i< result.Count; i++)
+            //{
+            //    var tem = result[i];
+            //    if (mesdb.CalibrationRecord.Where(c => c.BarCodesNum == tem).Count() == 0)
+            //    {
+            //        result.RemoveAt(i);
+            //    }
+            //}
+            ViewBag.burn_in_finish = burn_infinish;
+            ViewBag.calibrationlist = calibrationlist;
+            ViewBag.burn_in_neverfinish = burn_in_neverfinish;
+            ViewBag.resultlist = result;
+            return View(result);
+        }
+
+
+        [HttpPost]
+        public ActionResult b_a_list(string ordernum)
+        {
+            var list = mesdb.BarCodes.Where(c => c.OrderNum == ordernum).ToList();
+            List<string> barcodeslist = new List<string>();
+            var appearancefinistlist = mesdb.Appearance.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish==true).Select(c => c.BarCodesNum).ToList();
+            var burn_in = mesdb.Burn_in.Where(c => c.OrderNum == ordernum && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+            var result = appearancefinistlist.Except(burn_in).ToList();
+            ViewBag.resultlist = result;
+            return View(result);
+        }
+
+
+        public ActionResult CSVtest()
+        {
+
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult CSVtest(Array file)
+        {
+
+            return View();
+        }
+
+
+        [HttpPost]
+        public ActionResult Index(string jsondata)   //接收jsondata
+        {
+            CalibrationRecord data = JsonConvert.DeserializeObject<CalibrationRecord>(jsondata);   //使用JsonConvert.DeserializeObject<类名>（字符串）来把传过来的字符串解析为对应的类
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult ElectVal()   //接收jsondata
+        {
+            var value = db.aircomp3.OrderByDescending(c => c.recordingTime).FirstOrDefault().current_u.ToString();
+            return Content(value);
+        }
+
+
+        [HttpPost]
+        public ActionResult HTChartsLeft(string point, DateTime left)
+        {
+            IQueryable<THhistory> queryRecords = null;
+
+            queryRecords = (from m in db.THhistory
+                            where (m.DeviceID == "40004493" && m.NodeID == "1" && m.RecordTime < left)
+                            orderby m.id descending
+                            select m).Take(100).OrderBy(m => m.RecordTime);
+            if (queryRecords.Count() == 0)
+            {
+                return Content("无数据");
+            }
+            ViewBag.Station = queryRecords.FirstOrDefault().DeviceName;
+            queryRecords.Select(m => new { m.id, m.DeviceID, m.NodeID, m.Tem, m.Hum, m.RecordTime, m.DeviceName });
+
+            #region ---------------将对象转为列矩阵JSON
+            List<Double> TemList = new List<double>();
+            List<Double> HumList = new List<double>();
+            List<DateTime> RecordTimeList = new List<DateTime>();
+            foreach (var firstRecord in queryRecords)
+            {
+                TemList.Add(Convert.ToDouble(firstRecord.Tem));
+                HumList.Add(Convert.ToDouble(firstRecord.Hum));
+                RecordTimeList.Add(Convert.ToDateTime(firstRecord.RecordTime));
+            }
+            var iso = new Newtonsoft.Json.Converters.IsoDateTimeConverter();
+            iso.DateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+
+            JObject queryJsonObj = new JObject
+            {
+                { "Tem", JsonConvert.SerializeObject(TemList) },
+                { "Hum", JsonConvert.SerializeObject(HumList) },
+                { "RecordTime", JsonConvert.SerializeObject(RecordTimeList,iso).Replace("\"","")},
+            };   //创建JSON对象
+            #endregion
+
+            ViewData["queryJsonObj"] = queryJsonObj;  //输出JSON
+            return Content(JsonConvert.SerializeObject(queryJsonObj));
+        }
+
+
+        //框架输出
+        [HttpPost]
+        public ActionResult Framework()
+        {
+            var result = new JObject();
+            result.Add("All", "All");
+            var All = Find_list("All");
+            if(All.Count>0)
+            {
+                result["All"]= Foreach_iterator(All);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //查询
+        public List<string> Find_list(string str)
+        {
+            var result = mesdb.Tests.Where(c => c.OrderNum == str).Select(c => c.JobContent).ToList();
+            return result;
+        }
+
+        //迭代器
+        public JObject Foreach_iterator(List<string> list_str)
+        {
+            var result = new JObject();
+            if (list_str.Count>0)
+            {
+                var obj_result = new JObject();
+                foreach(var i in list_str)
+                {
+                    obj_result.Add(i,i);
+                    if(Find_list(i).Count>0)
+                    {
+                        obj_result[i] = Foreach_iterator(Find_list(i));
+                    }
+                }
+                return obj_result;
+            }
+            else return result;
+        }
+    }
+}

@@ -1,0 +1,859 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class PackagingsController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        //// GET: Packagings
+        //public async Task<ActionResult> Index()
+        //{
+        //    return View(await db.Packaging.ToListAsync());
+        //}
+        #region 原代码
+
+        //#region -------包装首页---------
+
+        //// GET: Packagings
+        //public async Task<ActionResult> Index()
+        //{
+        //    ViewBag.Display = "display:none";//隐藏View基本情况信息
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+        //    return View(await db.Packaging.ToListAsync());
+        //}
+
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public ActionResult Index(string OrderNum, string searchString, int PageIndex = 0)
+        //{
+        //    var AllPackagingRecords = db.Packaging as IQueryable<Packaging>;
+        //    List<Packaging> AllPackagingRecordsList = null;
+        //    if (String.IsNullOrEmpty(OrderNum))
+        //    {
+        //        //调出全部记录      
+        //        AllPackagingRecords = from m in db.Packaging
+        //                              select m;
+        //    }
+        //    else
+        //    {
+        //        //筛选出对应orderNum所有记录
+        //        AllPackagingRecords = from m in db.Packaging
+        //                              where (m.OrderNum == OrderNum)
+        //                               select m;
+        //    }
+        //    //检查orderNum和searchString是否为空
+        //    if (!String.IsNullOrEmpty(searchString))
+        //    {   //从调出的记录中筛选含searchString内容的记录
+        //        AllPackagingRecords = AllPackagingRecords.Where(m => m.OrderNum.Contains(searchString));
+        //    }
+
+        //    //取出对应orderNum包装时长所有记录
+        //    IQueryable<TimeSpan?> TimeSpanList = from m in db.Packaging
+        //                                         where (m.OrderNum == OrderNum)
+        //                                         orderby m.OQCCheckTime
+        //                                         select m.OQCCheckTime;
+        //    //计算外观电检总时长
+        //    TimeSpan TotalTimeSpan = DateTime.Now - DateTime.Now;
+        //    if (AllPackagingRecords.Where(x => x.Packaging_OQCCheckAbnormal == 1).Count() != 0)    //Packaging_OQCCheckAbnormal的值是1为正常
+        //    {
+        //        foreach (var m in TimeSpanList)
+        //        {
+        //            if (m != null)
+        //            {
+        //                TotalTimeSpan = TotalTimeSpan.Add(m.Value).Duration();
+        //            }
+        //        }
+        //        ViewBag.TotalTimeSpan = TotalTimeSpan.Hours.ToString() + "小时" + TotalTimeSpan.Minutes.ToString() + "分" + TotalTimeSpan.Seconds.ToString() + "秒";
+        //    }
+        //    else
+        //    {
+        //        ViewBag.TotalTimeSpan = "暂时没有已完成包装的模组";
+        //    }
+
+        //    //计算平均用时
+        //    TimeSpan AvgTimeSpan = DateTime.Now - DateTime.Now;
+        //    int Order_CR_valid_Count = AllPackagingRecords.Where(x => x.OQCCheckTime != null).Count();
+        //    int TotalTimeSpanSecond = Convert.ToInt32(TotalTimeSpan.Hours.ToString()) * 3600 + Convert.ToInt32(TotalTimeSpan.Minutes.ToString()) * 60 + Convert.ToInt32(TotalTimeSpan.Seconds.ToString());
+        //    int AvgTimeSpanInSecond = 0;
+        //    if (Order_CR_valid_Count != 0)
+        //    {
+        //        AvgTimeSpanInSecond = TotalTimeSpanSecond / Order_CR_valid_Count;
+        //        int AvgTimeSpanMinute = AvgTimeSpanInSecond / 60;
+        //        int AvgTimeSpanSecond = AvgTimeSpanInSecond % 60;
+        //        ViewBag.AvgTimeSpan = AvgTimeSpanMinute + "分" + AvgTimeSpanSecond + "秒";//向View传递计算平均用时
+        //    }
+        //    else
+        //    {
+        //        ViewBag.AvgTimeSpan = "暂时没有已完成包装的模组";//向View传递计算平均用时
+        //    }
+
+        //    //列出记录
+        //    AllPackagingRecordsList = AllPackagingRecords.ToList();
+        //    //统计包装结果正常的模组数量
+        //    var Order_CR_Normal_Count = AllPackagingRecords.Where(x => x.Packaging_OQCCheckAbnormal == 1).Count();
+        //    var Abnormal_Count = AllPackagingRecords.Where(x => x.Packaging_OQCCheckAbnormal != 1).Count();
+        //    //读出订单中模组总数量
+        //    var Order_MG_Quantity = (from m in db.OrderMgm
+        //                             where (m.OrderNum == OrderNum)
+        //                             select m.Boxes).FirstOrDefault();
+        //    //将模组总数量、正常的模组数量、未完成包装模组数量、订单号信息传递到View页面
+        //    ViewBag.Quantity = Order_MG_Quantity;
+        //    ViewBag.NormalCount = Order_CR_Normal_Count;
+        //    ViewBag.AbnormalCount = Abnormal_Count;
+        //    ViewBag.RecordCount = AllPackagingRecords.Count();
+        //    ViewBag.NeverFinish = Order_MG_Quantity - Order_CR_Normal_Count;
+        //    ViewBag.orderNum = OrderNum;
+
+        //    //未选择订单时隐藏基本信息设置
+        //    if (ViewBag.Quantity == 0)
+        //    { ViewBag.Display = "display:none"; }
+        //    else { ViewBag.Display = "display:normal"; }
+
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
+
+        //    //分页计算功能
+        //    var recordCount = AllPackagingRecords.Count();
+        //    var pageCount = GetPageCount(recordCount);
+        //    if (PageIndex >= pageCount && pageCount >= 1)
+        //    {
+        //        PageIndex = pageCount - 1;
+        //    }
+        //    AllPackagingRecords = AllPackagingRecords.OrderByDescending(m => m.OQCCheckBT)
+        //                        .Skip(PageIndex * PAGE_SIZE)
+        //                        .Take(PAGE_SIZE);
+        //    ViewBag.PageIndex = PageIndex;
+        //    ViewBag.PageCount = pageCount;
+        //    ViewBag.OrderNumList = GetOrderNumList();
+
+        //    return View(AllPackagingRecordsList);
+        //}
+
+        //#endregion
+
+
+        //// GET: Packagings/Details/5
+        //public async Task<ActionResult> Details(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packaging packaging = await db.Packaging.FindAsync(id);
+        //    if (packaging == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packaging);
+        //}
+
+        //// GET: Packagings/Create
+        //public ActionResult Create()
+        //{
+        //    return View();
+        //}
+
+        //// POST: Packagings/Create
+        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        //// 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> Create([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Packaging_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Packaging packaging)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Packaging.Add(packaging);
+        //        await db.SaveChangesAsync();
+        //        return RedirectToAction("Index");
+        //    }
+
+        //    return View(packaging);
+        //}
+
+        //// GET: Packagings/Edit/5
+        //public async Task<ActionResult> Edit(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packaging packaging = await db.Packaging.FindAsync(id);
+        //    if (packaging == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packaging);
+        //}
+
+        //// POST: Packagings/Edit/5
+        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        //// 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> Edit([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Packaging_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Packaging packaging)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Entry(packaging).State = EntityState.Modified;
+        //        await db.SaveChangesAsync();
+        //        return RedirectToAction("Index");
+        //    }
+        //    return View(packaging);
+        //}
+
+        //// GET: Packagings/Delete/5
+        //public async Task<ActionResult> Delete(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packaging packaging = await db.Packaging.FindAsync(id);
+        //    if (packaging == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packaging);
+        //}
+
+        //// POST: Packagings/Delete/5
+        //[HttpPost, ActionName("Delete")]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> DeleteConfirmed(int id)
+        //{
+        //    Packaging packaging = await db.Packaging.FindAsync(id);
+        //    db.Packaging.Remove(packaging);
+        //    await db.SaveChangesAsync();
+        //    return RedirectToAction("Index");
+        //}
+
+        //protected override void Dispose(bool disposing)
+        //{
+        //    if (disposing)
+        //    {
+        //        db.Dispose();
+        //    }
+        //    base.Dispose(disposing);
+        //}
+
+
+        //#region ----------包装开始-----------------
+
+
+        //// GET: Packagings/Packaging_B
+        //public ActionResult Packaging_B()
+        //{
+        //    if (Session["User"] == null)
+        //    {
+        //        return RedirectToAction("Login", "Users", new { col = "Packagings", act = "Packaging_B" });
+        //    }
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+        //    return View();
+        //}
+
+        //// POST: Packaging/Create
+        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        //// 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> Packaging_B([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Packaging_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Packaging Packaging)
+        //{
+        //    if (Session["User"] == null)
+        //    {
+        //        return RedirectToAction("Login", "Users" ,new { col = "Packagings", act = "Packaging_B" });
+        //    }
+        //    Packaging.OQCCheckBT = DateTime.Now;
+
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+
+        //    if (ModelState.IsValid)
+        //    {
+        //        //Burn_in burn_incheck = await db.Burn_in.FindAsync(burn_in.BarCodesNum);
+
+        //        //if (burn_incheck==null)
+        //        //{ 
+        //        //db.Burn_in.Add(burn_in);
+        //        //await db.SaveChangesAsync();
+        //        //return RedirectToAction("Burn_in_F", new { id = burn_in.Id });
+        //        ////return RedirectToAction("Index");
+        //        // }
+        //        //else
+        //        //{
+        //        //    return RedirectToAction("Burn_in_F", new { id = burn_incheck.Id });
+        //        //}
+        //        db.Packaging.Add(Packaging);
+        //        await db.SaveChangesAsync();
+        //        return RedirectToAction("Packaging_F", new { id = Packaging.Id });
+        //    }
+        //    return View(Packaging);
+        //}
+        //#endregion
+
+
+        //#region ------------包装完成------------
+        //// GET: Packagings/Packaging_F
+        //public ActionResult Packaging_F(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packaging packaging = db.Packaging.Find(id);
+        //    if (packaging == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packaging);
+        //}
+
+        //// POST: Packagings/Packaging_F
+        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        //// 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<ActionResult> Packaging_F([Bind(Include = "Id,OrderNum,BarCodesNum,OQCCheckBT,OQCPrincipal,OQCCheckFT,OQCCheckTime,OQCCheckTimeSpan,Packaging_OQCCheckAbnormal,RepairCondition,OQCCheckFinish")] Packaging Packaging)
+        //{
+        //    if (Session["User"] == null)
+        //    {
+        //        return RedirectToAction("Login", "Users", new { col = "Packagings", act = "Packaging_F"+"/"+Packaging.Id.ToString() });
+        //    }
+        //    if (Packaging.OQCCheckFT == null)
+        //    {
+        //        Packaging.OQCCheckFT = DateTime.Now;
+        //        Packaging.OQCPrincipal = ((Users)Session["User"]).UserName;
+        //        var BT = Packaging.OQCCheckBT.Value;
+        //        var FT = Packaging.OQCCheckFT.Value;
+        //        var CT = FT - BT;
+        //        Packaging.OQCCheckTime = CT;
+        //        Packaging.OQCCheckTimeSpan = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+        //        Packaging.OQCCheckFinish = true;
+        //    }
+
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Entry(Packaging).State = EntityState.Modified;
+        //        await db.SaveChangesAsync();
+        //        return RedirectToAction("Packaging_B");
+        //    }
+        //    ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+        //    return View(Packaging);
+        //}
+
+        //#endregion
+
+
+
+        //#region ------------------ 取出整个OrderMgms的OrderNum订单号列表.--------------------------------------------------
+        //private List<SelectListItem> GetOrderList()
+        //{
+        //    var orders = db.OrderMgm.OrderByDescending(m => m.OrderCreateDate).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+        //    var items = new List<SelectListItem>();
+        //    foreach (string order in orders)
+        //    {
+        //        items.Add(new SelectListItem
+        //        {
+        //            Text = order,
+        //            Value = order
+        //        });
+        //    }
+        //    return items;
+        //}
+        ////----------------------------------------------------------------------------------------
+        //#endregion
+
+        //#region  -------------检索订单号------
+        //private List<SelectListItem> GetOrderNumList()
+        //{
+        //    var ordernum = db.OrderMgm.OrderBy(m => m.OrderNum).Select(m => m.OrderNum).Distinct();
+
+        //    var ordernumitems = new List<SelectListItem>();
+        //    foreach (string num in ordernum)
+        //    {
+        //        ordernumitems.Add(new SelectListItem
+        //        {
+        //            Text = num,
+        //            Value = num
+        //        });
+        //    }
+        //    return ordernumitems;
+        //}
+        //#endregion
+
+        //#region  -----------分页------------
+        //private static readonly int PAGE_SIZE = 10;
+
+        //private int GetPageCount(int recordCount)
+        //{
+        //    int pageCount = recordCount / PAGE_SIZE;
+        //    if (recordCount % PAGE_SIZE != 0)
+        //    {
+        //        pageCount += 1;
+        //    }
+        //    return pageCount;
+        //}
+        //#endregion
+        #endregion
+
+
+        public ActionResult Index1()
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            return View(db.Packing_BasicInfo.ToList());
+        }
+
+        //添加包装基本信息,除了尾箱，一个订单的包装类型的信息应该只有一条
+        [HttpPost]
+        public ActionResult CreatePacking(List<Packing_BasicInfo> packinginfo)
+        {
+            //先删除原有的
+            var ordernum = packinginfo.Select(c => c.OrderNum).FirstOrDefault();
+            var list = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();
+            db.Packing_BasicInfo.RemoveRange(list);
+            db.SaveChanges();
+            //生成新的
+            if (ModelState.IsValid)
+            {
+                db.Packing_BasicInfo.AddRange(packinginfo);
+                db.SaveChanges();
+            }
+
+            return View();
+        }
+
+        //根据给的订单号，显示包装信息
+        public ActionResult GetValueFromOrderNum(string ordernum)
+        {
+            JObject valueitem = new JObject();
+            JObject value = new JObject();
+            var packingList = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();
+            if (packingList == null)
+            {
+                return Content("");
+            }
+            int i = 0;
+            foreach (var item in packingList)
+            {
+                valueitem.Add("packingType", item.Type);
+                valueitem.Add("itemNum", item.OuterBoxCapacity);
+                valueitem.Add("Num", item.Quantity);
+                value.Add(i.ToString(), valueitem);
+                i++;
+                valueitem = new JObject();
+            }
+            return Content(JsonConvert.SerializeObject(value));
+        }
+
+        //打印条码界面，显示完成数量
+        public ActionResult GetcompleteInfo(string ordernum, string type)
+        {
+            JObject info = new JObject();
+            var printBarcode = db.Packing_BarCodePrinting.Count(c => c.OrderNum == ordernum && c.Type == type);
+            var typeNum = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == type).ToList();
+            double totalNum = 0;
+            foreach (var item in typeNum)
+            {
+                totalNum = item.Quantity * item.OuterBoxCapacity;
+            }
+            //完成数量
+            info.Add("completeNum", printBarcode);
+            //未完成数量
+            info.Add("uncompleteNum", totalNum - printBarcode);
+            //完成率
+            info.Add("complete", totalNum == 0 ? 0 : printBarcode / totalNum);
+            return Content(JsonConvert.SerializeObject(info));
+        }
+
+        //打印条码，通过输入订单号和包装类型，传出数量
+        public int GetNum(string ordernum, string type)
+        {
+            var printBarcode = db.Packing_BarCodePrinting.Count(c => c.OrderNum == ordernum && c.Type == type);
+            var typeNum = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == type).ToList();
+            //没有在订单中找到此包装类型
+            if (typeNum.Count == 0)
+            {
+                return 0;
+            }
+            //如果只有一条数据，说明此订单没有选择此包箱类型做尾箱
+            else
+            {
+                if (typeNum.Count == 1)
+                {
+                    var num = typeNum.FirstOrDefault().Quantity;
+                    var boxnum = typeNum.FirstOrDefault().OuterBoxCapacity;
+                    //查看打印的条码数是否超过定义数
+                    if (printBarcode < (num * boxnum))
+                    {
+                        return num;
+                    }
+                    else
+                        return 0;
+                }
+                //如果有2条数据，说明此订单选择此包箱类型做尾箱
+                if (typeNum.Count == 2)
+                {
+                    var numMin = typeNum.Min(c => c.Quantity);
+                    var numMax = typeNum.Max(c => c.Quantity);
+                    var boxnumMin = typeNum.Where(c => c.Quantity == numMin).FirstOrDefault().OuterBoxCapacity;
+                    var boxnumMax = typeNum.Where(c => c.Quantity == numMax).FirstOrDefault().OuterBoxCapacity;
+                    //整箱没打印完，先打印整箱
+                    if (printBarcode < numMax * boxnumMax)
+                    {
+                        return numMax;
+                    }
+                    //整箱打印完，尾箱没打印
+                    else if (printBarcode < ((numMax * boxnumMax) + numMin * boxnumMin))
+                    {
+                        return numMin;
+                    }
+                    //已经打印完了
+                    else
+                        return 0;
+                }
+            }
+            return 0;
+        }
+
+        //外箱条码标签信息
+        public void GetOuterBoxBarCodeInfo(string ordernum, List<string> modelBoxNum)
+        {
+            //得到订单总的箱体数
+            var OuterBoxCapacity = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).Select(c => c.OuterBoxCapacity).ToList();
+            var count = OuterBoxCapacity.Sum();
+            //已经打印的箱体数
+            var printCount = db.Packing_BarCodePrinting.Count(c => c.OrderNum == ordernum);
+            if (printCount < count)
+            {
+
+                JObject info = new JObject();
+                #region 外箱条码生成
+                string[] str = ordernum.Split('-');
+                string start = str[0].Substring(2);
+                string Num = (printCount + 1).ToString().PadLeft(3, '0');
+                #endregion
+
+                //外箱条码
+                info.Add("boxNum", start + str[1] + str[2] + "-" + Num);
+                //SN/TN
+                info.Add("SNTN", printCount + 1 + "/" + OuterBoxCapacity);
+                //数量QTY
+                info.Add("QTY", modelBoxNum.Count());
+
+
+            }
+            else
+            {
+
+            }
+
+        }
+
+        //外箱条码生产
+        public string GetOuterBoxBarCode(string ordernum)
+        {
+            string[] str = ordernum.Split('-');
+            string start = str[0].Substring(2);
+            //得到订单总的箱体数
+            var OuterBoxCapacity = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).Select(c => c.OuterBoxCapacity).ToList();
+            var count = OuterBoxCapacity.Sum();
+            //已经打印的箱体数
+            var printCount = db.Packing_BarCodePrinting.Count(c => c.OrderNum == ordernum);
+
+            string Num = (count - printCount).ToString().PadLeft(3, '0');
+            return start + str[1] + str[2] + "-" + Num;
+        }
+
+        //通过订单，显示里面的箱体号
+        public List<string> BoxNum(string ordernum)
+        {
+            var boxNum = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum).Select(c => c.ModuleGroupNum).ToList();
+            if (boxNum.Count != 0)
+            {
+                return boxNum;
+            }
+            return null;
+        }
+
+        //外箱条码OQC确认
+        public void CheckOQC(string ordernum)
+        {
+            var list = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum).ToList();
+            if (list.Count != 0)
+            {
+                foreach (var item in list)
+                {
+                    item.QC_Operator = ((Users)Session["User"]).UserName;
+                    item.QC_ComfirmDate = DateTime.Now;
+                    db.SaveChangesAsync();
+                }
+
+            }
+        }
+
+        //外箱入库录入
+        public void CretecWarehouseInfo(string ordernum, string warehouseNum, string boxbarcode)
+        {
+
+            if (string.IsNullOrEmpty(ordernum) || string.IsNullOrEmpty(warehouseNum) || string.IsNullOrEmpty(boxbarcode))
+            {
+
+            }
+            var barcodeList = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.OuterBoxBarcode == boxbarcode).ToList();
+            foreach (var item in barcodeList)
+            {
+                Warehouse_Join join = new Warehouse_Join() { OrderNum = ordernum, BarCodeNum = item.BarCodeNum, ModuleGroupNum = item.ModuleGroupNum, OuterBoxBarcode = boxbarcode, Operator = ((Users)Session["User"]).UserName, Date = DateTime.Now };
+                db.Warehouse_Join.Add(join);
+                db.SaveChangesAsync();
+            }
+
+        }
+
+        //外箱入库OQC确认
+        public void CheckWarehouseOQC(string ordernum)
+        {
+            var list = db.Warehouse_Join.Where(c => c.OrderNum == ordernum).ToList();
+            if (list.Count != 0)
+            {
+                foreach (var item in list)
+                {
+                    item.QC_Operator = ((Users)Session["User"]).UserName;
+                    item.QC_ComfirmDate = DateTime.Now;
+                    db.SaveChangesAsync();
+                }
+
+            }
+        }
+
+        //出库信息记录
+        public void WarehouseOut(string ordernum, List<string> barcode)
+        {
+            foreach (var item in barcode)
+            {
+                var info = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.BarCodeNum == item).FirstOrDefault();
+                if (info != null)
+                {
+
+                }
+            }
+        }
+        //录入包装基本信息的订单列表
+        private ActionResult GetOrderList()
+        {
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        //获得录入基本包装信息的订单列表
+        private ActionResult GetPackagingOrderList()
+        {
+            var orders = db.Packing_BasicInfo.OrderByDescending(m => m.Id).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        //获得打印条码的订单列表
+        private ActionResult GetPrintOrderList()
+        {
+            var orders = db.Packing_BarCodePrinting.Where(c => c.QC_Operator != null).OrderByDescending(m => m.Id).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        //获得包装类型
+        public ActionResult GetBoxType(string ordernum)
+        {
+            var orders = db.Packing_BasicInfo.Where(c => c.OrderNum ==ordernum).Select(m => m.Type).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #region 暂时不用的
+        // GET: Packing_BasicInfo/Details/5
+        //public ActionResult Details(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packing_BasicInfo packing_BasicInfo = db.Packing_BasicInfo.Find(id);
+        //    if (packing_BasicInfo == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packing_BasicInfo);
+        //}
+
+        //// GET: Packing_BasicInfo/Create
+        //public ActionResult Create()
+        //{
+        //    return View();
+        //}
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public ActionResult Create([Bind(Include = "Id,OrderNum,Type,OuterBoxCapacity,Quantity,Creator,CreateDate,Remark")] Packing_BasicInfo packing_BasicInfo)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Packing_BasicInfo.Add(packing_BasicInfo);
+        //        db.SaveChanges();
+        //        return RedirectToAction("Index");
+        //    }
+
+        //    return View(packing_BasicInfo);
+        //}
+
+        //// GET: Packing_BasicInfo/Edit/5
+        //public ActionResult Edit(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packing_BasicInfo packing_BasicInfo = db.Packing_BasicInfo.Find(id);
+        //    if (packing_BasicInfo == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packing_BasicInfo);
+        //}
+
+        //// POST: Packing_BasicInfo/Edit/5
+        //// 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        //// 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public ActionResult Edit([Bind(Include = "Id,OrderNum,Type,OuterBoxCapacity,Quantity,Creator,CreateDate,Remark")] Packing_BasicInfo packing_BasicInfo)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        db.Entry(packing_BasicInfo).State = EntityState.Modified;
+        //        db.SaveChanges();
+        //        return RedirectToAction("Index");
+        //    }
+        //    return View(packing_BasicInfo);
+        //}
+
+        //// GET: Packing_BasicInfo/Delete/5
+        //public ActionResult Delete(int? id)
+        //{
+        //    if (id == null)
+        //    {
+        //        return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+        //    }
+        //    Packing_BasicInfo packing_BasicInfo = db.Packing_BasicInfo.Find(id);
+        //    if (packing_BasicInfo == null)
+        //    {
+        //        return HttpNotFound();
+        //    }
+        //    return View(packing_BasicInfo);
+        //}
+
+        //// POST: Packing_BasicInfo/Delete/5
+        //[HttpPost, ActionName("Delete")]
+        //[ValidateAntiForgeryToken]
+        //public ActionResult DeleteConfirmed(int id)
+        //{
+        //    Packing_BasicInfo packing_BasicInfo = db.Packing_BasicInfo.Find(id);
+        //    db.Packing_BasicInfo.Remove(packing_BasicInfo);
+        //    db.SaveChanges();
+        //    return RedirectToAction("Index");
+        //}
+
+        //protected override void Dispose(bool disposing)
+        //{
+        //    if (disposing)
+        //    {
+        //        db.Dispose();
+        //    }
+        //    base.Dispose(disposing);
+        //}
+
+        #endregion
+
+
+        public ActionResult inputPackaging()
+        {
+            ViewBag.OrderList = GetOrderList();//向View传递OrderNum订单号列表.
+            return View();
+        }
+
+        public ActionResult insidePrint()
+        {
+            return View();
+        }
+
+        public ActionResult insideConfirm()
+        {
+            return View();
+        }
+
+        public ActionResult outsideBinningPrint()
+        {
+            return View();
+        }
+        public ActionResult outsideConfirm()
+        {
+            return View();
+        }
+
+        public ActionResult inStockConfirm()
+        {
+            return View();
+        }
+
+        public ActionResult PingZhioutStockConfirm()
+        {
+            return View();
+        }
+
+        public ActionResult stockNumEdit()
+        {
+            return View();
+        }
+
+        public ActionResult board()
+        {
+            return View();
+        }
+
+        public ActionResult outStockConfirm()
+        {
+            return View();
+        }
+    }
+
+
+}
