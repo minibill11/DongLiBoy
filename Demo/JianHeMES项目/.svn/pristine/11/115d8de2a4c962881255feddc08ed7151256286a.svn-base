@@ -1,0 +1,744 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using System.Text;
+using System.IO;
+using System.Drawing;
+using System.Drawing.Printing;
+using System.Runtime.InteropServices;
+using System.Drawing.Imaging;
+using static System.Net.Mime.MediaTypeNames;
+
+namespace JianHeMES.Controllers
+{
+    public class LablePrintController : Controller
+    {
+        // GET: LablePrint
+        public ActionResult Index()
+        {
+            return View();
+        }
+    }
+
+    public class BarCode
+    {
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public class DOCINFOA
+        {
+            [MarshalAs(UnmanagedType.LPStr)]
+            public string pDocName;
+            [MarshalAs(UnmanagedType.LPStr)]
+            public string pOutputFile;
+            [MarshalAs(UnmanagedType.LPStr)]
+            public string pDataType;
+        }
+        [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+
+        [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool ClosePrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+
+        [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool EndDocPrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool StartPagePrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool EndPagePrinter(IntPtr hPrinter);
+
+        [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
+
+
+        // When the function is given a printer name and an unmanaged array
+        // of bytes, the function sends those bytes to the print queue.
+        // Returns true on success, false on failure.
+
+
+        [HttpPost]
+        public static bool SendBytesToPrinter(string szPrinterName, IntPtr pBytes, Int32 dwCount)
+        {
+            Int32 dwError = 0, dwWritten = 0;
+            IntPtr hPrinter = new IntPtr(0);
+            DOCINFOA di = new DOCINFOA();
+            bool bSuccess = false; // Assume failure unless you specifically succeed.
+
+            di.pDocName = "My C#.NET RAW Document";
+            di.pDataType = "RAW";
+
+            // Open the printer.
+            if (OpenPrinter(szPrinterName.Normalize(), out hPrinter, IntPtr.Zero))
+            {
+                // Start a document.
+                if (StartDocPrinter(hPrinter, 1, di))
+                {
+                    // Start a page.
+                    if (StartPagePrinter(hPrinter))
+                    {
+                        // Write your bytes.
+                        bSuccess = WritePrinter(hPrinter, pBytes, dwCount, out dwWritten);
+                        EndPagePrinter(hPrinter);
+                    }
+                    EndDocPrinter(hPrinter);
+                }
+                ClosePrinter(hPrinter);
+            }
+            // If you did not succeed, GetLastError may give more information
+            // about why not.
+            if (bSuccess == false)
+            {
+                dwError = Marshal.GetLastWin32Error();
+            }
+            return bSuccess;
+        }
+
+        [HttpPost]
+        public static bool SendFileToPrinter(string szPrinterName, string szFileName)
+        {
+            // Open the file.
+            FileStream fs = new FileStream(szFileName, FileMode.Open);
+            // Create a BinaryReader on the file.
+            BinaryReader br = new BinaryReader(fs);
+            // Dim an array of bytes big enough to hold the file's contents.
+            Byte[] bytes = new Byte[fs.Length];
+            bool bSuccess = false;
+            // Your unmanaged pointer.
+            IntPtr pUnmanagedBytes = new IntPtr(0);
+            int nLength;
+
+            nLength = Convert.ToInt32(fs.Length);
+            // Read the contents of the file into the array.
+            bytes = br.ReadBytes(nLength);
+            // Allocate some unmanaged memory for those bytes.
+            pUnmanagedBytes = Marshal.AllocCoTaskMem(nLength);
+            // Copy the managed byte array into the unmanaged array.
+            Marshal.Copy(bytes, 0, pUnmanagedBytes, nLength);
+            // Send the unmanaged bytes to the printer.
+            bSuccess = SendBytesToPrinter(szPrinterName, pUnmanagedBytes, nLength);
+            // Free the unmanaged memory that you allocated earlier.
+            Marshal.FreeCoTaskMem(pUnmanagedBytes);
+            return bSuccess;
+        }
+
+        [HttpPost]
+        public static bool SendStringToPrinter(string szPrinterName, string szString)
+        {
+            IntPtr pBytes;
+            Int32 dwCount;
+            // How many characters are in the string?
+            dwCount = szString.Length;
+            // Assume that the printer is expecting ANSI text, and then convert
+            // the string to ANSI text.
+            pBytes = Marshal.StringToCoTaskMemAnsi(szString);
+            // Send the converted ANSI string to the printer.
+            SendBytesToPrinter(szPrinterName, pBytes, dwCount);
+            Marshal.FreeCoTaskMem(pBytes);
+            return true;
+        }
+
+
+
+    }
+
+
+
+
+    /// <summary>
+    /// 斑马工具类,把图像转换成斑马打印机的命令
+    /// </summary>
+    public class ZebraUnity
+    {
+
+        //public void sendzebra()
+        //{
+        //    try
+        //    {
+        //        //开始绘制图片
+        //        int initialWidth = 780, initialHeight = 700;
+        //        Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
+        //        Graphics theGraphics = Graphics.FromImage(theBitmap);
+        //        Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
+        //                                                                //呈现质量
+        //        theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        //        //背景色
+        //        theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+        //        double beishulogo = 1.2;
+        //        double beishuhege = 0.37;
+        //        System.Drawing.Image img = new Bitmap(Application.StartupPath + "\\data\\系统数据\\logo3.png");
+        //        theGraphics.DrawImage(img, 55, 0, (float)(img.Width * beishulogo), (float)(img.Height * beishulogo));
+        //        System.Drawing.Image img2 = new Bitmap(Application.StartupPath + "\\data\\系统数据\\合格.png");
+        //        theGraphics.DrawImage(img2, 500, -25, (float)(img2.Width * beishuhege), (float)(img2.Height * beishuhege));
+        //        System.Drawing.Font myFont;
+        //        myFont = new System.Drawing.Font("宋体", 32, FontStyle.Bold);
+        //        StringFormat geshi = new StringFormat();
+        //        geshi.Alignment = StringAlignment.Center; //居中
+        //                                                  //geshi.Alignment = StringAlignment.Far; //右对齐
+        //        int starty = 135;
+        //        int jianggey = 70;
+
+        //        //Rectangle rect = new Rectangle(0,starty , initialWidth, initialHeight);
+        //        theGraphics.DrawString("品名：" + pdnow.name, myFont, bush, 50, starty);
+        //        theGraphics.DrawString("规格：", myFont, bush, 50, starty + jianggey * 1);
+        //        theGraphics.DrawString("等级：" + cbhege.Text, myFont, bush, 50, starty + jianggey * 2);
+        //        theGraphics.DrawString("检验员：" + tbjyy.Text, myFont, bush, 50, starty + jianggey * 3);
+        //        theGraphics.DrawString("批号：20180722", myFont, bush, 50, starty + jianggey * 4);
+        //        theGraphics.DrawString("浙江金帆达生化股份有限公司", myFont, bush, 50, starty + jianggey * 5);
+        //        System.Drawing.Image img3 = getqrcode("http://www.baidu.com");//传入URL返回二维码image
+        //        theGraphics.DrawImage(img3, 495, 180, (float)(240), (float)(240));
+        //        //结束图片绘制以上都是绘制图片的代码
+
+
+        //        int totalbytes = 64800;
+        //        int rowbytes = 90;
+        //        string hex = ZebraUnity.BitmapToHex(theBitmap, out totalbytes, out rowbytes);//将图片转成ASCii码
+        //        string mubanstring = "~DGR:ZLOGO.GRF," + totalbytes.ToString() + "," + rowbytes.ToString() + "," + hex;//将图片生成模板指令
+        //        readerCamera2.CameraSendMessage(mubanstring);//利用TCP/IP发送模板指令到打印机
+
+
+        //        string otherstring = "^XA^FO0,0^XGR:ZLOGO.GRF,1,1^FS";//调用该模板指令
+        //        otherstring += "^XZ";
+        //        readerCamera2.CameraSendMessage(otherstring);//发送调用模板指令，利用TCP/ip协议发送指令
+        //    }
+        //    catch
+        //    {
+        //        ToolData.WriteLog(lrtxtLog, "发送打印机数据出错", 1);
+        //    }
+        //} 
+
+        #region 定义私有字段
+        /// <summary>
+        /// 线程锁，防止多线程调用。
+        /// </summary>
+        private static object SyncRoot = new object();
+        /// <summary>
+        /// ZPL压缩字典
+        /// </summary>
+        private static List<KeyValuePair<char, int>> compressDictionary = new List<KeyValuePair<char, int>>();
+        #endregion
+
+        #region 构造方法
+
+        static ZebraUnity()
+        {
+            InitCompressCode();
+        }
+
+        #endregion
+
+        #region 定义属性
+        /// <summary>
+        /// 图像的二进制数据
+        /// </summary>
+        public static byte[] GraphBuffer { get; set; }
+        /// <summary>
+        /// 图像的宽度
+        /// </summary>
+        private static int GraphWidth { get; set; }
+        /// <summary>
+        /// 图像的高度
+        /// </summary>
+        private static int GraphHeight { get; set; }
+        private static int RowSize
+        {
+            get
+            {
+                return (((GraphWidth) + 31) >> 5) << 2;
+            }
+        }
+        /// <summary>
+        /// 每行的字节数
+        /// </summary>
+        private static int RowRealBytesCount
+        {
+            get
+            {
+                if ((GraphWidth % 8) > 0)
+                {
+                    return GraphWidth / 8 + 1;
+                }
+                else
+                {
+                    return GraphWidth / 8;
+                }
+            }
+        }
+        #endregion
+
+        #region 位图转斑马指令字符串
+        /// <summary>
+        /// 位图转斑马指令字符串
+        /// </summary>
+        /// <param name="bitmap">位图数据</param>
+        /// <param name="totalBytes">总共的字节数</param>
+        /// <param name="rowBytes">每行的字节数</param>
+        /// <returns>斑马ZPL 2命令</returns>
+        public static string BmpToZpl(byte[] bitmap, out int totalBytes, out int rowBytes)
+        {
+            try
+            {
+                GraphBuffer = bitmap;
+                byte[] bmpData = getBitmapData();
+                string textHex = BitConverter.ToString(bmpData).Replace("-", string.Empty);
+                string textBitmap = CompressLZ77(textHex);
+                totalBytes = GraphHeight * RowRealBytesCount;
+                rowBytes = RowRealBytesCount;
+                return textBitmap;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 位图转ZPL指令
+        /// </summary>
+        /// <param name="bitmap">位图</param>
+        /// <param name="totalBytes">返回参数总共字节数</param>
+        /// <param name="rowBytes">返回参数每行的字节数</param>
+        /// <returns>ZPL命令</returns>
+        public static string BmpToZpl(System.Drawing.Image bitmap, out int totalBytes, out int rowBytes)
+        {
+            using (MemoryStream stream = new MemoryStream())
+            {
+                bitmap.Save(stream, ImageFormat.Bmp);
+                return BmpToZpl(stream.ToArray(), out totalBytes, out rowBytes);
+            }
+        }
+
+        /// <summary>
+        /// 根据图片生成图片的ASCII 十六进制
+        /// </summary>
+        /// <param name="sourceBmp">原始图片</param>
+        /// <param name="totalBytes">总共字节数</param>
+        /// <param name="rowBytes">每行的字节数</param>
+        /// <returns>ASCII 十六进制</returns>
+        public static string BitmapToHex(System.Drawing.Image sourceBmp, out int totalBytes, out int rowBytes)
+        {
+            // 转成单色图
+            Bitmap grayBmp = ConvertToGrayscale(sourceBmp as Bitmap);
+            // 锁定位图数据    
+            Rectangle rect = new Rectangle(0, 0, grayBmp.Width, grayBmp.Height);
+            System.Drawing.Imaging.BitmapData bmpData = grayBmp.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadWrite, grayBmp.PixelFormat);
+            // 获取位图数据第一行的起始地址     
+            IntPtr ptr = bmpData.Scan0;
+            // 定义数组以存放位图的字节流数据      
+            // 处理像素宽对应的字节数，如不为8的倍数，则对最后一个字节补0    
+            int width = (int)Math.Ceiling(grayBmp.Width / 8.0);
+            // 获取位图实际的字节宽，这个值因为要考虑4的倍数关系，可能大于width  
+            int stride = Math.Abs(bmpData.Stride);
+            // 计算位图数据实际所占的字节数，并定义数组      
+            int bitmapDataLength = stride * grayBmp.Height;
+            byte[] ImgData = new byte[bitmapDataLength];
+            // 从位图文件复制图像数据到数组，从实际图像数据的第一行开始；因ptr指针而无需再考虑行倒序存储的处理          
+            System.Runtime.InteropServices.Marshal.Copy(ptr, ImgData, 0, bitmapDataLength);
+            // 计算异或操作数，以处理包含图像数据但又有补0操作的那个字节         
+            byte mask = 0xFF;
+            // 计算这个字节补0的个数       
+            //int offset = 8 * width - grayBmp.Width;
+            int offset = 8 - (grayBmp.Width % 8);
+            //offset %= 8;
+            offset = offset % 8;
+            // 按补0个数对0xFF做相应位数的左移位操作           
+            mask <<= (byte)offset;
+            // 图像反色处理        
+            for (int j = 0; j < grayBmp.Height; j++)
+            {
+                for (int i = 0; i < stride; i++)
+                {
+                    if (i < width - 1) //无补0的图像数据
+                    {
+                        ImgData[j * stride + i] ^= 0xFF;
+                    }
+                    else if (i == width - 1) //有像素的最后一个字节，可能有补0   
+                    {
+                        ImgData[j * stride + i] ^= mask;
+                    }
+                    else  //为满足行字节宽为4的倍数而最后补的字节        
+                    {
+                        //ImgData[j * stride + i] = 0x00;
+                        ImgData[j * stride + i] ^= 0x00;
+                    }
+                }
+            }
+            // 将位图数据转换为16进制的ASCII字符          
+            string zplString = BitConverter.ToString(ImgData);
+            zplString = CompressLZ77(zplString.Replace("-", string.Empty));
+            totalBytes = bitmapDataLength;
+            rowBytes = stride;
+            return zplString;
+        }
+        #endregion
+
+        #region 获取单色位图数据
+        /// <summary>
+        /// 获取单色位图数据
+        /// </summary>
+        /// <param name="pimage"></param>
+        /// <returns></returns>
+        public static Bitmap ConvertToGrayscale(Bitmap pimage)
+        {
+            Bitmap source = null;
+
+            // If original bitmap is not already in 32 BPP, ARGB format, then convert
+            if (pimage.PixelFormat != PixelFormat.Format32bppArgb)
+            {
+                source = new Bitmap(pimage.Width, pimage.Height, PixelFormat.Format32bppArgb);
+                source.SetResolution(pimage.HorizontalResolution, pimage.VerticalResolution);
+                using (Graphics g = Graphics.FromImage(source))
+                {
+                    g.DrawImageUnscaled(pimage, 0, 0);
+                }
+            }
+            else
+            {
+                source = pimage;
+            }
+
+            // Lock source bitmap in memory
+            BitmapData sourceData = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+
+            // Copy image data to binary array
+            int imageSize = sourceData.Stride * sourceData.Height;
+            byte[] sourceBuffer = new byte[imageSize];
+            Marshal.Copy(sourceData.Scan0, sourceBuffer, 0, imageSize);
+
+            // Unlock source bitmap
+            source.UnlockBits(sourceData);
+
+            // Create destination bitmap
+            Bitmap destination = new Bitmap(source.Width, source.Height, PixelFormat.Format1bppIndexed);
+
+            // Lock destination bitmap in memory
+            BitmapData destinationData = destination.LockBits(new Rectangle(0, 0, destination.Width, destination.Height), ImageLockMode.WriteOnly, PixelFormat.Format1bppIndexed);
+
+            // Create destination buffer
+            imageSize = destinationData.Stride * destinationData.Height;
+            byte[] destinationBuffer = new byte[imageSize];
+
+            int sourceIndex = 0;
+            int destinationIndex = 0;
+            int pixelTotal = 0;
+            byte destinationValue = 0;
+            int pixelValue = 128;
+            int height = source.Height;
+            int width = source.Width;
+            int threshold = 500;
+
+            // Iterate lines
+            for (int y = 0; y < height; y++)
+            {
+                sourceIndex = y * sourceData.Stride;
+                destinationIndex = y * destinationData.Stride;
+                destinationValue = 0;
+                pixelValue = 128;
+
+                // Iterate pixels
+                for (int x = 0; x < width; x++)
+                {
+                    // Compute pixel brightness (i.e. total of Red, Green, and Blue values)
+                    pixelTotal = sourceBuffer[sourceIndex + 1] + sourceBuffer[sourceIndex + 2] + sourceBuffer[sourceIndex + 3];
+                    if (pixelTotal > threshold)
+                    {
+                        destinationValue += (byte)pixelValue;
+                    }
+                    if (pixelValue == 1)
+                    {
+                        destinationBuffer[destinationIndex] = destinationValue;
+                        destinationIndex++;
+                        destinationValue = 0;
+                        pixelValue = 128;
+                    }
+                    else
+                    {
+                        pixelValue >>= 1;
+                    }
+                    sourceIndex += 4;
+                }
+                if (pixelValue != 128)
+                {
+                    destinationBuffer[destinationIndex] = destinationValue;
+                }
+            }
+
+            // Copy binary image data to destination bitmap
+            Marshal.Copy(destinationBuffer, 0, destinationData.Scan0, imageSize);
+
+            // Unlock destination bitmap
+            destination.UnlockBits(destinationData);
+
+            // Dispose of source if not originally supplied bitmap
+            if (source != pimage)
+            {
+                source.Dispose();
+            }
+
+            // Return
+            return destination;
+        }
+        /// <summary>
+        /// 获取单色位图数据(1bpp)，不含文件头、信息头、调色板三类数据。
+        /// </summary>
+        /// <returns></returns>
+        private static byte[] getBitmapData()
+        {
+            MemoryStream srcStream = new MemoryStream();
+            MemoryStream dstStream = new MemoryStream();
+            Bitmap srcBmp = null;
+            Bitmap dstBmp = null;
+            byte[] srcBuffer = null;
+            byte[] dstBuffer = null;
+            byte[] result = null;
+            try
+            {
+                srcStream = new MemoryStream(GraphBuffer);
+                srcBmp = Bitmap.FromStream(srcStream) as Bitmap;
+                srcBuffer = srcStream.ToArray();
+                GraphWidth = srcBmp.Width;
+                GraphHeight = srcBmp.Height;
+                //dstBmp = srcBmp.Clone(new Rectangle(0, 0, srcBmp.Width, srcBmp.Height), PixelFormat.Format1bppIndexed);
+                dstBmp = ConvertToGrayscale(srcBmp);
+                dstBmp.Save(dstStream, ImageFormat.Bmp);
+                dstBuffer = dstStream.ToArray();
+
+                result = dstBuffer;
+
+                int bfOffBits = BitConverter.ToInt32(dstBuffer, 10);
+                result = new byte[GraphHeight * RowRealBytesCount];
+
+                ////读取时需要反向读取每行字节实现上下翻转的效果，打印机打印顺序需要这样读取。
+                for (int i = 0; i < GraphHeight; i++)
+                {
+                    int sindex = bfOffBits + (GraphHeight - 1 - i) * RowSize;
+                    int dindex = i * RowRealBytesCount;
+                    Array.Copy(dstBuffer, sindex, result, dindex, RowRealBytesCount);
+                }
+
+                for (int i = 0; i < result.Length; i++)
+                {
+                    result[i] ^= 0xFF;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message, ex);
+            }
+            finally
+            {
+                if (srcStream != null)
+                {
+                    srcStream.Dispose();
+                    srcStream = null;
+                }
+                if (dstStream != null)
+                {
+                    dstStream.Dispose();
+                    dstStream = null;
+                }
+                if (srcBmp != null)
+                {
+                    srcBmp.Dispose();
+                    srcBmp = null;
+                }
+                if (dstBmp != null)
+                {
+                    dstBmp.Dispose();
+                    dstBmp = null;
+                }
+            }
+            return result;
+        }
+        #endregion
+
+        #region LZ77图像字节流压缩方法
+        private static string CompressLZ77(string text)
+        {
+            //将转成16进制的文本进行压缩
+            string result = string.Empty;
+            char[] arrChar = text.ToCharArray();
+            int count = 1;
+            for (int i = 1; i < text.Length; i++)
+            {
+                if (arrChar[i - 1] == arrChar[i])
+                {
+                    count++;
+                }
+                else
+                {
+                    result += convertNumber(count) + arrChar[i - 1];
+                    count = 1;
+                }
+                if (i == text.Length - 1)
+                {
+                    result += convertNumber(count) + arrChar[i];
+                }
+            }
+            return result;
+        }
+
+        private static string DecompressLZ77(string text)
+        {
+            string result = string.Empty;
+            char[] arrChar = text.ToCharArray();
+            int count = 0;
+            for (int i = 0; i < arrChar.Length; i++)
+            {
+                if (isHexChar(arrChar[i]))
+                {
+                    //十六进制值
+                    result += new string(arrChar[i], count == 0 ? 1 : count);
+                    count = 0;
+                }
+                else
+                {
+                    //压缩码
+                    int value = GetCompressValue(arrChar[i]);
+                    count += value;
+                }
+            }
+            return result;
+        }
+
+        private static int GetCompressValue(char c)
+        {
+            int result = 0;
+            for (int i = 0; i < compressDictionary.Count; i++)
+            {
+                if (c == compressDictionary[i].Key)
+                {
+                    result = compressDictionary[i].Value;
+                }
+            }
+            return result;
+        }
+
+        private static bool isHexChar(char c)
+        {
+            return c > 47 && c < 58 || c > 64 && c < 71 || c > 96 && c < 103;
+        }
+
+        private static string convertNumber(int count)
+        {
+            //将连续的数字转换成LZ77压缩代码，如000可用I0表示。
+            string result = string.Empty;
+            if (count > 1)
+            {
+                while (count > 0)
+                {
+                    for (int i = compressDictionary.Count - 1; i >= 0; i--)
+                    {
+                        if (count >= compressDictionary[i].Value)
+                        {
+                            result += compressDictionary[i].Key;
+                            count -= compressDictionary[i].Value;
+                            break;
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        private static void InitCompressCode()
+        {
+            //G H I J K L M N O P Q R S T U V W X Y        对应1,2,3,4……18,19。
+            //g h i j k l m n o p q r s t u v w x y z      对应20,40,60,80……340,360,380,400。            
+            for (int i = 0; i < 19; i++)
+            {
+                compressDictionary.Add(new KeyValuePair<char, int>(Convert.ToChar(71 + i), i + 1));
+            }
+            for (int i = 0; i < 20; i++)
+            {
+                compressDictionary.Add(new KeyValuePair<char, int>(Convert.ToChar(103 + i), (i + 1) * 20));
+            }
+        }
+        #endregion
+
+        private static char[] base64CodeArray = new char[]
+{
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+            '0', '1', '2', '3', '4',  '5', '6', '7', '8', '9', '+', '/', '='
+};
+
+        /// <summary>
+        /// 是否base64字符串
+        /// </summary>
+        /// <param name="base64Str">要判断的字符串</param>
+        /// <returns></returns>
+        public static bool IsBase64(string base64Str)
+        {
+            byte[] bytes = null;
+            return IsBase64(base64Str, out bytes);
+        }
+
+
+        #region C#判断字符串是否base64，及base64转换为Bitmap
+        /// <summary>
+        /// 是否base64字符串
+        /// </summary>
+        /// <param name="base64Str">要判断的字符串</param>
+        /// <param name="bytes">字符串转换成的字节数组</param>
+        /// <returns></returns>
+        public static bool IsBase64(string base64Str, out byte[] bytes)
+        {
+            //string strRegex = "^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$";
+            bytes = null;
+            if (string.IsNullOrEmpty(base64Str))
+                return false;
+            else
+            {
+                if (base64Str.Contains(","))
+                    base64Str = base64Str.Split(',')[1];
+                if (base64Str.Length % 4 != 0)
+                    return false;
+                if (base64Str.Any(c => !base64CodeArray.Contains(c)))
+                    return false;
+            }
+            try
+            {
+                bytes = Convert.FromBase64String(base64Str);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        // <summary>
+        /// 把base64字符串转换成Bitmap
+        /// </summary>
+        /// <param name="base64Str">要转换的base64字符串</param>
+        /// <returns></returns>
+        public static Bitmap Base64ToBitmap(string base64Str)
+        {
+            Bitmap bitmap = null;
+            byte[] bytes = null;
+            try
+            {
+                if (IsBase64(base64Str, out bytes))
+                {
+                    using (MemoryStream stream = new MemoryStream(bytes))
+                    {
+                        stream.Seek(0, SeekOrigin.Begin);//为了避免有时候流指针定位错误，显式定义一下指针位置
+                        bitmap = new Bitmap(stream);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                bitmap = null;
+            }
+            return bitmap;
+        }
+        #endregion
+
+    }
+}

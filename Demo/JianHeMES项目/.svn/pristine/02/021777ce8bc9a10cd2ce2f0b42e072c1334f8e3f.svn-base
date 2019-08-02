@@ -1,0 +1,301 @@
+﻿@{
+    ViewBag.Title = "录入包装箱基本信息";
+}
+@*<script src="~/Scripts/vue.js"></script>*@
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 20px 0 0;
+    }
+
+    .el-input {
+        width: auto;
+    }
+
+    .mesDiv {
+        padding: 5px 0;
+        position: relative;
+        /*border: 1px solid #ccc;*/
+    }
+
+    .mesDiv_div {
+        display: inline-block;
+    }
+
+    .mesDiv_div_mes {
+        position: absolute;
+        left: 690px;
+        width: 100px;
+        font-size: 13px;
+        line-height: 25px;
+        color: #3082e3;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/Packagings/board"><el-button size="small">产值看板</el-button></a>
+                <a href="/Packagings/inputPackaging"><el-button size="small" type="primary" plain disabled style="cursor:default">录入包装箱基本信息</el-button></a>
+                @*<a href="/Packagings/insidePrint"><el-button size="small">内箱标签打印</el-button></a>*@
+                <a href="/Packagings/insideConfirm"><el-button size="small">内箱装箱确认</el-button></a>
+                @*<a href="/Packagings/outsideBinningPrint"><el-button size="small">外箱(重新)装箱和标签打印</el-button></a>
+                    <a href="/Packagings/outsideConfirm"><el-button size="small">外箱装箱确认</el-button></a>
+                            <a href="/Packagings/inStockConfirm"><el-button size="small">外箱入库确认</el-button></a>
+                            <a href="/Packagings/PingZhioutStockConfirm"><el-button size="small">品质外箱入库确认</el-button></a>
+                            <a href="/Packagings/stockNumEdit"><el-button size="small">外箱库位号修改</el-button></a>
+                            <a href="/Packagings/outStockConfirm"><el-button size="small">外箱出库确认</el-button></a>*@
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/Packagings/board"><el-dropdown-item>产值看板</el-dropdown-item></a>
+                        <div href="/Packagings/inputPackaging"><el-dropdown-item disabled>录入包装箱基本信息</el-dropdown-item></div>
+                        @*<a href="/Packagings/insidePrint"><el-dropdown-item>内箱标签打印</el-dropdown-item></a>*@
+                        <a href="/Packagings/insideConfirm"><el-dropdown-item>内箱装箱确认</el-dropdown-item></a>
+                        @*<a href="/Packagings/outsideBinningPrint"><el-dropdown-item>外箱(重新)装箱和标签打印</el-dropdown-item></a>
+                                            <a href="/Packagings/outsideConfirm"><el-dropdown-item>外箱装箱确认</el-dropdown-item></a>
+                            <a href="/Packagings/inStockConfirm"><el-dropdown-item>外箱入库确认</el-dropdown-item></a>
+                            <a href="/Packagings/PingZhioutStockConfirm"><el-dropdown-item>品质外箱入库确认</el-dropdown-item></a>
+                            <a href="/Packagings/stockNumEdit"><el-dropdown-item>外箱库位号修改</el-dropdown-item></a>
+                            <a href="/Packagings/outStockConfirm"><el-dropdown-item>外箱出库确认</el-dropdown-item></a>*@
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main>
+            <div class="text-center" style="width:700px;margin:0 auto;">
+                <div class="text-left" style="padding-left:38px;">
+                    订单号：
+                    <el-select v-model="selectVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in selectOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div style="margin:10px 0;">
+                    <div v-for="(item,index) in dataVal" :key="index">
+                        <div class="mesDiv">
+                            <div class="mesDiv_div">包装箱类型：<el-input placeholder="请输入内容" v-model="item.typeVal" clearable size="mini" :disabled="item.isedit=='false'"></el-input></div>
+                            @*<div class="mesDiv_div" v-if="dataVal.length==(index+1)">&nbsp;&nbsp;&nbsp;尾箱类型：<el-input placeholder="请输入内容" v-model="item.typeVal" clearable size="mini"></el-input></div>*@
+                            <div class="mesDiv_div">每箱件数：<el-input-number size="mini" :min="0" v-model="item.quantity1" :disabled="item.isedit=='false'"></el-input-number></div>
+                            <div class="mesDiv_div">包装箱数量：<el-input-number size="mini" :min="0" v-model="item.quantity2" :disabled="item.isedit=='false'"></el-input-number></div>
+                            <div class="mesDiv_div mesDiv_div_mes" v-show="item.isedit=='false'">此包装箱已打印</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <el-button size="medium" @@click="addrow">添加行</el-button>
+                    <el-button size="medium" @@click="reset">重置</el-button>
+                    <el-button size="medium" @@click="postSubmit">提交</el-button>
+                </div>
+            </div>
+
+        </el-main>
+    </el-container>
+</div>
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectOptions: [],
+            selectVal: '',
+            dataVal:[],
+            userName: "@UserName",
+            screenSize: document.body.clientWidth,
+        },
+        methods: {
+            postSubmit: function () {
+                let tableData = this.dataVal,
+                    order = this.selectVal,
+                    user = this.userName,
+                    packinginfo = [],
+                    oknum=0;
+                for (let i in tableData) {
+                    if (tableData[i].typeVal != "") {
+                        packinginfo.push({
+                            OrderNum: order,
+                            Type: tableData[i].typeVal,
+                            OuterBoxCapacity: tableData[i].quantity1,
+                            Quantity: tableData[i].quantity2,
+                            Creator: user,
+                            CreateDate: new Date(),
+                            Remark: "",
+                        });
+                        oknum++;
+                    };
+                };
+                if (order != "") {
+                    if (oknum != 0) {
+                        axios.post('/Packagings/CreatePacking', packinginfo).then(res => {
+                            if (res.data == "ok") {
+                                this.$alert('录入成功！', {
+                                    confirmButtonText: '确定',
+                                    closeOnClickModal: true,
+                                    closeOnPressEscape: true,
+                                    type: "success",
+                                    callback: () => {
+                                        this.reset();
+                                    }
+                                });
+                            } else {
+                                this.$alert('录入失败！', {
+                                    confirmButtonText: '确定',
+                                    type: "error",
+                                });
+                            };
+                        }).catch(err => {
+                            this.$alert('录入失败！', {
+                                confirmButtonText: '确定',
+                                type: "error",
+                            });
+                        });
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            duration:5000,
+                            message: '包装箱类型不能全为空',
+                            type: 'error'
+                        });
+                    };
+                } else {
+                    this.$message({
+                        showClose: true,
+                        duration: 5000,
+                        message: '订单号不能为空',
+                        type: 'error'
+                    });
+                };
+            },
+            addrow: function () {
+                this.dataVal.push({
+                    typeVal: "",
+                    quantity1: 0,
+                    quantity2: 0,
+                    isedit:"true",
+                });
+            },
+            reset: function () {
+                if (this.selectVal == "") {
+                    this.dataVal = [];
+                    this.initial();
+                } else {
+                    this.set();
+                };
+            },
+            set: function () {
+                if (this.selectVal != "") {
+                    axios.post('/Packagings/GetValueFromOrderNum', { ordernum: this.selectVal }).then(res => {
+                        //console.log(res.data);
+                        let rtdata = res.data, thisrtdata = [];
+                        if (Object.keys(res.data).length >= 6) {
+                            for (let i in rtdata) {
+                                //console.log(rtdata[i]);
+                                thisrtdata.push({
+                                    typeVal: rtdata[i].packingType,
+                                    quantity1: rtdata[i].itemNum,
+                                    quantity2: rtdata[i].Num,
+                                    isedit: rtdata[i].update,
+                                });
+                            };
+                            this.dataVal = thisrtdata;
+                        } else {
+                            let DVal = 6 - Object.keys(res.data).length;
+                            for (let i in rtdata) {
+                                thisrtdata.push({
+                                    typeVal: rtdata[i].packingType,
+                                    quantity1: rtdata[i].itemNum,
+                                    quantity2: rtdata[i].Num,
+                                    isedit: rtdata[i].update,
+                                });
+                            };
+                            for (let i = 0; i < DVal; i++) {
+                                thisrtdata.push({
+                                    typeVal: "",
+                                    quantity1: 0,
+                                    quantity2: 0,
+                                    isedit: "true",
+                                });
+                            };
+                            //console.log(Object.keys(res.data).length);
+                            this.dataVal = thisrtdata;
+                        };
+                    }).catch(err => {
+                        console.warn("获取值失败")
+                    });
+                };
+            },
+            initial: function () {
+                for (let i = 0; i < 6;i++) {
+                    this.dataVal.push({
+                        typeVal: "",
+                        quantity1: 0,
+                        quantity2: 0,
+                        isedit: "true",
+                    });
+                };
+            }
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            this.initial();
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+        },
+        watch: {
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+                this.set();
+            },
+        },
+    });
+</script>

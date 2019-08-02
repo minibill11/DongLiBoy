@@ -1,0 +1,230 @@
+﻿@{
+    ViewBag.Title = "打印测试";
+}
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+<script src="~/Scripts/printJS/html2canvas.min.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+@*<link href="~/Content/styleFile/printStyle.css" rel="stylesheet" />*@
+<style>
+    /*全局样式*/
+    *, body {
+        margin: 0;
+        padding: 0;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-input {
+        max-width: 280px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    /*内箱条码样式*/
+    #innerBarcode {
+        width: 545px;
+        height: 145px;
+    }
+
+    #dd {
+        width: 600px;
+        height: 300px;
+        border: 1px solid red;
+    }
+
+    .mozhu {
+        font-size: 150px;
+        line-height: 150px;
+    }
+
+    #innerCarton {
+        margin: 10px auto;
+        width: 600px;
+        height: 300px;
+    }
+
+    .container, .body-content {
+        width: 1300px !important;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-main>
+            <el-col :span="24">
+                <div class="grid-content textCenter">
+                    <el-row>
+                        <span>模组：</span>
+                        <el-input placeholder="请输入模组号"
+                                  v-model.trim="printMozhu"
+                                  style="text-align:right;display:inline-block;"
+                                  clearable>
+                        </el-input>
+                    </el-row>
+                    <el-row>
+                        <span>条码：</span>
+                        <el-input placeholder="请输入条码号"
+                                  v-model.trim="innerVal"
+                                  style="text-align:right;display:inline-block;"
+                                  onKeyUp="value=value.replace(/[^A-Za-z0-9]/g, '')"
+                                  clearable>
+                        </el-input>
+                    </el-row>
+                    <el-row>
+                        <div id="innerCarton">
+                            <div class="textCenter">
+                                <b class="mozhu">{{printMozhu}}</b>
+                                <div class="innerBarDiv">
+                                    <canvas id="innerBarcode"></canvas>
+                                </div>
+                                @*<svg id="innerBarcode"></svg>
+                                    <canvas id="innerBarcode"></canvas>
+                                    <img id="innerBarcode" />*@
+                            </div>
+                        </div>
+                    </el-row>
+                    <el-row>
+                        <el-button v-on:click="innerImg" type="primary">上传img截图</el-button>
+                        <el-button v-on:click="innerText" type="primary">发送条码模组号</el-button>
+                    </el-row>
+                </div>
+            </el-col>
+            <el-col :span="12" class="text-center">
+                <el-row>
+                    <div style="padding:5px; background: #f5da55">
+                        <h3 style="color: #000; ">截图区</h3>
+                    </div>
+                    <div>
+                        <img id="dd" />
+                    </div>
+                </el-row>
+            </el-col>
+            <el-col :span="12" class="text-center">
+                <el-row>
+                    <div style="padding:5px; background: #f5da55">
+                        <h3 style="color: #000; ">后台返回显示</h3>
+                    </div>
+                    <div>
+                        <img id="cc" />
+                    </div>
+                </el-row>
+            </el-col>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            innerVal: "18AA77701A00008",
+            printMozhu: "1-A08",
+        },
+        watch: {
+            innerVal: (val) => {
+                if (val != "") {
+                    app.setinnerBarDiv(val);
+                } else {
+                    $(".innerBarDiv").html('<svg id="innerBarcode"></svg>');
+                };
+            },
+        },
+        mounted: function () {
+            this.setinnerBarDiv(this.innerVal);
+        },
+        methods: {
+            setinnerBarDiv: (v) => {
+                JsBarcode("#innerBarcode", v.toUpperCase(), {
+                    height: 80, //条形码的高度
+                    fontOptions: "bold",//使文字加粗体或变斜体
+                    format: "CODE128",
+                    font: "monospace",
+                    textAlign: "center",
+                    textMargin: 0,//设置条形码和文本之间的间距
+                    fontSize: 40,//设置文本的大小
+                    lineColor: "#000",//条形码颜色
+                    margin: 0,//设置条形码周围的空白边距
+                    marginTop: 0
+                });
+            },
+            innerImg: () => {
+                html2canvas(document.getElementById("innerCarton"), {
+                    onrendered: function (canvas) {
+                        let url = canvas.toDataURL();//图片地址
+                        document.getElementById("dd").setAttribute("src", url);
+
+                        //var form = $("<form>");   //定义一个form表单
+                        //form.attr('style', 'display:none');   //在form表单中添加查询参数
+                        //form.attr('target', '');
+                        //form.attr('method', 'post');
+                        //form.attr('action', "/Test/outputBitmap");
+
+                        //var input1 = $('<input>');
+                        //input1.attr('type', 'hidden');
+                        //input1.attr('name', 'bitmap');
+                        //input1.attr('value', url);
+                        //$('body').append(form);  //将表单放置在web中
+                        //form.append(input1);   //将查询参数控件提交到表单上
+                        //form.submit();
+
+
+                        //下载
+                        axios.post('/Test/outputBitmap', { bitmap: url }, {
+                            responseType: 'blob',
+                        }).then(function (response) {
+                            console.log(response.data);
+                            let blob = new Blob([response.data]);
+                            let downloadElement = document.createElement('a');
+                            let href = window.URL.createObjectURL(blob); //创建下载的链接
+                            downloadElement.href = href;
+                            downloadElement.download = 'img.png'; //下载后文件名
+                            document.body.appendChild(downloadElement);
+                            downloadElement.click(); //点击下载
+                            document.body.removeChild(downloadElement); //下载完成移除元素
+                            window.URL.revokeObjectURL(href); //释放掉blob对象
+                        }).catch(err => {
+                            console.warn("获取选择列表失败")
+                        });
+                        //显示
+                        axios.post('/Test/outputBitmap', { bitmap: url }, {
+                            responseType: "arraybuffer",
+                        }).then(function (response) {
+                            //将从后台获取的图片流进行转换
+                            return 'data:image/png;base64,' + btoa(
+                                new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                            );
+                        }).then(function (data) {
+                            //接收转换后的Base64图片
+                            console.log(data);
+                            document.getElementById("cc").setAttribute("src", data)
+                        }).catch(err => {
+                            console.warn("获取选择列表失败")
+                        });
+                    },
+                    allowTaint: true,
+                    useCORS: true,
+                    //width: 600,
+                    //height: 300
+                });
+            },
+            innerText: () => {
+                axios.post('/Test/printTest', {
+                    barcode: app.innerVal,
+                    modulenum: app.printMozhu
+                }).then(res => {
+                    console.log(res)
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+        },
+    });
+</script>
