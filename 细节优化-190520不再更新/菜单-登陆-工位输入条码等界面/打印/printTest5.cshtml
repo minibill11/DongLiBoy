@@ -1,0 +1,328 @@
+﻿@{
+    ViewBag.Title = "打印测试";
+}
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+<script src="~/Scripts/printJS/html2canvas.min.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+@*<link href="~/Content/styleFile/printStyle.css" rel="stylesheet" />*@
+<style>
+    /*全局样式*/
+    *, body {
+        margin: 0;
+        padding: 0;
+        color: #000;
+    }
+    #app {
+        padding: 50px 0 0;
+    }
+    .el-input {
+        max-width: 280px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    /*外箱条码样式*/
+    #masterCarton {
+        padding: 5px;
+        background-color: #ffffff;
+        width: 766px;
+        padding:30px 15px 5px 70px;
+        height: 920px;
+    }
+
+    #masterBarcode {
+        width: 480px;
+    }
+
+    .container, .body-content {
+        width: 1400px;
+        padding: 0px;
+    }
+
+    .mcFrame {
+        margin: 0 auto;
+        width: 616px;
+        height: 884px;
+        border: 2px solid #000;
+    }
+
+    .mcFrame_top, .mcFrame_bottom {
+        height: 440px;
+    }
+
+        .mcFrame_top > div {
+            height: 146px;
+        }
+
+
+    .mcFrame_top_1 {
+        position: relative;
+    }
+
+    .imgicon {
+        position: absolute;
+        width: 280px;
+        top: 5px;
+        left: 5px;
+    }
+
+    .mcFrame_top_1_h {
+        margin: 0;
+        padding-top: 70px;
+        text-align: center;
+    }
+
+    .mcFrame_top_1_h_noimg {
+        margin: 0;
+        padding-top: 65px;
+        text-align: center;
+    }
+
+    .mcFrame_top_3_1_1, .mcFrame_top_3_1_2 {
+        display: inline-block;
+        line-height: 70px;
+        text-align: center;
+    }
+
+    .mcFrame_top_3_1_1 {
+        width: 149px;
+        font-size: 28px;
+        font-weight: 600;
+    }
+
+        .mcFrame_top_3_1_1 > span {
+            font-weight: 600;
+        }
+
+    .mcFrame_top_3_1_2 {
+        width: 454px;
+        font-size: 35px;
+        font-weight: 600;
+    }
+
+    .mcFrame_top_3_1_1:not(:last-child) {
+        border-right: 2px solid #000;
+    }
+
+    .borderTop {
+        border-top: 2px solid #000;
+    }
+
+    .mcFrame_bottom_1 {
+        /*width: 100%;
+    height: 100%;*/
+        padding: 5px;
+        text-align: left;
+    }
+
+    .mcFrame_top_2 {
+        position: relative;
+    }
+
+    .masterBarDiv {
+        width: 100%;
+        position: absolute;
+        top: 8px;
+    }
+
+    .boxspan {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 19px;
+    }
+
+    .font20md {
+        font-size: 47px;
+    }
+
+    .font20xs {
+        font-size: 62px;
+        padding: 0px 8px;
+    }
+
+    h1 {
+        font-size: 63px;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-main>
+            <el-col :span="8">
+                <div class="grid-content textCenter">
+                    <el-row>
+                        <span>订单：</span>
+                        <el-input placeholder="请输入订单号"
+                                  v-model.trim="printOrder"
+                                  style="text-align:right;display:inline-block;"
+                                  clearable>
+                        </el-input>
+                    </el-row>
+                    <el-row>
+                        <span>条码：</span>
+                        <el-input placeholder="请输入条码号"
+                                  v-model.trim="masterVal"
+                                  style="text-align:right;display:inline-block;"
+                                  clearable>
+                        </el-input>
+                    </el-row>
+                    <el-row>
+                        <el-button v-on:click="masterPrint" type="primary">上传img</el-button>
+                    </el-row>
+                </div>
+            </el-col>
+            <el-col :span="16">
+                <div class="grid-content textCenter">
+                    <el-row>
+                        <div id="masterCarton">
+                            <div class="mcFrame">
+                                <div class="mcFrame_top">
+                                    <div class="mcFrame_top_1">
+                                        <img v-show="imgShow" class="imgicon" src="~/Images/LOGO_black.png" />
+                                        <h1 v-show="imgShow" class="mcFrame_top_1_h">{{selectVal}}</h1>
+                                        <h1 v-show="!imgShow" class="mcFrame_top_1_h_noimg">{{selectVal}}</h1>
+                                    </div>
+                                    <div class="borderTop mcFrame_top_2">
+                                        <div class="masterBarDiv textCenter">
+                                            <canvas id="masterBarcode"></canvas>
+                                            @*<svg id="masterBarcode"></svg>
+                                                <canvas id="masterBarcode"></canvas>
+                                                <img id="masterBarcode" />*@
+                                        </div>
+                                    </div>
+                                    <div class="borderTop mcFrame_top_3">
+                                        <div class="mcFrame_top_3_1">
+                                            <div class="mcFrame_top_3_1_1">物料描述</div>
+                                            <div class="mcFrame_top_3_1_2">{{wuliao}}</div>
+                                        </div>
+                                        <div class="borderTop mcFrame_top_3_1">
+                                            <div class="mcFrame_top_3_1_1"><span>(SN/TN)</span></div>
+                                            <div class="mcFrame_top_3_1_1" style="border-right:none;"><span>{{sntn}}</span></div>
+                                            <div class="mcFrame_top_3_1_1" style="border-left:1px solid #000;">数量 <span>QTY</span></div>
+                                            <div class="mcFrame_top_3_1_1"><span>{{shuliang}}&nbsp;PCS</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mcFrame_bottom borderTop">
+                                    <div class="mcFrame_bottom_1">
+                                        <template v-for="item in mozutable">
+                                            <span class="boxspan" v-bind:class="mozutable>20?'font20md':'font20xs'">A-<span v-if="item<10">0</span>{{item}}</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </el-row>
+                </div>
+            </el-col>
+            <el-col :span="12" class="text-center">
+                <el-row>
+                    <div style="padding:5px; background: #f5da55">
+                        <h3 style="color: #000; ">截图区</h3>
+                    </div>
+                    <div>
+                        <img id="dd" />
+                    </div>
+                </el-row>
+            </el-col>
+            <el-col :span="12" class="text-center">
+                <el-row>
+                    <div style="padding:5px; background: #f5da55">
+                        <h3 style="color: #000; ">后台返回显示</h3>
+                    </div>
+                    <div>
+                        <img id="cc" />
+                    </div>
+                </el-row>
+            </el-col>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            masterVal: "19YA2091-001",
+            printOrder: "2019-YY012-01",
+            selectVal: '2019-YA209-1',
+            imgShow: true,
+            mozutable: 20,
+            wuliao: "LED模组",
+            sntn: "1/12",
+            shuliang: "12",
+        },
+        watch: {
+            masterVal: (val) => {
+                if (val != "") {
+                    app.setmasterBarDiv(val);
+                } else {
+                    $(".masterBarDiv").html('<svg id="masterBarcode"></svg>');
+                };
+            },
+        },
+        mounted: function () {
+            this.setmasterBarDiv(this.masterVal);
+        },
+        methods: {
+            masterPrint: () => {
+                html2canvas(document.getElementById("masterCarton"), {
+                    onrendered: function (canvas) {
+                        let url = canvas.toDataURL();//图片地址
+                        document.getElementById("dd").setAttribute("src", url);
+                        //显示
+                        axios.post('/Packagings/OutsideBoxLableRetrun', { bitmap: url }, {
+                            responseType: "arraybuffer",
+                        }).then(function (response) {
+                            console.log(response.data)
+                            //将从后台获取的图片流进行转换
+                            return 'data:image/png;base64,' + btoa(
+                                new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                            );
+                        }).then(function (data) {
+                            //接收转换后的Base64图片
+                            console.log(data);
+                            document.getElementById("cc").setAttribute("src", data)
+                        }).catch(err => {
+                            console.warn("获取选择列表失败")
+                            });
+
+
+                        axios.post('/Packagings/OutsideBoxLablePrint', { bitmap: url }, {
+                            responseType: "arraybuffer",
+                        }).then(function (data) {
+                            //接收转换后的Base64图片
+                            console.log(data);
+                        }).catch(err => {
+                            console.warn("获取选择列表失败")
+                        });
+                    },
+                    allowTaint: true,
+                    useCORS: true,
+                    //width: 600,
+                    //height: 300
+                });
+            },
+            setmasterBarDiv: (v) => {
+                JsBarcode("#masterBarcode", v.toUpperCase(), {
+                    height: 60, //条形码的高度
+                    fontOptions: "bold",//使文字加粗体或变斜体
+                    format: "CODE128",
+                    font: "OCR-B",
+                    textAlign: "center",
+                    textMargin: 0,//设置条形码和文本之间的间距
+                    fontSize: 26,//设置文本的大小
+                    lineColor: "#000",//条形码颜色
+                    margin: 0,//设置条形码周围的空白边距
+                    marginTop: 0
+                });
+            },
+        },
+    });
+</script>
