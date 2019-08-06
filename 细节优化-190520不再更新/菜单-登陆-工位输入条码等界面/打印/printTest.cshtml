@@ -1,7 +1,7 @@
 ﻿@{
     ViewBag.Title = "打印测试";
 }
-<link href="~/Content/styleFile/printStyle.css?'+Math.random()+'" rel="stylesheet" />
+<link href="~/Content/styleFile/printStyle.css?v=" +Math.random() rel="stylesheet" />
 <link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
 <script src="~/Scripts/Bootstraps/Element-ui.js"></script>
 <script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
@@ -10,12 +10,14 @@
 <div id="app" v-cloak>
     <el-container>
         <el-main>
+            <el-row class="text-center">
+                <el-button v-on:click="innerImg" @*class="printBtn"*@ type="primary">上传img(内箱)</el-button>
+                <el-button v-on:click="innerText" @*class="printBtn"*@ type="primary">发送条码模组号</el-button>
+                <el-button v-on:click="masterImg" @*class="printBtn"*@ type="primary">上传img(外箱)</el-button>
+                <el-button v-on:click="masterImg2" @*class="printBtn"*@ type="primary">上传订单号</el-button>
+            </el-row>
             <el-col :span="24">
                 <div class="grid-content textCenter">
-                    <el-row>
-                        <el-button v-on:click="innerImg" type="primary">上传img(内箱)</el-button>
-                        <el-button v-on:click="innerText" type="primary">发送条码模组号</el-button>
-                    </el-row>
                     <el-row>
                         <div id="innerCarton" style="display:none">
                             <div class="textCenter">
@@ -33,9 +35,6 @@
             </el-col>
             <el-col :span="24">
                 <div class="grid-content textCenter">
-                    <el-row>
-                        <el-button v-on:click="masterImg" type="primary">上传img(外箱)</el-button>
-                    </el-row>
                     <el-row>
                         <div id="masterCarton" style="display:none">
                             <div class="mcFrame">
@@ -79,15 +78,15 @@
                 </div>
             </el-col>
             @*<el-col :span="8" class="text-center">
-                <el-row>
-                    <div style="padding:5px; background: #f5da55">
-                        <h3 style="color: #000; ">截图区</h3>
-                    </div>
-                    <div>
-                        <img id="dd" />
-                    </div>
-                </el-row>
-            </el-col>*@
+                    <el-row>
+                        <div style="padding:5px; background: #f5da55">
+                            <h3 style="color: #000; ">截图区</h3>
+                        </div>
+                        <div>
+                            <img id="dd" />
+                        </div>
+                    </el-row>
+                </el-col>*@
             @*<el-col :span="24" class="text-center">
                 <el-row>
                     <div style="padding:5px; background: #f5da55">
@@ -97,28 +96,28 @@
                         <img id="cc" />
                     </div>
                 </el-row>
-            </el-col>*@
-            <el-col :span="24"></el-col>
+            </el-col>
+            <el-col :span="24"></el-col>*@
             @*<el-col :span="8" class="text-center">
-                <el-row>
-                    <div style="padding:5px; background: #f5da55">
-                        <h3 style="color: #000; ">后台返回显示</h3>
-                    </div>
-                    <div>
-                        <img id="qq" />
-                    </div>
-                </el-row>
-            </el-col>*@
-            @*<el-col :span="24" class="text-center">
-                <el-row>
-                    <div style="padding:5px; background: #f5da55">
-                        <h3 style="color: #000; ">后台返回显示</h3>
-                    </div>
-                    <div>
-                        <img id="ww" />
-                    </div>
-                </el-row>
-            </el-col>*@
+                    <el-row>
+                        <div style="padding:5px; background: #f5da55">
+                            <h3 style="color: #000; ">后台返回显示</h3>
+                        </div>
+                        <div>
+                            <img id="qq" />
+                        </div>
+                    </el-row>
+                </el-col>*@
+            <el-col :span="24" class="text-center">
+                    <el-row>
+                        <div style="padding:1px; background: #f5da55">
+                            <h3 style="color: #000;margin:10px 0; ">后台返回显示</h3>
+                        </div>
+                        <div @*style="border:1px solid #000000;width:600px;height:800px;margin:auto"*@>
+                            <img id="ww" style="margin:auto" />
+                        </div>
+                    </el-row>
+                </el-col>
         </el-main>
     </el-container>
 </div>
@@ -158,7 +157,7 @@
             },
             setmasterBarDiv: (v) => {
                 JsBarcode("#masterBarcode", v.toUpperCase(), {
-                    height: 60, //条形码的高度
+                    height: 58, //条形码的高度
                     fontOptions: "bold",//使文字加粗体或变斜体
                     format: "CODE128",
                     font: "OCR-B",
@@ -250,6 +249,23 @@
                     //height: 300
                 });
                 $("#masterCarton").hide();
+            },
+            masterImg2: () => {
+                axios.post('/Packagings/OutsideBoxLablePrint2', { ordernum: "2017-TEST-1" }, {
+                    responseType: "arraybuffer",
+                }).then(function (response) {
+                    //console.log(response.data)
+                    //将从后台获取的图片流进行转换
+                    return 'data:image/png;base64,' + btoa(
+                        new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                    );
+                }).then(function (data) {
+                    //接收转换后的Base64图片
+                    //console.log(data);
+                    document.getElementById("ww").setAttribute("src", data)
+                }).catch(err => {
+                    console.warn("打印出错")
+                });
             },
             innerText: () => {
                 axios.post('/Appearances/InsideBoxLablePrint', {
