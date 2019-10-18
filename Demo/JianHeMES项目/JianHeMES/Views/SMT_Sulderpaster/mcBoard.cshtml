@@ -1,0 +1,201 @@
+﻿@{
+    ViewBag.Title = "MC锡膏看板";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/SMT_Sulderpaster/mcBoard"><el-button size="small">MC看板</el-button></a>
+                <a href="/SMT_Sulderpaster/smtBoard"><el-button size="small">SMT看板</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouse_Material"><el-button size="small">录入物料信息</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">锡膏入库</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-button size="small">锡膏入冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/outWarehouseFreezer"><el-button size="small">锡膏出库</el-button></a>
+                <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-button size="small">入SMT冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/Rewarming"><el-button size="small">回温</el-button></a>
+                <a href="/SMT_Sulderpaster/RewarmRecord"><el-button size="small">回温记录</el-button></a>
+                <a href="/SMT_Sulderpaster/Stir"><el-button size="small">搅拌</el-button></a>
+                <a href="/SMT_Sulderpaster/Use"><el-button size="small">使用</el-button></a>
+                <a href="/SMT_Sulderpaster/recovery"><el-button size="small">回收</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/SMT_Sulderpaster/mcBoard"><el-dropdown-item>MC看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/smtBoard"><el-dropdown-item>SMT看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouse_Material"><el-dropdown-item>录入物料信息</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-dropdown-item>锡膏入库</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-dropdown-item>锡膏入冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/outWarehouseFreezer"><el-dropdown-item>锡膏出库</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-dropdown-item>入SMT冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Rewarming"><el-dropdown-item>回温</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/RewarmRecord"><el-dropdown-item>回温记录</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Stir"><el-dropdown-item>搅拌</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Use"><el-dropdown-item>使用</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/recovery"><el-dropdown-item>回收</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <span class="inputtext">锡膏条码：</span>
+                <el-input placeholder="请输入锡膏条码"
+                          v-model.trim="barcode"
+                          size="medium"
+                          autofocus
+                          clearable>
+                </el-input>
+                <span class="inputtext">料号：</span>
+                <el-input placeholder="请输入料号"
+                          v-model.trim="receivingnum"
+                          size="medium"
+                          clearable>
+                </el-input>
+                <span class="inputtext">批次：</span>
+                <el-input placeholder="请输入批次"
+                          v-model.trim="batch"
+                          size="medium"
+                          clearable>
+                </el-input>
+                <el-button v-if="barcode==''&&receivingnum==''&&batch==''" v-on:click="getdata" type="primary" size="medium">查找全部</el-button>
+                <el-button v-else v-on:click="getdata" type="primary" size="medium">查找</el-button>
+                @*<div class="inputframe"></div>*@
+            </el-row>
+            <br />
+            <el-row>
+                <el-table :data="dataList" max-height="600" border stripe>
+                    <el-table-column prop="barcode" label="条码号">
+                    </el-table-column>
+                    <el-table-column prop="ReceivingNum" label="物料号">
+                    </el-table-column>
+                    <el-table-column prop="Batch" label="批次">
+                    </el-table-column>
+                    <el-table-column prop="Supplier" label="供应商">
+                    </el-table-column>
+                    <el-table-column prop="LeaveFactoryTime" label="生产时间">
+                        <template slot-scope="scope">
+                            {{scope.row.LeaveFactoryTime.split("T")[0]}}
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="SolderpasteType" label="型号">
+                    </el-table-column>
+                    <el-table-column prop="statue" label="状态">
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <hr />
+            <el-row>
+                <el-table v-bind:data="infoList" max-height="600" border stripe>
+                    <el-table-column label="当前存在的物料信息">
+                        <el-table-column prop="ManufactorNum" label="厂商编号" width="70">
+                        </el-table-column>
+                        <el-table-column prop="ManufactorName" label="厂商简称" width="60">
+                        </el-table-column>
+                        <el-table-column prop="InvoiceNum" label="收货单号" width="100">
+                        </el-table-column>
+                        <el-table-column prop="InvoiceTerm" label="收货项次" width="60">
+                        </el-table-column>
+                        <el-table-column prop="InvoiceDate" label="收货日期" width="80">
+                            <template slot-scope="scope">
+                                {{scope.row.InvoiceDate.split("T")[0]}}
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="MaterialNum" label="料件编号" width="80">
+                        </el-table-column>
+                        <el-table-column prop="ProductName" label="品名" width="70">
+                        </el-table-column>
+                        <el-table-column prop="Specifications" label="规格">
+                        </el-table-column>
+                        <el-table-column prop="PurchaseNum" label="采购单号" width="100">
+                        </el-table-column>
+                        <el-table-column prop="PurchaseCount" label="采购数量" width="60">
+                        </el-table-column>
+                        <el-table-column prop="REQNum" label="请购单号/项次" width="120">
+                        </el-table-column>
+                        <el-table-column prop="ReceivingCount" label="收货量" width="60">
+                        </el-table-column>
+                        @*<el-table-column prop="WarehouseCompany" label="入库单位" width="60">
+                        </el-table-column>*@
+                        <el-table-column prop="WarehouseCount" label="入库量" width="60">
+                        </el-table-column>
+                        @*<el-table-column prop="ReceivingMoney" label="收货金额" width="80">
+                        </el-table-column>*@
+                        <el-table-column prop="Type" label="型号" width="120">
+                        </el-table-column>
+                        @*<el-table-column label="操作" width="50">
+                        <template slot-scope="scope">
+                            <el-button v-on:click.native.prevent="editRow(scope.row,scope.$index)"
+                                       type="text"
+                                       size="mini">
+                                编辑
+                            </el-button>
+                        </template>
+                    </el-table-column>*@
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            barcode: "",
+            receivingnum: "",
+            batch: "",
+            dataList: [],
+            infoList: []
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            //this.getdata();
+            this.huoqu();
+            setInterval(function () {
+                app.huoqu();
+            }, 60000);
+        },
+        methods: {
+            //获取已存在信息
+            huoqu: function () {
+                axios.post("/SMT_Sulderpaster/SelctMaterial").then(res => {
+                    //console.log(res.data);
+                    this.infoList = res.data[0];
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            getdata: function () {
+                this.loading = true;
+                axios.post("/SMT_Sulderpaster/MCBoard", {
+                    barcode: this.barcode,
+                    receivingnum: this.receivingnum,
+                    batch: this.batch,
+                }).then(res => {
+                    console.log(res.data);
+                    this.dataList = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            }
+        }
+    });
+</script>

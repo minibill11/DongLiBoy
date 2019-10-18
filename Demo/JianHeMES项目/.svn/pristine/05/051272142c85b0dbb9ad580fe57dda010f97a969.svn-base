@@ -1,0 +1,244 @@
+﻿@{
+    ViewBag.Title = "锡膏入冰柜";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css?v=" +Math.random() rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/SMT_Sulderpaster/board"><el-button size="small">看板</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouse_Material"><el-button size="small">录入物料信息</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">锡膏入库</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-button size="small">锡膏入冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-button size="small">入SMT冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/Rewarming"><el-button size="small">回温</el-button></a>
+                <a href="/SMT_Sulderpaster/RewarmRecord"><el-button size="small">回温记录</el-button></a>
+                <a href="/SMT_Sulderpaster/Stir"><el-button size="small">搅拌</el-button></a>
+                <a href="/SMT_Sulderpaster/Use"><el-button size="small">使用</el-button></a>
+                <a href="/SMT_Sulderpaster/recovery"><el-button size="small">回收</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/SMT_Sulderpaster/board"><el-dropdown-item>看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouse_Material"><el-dropdown-item>录入物料信息</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-dropdown-item>锡膏入库</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-dropdown-item>锡膏入冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-dropdown-item>入SMT冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Rewarming"><el-dropdown-item>回温</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/RewarmRecord"><el-dropdown-item>回温记录</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Stir"><el-dropdown-item>搅拌</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Use"><el-dropdown-item>使用</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/recovery"><el-dropdown-item>回收</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="inputframe">
+                    <span class="inputtext">锡膏条码：</span>
+                    <el-input placeholder="请输入锡膏条码"
+                              v-model.trim="solderpasterBarcode"
+                              v-on:keyup.enter.native="barcodescan"
+                              size="medium"
+                              autofocus
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">仓库号：</span>
+                    <el-input placeholder="请输入仓库号"
+                              v-model.trim="warehouseNum"
+                              size="medium"
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <div class="divframe">
+                        <el-table :data="barcodetable"
+                                  height="280"
+                                  :row-class-name="tableRowClassName"
+                                  border>
+                            <el-table-column prop="barcode"
+                                             label="条码清单"
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column prop="Tips"
+                                             label="状态">
+                            </el-table-column>
+                            <el-table-column prop="edit"
+                                             label=""
+                                             width="40">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,barcodetable)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <span v-if="barcodetable.length!=0">条码数量：{{barcodetable.length}}</span>
+                    </div>
+                    <el-button size="medium" @@click="checkList">检查清单</el-button>
+                    <el-button size="medium" @@click="confirm" :disabled="!isok||warehouseNum==''">确认入冰柜</el-button>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            //入冰柜入 smt冰柜 回温 搅拌 使用 回收
+            solderpasterBarcode: "",
+            barcodeList: [],
+            barcodetable: [],
+            isok: false,
+            warehouseNum: ""
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+
+        },
+        methods: {
+            //检查
+            checkList: function () {
+                if (this.barcodeList == "") {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "清单不能为空！"
+                    });
+                    return;
+                };
+                this.loading = true;
+                axios.post('/SMT_Sulderpaster/CheckSMTFreezer', {
+                    smt_FreezerList: this.barcodeList,
+                    statu: "仓库",
+                }).then(res => {
+                    //console.log(res.data);
+                    this.barcodetable = res.data;
+                    let rtd = res.data, isokNum = 0;
+                    for (let i in rtd) {
+                        if (rtd[i].Tips == "正常") {
+                            isokNum++;
+                        };
+                    };
+                    if (isokNum == rtd.length) {
+                        this.isok = true;
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //确认
+            confirm: function () {
+                this.isok = false;
+                this.loading = true;
+                axios.post('/SMT_Sulderpaster/AddWarehouseFreezerAsync', {
+                    warehouse_FreezerList: this.barcodeList,
+                    warehouseNum: this.warehouseNum
+                }).then(res => {
+                    console.log(res.data);
+                    this.$confirm('入冰柜成功，是否进行下一组录入?', res.data, {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'success',
+                        center: true,
+                    }).then(() => {
+                        this.clear();
+                    }).catch(() => {
+                    });
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+                this.barcodeList.splice(index, 1);
+                this.isok = false;
+            },
+            //清空
+            clear: function () {
+                this.solderpasterBarcode = "";
+                this.barcodeList = [];
+                this.barcodetable = [];
+                this.isok = false;
+                this.warehouseNum = "";
+
+                this.$message({
+                    showClose: true,
+                    message: '已清空！'
+                });
+            },
+            //加入清单
+            barcodescan: function () {
+                let thisdata = this.solderpasterBarcode;
+                if (thisdata != "") {
+                    //检查重复
+                    let listcheck = this.barcodetable;
+                    for (let i in listcheck) {
+                        if (listcheck[i].barcode == thisdata) {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                message: '已有重复条码！',
+                                type: 'warning'
+                            });
+                            return;
+                        };
+                    };
+                    this.barcodetable.push({
+                        barcode: thisdata,
+                        Tips: ""
+                    });
+                    this.barcodeList.push(thisdata);
+                    this.isok = false;
+                    this.solderpasterBarcode = "";
+                } else {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "请输入条码！"
+                    });
+                };
+            },
+            //行颜色
+            tableRowClassName({ row, rowIndex }) {
+                if (row.Tips == "正常") {
+                    return 'success-row';
+                } else if (row.Tips != "") {
+                    return 'warning-row';
+                };
+                return '';
+            },
+        },
+        watch: {
+
+        },
+    });
+</script>

@@ -1,0 +1,483 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class SMT_SulderpasterController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController com = new CommonalityController();
+        // GET: SMT_Sulderpaster
+        //锡膏入库
+        public ActionResult AddWarehouseBaseInfo()
+        {
+            return View();
+        }
+        //锡膏入冰柜
+        public ActionResult AddWarehouseFreezer()
+        {
+            return View();
+        }
+        //入SMT冰柜
+        public ActionResult AddSMTFreezer()
+        {
+            return View();
+        }
+        //回温
+        public ActionResult Rewarming()
+        {
+            return View();
+        }
+        //搅拌
+        public ActionResult Stir()
+        {
+            return View();
+        }
+        //使用
+        public ActionResult Use()
+        {
+            return View();
+        }
+        //回收
+        public ActionResult recovery()
+        {
+            return View();
+        }
+        //看板
+        public ActionResult board()
+        {
+            return View();
+        }
+
+        #region 锡膏入库
+        //仓库基本信息录入
+        [HttpPost]
+        public ActionResult AddWarehouseBaseInfo(Warehouse_BaseInfo warehouse_BaseInfo)
+        {
+            if (((Users)Session["User"]) != null)
+            {
+                if (ModelState.IsValid)
+                {
+                    warehouse_BaseInfo.CheckTime = DateTime.Now;
+                    warehouse_BaseInfo.Username = ((Users)Session["User"]).UserName;
+                    warehouse_BaseInfo.JobNum = ((Users)Session["User"]).UserNum.ToString();
+                    db.Warehouse_BaseInfo.Add(warehouse_BaseInfo);
+                    db.SaveChanges();
+                    return Content("true");
+                }
+            }
+            return Content("false");
+        }
+        //锡膏条码打印，不知道规则押后
+        #endregion
+        #region 入冰柜
+        //入仓库冰柜
+        [HttpPost]
+        public ActionResult AddWarehouseFreezer(List<string> warehouse_FreezerList)
+        {
+            //if (((Users)Session["User"]) != null)
+            //{
+                foreach (var item in warehouse_FreezerList)
+                {
+                    Warehouse_Freezer warehouse_Freezer = new Warehouse_Freezer();
+                    warehouse_Freezer.SolderpasterBacrcode = item;
+                    warehouse_Freezer.IntoTime = DateTime.Now;
+                    warehouse_Freezer.UserName ="张丹媛";
+                    warehouse_Freezer.JobNum = "16621";
+                    db.Warehouse_Freezer.Add(warehouse_Freezer);
+                    db.SaveChanges();
+                }
+                return Content("true");
+            //}
+            //return Content("false");
+        }
+        /// <summary>
+        /// 条码检验
+        /// </summary>
+        /// <param name="smt_FreezerList">条码列表</param>
+        /// <param name="statu">例：仓库，冰柜，回温，领用</param>
+        /// <param name="belogin">冰柜专属 如：仓库，回温，领用</param>
+        /// <returns></returns>
+        public ActionResult CheckSMTFreezer(List<string> smt_FreezerList, string statu,string belogin=null)
+        {
+            JArray List = new JArray();
+            foreach (var item in smt_FreezerList)
+            {
+                JObject jObject = new JObject();
+                jObject.Add("barcode", item);
+                var startime = db.Barcode_Solderpaste.Where(c => c.SolderpasterBacrcode == item).Select(c => c.PrintTime).FirstOrDefault();
+                if (startime == null)
+                {
+                    jObject.Add("Tips", "没有找到此条码");
+                }
+                else
+                {
+                    var spantime = com.TwoDTforMonth_sub(DateTime.Now, startime);
+                    if (spantime >= 5 && spantime < 6)
+                    {
+                        jObject.Add("Tips", "将过期");
+                    }
+                    else if (spantime >= 6)
+                    {
+                        jObject.Add("Tips", "已过期");
+                    }
+                    else
+                    {
+                        if (statu == "冰柜")
+                        {
+                            int freezecount = db.SMT_Freezer.Count(c => c.SolderpasterBacrcode == item && c.Belogin == belogin);
+                            if (belogin == "仓库")
+                            {
+                                if (freezecount != 0)
+                                { jObject.Add("Tips", "此条码已存在SMT冰柜中"); }
+                                else
+                                    jObject.Add("Tips", "正常");
+                            }
+                            else if (belogin == "回温")
+                            {
+                                int warmcount = db.SMT_Rewarm.Count(c => c.SolderpasterBacrcode == item);
+                                if (warmcount <= freezecount)
+                                { jObject.Add("Tips", "此条码已存在SMT冰柜中"); }
+                                else
+                                    jObject.Add("Tips", "正常");
+                            }
+                            else if (belogin == "领用")
+                            {
+                                int warmcount = db.SMT_Employ.Count(c => c.SolderpasterBacrcode == item);
+                                if (warmcount <= freezecount)
+                                { jObject.Add("Tips", "此条码已存在SMT冰柜中"); }
+                                else
+                                    jObject.Add("Tips", "正常");
+                            }
+                        }
+                        else if (statu == "回温")
+                        {
+                            int freezecount = db.SMT_Freezer.Count(c => c.SolderpasterBacrcode == item);
+                            int warmcount = db.SMT_Rewarm.Count(c => c.SolderpasterBacrcode == item);
+                            if (warmcount >= freezecount && warmcount != 0)
+                            { jObject.Add("Tips", "此条码已在回温中"); }
+                            else
+                                jObject.Add("Tips", "正常");
+                        }
+                        else if (statu == "领用")
+                        {
+                            int freezecount = db.SMT_Freezer.Count(c => c.SolderpasterBacrcode == item);
+                            int warmcount = db.SMT_Employ.Count(c => c.SolderpasterBacrcode == item);
+                            if (warmcount >= freezecount && warmcount != 0)
+                            { jObject.Add("Tips", "此条码已经在使用中"); }
+                            else
+                                jObject.Add("Tips", "正常");
+                        }
+                        else
+                        {
+                            jObject.Add("Tips", "正常");
+                        }
+                    }
+                }
+                List.Add(jObject);
+            }
+            return Content(JsonConvert.SerializeObject(List));
+        }
+       
+        //入SMT冰柜
+        [HttpPost]
+        public ActionResult AddSMTFreezer(List<string> smt_FreezerList,string belogin)
+        {
+            //if (((Users)Session["User"]) != null)
+            //{
+                foreach (var item in smt_FreezerList)
+                {
+                    SMT_Freezer smt_Freezer = new SMT_Freezer();
+                    smt_Freezer.SolderpasterBacrcode = item;
+                    smt_Freezer.IntoTime = DateTime.Now;
+                    smt_Freezer.UserName = "张丹媛";
+                    smt_Freezer.JobNum = "16621";
+
+                    smt_Freezer.Belogin = belogin;
+
+                    db.SMT_Freezer.Add(smt_Freezer);
+                    db.SaveChanges();
+                }
+                return Content("true");
+            //}
+            //return Content("false");
+        }
+
+        #endregion
+
+        #region 回温
+        ////回温列表检查
+        //public ActionResult CheckSMTRewarm(List<string> smt_RewarmList)
+        //{
+        //    foreach (var item in smt_RewarmList)
+        //    {
+
+        //    }
+        //    return Content("false");
+        //}
+
+
+        //开始回温
+        [HttpPost]
+        public ActionResult AddSMTRewarm(List<string> smt_RewarmList)
+        {
+            //if (((Users)Session["User"]) != null)
+            //{
+                foreach (var item in smt_RewarmList)
+                {
+                    SMT_Rewarm smt_Rewarm = new SMT_Rewarm();
+                    smt_Rewarm.SolderpasterBacrcode = item;
+                    smt_Rewarm.StartTime = DateTime.Now;
+                    smt_Rewarm.UserName = ((Users)Session["User"])==null?"张丹媛": ((Users)Session["User"]).UserName;
+                    smt_Rewarm.JobNum = ((Users)Session["User"])==null?"16621": ((Users)Session["User"]).UserNum.ToString();
+                    db.SMT_Rewarm.Add(smt_Rewarm);
+                    db.SaveChanges();
+                }
+                return Content("true");
+            //}
+            //return Content("false");
+        }
+
+        //回温记录
+        public ActionResult RewarmInfo()
+        {
+            var rewarm = db.SMT_Rewarm.OrderBy(c => c.StartTime).Select(c => c.SolderpasterBacrcode).Distinct().ToList();
+            var repate = db.SMT_Rewarm.GroupBy(c => c.SolderpasterBacrcode).Where(c => c.Count() > 1).Select(c => c.Key).ToList();
+
+            //排序
+            //var orderbydate=rewarm
+            JArray list = new JArray();
+            foreach (var item in rewarm)
+            {
+                JObject rejobject = new JObject();
+                var warmcount = db.SMT_Rewarm.OrderByDescending(c => c.StartTime).Where(c=>c.SolderpasterBacrcode==item).Select(c => c.StartTime).FirstOrDefault();
+                var sitcount = db.SMT_Stir.OrderByDescending(c => c.StartTime).Where(c => c.SolderpasterBacrcode == item).Select(c=>c.StartTime).FirstOrDefault(); ;
+                if (warmcount != null&&sitcount!=null&&sitcount < warmcount)
+                {
+                    rejobject.Add("barcode", item);
+                    var time = db.SMT_Rewarm.Where(c => c.SolderpasterBacrcode == item).Max(c => c.StartTime);
+                    var imespan = DateTime.Now - time;
+                    rejobject.Add("retimespan", imespan.Value.TotalSeconds);
+                    var productiontime = db.Barcode_Solderpaste.Where(c => c.SolderpasterBacrcode == item).Select(c => c.PrintTime).FirstOrDefault();
+                    rejobject.Add("overdue", (DateTime.Now - productiontime).Value.TotalSeconds);
+                    list.Add(rejobject);
+                }
+            }
+            return Content(JsonConvert.SerializeObject(list));
+        }
+
+
+        #endregion
+
+        #region 搅拌
+        [HttpPost]
+        public ActionResult DisplatStirInfo(string SolderpasterBacrcode)
+        {
+            JObject infojobject = new JObject();
+            var info = db.SMT_Stir.Where(c => c.SolderpasterBacrcode == SolderpasterBacrcode).ToList();
+            if (info.Count == 0)
+            {
+                infojobject.Add("first", "-");
+                infojobject.Add("second", "-");
+                infojobject.Add("three", "-");
+                infojobject.Add("flow", "-");
+            }
+            else
+            {
+                var info1 = info.OrderByDescending(c => c.StartTime).FirstOrDefault();
+                var user = db.SMT_Employ.Where(c => c.SolderpasterBacrcode == SolderpasterBacrcode).ToList();
+                if (user.Count() != 0)
+                {
+                    var freeze = db.SMT_Freezer.Where(c => c.SolderpasterBacrcode == SolderpasterBacrcode && c.Belogin == "领用").Max(c => c.IntoTime);
+                    if (freeze > info1.StartTime)
+                    {
+                        infojobject.Add("first", "-");
+                        infojobject.Add("second", "-");
+                        infojobject.Add("three", "-");
+                        infojobject.Add("flow", "-");
+                    }
+                    else
+                    {
+                        infojobject.Add("first", info1.StartTime);
+                        infojobject.Add("second", info1.SecondTime);
+                        infojobject.Add("three", info1.ThreeTime);
+                        infojobject.Add("flow", info1.FlorTime);
+                    }
+                }
+                else
+                {
+                    infojobject.Add("first", info1.StartTime);
+                    infojobject.Add("second", info1.SecondTime);
+                    infojobject.Add("three", info1.ThreeTime);
+                    infojobject.Add("flow", info1.FlorTime);
+                }
+            }
+
+            return Content(JsonConvert.SerializeObject(infojobject));
+        }
+
+        //开始搅拌
+        public void AddSMTStir(string SolderpasterBacrcode, int num)
+        {
+            var sMT_Stir = db.SMT_Stir.OrderByDescending(c => c.StartTime).Where(c => c.SolderpasterBacrcode == SolderpasterBacrcode).FirstOrDefault();
+            switch (num)
+            {
+                case 1:
+                        SMT_Stir stir = new SMT_Stir() { SolderpasterBacrcode = SolderpasterBacrcode, UserName = "张三", JobNum = "123456", StartTime = DateTime.Now };
+                        db.SMT_Stir.Add(stir);
+                   
+                    break;
+                case 2:
+                    if (sMT_Stir.SecondTime == null)
+                    {
+                        sMT_Stir.SecondTime = DateTime.Now;
+                        sMT_Stir.SecondName = "张三";
+                        sMT_Stir.SecondJobNum = "123456";   
+                    }
+                    break;
+                case 3:
+                    if (sMT_Stir.ThreeTime == null)
+                    {
+                        sMT_Stir.ThreeTime = DateTime.Now;
+                        sMT_Stir.ThreeJobName = "张三";
+                        sMT_Stir.ThreeNum = "123456";
+                    }
+                    break;
+                case 4:
+                    if (sMT_Stir.FlorTime == null)
+                    {
+                        sMT_Stir.FlorTime = DateTime.Now;
+                        sMT_Stir.FlorName = "张三";
+                        sMT_Stir.FlorJobNum = "123456";
+                    }
+                    break;
+                default:
+
+                    break;
+            }
+            db.SaveChanges();
+        }
+        #endregion
+
+        #region 使用
+        [HttpPost]
+        public void AddEmploy(List<string> smt_EmployList,string ordernum,int line)
+        {
+            foreach (var item in smt_EmployList)
+            {
+                SMT_Employ sMT_Employ = new SMT_Employ() { SolderpasterBacrcode = item, StartTime = DateTime.Now, JobNum = "123456", UserName = "张三", OrderNum = ordernum, LineNum = line };
+                db.SMT_Employ.Add(sMT_Employ);
+                db.SaveChanges();
+            }
+        }
+
+        #endregion
+        #region  回收
+        [HttpPost]
+        public void Recycle(List<string> smt_RecycleList)
+        {
+            foreach (var item in smt_RecycleList)
+            {
+                SMT_Recycle sMT_Recycle = new SMT_Recycle() { SolderpasterBacrcode = item, RecoveTime = DateTime.Now, JobNum = "123456", UserName = "张三"};
+                db.SMT_Recycle.Add(sMT_Recycle);
+                db.SaveChanges();
+            }
+        }
+        #endregion
+
+        #region 看板
+
+        [HttpPost]
+        public ActionResult Boadr()
+        {
+            JArray totle = new JArray();
+            var freezebarcode = db.SMT_Freezer.Select(c => c.SolderpasterBacrcode).Distinct();
+            foreach (var item in freezebarcode)
+            {
+                JObject barcodejobject = new JObject();
+               
+                var freeze = db.SMT_Freezer.Where(c => c.SolderpasterBacrcode == item).OrderBy(c => c.IntoTime).ToList();
+                for (int i=0; i<freeze.Count();i++)
+                {
+                    //SMT冰柜时间
+                    JObject timeList = new JObject();
+                    timeList.Add("barcode", item);
+                    var freetime = freeze[i].IntoTime;
+                    var freetiem2 = new DateTime?();
+                    if (i + 1 == freeze.Count())
+                    {
+                        freetiem2 = DateTime.Now;
+                    }
+                    else
+                    {
+                        freetiem2 = freeze[i + 1].IntoTime;
+                    }
+                    timeList.Add("freezetime", freetime);
+                    //回温时间
+                    var warmtime = db.SMT_Rewarm.Where(c => c.SolderpasterBacrcode == item && c.StartTime < freetiem2).OrderByDescending(c => c.StartTime).FirstOrDefault();
+                    timeList.Add("warmtime", warmtime == null ? "--" : warmtime.UserName+":"+warmtime.StartTime.ToString());
+                    //搅拌时间
+                    var stirtime = db.SMT_Stir.Where(c => c.SolderpasterBacrcode == item && c.StartTime < freetiem2).OrderByDescending(c => c.StartTime).FirstOrDefault();
+                    JArray stir = new JArray();
+                    if (stirtime != null)
+                    {
+                        stir.Add(stirtime.UserName + ":" + stirtime.StartTime.ToString());
+                        stir.Add(stirtime.SecondTime == null ? null : stirtime.SecondName + ":" + stirtime.SecondTime.ToString());
+                        stir.Add(stirtime.ThreeTime == null ? null : stirtime.ThreeNum + ":" + stirtime.ThreeTime.ToString());
+                        stir.Add(stirtime.FlorTime == null ? null : stirtime.FlorName + ":" + stirtime.FlorTime.ToString());
+                        timeList.Add("stirtime", stir);
+                    }
+                    else
+                    { timeList.Add("stirtime", "--"); }
+                    //领用时间
+                    var employ = db.SMT_Employ.Where(c => c.SolderpasterBacrcode == item && c.StartTime < freetiem2).OrderByDescending(c => c.StartTime).FirstOrDefault();
+                    if (employ != null)
+                    {
+                        timeList.Add("ordernum", employ.OrderNum);
+                        timeList.Add("linnum", employ.LineNum);
+                        timeList.Add("employtime", employ.UserName + ":" + employ.StartTime.ToString());
+                    }
+                    else
+                    {
+                        timeList.Add("ordernum", "--");
+                        timeList.Add("linnum", "--");
+                        timeList.Add("employtime", "--");
+                    }
+                    //回收时间
+                    var recycle = db.SMT_Recycle.Where(c => c.SolderpasterBacrcode == item).FirstOrDefault();
+                    if (i + 1 == freeze.Count())
+                    {
+                        timeList.Add("recycletime", recycle == null ? "--" : recycle.UserName + ":" + recycle.RecoveTime.ToString());
+                    }
+                    else
+                        timeList.Add("recycletime", "--");
+                    barcodejobject.Add(i.ToString(), timeList);
+                }
+                totle.Add(barcodejobject);
+            }
+            return Content(JsonConvert.SerializeObject(totle));
+        }
+        #endregion
+
+
+        public ActionResult GetOrderList()
+        {
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+    }
+}

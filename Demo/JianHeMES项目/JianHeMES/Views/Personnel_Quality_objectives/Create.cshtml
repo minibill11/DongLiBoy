@@ -1,0 +1,492 @@
+﻿@model JianHeMES.Models.Personnel_Quality_objectives
+
+@{
+    ViewBag.Title = "Create";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .colors {
+        color: red;
+    }
+
+    .el-upload__input {
+        display: none !important;
+    }
+
+    .inputtext {
+        margin-top: 25px;
+        display: inline-flex;
+        justify-content: space-around;
+        width: 100%;
+    }
+
+        .inputtext textarea {
+            height: 28px;
+        }
+
+    .container {
+        padding: 0;
+    }
+
+    table {
+        text-align: center;
+    }
+
+    .pone {
+        align-self: flex-end;
+        font-size: 14px;
+    }
+
+    .bottomInfo {
+        display: flex;
+        justify-content: space-between;
+    }
+</style>
+<h4>批量录入考核记录</h4>
+<div id="app">
+    <div class="inputtext">
+        <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+        <el-select size="mini" v-model="departments" placeholder="请选择部门">
+            <el-option v-for="item in deparList"
+                       v-bind:key="item.value"
+                       v-bind:label="item.value"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-date-picker size="mini"
+                        v-model="times"
+                        type="month"
+                        placeholder="选择月">
+        </el-date-picker>
+        <el-button v-on:click="goBack" type="primary" size="mini"><i class="el-icon-d-arrow-left"></i>返回</el-button>
+    </div>
+    <el-table v-bind:data="postInfo" style="width: 100%" max-height="690" size="small" border stripe>
+        <el-table-column type="index"
+                         label="序号"
+                         width="80"
+                         v-bind:index="indexMethod">
+        </el-table-column>
+        <el-table-column prop="Name" label="部门" width="201" align="center">
+        </el-table-column>
+        <el-table-column prop="department" label="班组" width="196" align="center">
+        </el-table-column>
+        <el-table-column prop="DP_group" label="项目" width="200" align="center">
+        </el-table-column>
+        <el-table-column prop="position" label="指标名称" width="218" align="center">
+        </el-table-column>
+        <el-table-column prop="agent" label="目标值" width="122" align="center">
+        </el-table-column>
+        <el-table-column prop="leaveType" label="当月数值" width="85" align="center">
+        </el-table-column>
+        <el-table-column label="操作" width="67" align="center">
+            <template slot-scope="scope">
+                <el-button v-bind:class="scope.row.color==202?'colors':''" v-on:click.native.prevent="deleteRow(scope.$index, postInfo)"
+                           type="text"
+                           size="small">
+                    移除
+                </el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+    <div class="bottomInfo" v-if="flag">
+        <p class="pone">本次共提交<span style="color:red;font-size:18px;">{{count}}</span>条数据！<span v-if="flags">存在重复数据，请移除其中一项并点击上传！</span></p>
+        <p>
+            <el-button v-on:click="checkDatas" type="primary" size="mini">上传<i class="el-icon-upload el-icon--right"></i></el-button>
+            <el-button v-on:click="delated" type="primary" size="mini">清空<i class="el-icon-delete el-icon--right"></i></el-button>
+        </p>
+    </div>
+</div>
+
+<script>
+    var vm = new Vue({
+        el: "#app",
+        data: {
+            inputInfo: '',
+            postInfo: [],    //渲染的数据 -- 复制粘贴内容的第一站
+            postInfos: '',  //上传前的数据
+            finalPost: '',  //最终上传的数据
+            count: "",
+            flag: false,
+            flags: false,
+            files: "",
+            departments: null,
+            times: null,
+            deparList: []
+        },
+        mounted(){
+            this.getdepar()
+        },
+        methods: {
+            indexMethod(index) {
+                return index + 1;
+            },
+            delated() {
+                this.inputInfo = '';
+                this.postInfo = '';
+                this.postInfos = '';
+                //this.flag = false;
+            },
+            deleteRow(index, rows) {
+                $(rows).removeClass("color2");
+                rows.splice(index, 1);
+                this.count--;
+            },
+            handlePreview(file) {
+                console.log(file);
+            },
+            handleRemove(file, fileList) {
+                console.log(file, fileList);
+            },
+            getdepar() {
+                axios.post("/Personnel_Quality_objectives/DepartmentList").then(res=> {
+                    console.log(res.data)
+                    res.data.forEach(item=> {
+                        let obj = { label: item, value: item };
+                        this.deparList.push(obj)
+                    })
+                })
+            },
+            postDatas() {
+                if (this.postInfo.length != '') {
+                    if (this.departments == null || this.times == null) {
+                        this.$message({
+                            message: "请补全考核部门或日期",
+                            type:"warning"
+                        })
+                    } else {
+                        if (this.departments == "人力资源部") {   // 人力资源部录入时
+                            let tt = new Date(this.times)
+                            let postList = []
+                            this.postInfo.forEach(item=> {
+                                let one = item.agent;
+                                let two = item.agent.match(/\d+/);
+                                console.log(one)
+                                let three = "ce"
+                                if (item.agent.indexOf("%") != -1) {
+                                    three = "%"
+                                } else {
+                                    three = "个订单"
+                                }
+                                let four = item.leaveType.match(/\d+/g);
+                                console.log(four[0][0])
+                                let obj = {
+                                    AssetDepartment: item.Name,
+                                    DP_Group: item.department,
+                                    Project: item.DP_group,
+                                    IndexName: item.position,
+                                    Actual_completion_value: four[0],
+                                    Actua1: item.leaveType.indexOf("%") != -1 ? "%" : "",
+                                    DepartmentData: this.departments,
+                                    Year: tt.getFullYear(),
+                                    Month: tt.getMonth() + 1,
+                                    Target: null,
+                                    Target_value: two[0],
+                                    Target2: three
+                                };
+                                postList.push(obj)
+                            });
+                            axios.post('/Personnel_Quality_objectives/Batch_InputStaff', { inputList: postList }).then(res => {
+                                //console.log(res.data)
+                                if (res.data == true) {  //status code is inneeded!!
+                                    this.$message({
+                                        message: "上传成功!",
+                                        type: 'success',
+                                        center: true
+                                    });
+
+                                    this.inputInfo = '';
+                                    this.postInfo = '';
+                                    this.postInfos = '';
+                                    this.finalPost = '';
+                                    this.departments = null;
+                                    this.times = null;
+                                } else {
+                                    this.$message.error({
+                                        message: res.data,
+                                        center: true
+                                    });
+                                }
+                            }).catch(res=> {
+                                //console.log("xxx")
+                                this.$message.error({
+                                    message: res.data,
+                                    center: true
+                                });
+                            })
+                        } else if (this.departments == "行政后勤部") {
+                            let tt = new Date(this.times)
+                            let postList = []
+                            this.postInfo.forEach(item=> {
+                                let one = item.agent;
+                                let two = item.agent.match(/\d+/);
+                                console.log(one)
+                                let three = "ce"
+                                if (item.agent.indexOf("%") != -1) {
+                                    three = "%"
+                                } else {
+                                    three = "个订单"
+                                }
+                                let four = item.leaveType.match(/\d+/g);
+                                console.log(four[0][0])
+                                let obj = {
+                                    AssetDepartment: item.Name,
+                                    DP_Group: item.department,
+                                    Project: item.DP_group,
+                                    IndexName: item.position,
+                                    Actual_completion_value: four[0],
+                                    Actua1: item.leaveType.indexOf("%") != -1 ? "%" : "",
+                                    DepartmentData: this.departments,
+                                    Year: tt.getFullYear(),
+                                    Month: tt.getMonth() + 1,
+                                    Target: null,
+                                    Target_value: two[0],
+                                    Target2: null
+                                };
+                                postList.push(obj)
+                            });
+                            axios.post('/Personnel_Quality_objectives/Batch_InputStaff', { inputList: postList }).then(res => {
+                                //console.log(res.data)
+                                if (res.data == true) {  //status code is inneeded!!
+                                    this.$message({
+                                        message: "上传成功!",
+                                        type: 'success',
+                                        center: true
+                                    });
+
+                                    this.inputInfo = '';
+                                    this.postInfo = '';
+                                    this.postInfos = '';
+                                    this.finalPost = '';
+                                    this.departments = null;
+                                    this.times = null;
+                                } else {
+                                    this.$message.error({
+                                        message: res.data,
+                                        center: true
+                                    });
+                                }
+                            }).catch(res=> {
+                                //console.log("xxx")
+                                this.$message.error({
+                                    message: res.data,
+                                    center: true
+                                });
+                            })
+                        } else {
+                            let tt = new Date(this.times)
+                            let postList = []
+                            this.postInfo.forEach(item=> {
+                                let one = item.agent;
+                                let two = item.agent.match(/\d+/);
+                                console.log(one)
+                                let three = "ce"
+                                if (item.agent.indexOf("%") != -1) {
+                                    three = "%"
+                                } else {
+                                    three = "个订单"
+                                }
+                                let four = item.leaveType.match(/\d+/g);
+                                console.log(four[0][0])
+                                let obj = {
+                                    AssetDepartment: item.Name,
+                                    DP_Group: item.department,
+                                    Project: item.DP_group,
+                                    IndexName: item.position,
+                                    Actual_completion_value: four[0],
+                                    Actua1: item.leaveType.indexOf("%") != -1 ? "%" : "",
+                                    DepartmentData: this.departments,
+                                    Year: tt.getFullYear(),
+                                    Month: tt.getMonth() + 1,
+                                    Target: one[0],
+                                    Target_value: two[0],
+                                    Target2: three
+                                };
+                                postList.push(obj)
+                            });
+                            axios.post('/Personnel_Quality_objectives/Batch_InputStaff', { inputList: postList }).then(res => {
+                                //console.log(res.data)
+                                if (res.data == true) {  //status code is inneeded!!
+                                    this.$message({
+                                        message: "上传成功!",
+                                        type: 'success',
+                                        center: true
+                                    });
+
+                                    this.inputInfo = '';
+                                    this.postInfo = '';
+                                    this.postInfos = '';
+                                    this.finalPost = '';
+                                    this.departments = null;
+                                    this.times = null;
+                                } else {
+                                    this.$message.error({
+                                        message: res.data,
+                                        center: true
+                                    });
+                                }
+                            }).catch(res=> {
+                                //console.log("xxx")
+                                this.$message.error({
+                                    message: res.data,
+                                    center: true
+                                });
+                            })
+                        }
+                    }
+                    
+                } else {
+                    this.$message.error({
+                        message: '请输入数据！'
+                    });
+                }
+            },
+            checkDatas() {
+                var test = this.postInfo
+                var counts = 0
+                for (let i = 0; i < test.length; i++) {
+                    for (let j = 0; j < test.length; j++) {
+                        if (i == j) {  // 不跟自己比较
+
+                        } else {
+                            if (test[i].JobNum == test[j].JobNum && test[i].Name == test[j].Name && test[i].leaveStartTime == test[j].leaveStartTime) {
+                                test[i].color = 202
+                                test[j].color = 200
+                                counts += 1
+                                console.log('检测到有相同数据!')
+                            } else {
+
+                            }
+                        }
+                    }
+                }
+                this.postInfo = test
+                console.log(this.postInfo)
+                if (counts == 0) {
+                    this.postDatas()
+                } else {
+                    this.$message({
+                        message: '存在相同信息（工号、名字、开始时间）,请手动确认删除红色行！',
+                        type: 'warning'
+                    });
+                }
+            },
+            postImgs() {
+                this.$message({
+                    message: '敬请期待!',
+                    type: 'success'
+                });
+            },
+            goBack() {
+                history.back();
+            },
+            selectChanges(file, fileList) {
+                if (fileList.length == 3) {
+                    this.$message({
+                        message: '最多只接收三张图片!',
+                        type: 'success'
+                    });
+
+                }
+                this.files = fileList;
+            }
+        },
+        watch: {
+            postInfo(newVal, oldVal) {
+                if (this.postInfo == "") return;   //先排除刚开始的空的情况
+                //当渲染的数据变少时可判断为--已被删除
+
+                var finalPost = [];
+                this.postInfo.forEach((item, index) => {
+                    this.postInfo.forEach((itemtwo, indextwo) => {
+                        if (item.JobNum == itemtwo.JobNum) {
+                            finalPost.push(itemtwo);
+                        }
+                    })
+                });
+
+                this.finalPost = finalPost;
+
+            },
+            
+            inputInfo(val) {   //粘贴功能
+                if (this.inputInfo == '') { this.flag = false } else { this.flag = true }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                })
+                var datas = [];
+                console.log(initDatas)
+                for (let i = 0; i < initDatas.length; i++) {
+                    var JobNum = initDatas[i][0];     //工号
+                    var Name = initDatas[i][1];        //姓名
+                    var Sex = initDatas[i][2]     //性别
+                    var DateOfBirth = initDatas[i][3];     //出生日期
+                    var Age = initDatas[i][4];             //年龄
+                    var Education = initDatas[i][5];  //学历
+                    var Department = initDatas[i][6];  //部门
+                    var Position = initDatas[i][7];  //职位名称
+                    var HireDate = initDatas[i][8];    //入司时间
+                    var gongling = initDatas[i][9];    //公司工龄
+                    var LastDate = initDatas[i][10];     //最后工作日期
+                    var Departments = initDatas[i][11];  //一级部门
+                    var Status = initDatas[i][12];  //员工状态 ----7月
+                    var eigth = initDatas[i][13];
+                    var nine = initDatas[i][14];
+                    var ten = initDatas[i][15];
+                    var eleven = initDatas[i][16];
+                    var twleve = initDatas[i][17]
+                    var data = {
+                        JobNum,
+                        Name,
+                            department: Sex,
+                            DP_group: DateOfBirth,
+                            position: Age,
+                            agent: Education,
+                            leaveType: Department,
+                            applydate: Position,
+                        leaveStartTime: HireDate,
+                        leaveEndTime: gongling,
+                        leaveTimeNum: LastDate,
+                        leaveReason: Departments,
+                        remark: Status,   // --7月
+                        eigth,
+                            nine, ten, eleven, twleve,
+                            color: 200
+                        }
+                    datas.push(data)
+                        }
+                this.postInfo = datas;
+
+                //后台处理性别数据
+                var datass =[];
+                for (let i = 0; i < initDatas.length; i++) {
+                    var JobNum = initDatas[i][0];     //工号
+                    var Name = initDatas[i][1];        //姓名
+                    var Sex = initDatas[i][2] === '男' ? false : true;     //性别
+                    var DateOfBirth = initDatas[i][3];     //出生日期
+                    var Education = initDatas[i][4];  //学历
+                    var DP_Group = initDatas[i][5];     //组名
+                    var HireDate = initDatas[i][6];    //入司时间
+                    var LastDate = initDatas[i][7];     //最后工作日期
+                    var Department = initDatas[i][8];  //部门
+                    var Status = initDatas[i][9];  //员工状态
+                    var levelType = initDatas[i][10];      //级别名称
+                    var OnPostMonth = initDatas[i][11];    //在岗月数
+                    var data = { JobNum, Name, Sex, DateOfBirth, Education, DP_Group, HireDate, LastDate, Department, Status, levelType, OnPostMonth}
+                    datass.push(data)
+                    }
+                this.postInfos = datass;
+                this.count = this.postInfo.length;
+                    }
+                    }
+         });
+
+
+
+</script>

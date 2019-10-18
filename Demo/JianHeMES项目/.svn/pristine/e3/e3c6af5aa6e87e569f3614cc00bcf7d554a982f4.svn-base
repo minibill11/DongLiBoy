@@ -1,0 +1,89 @@
+﻿@{
+    ViewBag.Title = "订单模组概况";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+            <span>订单号：</span>
+            <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium">
+                <el-option v-for="item in selectOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <el-table :data="infoList">
+                    <el-table-column prop="barcode"
+                                     label="条码号">
+
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+        },
+        created: function () {
+            axios.post("/Query/GetOrderList").then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+
+        },
+        methods: {
+            //确认
+            confirm: function () {
+                axios.post('/SMT_Sulderpaster/UpdateWarehouseFreezerAsync', {
+                    warehouse_FreezerList: "",
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data == "True") {
+                        this.$confirm('出库成功，是否进行下一组录入?', "录入成功", {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'success',
+                            center: true,
+                        }).then(() => {
+
+                        }).catch(() => {
+                        });
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '出库失败！',
+                            type: 'error'
+                        });
+                    };
+
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+        },
+        watch: {
+
+        },
+    });
+</script>

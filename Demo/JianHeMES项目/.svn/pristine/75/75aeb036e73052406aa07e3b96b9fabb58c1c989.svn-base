@@ -1,0 +1,245 @@
+﻿@{
+    ViewBag.Title = "打印条码";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    .el-dialog__header {
+        padding: 10px;
+    }
+
+    .el-dialog__footer {
+        padding: 0 10px 10px;
+    }
+
+    .el-dialog--center .el-dialog__body {
+        padding: 0 10px;
+    }
+
+    .el-dialog__headerbtn {
+        top: 10px;
+        right: 20px;
+    }
+
+    .dialogdiv {
+        border: 1px solid #d7dae2;
+        margin-bottom: 10px;
+        padding: 5px 10px;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="inputframe">
+                    <span>物料号：</span>
+                    <el-select v-model="lhVal" v-bind:disabled="barcodeList.length>0" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in lhOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>生产日期：</span>
+                    <el-select v-model="sjVal" v-bind:disabled="barcodeList.length>0" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in sjOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>选打印机：</span>
+                    <el-select v-model="printSelect" clearable placeholder="选择打印机" size="medium">
+                        <el-option v-for="item in printOptions"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                    <span>打印数量：</span>
+                    <el-input-number v-model.trim="pageCount"
+                                     size="medium"
+                                     :min="1"
+                                     :max="5"
+                                     style="width:220px"
+                                     clearable>
+                    </el-input-number>
+                </div>
+                <div class="inputframe">
+                    <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">返回</el-button></a>
+                    @*<el-button size="medium" @@click="postPrint">确认入库</el-button>*@
+                </div>
+                <div class="inputframe">
+                    <div class="divframe" style="text-align:center;min-height:0;max-height:200px;">
+                        @*<el-button v-on:click="barGetListData2" size="mini" round>查看勾选条码</el-button>
+                <el-button v-on:click="print" size="mini" round>打印选中条码</el-button><br />*@
+                        <span style="color:#409EFF">此订单已存在条码：</span>
+                        <div style="max-height:150px;overflow:auto">
+                            <template v-for="item in checkboxList">
+                                <el-checkbox v-model="item.statu" size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item.value}}</el-checkbox>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </el-row>
+            <el-dialog title="入库完成！"
+                       :visible.sync="centerDialogVisible"
+                       width="300px"
+                       @@close="closeDialog"
+                       center>
+                <div style="width:280px;text-align:left;">
+                    <div v-for="item in message" class="dialogdiv">
+                        <div>订单号：<b>{{item.orderNum}}</b></div>
+                        <div>已入库数量：<b>{{item.warehousjoinCount}}</b></div>
+                        <div>剩下已包装未入库数量：<b>{{item.printCount}}</b></div>
+                        <div>未包装数量：<b>{{item.notPrintCount}}</b></div>
+                        <div>
+                            <div><b>此次入库条码：</b></div>
+                            <span v-for="i in item.barcode" class="listbarcode">
+                                {{i}}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <span slot="footer" class="dialog-footer">
+                    <el-button type="primary" @@click="centerDialogVisible=false" size="small">确 定</el-button>
+                </span>
+            </el-dialog>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            lhOptions: [],
+            lhVal: '',
+            sjOptions: [],
+            sjVal: '',
+            loading: false,
+            screenSize: document.body.clientWidth,
+            barcodeList: [],
+            centerDialogVisible: false,
+            message: [],
+            pageCount: 1,
+            printOptions: [{
+                value: '0',
+                label: '选择打印机'
+            }, {
+                value: '172.16.99.240',
+                label: '240'
+            }, {
+                value: '172.16.99.241',
+                label: '241'
+            }, {
+                value: '172.16.99.242',
+                label: '242'
+            }],
+            printSelect: '',
+            checkboxList: [],
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            axios.post('/SMT_Sulderpaster/GetPrintAgainReceivingNumList').then(res => {
+                this.lhOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('lh');
+            if (localOrder != null) {
+                this.lhVal = localOrder;
+            };
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printSelect = printIP;
+            };
+            let localpage = localStorage.getItem('printPageCount');
+            if (localpage != null) {
+                this.pageCount = localpage;
+            };
+        },
+        methods: {
+            printBarcode: function () {
+                axios.post('/SMT_Sulderpaster/InsideBoxLable_Print', {
+                    barcodelist: res.data,
+                    pagecount: 1,
+                    ip: "172.16.99.240",
+                    port: 9101,
+                }).then(function (res) {
+
+
+                }).catch(err => {
+                    console.warn("打印出错")
+                });
+            },
+            //清空
+            clear: function () {
+                this.$message({
+                    showClose: true,
+                    message: '已清空！'
+                });
+            },
+            closeDialog: function () {
+                this.clear();
+            },
+        },
+        watch: {
+            printSelect: (v) => {
+                localStorage.setItem('printIP', v);
+            },
+            pageCount: (v) => {
+                localStorage.setItem('printPageCount', v);
+            },
+            //axios.post('/Packagings/OutputOutsideBoxBarCodeNumList', { ordernum: v }).then(res => {
+            //    let rtd = res.data, OL = this.checkboxList;
+            //    for (let i in rtd) {
+            //        OL.push({
+            //            value: rtd[i],
+            //            statu: false
+            //        });
+            //    };
+            //}).catch(err => {
+            //    console.warn("出错")
+            //});
+            lhVal: function (v) {
+                localStorage.setItem('lh', v);
+                axios.post('/SMT_Sulderpaster/GetPrintAgainLeaveFactoryTimeList', { receivingNum: v }).then(res => {
+                    this.sjOptions = res.data;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+            sjVal: function (v) {
+                axios.post('/SMT_Sulderpaster/DisplayPrintAgainBarcode', { receivingNum: this.lhVal, leaveFactoryTime: v }).then(res => {
+                    let rtd = res.data, LH = this.checkboxList;
+                    for (let i in rtd) {
+                        LH.push({
+                            value: rtd[i],
+                            statu: false
+                        });
+                    };
+                }).catch(err => {
+                    console.warn("出错")
+                });
+            },
+        }
+    });
+</script>

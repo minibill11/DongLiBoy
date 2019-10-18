@@ -1,0 +1,388 @@
+﻿@{
+    ViewBag.Title = "统计报表";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+    <style>
+    </style>
+    <div id="app">
+        <el-container>
+            <el-main>
+                <h3 class="text-center" style="margin:5px">@ViewBag.Title</h3>
+                <div class="text-left" style="padding:10px">
+                    <template>
+                        <el-select v-model="department" placeholder="选择部门" size="small">
+                            <el-option v-for="item in options"
+                                       v-bind:key="item.value"
+                                       v-bind:value="item.label">
+                            </el-option>
+                        </el-select>
+                        <el-select v-model="workshop" placeholder="选择车间" size="small">
+                            <el-option v-for="item in workOption"
+                                       v-bind:key="item.value"
+                                       v-bind:value="item.label">
+                            </el-option>
+                        </el-select>
+                        <el-select v-model="group" placeholder="选择小组" size="small">
+                            <el-option v-for="item in groupOption"
+                                       v-bind:key="item.value"
+                                       v-bind:value="item.label">
+                            </el-option>
+                        </el-select>
+                        <el-input v-model="personnel" placeholder="请输入员工" size="small" style="width:inherit"></el-input>
+                        <el-date-picker v-model="month"
+                                        type="month"
+                                        placeholder="选择年月"
+                                        size="small">
+                        </el-date-picker>
+                        <div class="text-center" style="padding-top:5px">
+                            <el-date-picker v-model="time"
+                                            type="datetimerange"
+                                            range-separator="至"
+                                            start-placeholder="开始日期"
+                                            end-placeholder="结束日期" size="small">
+                            </el-date-picker>
+                            <el-button size="small" v-on:click="onSubmit" style="width:inherit">查询</el-button>
+                        </div>
+                    </template>
+                </div>
+                <el-table class="tb-edit" highlight-current-row v-bind:data="tableData" border style="width: 100%" @*v-bind:span-method="cellMerge"*@>
+                    <el-table-column v-for="col in tableHeader" v-bind:prop="col.prop" v-bind:label="col.label"></el-table-column>
+                </el-table>
+            </el-main>
+        </el-container>
+    </div>
+    <script>
+        var app = new Vue({
+            el: "#app",
+            data: {
+                department: '装配一部',
+                options: [{
+                    value: '选项1',
+                    label: '装配一部'
+                }, {
+                    value: '选项2',
+                    label: '装配二部'
+                }, {
+                    value: '选项3',
+                    label: '品质部'
+                },
+                ],
+                workshop: '模组1车间',
+                workOption: [],
+                group: '模组1组',
+                groupOption: [],
+                personnel: '唐英姿',
+                personnelOption: [],
+                month: '',
+                time: '',
+                tableHeader: [],
+                tableData: [],
+                spanArr: [],
+                spanArrs: [],
+                pos: '',
+                pos1: '',
+            },
+            //created() {
+            //    this.getSpanArr(this.tableData)
+            //},
+            methods: {
+                onSubmit: function () {
+                    axios.post('KPIstistatics/KPIstistatics', {
+                        department: this.department,
+                        workshop: this.workshop,
+                        DP_Group: this.group,
+                        Name: this.personnel,
+                        startdate: this.time[0],
+                        enddate: this.time[1],
+                        datetime: this.month,
+                    }).then(res => {
+                        console.log(res.data[0])
+                        let head = res.data[0]
+                        res.data.shift();   //  去除表头数据
+                        console.log(res.data)
+                        
+
+                        //console.log(arr)
+                        for (let i = 0; i < res.data.length; i++) {
+                            console.log(PQC_assp in res.data[i])
+                            if (PQC_assp in res.data[i]) {   // 排除PQC工段
+
+                            } else {
+                                delete head.PQC_assp, head.PQC_EndTime, head.PQC_BeginTime
+                            }
+                            if (brun in res.data[i]) {    // 排除老化工段
+
+                            } else {
+                                delete head.brun, head.in_begin, head.in_end
+                            }
+                            if (fqqc in res.data[i]) {    // 排除FQC工段
+
+                            } else {
+                                delete head.fqqc, head.fqc_end, head.fqc_begin
+                            }
+                            if (senn in res.data[i]) {    // 排除球场屏
+
+                            } else {
+                                delete head.senn, head.senn_begin
+                            }
+                            if (calib in res.data[i]) {    // 排除校正工段
+
+                            } else {
+                                delete head.calib, head.cali_end, head.cali_begin
+                            }
+                            if (brun_mosa in res.data[i]) {    // 排除老化拼屏工段
+
+                            } else {
+                                delete head.brun_mosa, head.brun_begin, head.brun_end
+                            }
+                            if (appere in res.data[i]) {    // 排除外观包装工段
+
+                            } else {
+                                delete head.appere, head.app_end, head.app_begin
+                            }
+                        };   // 排除完毕
+                        //获取表头头部信息
+                        let arr = [];
+                        for (let item in head) {
+                            let obj = { porp: item, label: res.head[item] }
+                            arr.push(obj)
+                            //console.log(item) 
+                        };
+                    }).catch(err => {
+                        console.log("获取失败")
+                    })
+                },
+                //getSpanArr(data) {
+                //    for (var i = 0; i < data.length; i++) {
+                //        if (i === 0) {
+                //            this.spanArr.push(1);
+                //            this.pos = 0
+                //        } else {
+                //            if (data[i].depe === data[i - 1].depe) {
+                //                this.spanArr[this.pos] += 1;
+                //                this.spanArr.push(0);
+                //            } else {
+                //                this.spanArr.push(1);
+                //                this.pos = i;
+                //            }
+                //        }
+                //    }
+                //    for (var i = 0; i < data.length; i++) {
+                //        if (i === 0) {
+                //            this.spanArrs.push(1);
+                //            this.pos1 = 0
+                //        } else {
+                //            if (data[i].work === data[i - 1].work) {
+                //                this.spanArrs[this.pos1] += 1;
+                //                this.spanArrs.push(0);
+                //            } else {
+                //                this.spanArrs.push(1);
+                //                this.pos1 = i;
+                //            }
+                //        }
+                //    }
+                //},
+                //cellMerge({ row, column, rowIndex, columnIndex }) {
+                //    if (columnIndex === 0) {
+                //        const _row = this.spanArr[rowIndex];
+                //        const _col = _row > 0 ? 1 : 0;
+                //        return {
+                //            rowspan: _row,
+                //            colspan: _col
+                //        }
+                //    }
+                //    if (columnIndex === 1) {
+                //        const _row = this.spanArrs[rowIndex];
+                //        const _col = _row > 0 ? 1 : 0;
+                //        return {
+                //            rowspan: _row,
+                //            colspan: _col
+                //        }
+                //    }
+                //}
+            }
+        })
+    </script>
+
+@*
+    <body>
+            <div id="app">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" v-model="checkAll" v-on:change="checkAllChange()"/>
+                            </th>
+                            <th>用户姓名</th>
+                            <th>用户性别</th>
+                            <th>所在城市</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item,i) in list">
+                            <th>
+                                <input type="checkbox" v-model="item.check" v-on:change="curCheck()">
+                            </th>
+                            <td>{{item.name}}</td>
+                            <td>{{item.sex}}</td>
+                            <td>{{item.city}}</td>
+                            <td><button type="button" v-bind:disabled="!item.check" v-on:change="del(item,i)">删除</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <script>
+                var app = new Vue({
+                    el: '#app',
+                    data: {
+                        list: [{ id: '1', name: '张1', sex: '女', city: '北京', check: false },
+                               { id: '2', name: '张2', sex: '男', city: '北京', check: false },
+                               { id: '3', name: '张3', sex: '女', city: '北京', check: false },
+                            { id: '4', name: '张4', sex: '女', city: '北京', check: false }],
+                        checkAll: false //全选，这里默认给它设置为false状态
+
+                    },
+                    methods: {//全选的状态
+                        checkAllChange: function () { //使用for循环实现一个全选功能，当全选勾打上时，数组的勾勾全部打上
+                            //for (var i = 0; i < this.list.length; i++) { //循环list数组的长度
+                            //    this.list[i].check = this.checkAll;  //把全选的状态赋值给该数组的check，实现全选功能
+                            //}
+                            this.list.forEach((v, i) => {
+                                v.check = this.checkAll
+                            });
+                        },
+                        curCheck: function () {//该函数要求实现当数组中的某一元素取消时打钩时，全选勾勾取消，当数组的check状态全部打钩时，全选的勾勾打上
+                            //选中状态  filter管道 返回满足条件的数组
+                            //var n = this.list.filter(v => {
+                            //    return v.cheeck == true;
+                            //});
+                            //console.log(n.length);
+                            //n.length == this.list.length ? this.checkAll = true : this.checkAll = false;
+                            //every() 检测数组是否符合指定条件，如果一个不满足返回false 都满足返回true
+                            this.checkAll = this.list.every(function (v, i) {return v.check})
+                        },
+
+                        del:function(item,i) {
+                            this.list.splice(i, 1);//后面的1表示删除的数组为一个
+                        }
+
+                    }
+                })
+            </script>
+        </body>
+*@
+@*
+    <style>
+        table {
+            border: 1px solid black;
+            width: 20%;
+            margin: 0 auto;
+            border-spacing: 0
+        }
+
+        td {
+            border: 1px solid;
+            text-align: center;
+        }
+
+        th {
+            border: 1px solid;
+            text-align: center;
+        }
+
+        tr {
+            border: 1px solid
+        }
+
+        input {
+            border: 2 solid;
+            width: 100%;
+        }
+
+        p {
+            font-size: 20px;
+            text-align: center
+        }
+    </style>
+    <body>
+        <div id="app">
+            <div>
+                <p>名称搜索<input type="text" placeholder="输入搜索内容" style="margin:10px" v-on:click="searchVlue"/></p>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>总价</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="item in searchValue">
+                        <td>{{item.name}}</td>
+                        <td>
+                            <button v-on:click="item.num -= 1" v-bind:disabled="item.num ==0">-</button>
+                            {{item.num}}
+                            <button v-on:click="item.num += 1" v-bind:disabled="item.num ==5 ">+</button>
+                        </td>
+                        <td>{{item.price | numFilter(2)}}</td>
+                        <td>{{item.num*item.price | numFilter(1)}}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">{{totalCount}}件商品总计(不含运费):{{totalPrice | numFilter(2)}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <script>
+            var app = new Vue({
+                el: '#app',
+                data: {
+                    list: [{ name: '苹果', num: 1, price: 10, count: 10 },
+                    { name: '香蕉', num: 1, price: 10, count: 10 },
+                    { name: '橘子', num: 1, price: 10, count: 10 },
+                    { name: '西瓜', num: 1, price: 3, count: 10 }],
+                    searchValue: '',//查询条件
+                },
+                filters: {//过滤器
+                    numFilter: function (data, n) { //这里面的data就是前面的item.price  过滤器数据
+                        return '￥' + data.toFixed(n);
+                    }
+                },
+                computed: { //计算属性
+                    searchFor: function () {
+                        if (!this.searchValue) {
+                            return list;
+                        }
+                        return this.list.filters(v=> {
+                            if (v.name.indexOf(this.searchValue) != -1) {
+                                return v;
+                            }
+                        })
+                    };
+                    },
+                    totalCount: function () {
+                        var n = 0;
+                        this.list.forEach(function (v) {//forEach当前数组
+                            n += v.num;
+                        });
+                            return n;
+                    },
+                    totalPrice: function () {
+                        var n = 0;
+                        this.list.forEach(function (v) {
+                            n += v.num*v.price;
+                        });
+                        return n;
+                    }
+                }
+            })
+        </script>
+    </body>
+*@

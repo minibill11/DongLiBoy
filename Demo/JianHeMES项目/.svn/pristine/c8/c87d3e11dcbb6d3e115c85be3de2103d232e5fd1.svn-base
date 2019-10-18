@@ -1,0 +1,167 @@
+﻿@{
+    ViewBag.Title = "订单模组概况";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-table th {
+        padding: 6px 0;
+        background-color: #f4df42;
+        color: #000;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+    }
+
+    .el-table th, .el-table td {
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .green {
+        color: #67c23a;
+    }
+
+    .red {
+        color: #f56c6c;
+    }
+
+    .blue {
+        color: #16a0e3;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+            <span>订单号：</span>
+            <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium">
+                <el-option v-for="item in selectOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <el-table :data="infoList"
+                          border
+                          stripe
+                          :max-height="600">
+                    <el-table-column prop="barcode"
+                                     label="条码号">
+
+                    </el-table-column>
+                    <el-table-column prop="Assemble"
+                                     label="PQC">
+                        <template slot-scope="scope">
+                            <div :class="scope.row.Assemble==1?'green el-icon-success':scope.row.Assemble==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                {{scope.row.Assemble==1?"正常":scope.row.Assemble==2?"进行中":"未开始"}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="FinalQC"
+                                     label="FQC">
+                        <template slot-scope="scope">
+                            <div :class="scope.row.FinalQC==1?'green el-icon-success':scope.row.FinalQC==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                {{scope.row.FinalQC==1?"正常":scope.row.FinalQC==2?"进行中":"未开始"}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in_MosaicScreen"
+                                     label="拼屏">
+                        <template slot-scope="scope">
+                            <div :class="scope.row.Burn_in_MosaicScreen==1?'green el-icon-success':scope.row.Burn_in_MosaicScreen==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                {{scope.row.Burn_in_MosaicScreen==1?"正常":scope.row.Burn_in_MosaicScreen==2?"进行中":"未开始"}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in"
+                                     label="老化">
+                        <template slot-scope="scope">
+                            <div :class="scope.row.Burn_in==1?'green el-icon-success':scope.row.Burn_in==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                {{scope.row.Burn_in==1?"正常":scope.row.Burn_in==2?"进行中":"未开始"}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="CalibrationRecord"
+                                     label="校正">
+                        <template slot-scope="scope">
+                            <div :class="scope.row.CalibrationRecord==1?'green el-icon-success':scope.row.CalibrationRecord==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                {{scope.row.CalibrationRecord==1?"正常":scope.row.CalibrationRecord==2?"进行中":"未开始"}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Appearance"
+                                     label="电检">
+                        <template slot-scope="scope">
+                            <div :class="scope.row.Appearance==1?'green el-icon-success':scope.row.Appearance==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                {{scope.row.Appearance==1?"正常":scope.row.Appearance==2?"进行中":"未开始"}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            infoList: []
+        },
+        created: function () {
+            axios.post("/Query/GetOrderList").then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            //let localOrder = localStorage.getItem('Order');
+            //if (localOrder != null) {
+            //    this.selectVal = localOrder;
+            //};
+        },
+        watch: {
+            //订单号
+            selectVal: function (v) {
+                //localStorage.setItem('Order', v);
+                if (v != "") {
+                    this.loading = true;
+                    axios.post('/Query/DisplayBarcodeListFromOrdernum', {
+                        ordernum: v,
+                    }).then(res => {
+                        //console.log(res.data);
+                        this.infoList = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn(err);
+                        this.loading = false;
+                    });
+                }
+            }
+        },
+    });
+</script>

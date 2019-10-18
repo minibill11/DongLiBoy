@@ -1,0 +1,883 @@
+﻿@{
+    ViewBag.Title = "外箱(重新)装箱和标签打印";
+}
+@*
+    <script src="~/Scripts/vue.js"></script>*@
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+@*<link href="~/Content/styleFile/printStyle.css" rel="stylesheet" />*@
+
+<style>
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 0;
+    }
+
+
+    /*全局样式*/
+    *, body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-input {
+        width: 220px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    /*外箱条码样式*/
+    #masterCarton {
+        margin: 20px 0 10px;
+        /*padding: 5px;*/
+    }
+
+    #masterBarcode {
+        width: 240px;
+    }
+
+    .mcFrame {
+        margin: 0 auto;
+        width: 308px;
+        height: 484px;
+        border: 1px solid #000;
+    }
+
+    .mcFrame_top, .mcFrame_bottom {
+        height: 240px;
+    }
+
+        .mcFrame_top > div {
+            height: 80px;
+        }
+
+
+    .mcFrame_top_1 {
+        position: relative;
+    }
+
+    .imgicon {
+        position: absolute;
+        width: 110px;
+        top: 5px;
+        left: 5px;
+    }
+
+    .mcFrame_top_1_h {
+        margin: 0;
+        padding-top: 35px;
+        text-align: center;
+    }
+
+    .mcFrame_top_1_h_noimg {
+        margin: 0;
+        padding-top: 25px;
+        text-align: center;
+    }
+
+    .mcFrame_top_3_1_1, .mcFrame_top_3_1_2 {
+        display: inline-block;
+        line-height: 38px;
+        text-align: center;
+    }
+
+    .mcFrame_top_3_1_1 {
+        width: 73px;
+        font-size: 15px;
+    }
+
+        .mcFrame_top_3_1_1 > span {
+            font-weight: 600;
+        }
+
+    .mcFrame_top_3_1_2 {
+        width: 227px;
+        font-size: 20px;
+    }
+
+    .mcFrame_top_3_1_1:not(:last-child) {
+        border-right: 1px solid #000;
+    }
+
+    .borderTop {
+        border-top: 1px solid #000;
+    }
+
+    .mcFrame_bottom_1 {
+        /*width: 100%;
+    height: 100%;*/
+        padding: 5px;
+        font-size: 16px;
+        text-align: left;
+    }
+
+    .mcFrame_top_2 {
+        position: relative;
+    }
+
+    .masterBarDiv {
+        width: 100%;
+        position: absolute;
+        top: -3px;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+
+
+    /*全局样式*/
+    .inputframe {
+        width: 300px;
+        text-align: right;
+        margin: 1px auto;
+    }
+
+    .divframe {
+        width: 300px;
+        margin: 1px auto;
+        text-align: center;
+        display: inline-block;
+        border: 1px solid #ccc;
+        min-height: 300px;
+    }
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+
+    .el-table th {
+        padding: 5px 0;
+        background-color: #f4df42;
+        color: #000;
+        text-align: center;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+        text-align: center;
+    }
+
+    .el-table .warning-row {
+        background: #fcd2d2;
+    }
+
+    .el-table .success-row {
+        background: #f0f9eb;
+    }
+
+    .green {
+        color: #67c23a;
+    }
+
+    .red {
+        color: #f56c6c;
+    }
+
+    .boxspan {
+        display: inline-block;
+        padding: 2px 4px;
+    }
+
+    .container, .body-content {
+        padding-left: 0;
+    }
+
+    p {
+        margin-bottom: 0;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .el-message-box {
+            width: 320px;
+        }
+
+        .el-select-dropdown__wrap {
+            margin-bottom: 0px;
+        }
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/Packagings/board"><el-button size="small">产值看板</el-button></a>
+                @*<a href="/Packagings/inputPackaging"><el-button size="small">录入包装箱基本信息</el-button></a>
+                    <a href="/Packagings/insidePrint"><el-button size="small">内箱标签打印</el-button></a>
+                    <a href="/Packagings/insideConfirm"><el-button size="small">内箱装箱确认</el-button></a>*@
+                <div class="adiv" href="/Packagings/outsideBinningPrint"><el-button size="small" type="primary" plain disabled style="cursor:default">外箱装箱和标签打印</el-button></div>
+                <a href="/Packagings/outsideBinning"><el-button size="small">外箱修改和重新打印</el-button></a>
+                <a href="/Packagings/DeleteConfirm"><el-button size="small">外箱删除</el-button></a>
+                @*<a href="/Packagings/outsideConfirm"><el-button size="small">外箱装箱确认</el-button></a>
+                    <a href="/Packagings/inStockConfirm"><el-button size="small">外箱入库确认</el-button></a>
+                    <a href="/Packagings/PingZhioutStockConfirm"><el-button size="small">品质外箱入库确认</el-button></a>
+                    <a href="/Packagings/stockNumEdit"><el-button size="small">外箱库位号修改</el-button></a>
+                    <a href="/Packagings/outStockConfirm"><el-button size="small">外箱出库确认</el-button></a>*@
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/Packagings/board"><el-dropdown-item>产值看板</el-dropdown-item></a>
+                        @*<a href="/Packagings/inputPackaging"><el-dropdown-item>录入包装箱基本信息</el-dropdown-item></a>
+                            <a href="/Packagings/insidePrint"><el-dropdown-item>内箱标签打印</el-dropdown-item></a>
+                            <a href="/Packagings/insideConfirm"><el-dropdown-item>内箱装箱确认</el-dropdown-item></a>*@
+                        <div href="/Packagings/outsideBinningPrint"><el-dropdown-item disabled>外箱装箱和标签打印</el-dropdown-item></div>
+                        <a href="/Packagings/outsideBinning"><el-dropdown-item>外箱修改和重新打印</el-dropdown-item></a>
+                        <a href="/Packagings/DeleteConfirm"><el-dropdown-item>外箱删除</el-dropdown-item></a>
+                        @*<a href="/Packagings/outsideConfirm"><el-dropdown-item>外箱装箱确认</el-dropdown-item></a>
+                            <a href="/Packagings/inStockConfirm"><el-dropdown-item>外箱入库确认</el-dropdown-item></a>
+                            <a href="/Packagings/PingZhioutStockConfirm"><el-dropdown-item>品质外箱入库确认</el-dropdown-item></a>
+                            <a href="/Packagings/stockNumEdit"><el-dropdown-item>外箱库位号修改</el-dropdown-item></a>
+                            <a href="/Packagings/outStockConfirm"><el-dropdown-item>外箱出库确认</el-dropdown-item></a>*@
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row style="text-align:center;margin-top:10px;">
+                <el-col :md="12">
+                    <div class="lineblock">
+                        <div class="inputframe">
+                            <span>订单号：</span>
+                            <el-select v-model.trim="selectVal" placeholder="输入内容可查询" filterable clearable size="medium" :disabled="mozutable.length>0">
+                                <el-option v-for="item in selectOptions"
+                                           :key="item.value"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </div>
+                        <div class="inputframe">
+                            <span>装箱类型：</span>
+                            <el-select v-model.trim="typeVal" placeholder="选择类型" filterable clearable size="medium">
+                                <el-option v-for="item in typeOptions"
+                                           :key="item.value"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </div>
+                        @*<div class="inputframe">
+                                <span>条码：</span>
+                                <el-input placeholder="请输入条码号"
+                                          v-model.trim="masterVal"
+                                          style="text-align:right;display:inline-block;"
+                                          size="medium"
+                                          clearable
+                                          disabled>
+                                </el-input>
+                            </div>*@
+                        <div class="inputframe">
+                            <span>物料描述：</span>
+                            <el-input placeholder="请输入物料描述"
+                                      v-model.trim="wuliao"
+                                      style="text-align:right;display:inline-block;"
+                                      size="medium"
+                                      clearable>
+                            </el-input>
+                        </div>
+                        @*<div class="inputframe">
+                                <span>(SN/TN)：</span>
+                                <el-input placeholder="请输入"
+                                          v-model.trim="sntn"
+                                          style="text-align:right;display:inline-block;"
+                                          size="medium"
+                                          clearable>
+                                </el-input>
+                            </div>*@
+                        @*<div class="inputframe">
+                                <span>数量QTY：</span>
+                                <el-input placeholder="请输入数量"
+                                          v-model.trim="shuliang"
+                                          style="text-align:right;display:inline-block;"
+                                          size="medium"
+                                          clearable>
+                                </el-input>
+                            </div>*@
+                        <div class="inputframe">
+                            <span>模组条码：</span>
+                            <el-input placeholder="请输入模组号"
+                                      v-model.trim="printMozhu"
+                                      style="text-align:right;display:inline-block;"
+                                      v-on:keyup.enter.native="mozuscan"
+                                      maxlength="15"
+                                      size="medium"
+                                      clearable>
+                            </el-input>
+                            <el-button size="medium" @*type="primary" *@ @@click="imgShow=!imgShow">Logo</el-button>
+                            <el-button size="medium" @@click="clear">重置</el-button>
+                        </div>
+                        <div class="inputframe" style="text-align:left">
+                            <p>完成件数：{{completeInfo.completeNum}}</p>
+                            <p>未完成件数：{{completeInfo.uncompleteNum}}</p>
+                            <p>完成率：{{completeInfo.complete}}</p>
+                        </div>
+                        <div class="divframe">
+                            <el-table :data="mozutable"
+                                      height="300"
+                                      border>
+                                <el-table-column prop="barcode"
+                                                 label="条码号"
+                                                 width="150">
+                                </el-table-column>
+                                <el-table-column prop="boxcode"
+                                                 label="箱体号">
+                                </el-table-column>
+                                <el-table-column prop="edit"
+                                                 label=""
+                                                 width="50">
+                                    <template slot-scope="scope">
+                                        <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,mozutable)"
+                                                   type="text"
+                                                   size="mini"
+                                                   style="margin:0;padding:0;width:100%;">
+                                            <i class="el-icon-error"></i>
+                                        </el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                            <span v-if="mozutable.length!=0">条码数量：{{mozutable.length}}</span>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :md="12">
+                    <div class="lineblock">
+                        <div class="grid-content textCenter">
+                            <el-row>
+                                <el-button v-on:click="postConfirm" type="primary" :disabled="printShow==true">确认</el-button>
+                                <el-button v-on:click="masterPrint" type="primary" v-show="printShow">打印标签</el-button>
+                            </el-row>
+                            <el-row>
+                                <div id="masterCarton">
+                                    <div class="mcFrame">
+                                        <div class="mcFrame_top">
+                                            <div class="mcFrame_top_1">
+                                                <img v-show="imgShow" class="imgicon" src="~/Images/LOGO.jpg" />
+                                                <h1 v-show="imgShow" class="mcFrame_top_1_h">{{selectVal}}</h1>
+                                                <h1 v-show="!imgShow" class="mcFrame_top_1_h_noimg">{{selectVal}}</h1>
+                                            </div>
+                                            <div class="borderTop mcFrame_top_2">
+                                                <div class="masterBarDiv textCenter">
+                                                    <svg id="masterBarcode"></svg>
+                                                </div>
+                                            </div>
+                                            <div class="borderTop mcFrame_top_3">
+                                                <div class="mcFrame_top_3_1">
+                                                    <div class="mcFrame_top_3_1_1">物料描述</div>
+                                                    <div class="mcFrame_top_3_1_2">{{wuliao}}</div>
+                                                </div>
+                                                <div class="borderTop mcFrame_top_3_1">
+                                                    <div class="mcFrame_top_3_1_1"><span>(SN/TN)</span></div>
+                                                    <div class="mcFrame_top_3_1_1" style="border-right:none;"><span>{{sntn}}</span></div>
+                                                    <div class="mcFrame_top_3_1_1" style="border-left:1px solid #000;">数量 <span>QTY</span></div>
+                                                    <div class="mcFrame_top_3_1_1"><span>{{shuliang}}&nbsp;PCS</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mcFrame_bottom borderTop">
+                                            <div class="mcFrame_bottom_1">
+                                                <template v-for="item in mozutable">
+                                                    <span class="boxspan" @*v-bind:class="mozutable.length>20?'font20md':'font20xs'"*@ v-text="item.boxcode==''?item.barcode:item.boxcode"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </el-row>
+                        </div>
+                    </div>
+                </el-col>
+            </el-row>
+            @*<el-col :span="24" class="text-center">
+                    <el-row>
+                        <div style="padding:1px; background: #f5da55">
+                            <h3 style="color: #000;margin:10px 0; ">后台返回显示</h3>
+                        </div>
+                        <div>
+                            <img id="ww" style="margin:auto" />
+                        </div>
+                    </el-row>
+                </el-col>*@
+        </el-main>
+    </el-container>
+</div>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+}
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectOptions: [],
+            selectVal: '',
+            typeOptions: [],
+            typeVal: '',
+            loading: false,
+            screenSize: document.body.clientWidth,
+            imgShow: true,
+            masterVal: "",
+            printMozhu: "",
+            mozutable: [],
+            wuliao: "LED模组",
+            sntn: "",
+            shuliang: "",
+            completeInfo: {},
+            printShow: false,
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+        },
+        methods: {
+            masterPrint: () => {
+                //判断iframe是否存在，不存在则创建iframe
+                //var iframe = document.getElementById("masterprint-iframe");
+                //if (!iframe) {
+                //    var el = document.getElementById("masterCarton");
+                //    iframe = document.createElement('IFRAME');
+                //    var doc = null;
+                //    iframe.setAttribute("id", "masterprint-iframe");
+                //    iframe.setAttribute('style', 'position:absolute;width:360px;height:480px;left:-1000px;top:-1000px;');
+                //    document.body.appendChild(iframe);
+                //    doc = iframe.contentWindow.document;
+                //    //这里可以自定义样式
+                //    doc.write("<link href='/Content/styleFile/printStyle.css?" + Math.random() + "' rel='stylesheet' />");
+                //    doc.write('<div>' + el.innerHTML + '</div>');
+                //    doc.close();
+                //    iframe.contentWindow.focus();
+                //};
+                //iframe.onload = function () {
+                //    iframe.contentWindow.print();
+                //    document.body.removeChild(iframe);
+                //};
+
+                let mzList = [], mztable = app.mozutable;
+                for (let i in mztable) {
+                    if (mztable[i].boxcode == "") {
+                        mzList.push(mztable[i].barcode)
+                    } else {
+                        mzList.push(mztable[i].boxcode)
+                    };
+                };
+                axios.post('/Packagings/OutsideBoxLablePrint', {
+                    ordernum: app.selectVal,
+                    outsidebarcode: app.masterVal,
+                    material_discription: app.wuliao,
+                    sntn: app.sntn,
+                    qty: app.shuliang,
+                    mn_list: mzList,
+                    logo: app.imgShow,
+                    pagecount:1,
+                    ip: "172.16.99.240",//ip地址
+                    port: 9101,//端口
+                }).then(function (res) {
+                        //接收转换后的Base64图片
+                    //console.log(res.data);
+                        if (res.data == '打印成功！') {
+                            //app.$message({
+                            //    showClose: true,
+                            //    message: res.data,
+                            //    type: 'success'
+                            //});
+                            app.$confirm('是否重置信息,进行下一组录入?', res.data, {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'success',
+                                center: true,
+                            }).then(() => {
+                                app.clear();
+                            }).catch(() => {
+                            });
+                        } else {
+                            app.$message({
+                                showClose: true,
+                                message: res.data,
+                                duration:0,
+                                type: 'error'
+                            });
+                        }
+                        //document.getElementById("ww").setAttribute("src", data)
+                    }).catch(err => {
+                        app.$message({
+                            showClose: true,
+                            message: '打印出错！',
+                            duration: 0,
+                            type: 'error'
+                        });
+                    });
+            },
+            setmasterBarDiv: (v) => {
+                JsBarcode("#masterBarcode", v.toUpperCase(), {
+                    height: 60, //条形码的高度
+                    //fontOptions: "bold",//使文字加粗体或变斜体
+                    format: "CODE128",
+                    font: "monospace",
+                    textAlign: "center",
+                    textMargin: 0,//设置条形码和文本之间的间距
+                    fontSize: 26,//设置文本的大小
+                    lineColor: "#000",//条形码颜色
+                    margin: 0,//设置条形码周围的空白边距
+                    marginTop: 0
+                });
+            },
+            mozuscan: function () {
+                if (this.printMozhu.length == 15) {
+                    this.loading = true;
+                    //检查重复
+                    for (let i in this.mozutable) {
+                        if (this.mozutable[i].barcode == this.printMozhu) {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                message: '已有重复条码！',
+                                type: 'warning'
+                            });
+                            this.loading = false;
+                            return;
+                        };
+                    };
+
+                    //验证条码号和所选订单是否匹配
+                    axios.post('/Packagings/IsCheckBarcode',
+                        {
+                            ordernum: this.selectVal,
+                            barcode: this.printMozhu
+                        }
+                    ).then(res => {
+                        if (res.data == true) {
+                            axios.post('/Packagings/CheckBarcode',
+                                { barcode: this.printMozhu }
+                            ).then(res => {
+                                if (res.data == true) {
+                                    this.getNum(this.printMozhu, this.mozutable);
+                                } else {
+                                    this.$notify({
+                                        title: '警告',
+                                        message: '条码"' + this.printMozhu + '"已打印，请确认条码！',
+                                        type: 'error'
+                                    });
+                                    this.loading = false;
+                                };
+                            }).catch(err => {
+                                console.warn("验证失败");
+                                this.loading = false;
+                            });
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                message: res.data,
+                                type: 'error'
+                            });
+                            this.loading = false;
+                        };
+                    }).catch(err => {
+                        console.warn("验证失败")
+                    });
+                };
+            },
+            //判断条码是否已经打印
+            isprint: function () {
+
+            },
+            //确认post
+            postConfirm: function () {
+                this.loading = true;
+                let postList = [],
+                    errormes = "",
+                    order = this.selectVal,
+                    masterVal = this.masterVal,
+                    wuliao = this.wuliao,
+                    sntn = this.sntn,
+                    shuliang = this.shuliang,
+                    mozuList = this.mozutable,
+                    type = this.typeVal,
+                    username = "@UserName",
+                    date = new Date(),
+                    nooknum = 0;
+                if (order == "") {
+                    errormes = errormes + (nooknum + 1) + "、订单号不能为空<br/>";
+                    nooknum++;
+                };
+                if (type == "") {
+                    errormes = errormes + (nooknum + 1) + "、装箱类型不能为空<br/>";
+                    nooknum++;
+                };
+                if (masterVal == "") {
+                    errormes = errormes + (nooknum + 1) + "、箱体条码不能为空<br/>";
+                    nooknum++;
+                };
+                if (wuliao == "") {
+                    errormes = errormes + (nooknum + 1) + "、物料描述不能为空<br/>";
+                    nooknum++;
+                };
+                if (sntn == "") {
+                    errormes = errormes + (nooknum + 1) + "、(SN/TN)不能为空<br/>";
+                    nooknum++;
+                };
+                if (shuliang == "") {
+                    errormes = errormes + (nooknum + 1) + "、数量QTY不能为空<br/>";
+                    nooknum++;
+                };
+                if (mozuList.length == 0) {
+                    errormes = errormes + (nooknum + 1) + "、模组不能为空<br/>";
+                    nooknum++;
+                };
+                if (mozuList.length > shuliang) {
+                    errormes = errormes + (nooknum + 1) + "、装箱模组数不能大于装箱类型的数量QTY<br/>";
+                    nooknum++;
+                };
+
+                if (nooknum > 0) {
+                    this.$alert(errormes, "标签不合格", {
+                        confirmButtonText: '确定',
+                        closeOnClickModal: true,
+                        closeOnPressEscape: true,
+                        dangerouslyUseHTMLString: true,
+                        type: "error",
+                    });
+                    this.loading = false;
+                } else {
+                    for (let item in mozuList) {
+                        postList.push({
+                            OrderNum: order,
+                            Type: type,
+                            OuterBoxBarcode: masterVal,
+                            BarCodeNum: mozuList[item].barcode,
+                            ModuleGroupNum: mozuList[item].boxcode,
+                            Operator: username,
+                            Date: date,
+                            SNTN: this.sntn,
+                            Materiel: this.wuliao,
+                            IsLogo: this.imgShow,
+                        });
+                    };
+                    axios.post('/Packagings/CreatePackangPrint',
+                        { printings: postList }
+                    ).then(res => {
+                        if (res.data == true) {
+                            this.$alert('确认成功！', {
+                                confirmButtonText: '确定',
+                                closeOnClickModal: true,
+                                closeOnPressEscape: true,
+                                type: "success",
+                                //callback: () => {
+                                //    this.clear();
+                                //}
+                            });
+                            this.printShow = true;
+                        } else {
+                            this.$alert(res.data, {
+                                confirmButtonText: '确定',
+                                closeOnClickModal: true,
+                                closeOnPressEscape: true,
+                                type: "error",
+                            });
+                        };
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn("获取模组号失败")
+                        this.loading = false;
+                    });
+                };
+            },
+            //获取箱体号
+            getNum: function (bar, table) {
+                axios.post('/Packagings/GetModulbarCode',
+                    { barcode: bar }
+                ).then(res => {
+                    //console.log(res.data)
+                    if (res.data == "") {
+                        //this.$notify({
+                        //    title: '警告',
+                        //    message: '此条码没有箱体号！',
+                        //    type: 'warning'
+                        //});
+                        this.$message({
+                            message: '此条码没有箱体号！',
+                        });
+                    };
+                    table.push({
+                        barcode: bar,
+                        boxcode: res.data,
+                    });
+                    this.printMozhu = "";
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("获取模组号失败")
+                    this.loading = false;
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+            },
+            //重置
+            clear: function () {
+                this.printMozhu = "";
+                this.mozutable = [];
+                this.shuliang = "";
+                this.printShow = false;
+                this.typeVal = "";
+                this.getorder();
+                this.$message({
+                    showClose: true,
+                    message: '重置完毕'
+                });
+            },
+            //获取类型
+            getType: function () {
+                this.typeOptions = [];
+                this.typeVal = "";
+                if (this.selectVal != "") {
+                    axios.post('/Packagings/GetBoxType', { ordernum: this.selectVal }).then(res => {
+                        //console.log(res.data);
+                        if (res.data.length == 0) {
+                            this.$notify({
+                                title: '警告',
+                                message: '此条码没有装箱类型！',
+                                type: 'warning'
+                            });
+                        } else {
+                            this.typeOptions = res.data;
+                        };
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    });
+                };
+            },
+            //获取数量
+            getqtyNum: function () {
+                this.shuliang = "";
+                if (this.selectVal != "" && this.typeVal != "") {
+                    this.loading = true;
+                    axios.post('/Packagings/GetNum', {
+                        ordernum: this.selectVal,
+                        type: this.typeVal
+                    }).then(res => {
+                        //console.log(res.data);
+                        if (res.data == 0) {
+                            this.$notify({
+                                title: '警告',
+                                message: '此装箱类型已无数量可打印！',
+                                type: 'error'
+                            });
+                        };
+                        this.shuliang = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn("获取信息失败")
+                        this.loading = false;
+                    });
+                };
+            },
+            //获取完成信息
+            getcompleteInfo: function () {
+                this.completeInfo = {};
+                if (this.selectVal != "" && this.typeVal != "") {
+                    axios.post('/Packagings/GetcompleteInfo', {
+                        ordernum: this.selectVal,
+                        type: this.typeVal
+                    }).then(res => {
+                        //console.log(res.data);
+                        this.completeInfo = {
+                            completeNum: res.data.completeNum,
+                            uncompleteNum: res.data.uncompleteNum,
+                            complete: res.data.complete,
+                        };
+                    }).catch(err => {
+                        console.warn("获取信息失败")
+                    });
+                };
+            },
+            //获取条码信息
+            getorder: function () {
+                if (this.selectVal != "") {
+                    axios.post('/Packagings/GetOuterBoxBarCodeInfo', { ordernum: this.selectVal }).then(res => {
+                        console.log(res.data);
+                        if (res.data != "") {
+                            this.masterVal = res.data.boxNum;
+                            this.sntn = res.data.SNTN;
+                        } else {
+                            this.$notify({
+                                title: '警告',
+                                message: '此订单没有需要打印的外箱条码！',
+                                type: 'warning'
+                            });
+                            this.masterVal = "";
+                        };
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    });
+                };
+            }
+        },
+        watch: {
+            masterVal: (val) => {
+                if (val != "") {
+                    app.setmasterBarDiv(val);
+                } else {
+                    $(".masterBarDiv").html('<svg id="masterBarcode"></svg>');
+                };
+            },
+            //订单号
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+                this.getType();
+                this.getorder();
+            },
+            typeVal: function (v) {
+                this.getcompleteInfo();
+                this.getqtyNum();
+            }
+        },
+    });
+</script>

@@ -1,0 +1,196 @@
+﻿@{
+    ViewBag.Title = "看板";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css?v=" +Math.random() rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .select-container{
+        text-align:center;
+        margin:15px auto;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/SMT_Sulderpaster/board"><el-button size="small">看板</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">锡膏入库</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-button size="small">锡膏入冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-button size="small">入SMT冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/Rewarming"><el-button size="small">回温</el-button></a>
+                <a href="/SMT_Sulderpaster/Stir"><el-button size="small">搅拌</el-button></a>
+                <a href="/SMT_Sulderpaster/Use"><el-button size="small">使用</el-button></a>
+                <a href="/SMT_Sulderpaster/recovery"><el-button size="small">回收</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/SMT_Sulderpaster/board"><el-dropdown-item>看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-dropdown-item>锡膏入库</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-dropdown-item>锡膏入冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-dropdown-item>入SMT冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Rewarming"><el-dropdown-item>回温</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Stir"><el-dropdown-item>搅拌</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Use"><el-dropdown-item>使用</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/recovery"><el-dropdown-item>回收</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+            </el-row>
+        </el-main>
+    </el-container>
+    <div class="select-container">
+        <el-select size="small" v-model="barnum" placeholder="请选择条码">
+            <el-option v-for="item in barnumdata"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select size="small" v-model="times" placeholder="请选择批次">
+            <el-option v-for="item in timesdata"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select size="small" v-model="supplier" placeholder="请选择供应商">
+            <el-option v-for="item in supplierdata"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select size="small" v-model="types" placeholder="请选择型号">
+            <el-option v-for="item in typesdata"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-button type="primary" size="small" v-on:click="getInfos">查找</el-button>
+    </div>
+    <el-table v-bind:data="tableDatas"
+              style="width: 100%">
+        <el-table-column prop="barcode"
+                         label="条码号"
+                         width="123">
+        </el-table-column>
+        <el-table-column prop="employtime"
+                         label="入SMT时间"
+                         width="160">
+        </el-table-column>
+        <el-table-column prop="freetime"
+                         label="开始回温时间"
+                         width="165">
+        </el-table-column>
+        <el-table-column prop="warmtime"
+                         label="开始搅拌时间"
+                         width="165">
+        </el-table-column>
+        <el-table-column label="使用记录">
+            <el-table-column prop="ordernum"
+                             label="订单号"
+                             width="125">
+            </el-table-column>
+            <el-table-column prop="linnum"
+                             label="产线"
+                             width="60">
+            </el-table-column>
+            <el-table-column prop="employtime"
+                             label="时间段"
+                             width="220">
+            </el-table-column>
+        </el-table-column>
+        <el-table-column prop="recycltime"
+                         label="回收时间"
+                         width="150">
+        </el-table-column>
+    </el-table>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            tableDatas:[],
+            barnum: null,
+            barnumdata:[],
+            times: null,
+            timesdata:[],
+            supplier: null,
+            supplierdata:[],
+            types: null,
+            typesdata:[]
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            this.getdefultinfos();
+        },
+        methods: {
+            getInfos() {
+                
+                this.$message({
+                    message: '查找功能！',
+                    type:'success'
+                })
+            },
+            getdefultinfos() {
+                axios.post("/SMT_Sulderpaster/Boadr").then(res=> {
+                    console.log(res.data)
+                    let arrs = []   // 获取每行完整数据
+                    for (let item in res.data) {
+                        for (let items in res.data[item]) {
+                            arrs.push(res.data[item][items])
+                        }
+                    }
+                    arrs.forEach(item=> {
+                        item.freezetime = GMTToStr(item.freezetime);
+                        //item.stirtime = GMTToStr(item.stirtime);
+                        //item.warmtime = GMTToStr(item.warmtime);
+                        //item.recycletime = GMTToStr(item.recycletime);
+                        //item.freezetime = GMTToStr(item.freezetime)
+                    })
+                    this.tableDatas = arrs;
+                }).catch(err=> {
+
+                })
+            }
+        },
+        watch: {
+
+        },
+    });
+
+   function GMTToStr(time) {
+       if (time == '--') {
+           return time
+       } else {
+           let date = new Date(time)
+           console.log(date);
+           let Str = date.getFullYear() + '-' +
+               (date.getMonth() + 1) + '-' +
+               date.getDate() + ' ' +
+               date.getHours() + ':' +
+               date.getMinutes() + ':' +
+               date.getSeconds()
+           return Str
+       }
+    }
+</script>

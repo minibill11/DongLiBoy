@@ -1,0 +1,239 @@
+﻿@model JianHeMES.Models.ModuleGroupCalibrationViewModel
+
+@{
+    ViewBag.Title = "校正信息查询";
+}
+@Scripts.Render("~/Scripts/highcharts")
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .testContainer{
+        text-align:center;
+    }
+    .tableContainer{
+        
+    }
+    .el-table__body-wrapper{
+        
+    }
+    .inputclass{
+        width:100%;
+        height:100%;
+        padding:3px;
+    }
+    .selectContainer{
+        text-align:center;
+        margin-top:25px;
+    }
+    .mytable{
+        width: 33%;margin-left:33.5%;
+    }
+    @@media(max-width:400px){
+        .mytable{
+        width: 100%;margin-left:0;
+    }
+    }
+</style>
+
+<div id="app">
+    @*<div class="testContainer">
+        <el-button v-on:click="getDefaultInfos" type="success">测试按钮</el-button>
+        本次订单号为:{{orrderNum}}
+    </div>*@
+    <div class="tableContainer">
+        <div class="selectContainer">
+            <el-select v-model="selectedBarcode" size="small" clearable placeholder="请选择">
+                <el-option v-for="item in barcodes"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        
+        <el-table v-bind:data="finas"
+                  height="500"
+                  class="mytable"
+                  >
+            <el-table-column prop="barcode"
+                             label="条码号"
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="module"
+                             label="模组号"
+                             width="180">
+                <template slot-scope="scope">
+                    <input class="inputclass" type="text" v-bind:value="scope.row.module" />
+                </template>
+            </el-table-column>
+            @*<el-table-column prop=""
+                             label="操作"
+                             width="180">
+                <template slot-scope="scope">
+                    <el-button v-show="showinnerbtn" class="btnone" size="mini" v-on:click="handleEdit(scope.$index, scope.row)">编辑</el-button>
+                    <el-button class="btntwo" size="mini" style="display:none;" v-on:click="handleSave(scope.$index, scope.row)">保存</el-button>
+                    <el-button class="btnthree" size="mini" style="display:none;" v-on:click="handleCancel(scope.$index, scope.row)">取消</el-button>
+                    <el-button v-show="showinnerbtn" class="btnfour" size="mini" type="danger" v-on:click="handleDelete(scope.$index, scope.row)">删除</el-button>
+                </template>
+            </el-table-column>*@
+        </el-table>
+    </div>
+    <el-button class="btntwo" size="mini" style="display:inline-block;" v-on:click="handleSave">保存</el-button>
+    <el-button class="btntwo" size="mini" style="display:inline-block;" v-on:click="goback">返回</el-button>
+</div>
+
+<script>
+
+    let vm = new Vue({
+        el: "#app",
+        data: {
+            orrderNum: "",
+            tableData: [],
+            finas:[],
+            showinnerbtn: true,
+            barcodes: [],
+            selectedBarcode:null,
+        },
+        methods: {
+            getDefaultInfos() {
+                axios.post("/OrderMgms/BitchSelectModulNum", { ordernum: this.orrderNum }).then(res=> {
+                    console.log(res.data)
+                    for (let i = 0; i < res.data.barcode.length; i++) {
+                        let obj = { barcode: res.data.barcode[i], module: res.data.module[i] };
+                        this.tableData.push(obj)
+                    };
+                    this.tableData.forEach(item=> {
+                        let obj = { value: item.barcode };
+                        this.barcodes.push(obj)
+                    });
+                }).catch(err=> {
+
+                })
+            },
+            goback(){
+                window.history.back();
+            },
+            handleSave() {
+                let inputs = []
+                for (let i = 0; i < $(".inputclass").length; i++) {
+                    inputs.push($(".inputclass")[i].value)
+                    
+                };
+                let barcodes = []
+                this.finas.forEach(item=> {
+                    barcodes.push(item.barcode)
+                })
+                let postList = []
+                for (let i = 0; i < inputs.length; i++) {
+                    let obj = { barcode: barcodes[i], module: inputs[i] }
+                    postList.push(obj)
+                }
+                console.log(postList)
+                axios.post("/OrderMgms/BitchUpdateModulNumAsync", { updates: postList }).then(res => {
+                    console.log(res.data)
+                    if (res.data == "True") {
+                        this.$message({
+                            message: "保存成功!",
+                            type:"success"
+                        })
+                    } else {
+                        this.$message({
+                            message: "保存失败!",
+                            type: "warning"
+                        })
+                    }
+                }).catch(err=> {
+
+                })
+            }
+            //handleEdit(index, row) {    //在线编辑功能
+            //    let trs = [];
+            //    for (let i = 0; i < $("table tbody tr").length; i++) {
+            //        trs.push($("table tbody tr")[i])
+            //    }
+            //    var btn1 = $(trs)[index].lastChild.children[0].children[0];
+            //    var btn2 = $(trs)[index].lastChild.children[0].children[1];
+            //    var btn3 = $(trs)[index].lastChild.children[0].children[2];
+            //    var btn4 = $(trs)[index].lastChild.children[0].children[3];
+            //    let targetTr = trs[index]
+            //    targetTr.children[1].innerHTML = `<input class='inputclass' type='text' value="${row.module}" />`;
+
+            //    $(btn1).hide()
+            //    $(btn4).hide()
+            //    $(btn2).show()
+            //    $(btn3).show()
+            //},
+            //handleCancel(index, row) {   //取消保存方法
+            //    let trs = [];
+            //    for (let i = 0; i < $("table tbody tr").length; i++) {
+            //        trs.push($("table tbody tr")[i])
+            //    }
+            //    var btn1 = $(trs)[index].lastChild.children[0].children[0];
+            //    var btn2 = $(trs)[index].lastChild.children[0].children[1];
+            //    var btn3 = $(trs)[index].lastChild.children[0].children[2];
+            //    var btn4 = $(trs)[index].lastChild.children[0].children[3];
+            //    let targetTr = trs[index]
+            //    targetTr.children[1].innerHTML = `<div class="cell">${row.module}</div>`;
+            //    $(btn1).show()
+            //    $(btn4).show()
+            //    $(btn2).hide()
+            //    $(btn3).hide()
+            //},
+            //handleSave(index, row) {     //单条编辑保存
+
+            //    let trs = [];
+            //    for (let i = 0; i < $("table tbody tr").length; i++) {
+            //        trs.push($("table tbody tr")[i])
+            //    }
+            //    var btn1 = $(trs)[index].lastChild.children[0].children[0];
+            //    var btn2 = $(trs)[index].lastChild.children[0].children[1];
+            //    var btn3 = $(trs)[index].lastChild.children[0].children[2];
+            //    var btn4 = $(trs)[index].lastChild.children[0].children[3];
+            //    let targetTr = trs[index]
+
+            //    var targetTr_td = $(trs)[index].cells;
+                
+            //    targetTr.children[1].innerHTML = `<div class="cell">${targetTr_td[1].children[0].value}</div>`;
+            //    $(btn1).show()
+            //    $(btn4).show()
+            //    $(btn2).hide()
+            //    $(btn3).hide()
+
+            //},
+            //handleDelete(index, row) {   //删除方法
+            //    this.$message({
+            //        message: "暂无删除方法！",
+            //        type:"warning"
+            //    })
+
+            //},
+        },
+        mounted() {
+            this.orrderNum = getQueryString();
+            this.getDefaultInfos();
+            this.finas = this.tableData
+
+        },
+        watch: {
+            selectedBarcode() {
+                if (this.selectedBarcode == '') {
+                    this.finas = this.tableData;
+                } else {
+                    this.finas = [];
+                    this.tableData.forEach(item=> {
+                        if (item.barcode == this.selectedBarcode) {
+                            this.finas.push(item)
+                        }
+                    });
+
+                }
+            }
+        }
+    });
+    function getQueryString(name) {
+        var reg = new RegExp("(^|&)" + 'ordernum' + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r != null) return unescape(r[2]); return null;
+    }
+</script>

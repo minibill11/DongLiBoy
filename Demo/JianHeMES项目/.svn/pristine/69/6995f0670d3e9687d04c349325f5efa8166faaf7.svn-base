@@ -1,0 +1,235 @@
+﻿@{
+    ViewBag.Title = "Equipment_Tally";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title></title>
+    <link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+    <script src="~/Scripts/axios.min.js"></script>
+    <script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+    <style>
+        .taocontainer{
+            display:flex;
+            justify-content:space-around;
+            margin-top:25px;
+        }
+        .bottomContainer {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+    }
+        table > thead > tr > th, table > tbody > tr > td {
+        text-align: center !important;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="taocontainer">
+            <div class="topinner">
+                <el-input placeholder="请输入设备名称"
+                          size="small"
+                          v-model="Ename"
+                          clearable>
+                </el-input>
+            </div>
+            <div class="topinner">
+                <el-input placeholder="请输入线别"
+                          v-model="lineNum"
+                          size="small"
+                          clearable>
+                </el-input>
+            </div>
+            <div class="topinner">
+                <el-select v-model="orderNum" size="small" allow-create filterable clearable placeholder="请选择设备编号">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="topinner">
+                <el-date-picker v-model="time"
+                                type="date"
+                                size="small"
+                                placeholder="选择日期">
+                </el-date-picker>
+            </div>
+            <div class="topinner">
+                <el-button id="search" type="success" size="small" v-on:click="query">查询</el-button>
+                <el-button id="search" type="primary" size="small" v-on:click="addInfos">添加</el-button>
+            </div>
+        </div>
+        <el-dialog title="添加设备点检记录"
+                   v-bind:visible.sync="centerDialogVisible"
+                   width="30%"
+                   center>
+            <el-form label-width="80px" ref="ruleForm" model="formLabelAlign">
+                <el-form-item label="设备名称">
+                    <el-input v-model="formLabelAlign.Ename2"></el-input>
+                </el-form-item>
+                <el-form-item label="线别">
+                    <el-input v-model="formLabelAlign.lineNum2"></el-input>
+                </el-form-item>
+                <el-form-item label="设备编号">
+                    <el-select v-model="formLabelAlign.Enumber2" v-on:change="selectChange" clearable filterable placeholder="请选择">
+                        <el-option v-for="item in options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="日期">
+                    <el-date-picker v-model="formLabelAlign.times2"
+                                    type="month"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item>
+                        <el-button v-on:click="centerDialogVisible = false">取 消</el-button>
+                        <el-button type="primary" v-on:click="postAdd">确 定</el-button>
+                </el-form-item>
+          </el-form>
+            
+        </el-dialog>
+        <div class="bottomContainer">
+            <div style="width:71%">
+                <el-table v-bind:data="tableData"
+                          border
+                          style="width: 100%">
+                    <el-table-column prop="Customer"
+                                     label="客户"
+                                     width="125">
+                    </el-table-column>
+                    <el-table-column prop="OrderNumber"
+                                     label="订单号"
+                                     width="180">
+                    </el-table-column>
+                    <el-table-column prop="Mo1"
+                                     width="120"
+                                     label="规格型号">
+                    </el-table-column>
+                    <el-table-column prop="Mo2"
+                                     width="120"
+                                     label="模块型号">
+                    </el-table-column>
+                    <el-table-column prop="ReportDate"
+                                     width="180"
+                                     label="报告时间">
+                    </el-table-column>
+                    <el-table-column prop=""
+                                     width="83"
+                                     label="地址">
+                        <template slot-scope="scope">
+                            <el-button size="small" type="primary" v-on:click="goDetials(scope.row)">详细</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let app = new Vue({
+            el: "#app",
+            data: {
+
+                Ename: null,
+                lineNum: null,
+                orderNum: null,
+                time: null,
+                options: [],
+                tableData: [],
+                centerDialogVisible: false,
+                formLabelAlign: {
+                    times2: null,
+                    Enumber2: null,
+                    lineNum2: null,
+                    EName2: null,
+                }
+            },
+            methods: {
+                query() {
+                    if (this.Ename != '' || this.lineNum != '' || this.orderNum != '' || this.time != '') {
+                        console.log(this.time)
+                        let dd = new Date(this.time);
+                        let selectYear = dd.getFullYear();
+                        let selectMonth = dd.getMonth() + 1
+                        axios.post("/Equipment/Equipment_Tally", { equipmentName: this.Ename, lineNum: this.lineNum, equipmentNumber: this.orderNum, year: selectYear, month: selectMonth }).then(res => {
+                            console.log(res.data)
+                        }).catch(err=> {
+
+                        })
+                    } else {
+                        this.$message({
+                            message: "请输入需要查询的信息",
+                            type:"warning"
+                        })
+                    }
+                },
+                getEnumnbers() {
+                    axios.post("/Equipment/EQNumberList").then(res=> {
+                        console.log(res.data)
+                        res.data.forEach(item=> {
+                            let obj = { value: item, label: item }
+                            this.options.push(obj)
+                        })
+                    }).catch(err=> {
+
+                    })
+                },
+                goDetials(item) {
+
+                },
+                addInfos() {
+                    this.centerDialogVisible = true;
+                },
+                postAdd() {
+                    console.log(this.formLabelAlign.times2)
+                    let dd = new Date(this.formLabelAlign.times2)
+                    let y = dd.getFullYear();
+                    let m = dd.getMonth() + 1;
+                    axios.post("/Equipment/AddEquipment_Tally_maintenance_Add", { eqname: this.formLabelAlign.EName2, linename: this.formLabelAlign.lineNum2, eqnum: this.formLabelAlign.Enumber2, year:y, month:m }).then(res=> {
+                        console.log(res.data)
+                        if (res.data == "保存成功！") {
+                            this.$message({
+                                message: "保存成功",
+                                type: "success"
+                            });
+                            this.centerDialogVisible = false;
+                            // 清空表单--重置
+                            //this.resetForm();
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: "warning"
+                            });
+                        }
+                    })
+                },
+                // 获取设备信息补全
+                selectChange(val) {
+                    axios.post("/Equipment/Particulars", { assetNumber: val }).then(res=> {
+                        console.log(res.data)
+                    })
+                }
+            },
+            mounted() {
+                this.getEnumnbers()
+            },
+            watch: {
+               
+            }
+        })
+
+    </script>
+</body>
+</html>

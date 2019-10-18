@@ -1,0 +1,465 @@
+﻿@{
+    ViewBag.Title = "KPIstistatics";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+@*<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>*@
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    table .cell, table td {
+        text-align: center;
+        margin: 0;
+    }
+
+    .sticky {
+        vertical-align: top !important;
+    }
+
+        .sticky .cell {
+            position: sticky;
+            top: 0px;
+        }
+
+    .wtop {
+        padding: 10px;
+        text-align: center;
+    }
+
+    .mtop {
+        padding-top: 6px;
+        text-align: center;
+    }
+</style>
+<div id="app">
+    <el-main>
+        <h3 class="text-center" style="margin:3px">统计报表</h3>
+        <div class="wtop">
+            <template>
+                <el-select v-model="department" placeholder="选择部门" clearable filterable size="medium" style="width:150px" v-on:change="depepost('department')">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:value="item.label">
+                    </el-option>
+                </el-select>
+                <el-select v-model="workshop"  placeholder="选择车间" clearable filterable size="medium" style="width:150px" v-on:change="depepost('workshop')">
+                    <el-option v-for="item in workOption"
+                               v-bind:key="item.value"
+                               v-bind:value="item.label">
+                    </el-option>
+                </el-select>
+                <el-select v-model="group"  placeholder="选择小组" clearable filterable size="medium" style="width:150px">
+                    <el-option v-for="item in groupOption"
+                               v-bind:key="item.value"
+                               v-bind:value="item.label">
+                    </el-option>
+                </el-select>
+                <el-input v-model="personnel" v-bind:readonly="timeFlag" placeholder="请输入员工" clearable filterable size="medium" style="width:150px" v-on:change="namepost()"></el-input>
+                <div>
+                    <el-date-picker v-model="time"
+                                    v-bind:readonly="timeFlag"
+                                    type="datetimerange"
+                                    range-separator="至"
+                                    start-placeholder="开始日期"
+                                    end-placeholder="结束日期" size="medium" style="width:370px">
+                    </el-date-picker>
+
+                    <el-date-picker v-model="month"
+                                    v-bind:readonly="monthFlag"
+                                    type="monthrange"
+                                    range-separator="至"
+                                    start-placeholder="开始月份"
+                                    end-placeholder="结束月份" style="width:350px;margin-top:5px" size="medium">
+                    </el-date-picker>
+                    <el-button v-on:click="onSubmit" size="medium" type="primary">查询</el-button>
+                </div>
+            </template>
+
+            <!-- 这里是第一张表 -->
+            <el-table v-loading="loading" highlight-current-row v-bind:data="tableData" style="margin-top:5px" border width="100%" max-height="580" v-bind:span-method="cellMerge" v-if="flag" key='firsttable'>
+                <el-table-column class-name="sticky" v-for="col in tableHeader" v-bind:prop="col.porp" min-width="150" v-bind:label="col.label" class="text-muted" show-overflow-tooltip></el-table-column>
+            </el-table>
+
+            <!-- 这里是第二张表 -->
+            <el-table border v-bind:data="tableData1" min-height:580 style="margin-top:10px;width: 100%;text-align: center" v-if="flag2" key='secondtable'>
+                <el-table-column prop="depe" label="部门" width="220"></el-table-column>
+                <el-table-column prop="section" label="工段" width="220">
+                    <template slot-scope="scope">
+                        <el-button type="text" v-on:click="handleEdit(scope.$index, scope.row)">{{scope.row.section}}</el-button>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="quantity" label="数量"></el-table-column>
+            </el-table>
+
+            <!-- 这里是第三张表 -->
+            <el-table v-loading="loading" border v-bind:data="tableData2" min-height:580 style="margin-top:10px;width: 100%;text-align: center" v-if="flag3" key='thirdtable'>
+                <el-table-column prop="depe" label="部门" width="220"></el-table-column>
+                <el-table-column prop="section" label="工段" width="220"></el-table-column>
+                <el-table-column prop="order" label="订单" width="220"></el-table-column>
+                <el-table-column prop="quantity" label="数量"></el-table-column>
+            </el-table>
+        </div>
+    </el-main>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            department: '',
+            options: [{ value: '选项1', label: '装配一部' },
+            { value: '选项2', label: '装配二部' },
+            { value: '选项3', label: '品质部' },
+            { value: '选项4', label: '老化包装一部' }],
+            workshop: '',
+            workOption: [],
+            group: '',
+            groupOption: [],
+            personnel: '',
+            personnelOption: [],
+            month: null,
+            time: null,
+            tableHeader: [],  //表头
+            tableData: [],  //数据
+            tableData1: [{ depe: '装配一', section: '组装PQC', quantity: '300' },
+            { depe: '装配一', section: '组装PQC', quantity: '300' }],
+            tableData2: [{ depe: '装配一', section: '组装PQC', order: '2019-A', quantity: '200' },
+            { depe: '装配一', section: '组装PQC', order: '2019-B', quantity: '300' }],
+            spanArr: [],   //存放第一列合并的数据
+            pos: '',       //spanArr数组的索引
+            panArrs: [],
+            pos1: '',
+            spanArrs2: [],
+            pos2: '',
+            loading: false,
+            flag: true,   //用于判断显示第一张表
+            flag2: false,  //用于判断显示第二张表
+            flag3: false,  //用于判断显示第三张表
+            timeFlag: false,
+            monthFlag: false,
+        },
+        methods: {
+            onSubmit: function () {
+                if (this.month == null) {
+                    //如果不刷新页面，就继续查找数据，那么需要把前一次请求时合并的数组清空，否则下一次请求时表格的合并会出现错乱的情况
+                    this.tableData = [];
+                    this.tableHeader = [];
+                    this.spanArr = [];
+                    this.pos = '';
+                    this.spanArrs = [];
+                    this.pos1 = '';
+                    this.spanArrs2 = [];
+                    this.pos2 = '';
+
+                    //当用户请求后台数据时显示正在加载的效果
+                    this.loading = true;
+                    this.flag = true;
+                    this.flag2 = false;
+                    this.flag3 = false;
+
+                    let nvalue;             //姓名
+                    let wvalue;            //车间
+                    let gvalue;           //小组
+                    let dvalue;          //部门
+                    //判断姓名是否为空  为空就不传name的值
+                    if (this.personnel != '') {
+                        nvalue = this.personnel
+                    };
+                    if (this.workshop != '') {
+                        wvalue = this.workshop
+                    };
+                    if (this.group != '') {
+                        gvalue = this.group
+                    };
+                    if (this.department != '') {
+                        dvalue = this.department
+                    };
+                    axios.post('KPIstistatics/KPIstistatics', {
+                        department: dvalue,
+                        workshop: wvalue,
+                        DP_Group: gvalue,
+                        Name: nvalue,
+                        startdate: this.time[0],
+                        enddate: this.time[1],
+                        //datetime: this.month,
+                    }).then(res => {
+
+                        console.log(res.data)
+
+                        //获取表头头部信息
+                        let arr = [];
+                        //弹出第一条数据，表头
+                        var aa = res.data.shift();
+                        //console.log(aa)
+
+                        for (let item in aa) {
+                            let obj = { porp: item, label: aa[item] }
+                            arr.push(obj)
+                        }
+                        //若后端没有表头对应的数据，就定一个空数组赋给表头，其显示暂无数据
+                        if (res.data.length < 1) {
+                            let karr = [];
+                            this.tableHeader = karr;
+                        } else {
+                            this.tableHeader = arr;
+                        }
+
+                        // 获取表格数据
+                        this.tableData = res.data;
+
+                        //数据加载成功之后 消失加载效果
+                        this.loading = false;
+
+                        // 从后端接口成功拿到数据以后，再调用 getSpanArr 方法，生成要合并的列的index，否则表格的合并会跑到最后一列
+                        this.getSpanArr(this.tableData);
+                        console.log("请求数据成功1")
+                    }).catch(err => {
+                        console.log("获取数据失败")
+                        this.loading = false;
+                    })
+                } else {
+                    this.loading = true;
+                    this.flag = false;
+                    this.flag2 = true;
+                    this.flag3 = false;
+                    let depa;
+                    if (this.department != '') {
+                        depa = this.department;
+                    }
+                    axios.post('KPIstistatics/xxx', {
+                        xx: depa,
+                        xxx: this.month[0],
+                        xxxx: this.month[1],
+                    }).then(res => {
+                        console.log("请求数据成功2")
+                        //数据加载成功之后 消失加载效果
+                        this.loading = false;
+                    }).catch(err => {
+                        console.log("获取数失败")
+                        this.loading = false;
+                    })
+                }
+            },
+
+            handleEdit(index, row) {
+                //console.log(row.section);
+                //当用户请求后台数据时显示正在加载的效果
+                //this.loading = true;
+                this.flag = false;
+                this.flag2 = false;
+                this.flag3 = true;
+
+                axios.post('KPIstistatics/XXXX', {
+                    a: row.order,                 //将当前行中的工段值传出去
+                    aa: row.depe,
+                    aaa: this.month[0],
+                    aaaa: this.month[1],
+                }).then(res => {
+                    console.log("数据请求成功3")
+                    this.loading = false;
+                }).catch(err => {
+                    console.log("获取数据失败")
+                    this.loading = false;
+                })
+            },
+
+            //根据部门返回车间 或者根据部门-车间返回下一级
+            depepost: function (val) {
+                let thisval;
+                switch (val) {
+                    case 'department': thisval = this.department; break;
+                    case 'workshop': thisval = this.workshop; break;
+                };
+                axios.post('/Common/GetDownOneLeave', {
+                    upLeave: thisval,
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data.Workshop.length > 0) {
+                        let arr = [];
+                        for (let item in res.data.Workshop) {
+                            let obj = { value: item, label: res.data.Workshop[item] }
+                            arr.push(obj)
+                        }
+                        this.workOption = arr;
+                    };
+                    if (res.data.Group.length > 0) {
+                        let arr1 = [];
+                        for (let item in res.data.Group) {
+                            let obj = { value: item, label: res.data.Group[item] }
+                            arr1.push(obj)
+                        }
+                        this.groupOption = arr1;
+                    };
+                }).catch(err => {
+                    console.log("获取下一级失败")
+                })
+            },
+
+            //根据姓名返回上两级
+            namepost: function () {
+                this.groupOption = [];
+                this.workOption = [];
+                this.options = [];
+                axios.post('/Common/GetUpTwoLeave', {
+                    name: this.personnel,
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data.Group != null) {        //Group不等于空就执行
+                        this.groupOption.push({
+                            value: res.data.Group,
+                            label: res.data.Group
+                        });
+                    }
+                    if (res.data.Workshop != null) {     //Workshop不等于空就不执行
+                        this.workOption.push({
+                            value: res.data.Workshop,
+                            label: res.data.Workshop
+                        });
+                    }
+                    this.options.push({
+                        value: res.data.Department,
+                        label: res.data.Department
+                    })
+                }).catch(err => {
+                    console.log('获取所属上两级失败')                   
+                })
+            },
+
+            //合并相同数据的方法
+            getSpanArr(data) {
+                for (var i = 0; i < data.length; i++) {
+                    if (i === 0) {     //判断是否是第一条数据
+                        this.spanArr.push(1);
+                        this.pos = 0
+                    } else {
+                        //判断与上一元素是否相同
+                        if (data[i].depe === data[i - 1].depe) {
+                            //合并行数+1
+                            this.spanArr[this.pos] += 1;
+                            this.spanArr.push(0);
+                        } else {
+                            this.spanArr.push(1);
+                            this.pos = i;
+                        }
+                    }
+                };
+
+                //console.log(data)
+                //第二列
+                if ('Group' in data[0]) {
+                    for (var i = 0; i < data.length; i++) {
+                        if (i === 0) {
+                            this.spanArrs.push(1);
+                            this.pos1 = 0
+                        } else {
+                            if (data[i].Group === data[i - 1].Group) {  //小组
+                                this.spanArrs[this.pos1] += 1;
+                                this.spanArrs.push(0);
+                            } else {
+                                this.spanArrs.push(1);
+                                this.pos1 = i;
+                            }
+                        }
+                    }
+                } else {
+                    for (var i = 0; i < data.length; i++) {
+                        if (i === 0) {
+                            this.spanArrs.push(1);
+                            this.pos1 = 0
+                        } else {
+                            if (data[i].name === data[i - 1].name) {  //姓名
+                                this.spanArrs[this.pos1] += 1;
+                                this.spanArrs.push(0);
+                            } else {
+                                this.spanArrs.push(1);
+                                this.pos1 = i;
+                            }
+                        }
+                    }
+                };
+
+                //第三列
+                if ('name' in data[0]) {
+                    for (var i = 0; i < data.length; i++) {
+                        if (i === 0) {
+                            this.spanArrs2.push(1);
+                            this.pos2 = 0
+                        } else {
+                            if (data[i].name === data[i - 1].name) {
+                                this.spanArrs2[this.pos2] += 1;
+                                this.spanArrs2.push(0);
+                            } else {
+                                this.spanArrs2.push(1);
+                                this.pos2 = i;
+                            }
+                        }
+                    }
+                } else { };
+            },
+
+            //合并第一列
+            cellMerge({ row, column, rowIndex, columnIndex }) {
+                if (columnIndex === 0) {
+                    const _row = this.spanArr[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };
+
+                //合并第二列
+                if (columnIndex === 1) {
+                    const _row = this.spanArrs[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };
+
+                //合并第三列
+                let aa = [];
+                for (let item in this.tableData[0]) {
+                    aa.push(item)
+                }
+                if (aa[2] == 'name') {
+                    if (columnIndex === 2) {
+                        const _row = this.spanArrs2[rowIndex];
+                        const _col = _row > 0 ? 1 : 0;
+                        return {
+                            rowspan: _row,
+                            colspan: _col
+                        }
+                    }
+                } else { };
+            },
+        },
+        watch: {
+            
+            //设置当选择时间段的时候月份不可以选
+            time() {
+                if (this.time == null) {
+                    this.monthFlag = false;
+                } else {
+                    this.monthFlag = true;
+                };
+                if (this.time == '' || null) {
+                    this.time = null;
+                };
+            },
+            month() {
+                if (this.month == null) {
+                    this.timeFlag = false;
+                } else {
+                    this.timeFlag = true;
+                };
+                if (this.month == '' || null) {
+                    this.month = null;
+                }
+            },
+        }
+    })
+</script>
+

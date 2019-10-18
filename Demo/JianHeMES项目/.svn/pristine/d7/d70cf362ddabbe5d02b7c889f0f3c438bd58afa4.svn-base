@@ -1,0 +1,137 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class QueryController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        //录入包装基本信息的订单列表
+        public ActionResult GetOrderList()
+        {
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        // GET: Query
+        public ActionResult barcodeInfo()
+        {
+            return View();
+        }
+        public ActionResult ordernumModuleInfo()
+        {
+            return View();
+        }
+        //根据订单号显示模组工序信息
+        public ActionResult DisplayBarcodeListFromOrdernum(string ordernum)
+        {
+            JArray result = new JArray();
+            var barcodeList = db.BarCodes.OrderBy(c=>c.BarCodesNum).Where(c => c.OrderNum == ordernum).Select(c=>c.BarCodesNum).ToList();
+            foreach (var item in barcodeList)
+            {
+                //1是正常完成，2有开始未完成，3是未开始 
+                JObject statu = new JObject();
+                statu.Add("barcode", item);
+                //组装
+                var ass = db.Assemble.Where(c => c.BoxBarCode == item).ToList();
+                if (ass.Count == 0)
+                {
+                    statu.Add("Assemble", 3);
+                }
+                else
+                {
+                   var bb= ass.Where(c => c.PQCCheckFinish = true).FirstOrDefault();
+                    if (bb != null)
+                    { statu.Add("Assemble", 1); }
+                    else
+                    { statu.Add("Assemble", 2); }
+                }
+                //FQC
+                var FQC = db.FinalQC.Where(c => c.BarCodesNum == item).ToList();
+                if (FQC.Count == 0)
+                {
+                    statu.Add("FinalQC", 3);
+                }
+                else
+                {
+                    var bb = FQC.Where(c => c.FQCCheckFinish = true).FirstOrDefault();
+                    if (bb != null)
+                    { statu.Add("FinalQC", 1); }
+                    else
+                    { statu.Add("FinalQC", 2); }
+                }
+                //拼屏
+                var mosicBurnin = db.Burn_in_MosaicScreen.Where(c => c.BarCodesNum == item).ToList();
+                if (mosicBurnin.Count == 0)
+                {
+                    statu.Add("Burn_in_MosaicScreen", 3);
+                }
+                else
+                {
+                    statu.Add("Burn_in_MosaicScreen", 1);
+                }
+                //老化
+                var burnIn = db.Burn_in.Where(c => c.BarCodesNum == item).ToList();
+                if (burnIn.Count == 0)
+                {
+                    statu.Add("Burn_in", 3);
+                }
+                else
+                {
+                    var bb = burnIn.Where(c => c.OQCCheckFinish = true).FirstOrDefault();
+                    if (bb != null)
+                    { statu.Add("Burn_in", 1); }
+                    else
+                    { statu.Add("Burn_in", 2); }
+                }
+                //校正
+                var calib = db.CalibrationRecord.Where(c => c.BarCodesNum == item).ToList();
+                if (calib.Count == 0)
+                {
+                    statu.Add("CalibrationRecord", 3);
+                }
+                else
+                {
+                    var bb = calib.Where(c => c.Normal==true&&c.FinishCalibration!=null).FirstOrDefault();
+                    if (bb != null)
+                    { statu.Add("CalibrationRecord", 1); }
+                    else
+                    { statu.Add("CalibrationRecord", 2); }
+                }
+                //电检
+                var Appearance = db.Appearance.Where(c => c.BarCodesNum == item).ToList();
+                if (Appearance.Count == 0)
+                {
+                    statu.Add("Appearance", 3);
+                }
+                else
+                {
+                    var bb = Appearance.Where(c => c.OQCCheckFinish == true && c.OQCCheckFT != null).FirstOrDefault();
+                    if (bb != null)
+                    { statu.Add("Appearance", 1); }
+                    else
+                    { statu.Add("Appearance", 2); }
+                }
+                result.Add(statu);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+
+        
+
+    }
+}

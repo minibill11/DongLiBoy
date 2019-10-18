@@ -1,0 +1,691 @@
+﻿@model JianHeMES.Models.Appearance
+@{
+    ViewBag.Title = "外观包装工作";
+}
+<link href="~/Scripts/Bootstraps/bootstrap-select.min.css" rel="stylesheet" />
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<h2 class="hidden-xs">外观包装工作</h2>
+<style>
+    #BarCodesNum {
+        display: inline-block;
+        /* background-color: aqua; */
+    }
+
+    .RepertoryStyle {
+        color: #555;
+        padding: 0 6px;
+    }
+
+    input, textarea, select {
+        max-width: 215px;
+    }
+
+    .barcodeFrame {
+        width: 200px;
+        height: 200px;
+        border: 1px solid #555;
+        overflow: auto;
+        padding: 5px;
+    }
+
+        .barcodeFrame ul {
+            list-style: none;
+            padding: 0;
+        }
+
+    .frameW p {
+        margin: 10px 0;
+    }
+
+    .selectpicker, .bootstrap-select > .btn {
+        border: 1px solid #ccc;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 215px;
+    }
+    /*select    宽度*/
+    .bootstrap-select > .btn, .bootstrap-select.form-control:not([class*="col-"]) {
+        max-width: 215px;
+    }
+
+    @@media screen and (min-width:992px) {
+        .leftform {
+            border-right: 1px solid #555;
+            padding: 40px 40px 0 0;
+            min-height: 500px;
+        }
+
+        .barcodeFrame {
+            height: 400px;
+        }
+    }
+
+    @@media screen and (min-width:768px) {
+        .frameW {
+            text-align: center;
+            padding-right: 0;
+        }
+
+        .barcodeFrame {
+            margin: 0 auto;
+        }
+    }
+
+    .table {
+        margin-bottom: 0;
+        max-width: 215px;
+    }
+
+        .table > tbody > tr > td, .table > tbody > tr > th {
+            padding: 1px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 13px;
+            height: 22px;
+        }
+
+    .table-bordered > tbody > tr > th, .table-bordered > tbody > tr > td {
+        border: 1px solid #000;
+    }
+
+    .green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }
+
+    @@media screen and (max-width:768px) {
+        .form-group, .control-label {
+            margin-bottom: 0px;
+        }
+
+        h5 {
+            margin-top: 5px;
+            margin-bottom: 0px;
+        }
+
+        .frameW p {
+            margin: 5px 0 0;
+        }
+
+        .barcodeFrame {
+            height: 150px;
+        }
+
+        #isorder {
+            margin-bottom: 10px;
+        }
+    }
+
+    .form-group {
+        margin-bottom: 8px;
+    }
+
+    #innerCarton {
+        margin: 15px auto 10px;
+        padding: 20px 0 10px;
+        max-width: 400px
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    .mozhu {
+        font-size: 60px;
+        line-height: 30px;
+    }
+    /*内箱条码样式*/
+    #innerBarcode {
+        width: 200px;
+        height:75px;
+    }
+
+    .red {
+        color: #ff110c;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+</style>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal" v-cloak>
+        <h4 class="hidden-xs">@ViewBag.Title</h4>
+        <h5 class="visible-xs text-center">@ViewBag.Title</h5>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+        <div class="col-md-4 leftform">
+            <div class="form-group">
+                <div class="col-md-8  col-md-offset-4">
+                    <div class="btn btn-sm" v-on:click="divert=!divert" v-bind:class="{'btn-success': divert,'btn-primary': !divert }">挪用库存</div>
+                    <input class="checkbox-inline" type="checkbox" name="isnuo" v-model="divert" value="true" />
+                </div>
+            </div>
+
+            @*挪用*@
+            <div class="form-group" v-show="divert">
+                <label for="nuoOrder" class="control-label col-md-4">被挪用订单号</label>
+                <div class="col-md-8">
+                    @Html.DropDownList("nuoOrder", (List<SelectListItem>)ViewBag.OrderList, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                </div>
+
+                <label for="nuoBarCode" class="control-label col-md-4">被挪用条码号</label>
+                <div class="col-md-8">
+                    @*@Html.DropDownList("nuoBarCode", (List<SelectListItem>)ViewBag.nuoOrderList, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })*@
+                    <input autocomplete="off" autofocus="autofocus" id="nuoBarCode" name="nuoBarCode" v-model="nuoBarCode" maxlength="15" onkeyup="this.value=this.value.toUpperCase().replace(/\s+/g,'')" type="text" class="form-control text-box single-line">
+                    <div v-show="isnuonum" class="text-danger">{{checkmes}}</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.DropDownListFor(model => model.OrderNum,ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                    @*@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, new { @class = "form-control" })*@
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <input autocomplete="off" autofocus="autofocus" v-model.trim="innerVal" v-on:keyup.enter.prevent.stop="getmozu" placeholder="请输入条码号" id="BarCodesNum" maxlength="15" name="BarCodesNum" onkeyup="this.value=this.value.toUpperCase().replace(/\s+/g,'')" type="text" class="form-control text-box single-line">
+                    @*@Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus", autocomplete = "off", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')", maxlength = "15" } })*@
+                    @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+                    @*<p v-show="checkMozu[0]!=''" v-bind:style="(checkMozu[0]=='YES')?'color:green':'color:red'" style="margin:0;max-width:215px;">{{checkMozu[1]}}</p>*@
+                    {{checkMozu[1]}}
+                    @*<div class="red">{{warntext}}</div>*@
+                </div>
+            </div>
+
+
+
+            <div class="form-group">
+                <div class="col-md-8 col-md-offset-4">
+                    <span class="RepertoryStyle">是否有客户条码号：<input id="IsRepertory" type="checkbox"></span>
+                </div>
+            </div>
+
+            <div id="isorder" class="form-group">
+                @Html.LabelFor(model => model.CustomerBarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.CustomerBarCodesNum, new { htmlAttributes = new { @class = "form-control", autocomplete = "off" } })
+                    @Html.ValidationMessageFor(model => model.CustomerBarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group" v-show="commonalitylist!=''">
+                <label class="control-label col-md-4">各工段情况</label>
+                <div class="col-md-8">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>PQC</th>
+                            <th>FQC</th>
+                            <th>拼屏</th>
+                            <th>老化</th>
+                            <th>校正</th>
+                            <th>包装</th>
+                        </tr>
+                        <tr v-for="item in commonalitylist">
+                            <td><span v-bind:class="item.Accemble_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.FQC_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.MosaiScreen_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Burn_in_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Calibration_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Appearance_Record==true?trueclass:falseclass"></span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input id="subm" type="submit" value="开始外观包装" class="btn btn-default" v-bind:disabled="checknuo" />
+                    <div class="btn btn-default" v-on:click="qingdan()">条码列表</div>
+                    <button class="btn btn-primary" v-on:click.prevent.stop="innerPrint" v-show="innerVal.length==15&&printMozhu!=''&&printShow" @*v-show="innerVal.length==15&&printMozhu!=''"*@>打印模组内箱条码</button>
+                </div>
+            </div>
+            @*<div class="form-group">
+                <div id="innerCarton">
+                    <div class="textCenter">
+                        <b class="mozhu">{{printMozhu}}</b>
+                        <div class="innerBarDiv">
+                            <svg id="innerBarcode"></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>*@
+        </div>
+        <div v-show="qingdanshow" class="col-md-8 " style="padding:0">
+            <div class="col-md-4 col-sm-4 frameW text-danger">
+                <p>未开始 {{NotDoList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:indianred">
+                    <ul>
+                        <li v-for="item in NotDoList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-info">
+                <p>未完成 {{NeverFinish.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:cornflowerblue">
+                    <ul>
+                        <li v-for="item in NeverFinish">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-success">
+                <p>已完成 {{FinishList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:forestgreen">
+                    <ul>
+                        <li v-for="item in FinishList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        @*loding*@
+        <div class="spinnerModel" v-show="loading">
+            <div class="bounce1"></div>
+            <div class="bounce2"></div>
+            <div class="bounce3"></div>
+        </div>
+    </div>
+}
+
+<div class="clearfix"></div>
+<div class="row col-md-12">
+    @Html.ActionLink("返回", "Index")
+</div>
+<script src="~/Scripts/Bootstraps/bootstrap-select.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+@*<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>*@
+<script src="~/Scripts/axios.min.js"></script>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            NotDoList: [],
+            NeverFinish: [],
+            FinishList: [],
+            commonalitylist: [],
+            trueclass: {
+                'glyphicon': true,
+                'glyphicon-ok': true,
+                'green': true
+            },
+            falseclass: {
+                'glyphicon': true,
+                'glyphicon-remove': true,
+                'red': true
+            },
+            divert: false,//挪用
+            isnuonum: false,
+            nuoBarCode: "",
+            checkmes: "",
+            qingdanshow: false,
+            checkMozu: ["", ""],
+            innerVal: "",
+            loading: false,
+            printMozhu: "",
+            //warntext: "",
+            printShow:false,
+        },
+        computed: {
+            checknuo: function () {
+                if (this.checkMozu[0] != 'YES') {
+                    return true;
+                } else if (this.divert == true) {
+                    if (this.nuoBarCode.length == 15 && this.isnuonum == false) {
+                        return false;
+                    } else {
+                        return true;
+                    };
+                } else {
+                    return false;
+                };
+            }
+        },
+        methods: {
+            getInfo: (oNum) => {
+                axios.post('/Appearances/AppearanceChecklist', { orderNum: oNum }).then(res => {
+                    //console.log(res.data)
+                    let allJson = res.data;
+                    for (let i in allJson) {
+                        let iJson = JSON.parse(allJson[i]);
+                        if (i == "NotDoList") {
+                            app.NotDoList = [];
+                            for (let j in iJson) {
+                                app.NotDoList.push(iJson[j]);
+                            }
+                        };
+                        if (i == "NeverFinish") {
+                            app.NeverFinish = [];
+                            for (let j in iJson) {
+                                app.NeverFinish.push(iJson[j]);
+                            }
+                        };
+                        if (i == "FinishList") {
+                            app.FinishList = [];
+                            for (let j in iJson) {
+                                app.FinishList.push(iJson[j]);
+                            }
+                        };
+                    };
+                }).catch(err => {
+                    alert("获取订单信息失败")
+                });
+            },
+            isnuo: (nuoVal) => {
+                if (nuoVal == true) {
+                    $("#nuoBarCode").attr("name", "nuoBarCode")
+                } else {
+                    $("#nuoBarCode").removeAttr("name")
+                };
+            },
+            postX: () => {
+                app.commonalitylist = [];
+                app.checkMozu = ["", ""];
+                axios.post('/Appearances/DisplayBarcode', { barcode: app.innerVal }).then(res => {
+                    let thisdata = res.data.split(",");
+                    app.checkMozu = thisdata;
+                }).catch(err => {
+                    console.log("连接失败！")
+                });
+                axios.post('/Commonality/GetBarcode_Each_Section_Prompt', { barcode: app.innerVal }).then(res => {
+                    app.commonalitylist = [];
+                    app.commonalitylist.push(res.data);
+                    if (res.data.Appearance_Record == true) {
+                        app.printShow = true;
+                    };
+                }).catch(err => {
+                    alert("连接失败！")
+                });
+            },
+            checkorderbar: (v) => {
+                axios.post('/Commonality/CheckBarCodeNumIsRepertory', {
+                    ordernum: $("#nuoOrder").val(),
+                    barcodenum: v,
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == true) {
+                        app.checkmes = "";
+                        app.isnuonum = false;
+                    } else {
+                        app.checkmes = res.data;
+                        app.isnuonum = true;
+                    };
+                }).catch(err => {
+                    console.log("检查失败")
+                });
+            },
+            qingdan: () => {
+                app.getInfo($("#OrderNum").val());
+                app.qingdanshow = true;
+            },
+            //setinnerBarDiv: (v) => {
+            //    JsBarcode("#innerBarcode", v.toUpperCase(), {
+            //        height: 60, //条形码的高度
+            //        fontOptions: "bold",//使文字加粗体或变斜体
+            //        format: "CODE128",
+            //        font: "monospace",
+            //        textAlign: "center",
+            //        textMargin: 0,//设置条形码和文本之间的间距
+            //        fontSize: 42,//设置文本的大小
+            //        lineColor: "#000",//条形码颜色
+            //        margin: 0,//设置条形码周围的空白边距
+            //        marginTop: 0
+            //    });
+            //},
+            getmozu: function () {
+                //e.preventDefault();
+                let inner = this.innerVal;
+                if (inner != "" && inner.length == 15) {
+                    if ($("#IsRepertory").is(":checked") == true) {
+                        $("#CustomerBarCodesNum").focus(); // 设置焦点
+                    };
+                    this.postX();
+                    axios.post('/Packagings/GetModulbarCode',
+                        { barcode: inner }
+                    ).then(res => {
+                        //console.log(res)
+                        if (res.data != "") {
+                            this.printMozhu = res.data;
+                            //this.mozuwarntext = ""
+                        } else {
+                            this.printMozhu = "";
+                            //alert('此条码箱体号为空');
+                        };
+                    }).catch(err => {
+                        console.warn("获取模组号失败")
+                    });
+                } else {
+                    this.commonalitylist = [];
+                };
+
+
+                    
+                //if (this.innerVal.length == 15) {
+                //    this.loading = true;
+                //    //let jis = 0;
+                //    //获取箱体号
+                //    axios.post('/Packagings/GetModulbarCode',
+                //        { barcode: this.innerVal }
+                //    ).then(res => {
+                //        //console.log(res)
+                //        if (res.data != "") {
+                //            this.printMozhu = res.data;
+                //            //this.mozuwarntext = ""
+                //        } else {
+                //            this.printMozhu = "";
+                //            alert('此条码箱体号为空');
+                //            //this.$message({
+                //            //    showClose: true,
+                //            //    duration: 5000,
+                //            //    message: '此条码箱体号为空',
+                //            //    type: 'warning'
+                //            //});
+                //            //this.mozuwarntext = "此条码箱体号为空"
+                //        };
+                //        //if (jis == 0) {
+                //        //    jis++;
+                //        //} else {
+                //        //    this.loading = false;
+                //        //};
+                //        this.loading = false;
+                //    }).catch(err => {
+                //        console.warn("获取模组号失败")
+                //    });
+                //    //验证条码号和所选订单是否匹配
+                //    //axios.post('/Packagings/IsCheckBarcode',
+                //    //    {
+                //    //        ordernum: $("#OrderNum").val(),
+                //    //        barcode: this.innerVal
+                //    //    }
+                //    //).then(res => {
+                //    //    //console.log(res)
+                //    //    if (res.data == true) {
+                //    //        this.warntext = "";
+                //    //    } else {
+                //    //        this.warntext = res.data;
+                //    //    };
+                //    //    if (jis == 0) {
+                //    //        jis++;
+                //    //    } else {
+                //    //        this.loading = false;
+                //    //    };
+                //    //}).catch(err => {
+                //    //    console.warn("验证失败")
+                //    //});
+                //};
+            },
+            innerPrint: () => {
+                ////e.preventDefault();
+                ////判断iframe是否存在，不存在则创建iframe
+                //var iframe = document.getElementById("innerprint-iframe");
+                //if (!iframe) {
+                //    var el = document.getElementById("innerCarton");
+                //    iframe = document.createElement('IFRAME');
+                //    var doc = null;
+                //    iframe.setAttribute("id", "innerprint-iframe");
+                //    iframe.setAttribute('style', 'position:absolute;width:240px;height:120px;left:-1000px;top:-500px;');
+                //    document.body.appendChild(iframe);
+                //    doc = iframe.contentWindow.document;
+                //    //这里可以自定义样式
+                //    doc.write("<link href='/Content/styleFile/printStyle.css' rel='stylesheet' />");
+                //    doc.write('<div>' + el.innerHTML + '</div>');
+                //    doc.close();
+                //    iframe.contentWindow.focus();
+                //};
+                //iframe.onload = function () {
+                //    iframe.contentWindow.print();
+                //    document.body.removeChild(iframe);
+                //};
+                axios.post('/Appearances/InsideBoxLablePrint', {
+                    barcode: app.innerVal,
+                    modulenum: app.printMozhu,
+                    pagecount: 2,
+                    ip: "172.16.99.240",//ip地址
+                    port: 9101,//端口
+                }).then(res => {
+                    console.log(res)
+                    if (res.data == '打印成功！') {
+                        app.$message({
+                            showClose: true,
+                            message: data.data,
+                            type: 'success'
+                        });
+                    } else {
+                        let r = confirm(`${res.data}`);
+                    }
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+        },
+        watch: {
+            divert: (v) => {//挪用
+                localStorage.setItem('Divert', v);
+                app.isnuo(v);
+                if (v == true) {
+                    app.$nextTick(function () {
+                        $("#nuoBarCode").select();
+                    });
+                } else {
+                    $("#BarCodesNum").select();
+                };
+            },
+            nuoBarCode: (v) => {
+                if (v.length == 15) {
+                    app.checkorderbar(v);
+                } else {
+                    app.isnuonum = false;
+                }
+            },
+            innerVal: (val) => {
+                app.printShow = false;
+                //if (val != "" && val.length == 15) {
+                //    app.setinnerBarDiv(val);
+                //} else {
+                //    $(".innerBarDiv").html('<svg id="innerBarcode"></svg>');
+                //};
+                ////app.mozuwarntext = "";
+                //app.printMozhu = "";
+                ////app.warntext = "";
+            },
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                $("#OrderNum").val(localOrder);
+                //this.getInfo(localOrder);
+            };
+            $("#OrderNum").change(function (val) {
+                localStorage.setItem('Order', val.target.value);
+                //app.getInfo(val.target.value);
+                app.NotDoList = [];
+                app.NeverFinish = [];
+                app.FinishList = [];
+                app.qingdanshow = false;
+                app.commonalitylist = [];
+                app.checkMozu = ["", ""];
+                app.printShow = false;
+                $("#BarCodesNum").select();
+            });
+            //挪用订单
+            let localDivert = localStorage.getItem('Divert');
+            if (localDivert != null) {
+                let localNuo = localDivert == 'true' ? true : false;
+                this.divert = localNuo;
+                this.isnuo(localNuo);
+            };
+
+            let localNuoOrder = localStorage.getItem('nuoOrder');
+            if (localNuoOrder != null) {
+                $("#nuoOrder").val(localNuoOrder);
+            };
+            $("#nuoOrder").change(function (val) {
+                localStorage.setItem('nuoOrder', val.target.value);
+                if (app.nuoBarCode.length == 15) {
+                    app.checkorderbar(app.nuoBarCode);
+                } else {
+                    app.isnuonum = false;
+                };
+                $("#nuoBarCode").select();
+            });
+
+
+
+            let localRepertory = localStorage.getItem('isRepertory');
+            if (localRepertory == "false" || localRepertory == null) {
+                $("#isorder").hide();
+                $("#CustomerBarCodesNum").removeAttr("name");
+            } else if (localRepertory == "true") {
+                $("#IsRepertory").prop('checked', true);
+            };
+
+            $("#IsRepertory").change(function () {
+                localStorage.setItem('isRepertory', $(this).is(':checked'));
+                if ($(this).is(':checked') == true) {
+                    $("#isorder").show();
+                    $("#CustomerBarCodesNum").attr("name", "CustomerBarCodesNum");
+                    $("#CustomerBarCodesNum").select();
+                } else {
+                    $("#isorder").hide();
+                    $("#CustomerBarCodesNum").removeAttr("name");
+                    $("#BarCodesNum").select();
+                }
+            });
+            $("#BarCodesNum").select();
+
+
+            $("#nuoBarCode").keypress(function (e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    $("#BarCodesNum").select();
+                    //if ($("#IsRepertory").is(":checked") == true) {
+                    //    $("#CustomerBarCodesNum").focus(); // 设置焦点
+                    //};
+                };
+            });
+
+            $("#CustomerBarCodesNum").keypress(function (e) {
+                if (e.which == 13) {
+                    return false;
+                }
+            });
+
+            $("#BarCodesNum").keypress(function (e) {
+                if (e.which == 13) {
+                    return false;
+                }
+            });
+
+            $("#BarCodesNum").select();
+        }
+    })
+</script>

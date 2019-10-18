@@ -1,0 +1,588 @@
+﻿@model IEnumerable<JianHeMES.Models.Personnel_Quality_objectives>
+
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<h2>Index</h2>
+<style>
+    .titleContainer{
+        display:flex;
+        justify-content:center;
+    }
+    .titletext{
+        margin-top:5px;
+    }
+    .titleContainer>.el-input{
+        width:150px !important;
+    }
+    table .cell,table td {
+        text-align: center;
+        padding:2px !important;
+    }
+
+    .el-form-item{
+        width:48%;
+        display:inline-block;
+    }
+    .formContainer .el-select{
+        width:23%;
+    }
+    #changedFormContainer .el-form{
+        width:620px;
+    }
+    #changedFormContainer .el-form-item{
+        margin:5px;
+    }
+</style>
+<p>
+    @Html.ActionLink("Create New", "Create")
+</p>
+
+<div id="app">
+    <div class="titleContainer">
+        <el-select size="mini" v-model="departments" placeholder="请选择部门">
+            <el-option v-for="item in deparList"
+                       v-bind:key="item.value"
+                       v-bind:label="item.value"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <span class="titletext">
+            提供
+        </span>
+        <el-date-picker size="mini"
+                        v-model="times"
+                        type="month"
+                        placeholder="选择月">
+        </el-date-picker>
+        <span class="titletext">
+            月份质量目标达成状况统计表
+        </span>
+    </div>
+    @* "其他部门的表格模板" *@
+    <el-table v-bind:data="tableData"
+              size="small"
+              v-show="others"
+              v-bind:span-method="objectSpanMethod"
+              style="width: 100%;margin-top:15px;"
+              max-height="550"
+              border>
+        <el-table-column type="index"
+                         label="序号"
+                         width="44"
+                         v-bind:index="indexMethod">
+        </el-table-column>
+        <el-table-column prop="AssetDepartment"
+                         label="部门"
+                         width="99">
+        </el-table-column>
+        <el-table-column prop="DP_Group"
+                         label="班组"
+                         width="99">
+        </el-table-column>
+        <el-table-column prop="project"
+                         label="项目"
+                         width="99">
+        </el-table-column>
+        <el-table-column prop="indexName"
+                         label="指标名称"
+                         width="99">
+        </el-table-column>
+        <el-table-column prop="target"
+                         label="目标值"
+                         width="99">
+            <template slot-scope="scope">
+                <el-popover trigger="click" placement="top">
+                    <div id="changedFormContainer">
+                        <el-form label-position="labelPosition" label-width="80px" model="addFormData">
+                            <el-form-item label="序号">
+                                <el-input size="small" v-model="addFormData.index"></el-input>
+                            </el-form-item>
+                            <el-form-item label="部门">
+                                <el-input size="small" v-model="addFormData.department"></el-input>
+                            </el-form-item>
+                            <el-form-item label="班组">
+                                <el-input size="small" v-model="addFormData.group"></el-input>
+                            </el-form-item>
+                            <el-form-item label="项目">
+                                <el-input size="small" v-model="addFormData.object"></el-input>
+                            </el-form-item>
+                            <el-form-item label="指标名称">
+                                <el-input size="small" v-model="addFormData.objectName"></el-input>
+                            </el-form-item>
+                            <el-form-item label="目标符号">
+                                <el-select size="mini" v-model="targrtLeft" placeholder="请选择活动区域">
+                                    <el-option label="大于" value="morethan"></el-option>
+                                    <el-option label="等于" value="equl"></el-option>
+                                    <el-option label="小于" value="lessthan"></el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="目标值">
+                                <el-input-number v-model="numbers" min="1" max="1000" size="mini" label="描述文字"></el-input-number>
+                            </el-form-item>
+
+                            <el-form-item label="目标单位">
+                                <el-select size="mini" v-model="targetR" placeholder="请选择活动区域">
+                                    <el-option label="%" value="baifenbi"></el-option>
+                                    <el-option label="个" value="geshu"></el-option>
+                                    <el-option label="无单位" value="kong"></el-option>
+                                </el-select>
+                            </el-form-item>
+                        </el-form>
+                        <el-button size="small" type="success">
+                            修改
+                        </el-button>
+                    </div>
+                    <div slot="reference" class="name-wrapper">
+                        <el-tag size="medium">{{ scope.row.target }}</el-tag>
+                    </div>
+                </el-popover>
+            </template>
+        </el-table-column>
+        <el-table-column v-bind:label=`${year}年实际完成值统计`>
+            <el-table-column prop="1" width="50" label="1月"></el-table-column>
+            <el-table-column prop="2" width="50" label="2月"></el-table-column>
+            <el-table-column prop="3" width="50" label="3月"></el-table-column>
+            <el-table-column prop="4" width="50" label="4月"></el-table-column>
+            <el-table-column prop="5" width="50" label="5月"></el-table-column>
+            <el-table-column prop="6" width="50" label="6月"></el-table-column>
+            <el-table-column prop="7" width="50" label="7月"></el-table-column>
+            <el-table-column prop="8" width="50" label="8月"></el-table-column>
+            <el-table-column prop="9" width="50" label="9月"></el-table-column>
+            <el-table-column prop="10" width="50" label="10月"></el-table-column>
+            <el-table-column prop="11" width="50" label="11月"></el-table-column>
+            <el-table-column prop="12" width="50" label="12月"></el-table-column>
+        </el-table-column>
+    </el-table>
+
+    @* 行政后勤部的表格模板 *@
+
+    <el-table v-bind:data="tableData"
+              size="small"
+              v-show="xingzheng"
+              v-bind:span-method="objectSpanMethod"
+              style="width: 100%;margin-top:15px;"
+              max-height="550"
+              border>
+        <el-table-column type="index"
+                         label="序号"
+                         width="50"
+                         v-bind:index="indexMethod">
+        </el-table-column>
+        <el-table-column prop="status"
+                         label="部门"
+                         width="110">
+        </el-table-column>
+        <el-table-column prop="warehousenum"
+                         label="班组"
+                         width="110">
+        </el-table-column>
+        @*<el-table-column prop="warehousenum"
+                         label="7S所属区域"
+                         width="99">
+        </el-table-column>*@
+        <el-table-column prop="warehousenum"
+                         label="指标名称"
+                         width="110">
+        </el-table-column>
+        <el-table-column prop="warehousenum"
+                         label="指标公式/定义"
+                         width="110">
+        </el-table-column>
+        <el-table-column v-bind:label=`${year}年实际完成值统计`>
+            <el-table-column prop="orderSon" width="50" label="1月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="2月"></el-table-column>
+            <el-table-column prop="orderSon" width="53" label="3月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="4月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="5月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="6月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="7月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="8月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="9月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="10月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="11月"></el-table-column>
+            <el-table-column prop="orderSon" width="55" label="12月"></el-table-column>
+        </el-table-column>
+    </el-table>
+
+    @* 人力资源部的表格模板 *@
+
+    <el-table v-bind:data="tableData"
+              size="small"
+              v-show="renli"
+              v-bind:span-method="objectSpanMethod"
+              style="width: 100%;margin-top:15px;"
+              max-height="550"
+              border>
+        <el-table-column type="index"
+                         label="序号"
+                         width="59"
+                         v-bind:index="indexMethod">
+        </el-table-column>
+        <el-table-column prop="AssetDepartment"
+                         label="部门"
+                         width="120">
+        </el-table-column>
+        <el-table-column prop="DP_Group"
+                         label="班组"
+                         width="120">
+        </el-table-column>
+        <el-table-column prop="project"
+                         label="项目"
+                         width="120">
+        </el-table-column>
+        <el-table-column prop="indexName"
+                         label="指标名称"
+                         width="120">
+        </el-table-column>
+        <el-table-column v-bind:label=`${year}年实际完成值统计`>
+            <el-table-column prop="orderSon" width="50" label="1月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="2月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="3月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="4月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="5月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="6月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="7月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="8月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="9月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="10月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="11月"></el-table-column>
+            <el-table-column prop="orderSon" width="50" label="12月"></el-table-column>
+        </el-table-column>
+    </el-table>
+    <el-button size="small" v-show="showAddBtnL" type="success" v-on:click="addTrInfos">添加单条数据</el-button>
+
+    <el-dialog v-bind:title="`${year}年${mounth}月`"
+               v-bind:visible.sync="dialogVisible"
+               width="60%"
+               v-bind:before-close="handleClose">
+        <div class="formContainer">
+            <el-form label-position="labelPosition" label-width="80px" model="addFormData">
+                <el-form-item label="序号">
+                    <el-input v-model="addFormData.index"></el-input>
+                </el-form-item>
+                <el-form-item label="部门">
+                    <el-input v-model="addFormData.department"></el-input>
+                </el-form-item>
+                <el-form-item label="班组">
+                    <el-input v-model="addFormData.group"></el-input>
+                </el-form-item>
+                <el-form-item label="项目">
+                    <el-input v-model="addFormData.object"></el-input>
+                </el-form-item>
+                <el-form-item label="指标名称">
+                    <el-input v-model="addFormData.objectName"></el-input>
+                </el-form-item>
+                <el-form-item label="目标值">
+                    @*<el-input v-model="addFormData.objectTarget"></el-input>*@
+                    <el-select size="mini" v-model="targrtLeft" placeholder="请选择活动区域">
+                        <el-option label="大于" value="morethan"></el-option>
+                        <el-option label="等于" value="equl"></el-option>
+                        <el-option label="小于" value="lessthan"></el-option>
+                    </el-select>
+                    <el-input-number v-model="numbers" size="mini" v-on:change="changeNum" min="1" max="100" label="描述文字"></el-input-number>
+                    <el-select size="mini" v-model="targetR" placeholder="请选择活动区域">
+                        <el-option label="%" value="baifenbi"></el-option>
+                        <el-option label="个" value="geshu"></el-option>
+                        <el-option label="无单位" value="kong"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="本月数据">
+                    <el-input v-model="addFormData.one"></el-input>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="postFormData">添 加</el-button>
+        </span>
+    </el-dialog>
+</div>
+
+<script>
+    function getyear(time){
+        if(time !=''){
+            tt = new Date(time)
+            year = tt.getFullYear()
+            return year
+        }else{
+            return ''
+        }
+    }
+
+    let vm = new Vue({
+        el: "#app",
+        data: {
+            tableData:[],
+            others:true,
+            xingzheng:false,
+            renli:false,
+            deparList: [],
+            departments: '',
+            times:'',
+            year: "",
+            mounth:"",
+            dialogVisible:false,
+            showAddBtnL:false,
+            addFormData:{
+                index:null,
+                department:null,
+                group:null,
+                object:null,
+                objectName:null,
+                objectTarget:null,
+                one:null,
+                two:null,
+                three:null,
+                four:null,
+                five:null,
+                six:null,
+                seven:null,
+                eigth:null,
+                nine:null,
+                ten:null,
+                eleven:null,
+                twleve:null,
+            },
+            numbers:1,
+            targrtLeft:null,
+            targetR:null
+        },
+        mounted(){
+            // 获取部门列表
+
+            // 加载时触发部门选择框改变
+            
+            this.getdepar();
+            //this.departments = this.deparList[0];
+        },
+        watch:{
+            times(){
+                this.year = ''
+                this.mounth = ''
+                if(this.times!=null){
+                    let tt = new Date(this.times);
+                    this.year = tt.getFullYear();
+                    this.mounth = tt.getMonth() +1;
+                    this.tableData = []
+                    if(this.departments !=null){
+                        axios.post("/Personnel_Quality_objectives/Quality",{departmentdata:this.departments,Year:this.year,Month:this.mounth}).then(res=>{
+                            console.log(res.data);
+                            let obj = []
+                            for (let i in res.data){
+                                obj.push(res.data[i]);
+                            }
+                            obj.forEach(item=>{
+                                item.total = ''+ item.target + item.Target1 + item.Target2
+                            })
+                            this.tableData = obj
+
+                            console.log(this.tableData );
+                        }).catch(err=>{
+                            this.$message({
+                                message:"连接失败",
+                                type:"warning"
+                            })
+                        })
+                    }
+                }else{
+                    this.tableData = []
+                }
+                if(this.times!=null&&this.departments!=null){
+                    this.showAddBtnL= true;
+                }else{
+                    this.showAddBtnL= false;
+                }
+            },
+            departments(){
+                if(this.departments !=null && this.year !='' && this.mounth !=''){
+                    this.tableData = []
+                    //alert("googogogogog")
+                    axios.post("/Personnel_Quality_objectives/Quality",{departmentdata:this.departments,Year:this.year,Month:this.mounth}).then(res=>{
+                        console.log(res.data);
+                        let obj = []
+                        for (let i in res.data){
+                            obj.push(res.data[i]);
+                        }
+                        obj.forEach(item=>{
+                            item.total = ''+ item.target + item.Target1 + item.Target2
+                        })
+                        this.tableData = obj
+
+                        console.log(this.tableData );
+                    }).catch(err=>{
+                        this.$message({
+                            message:"连接失败",
+                            type:"warning"
+                        })
+                    })
+                }else{
+                    this.tableData = []
+                }
+            }
+        },
+        methods: {
+            indexMethod(index) {
+                return index+1;
+            },
+            getdepar(){
+                axios.post("/Personnel_Quality_objectives/DepartmentList").then(res=>{
+                    console.log(res.data)
+                    res.data.forEach(item=>{
+                        let obj = {label:item,value:item};
+                        this.deparList.push(obj)
+                    })
+                })
+            },
+            // 弹框计数器改变
+            changeNum(){
+
+            },
+
+            // 添加单条数据
+            addTrInfos() {
+                this.dialogVisible = true;
+            },
+            postFormData(){
+                axios.post("/Personnel_Quality_objectives/Create",{AssetDepartment:this.addFormData.department,DP_Group:this.addFormData.group,
+                    Project:this.addFormData.object,IndexName:this.addFormData.objectName,Target:this.targrtLeft,Target1:this.numbers,Target2:this.targetR,
+                    Actual_completion:this.addFormData.one,DepartmentData:this.departments,Year:this.year,Month:this.mounth}).then(res=>{
+                        console.log(res.data)
+                        if(res.data==true){
+                            this.$message({
+                                message:"添加成功",
+                                type:"success"
+                            });
+                            this.dialogVisible = false;
+                        }else{
+                            this.$message({
+                                message:res.data,
+                                type:"warning"
+                            });
+                        }
+                    }).catch(err=>{
+                        this.$message({
+                            message:"新增数据时连接失败",
+                            type:"warning"
+                        })
+                    })
+                
+            },
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            },
+            objectSpanMethod({row,column,rowIndex,columnIndex}) {
+                if (columnIndex === 0) {
+                    
+                }
+                if (columnIndex === 1) {
+                    
+                }
+                if (columnIndex === 2) {
+                    //if (this.spanArrss[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                    //    return {
+                    //        rowspan:this.spanArrss[rowIndex],
+                    //        colspan:1
+                    //    }
+                    //} else {
+                    //    return {
+                    //        rowspan:0,
+                    //        colspan:0
+                    //    }
+                    //}
+                }
+            }
+        }
+    })
+</script>
+
+@*<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.Department)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.DP_Group)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Project)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.IndexName)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Target)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Actual_completion)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.DepartmentData)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.CreateDate)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Creator)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Year)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Month)
+        </th>
+        <th></th>
+    </tr>
+
+@foreach (var item in Model) {
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.Department)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.DP_Group)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Project)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.IndexName)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Target)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Actual_completion)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.DepartmentData)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.CreateDate)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Creator)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Year)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Month)
+        </td>
+        <td>
+            @Html.ActionLink("Edit", "Edit", new { id=item.Id }) |
+            @Html.ActionLink("Details", "Details", new { id=item.Id }) |
+            @Html.ActionLink("Delete", "Delete", new { id=item.Id })
+        </td>
+    </tr>
+}
+
+</table>*@

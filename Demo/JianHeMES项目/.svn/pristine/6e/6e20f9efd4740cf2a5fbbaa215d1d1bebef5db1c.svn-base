@@ -1,0 +1,422 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.IO;
+using System.Linq.Expressions;
+using System.Reflection;
+
+namespace JianHeMES.Controllers
+{
+    public class EquipmentController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+
+        #region------查询首页------
+        // GET: Equipment
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        //private Expression<Func<IEnumerable<EquipmentStatusRecord>, EquipmentStatusRecord, IEnumerable<EquipmentStatusRecord>>> QueryContainsString()
+        //{
+
+        //}
+
+        [HttpPost]
+        public ActionResult Index(string equipmentnumber,string assetnumber,string equipmentname,string modelspecification,string userdepartment,string storageplace,string workshop,string section,string status,string remark)
+        {
+
+            IEnumerable<EquipmentBasicInfo> ebi = db.EquipmentBasicInfo ;
+            List<Exception> exprList = new List<Exception>();
+            ParameterExpression paramExpr = Expression.Parameter(typeof(EquipmentStatusRecord), "o");
+            MethodInfo containsMethod = typeof(string).GetMethod("Contains");//获取表示
+
+            var resultlist = ebi;
+            if(!String.IsNullOrEmpty(equipmentnumber))
+            {
+                resultlist = resultlist.Where(c =>c.EquipmentNumber == equipmentnumber);
+            }
+            if (!String.IsNullOrEmpty(assetnumber))
+            {
+                resultlist = resultlist.Where(c => c.AssetNumber == assetnumber);
+            }
+            if (!String.IsNullOrEmpty(equipmentname))
+            {
+                resultlist = resultlist.Where(c => c.EquipmentName.Contains(equipmentname));
+            }
+            if (!String.IsNullOrEmpty(modelspecification))
+            {
+                resultlist = resultlist.Where(c => c.ModelSpecification.Contains(modelspecification));
+            }
+            if (!String.IsNullOrEmpty(userdepartment))
+            {
+                resultlist = resultlist.Where(c => c.UserDepartment.Contains(userdepartment));
+            }
+            if (!String.IsNullOrEmpty(storageplace))
+            {
+                resultlist = resultlist.Where(c => c.StoragePlace.Contains(storageplace));
+            }
+            if (!String.IsNullOrEmpty(workshop))
+            {
+                resultlist = resultlist.Where(c => c.WorkShop.Contains(workshop));
+            }
+            if (!String.IsNullOrEmpty(section))
+            {
+                resultlist = resultlist.Where(c => c.Section.Contains(section));
+            }
+            if (!String.IsNullOrEmpty(status))
+            {
+                resultlist = resultlist.Where(c => c.Status.Contains(status));
+            }
+            if (!String.IsNullOrEmpty(remark))
+            {
+                resultlist = resultlist.Where(c => c.Remark.Contains(remark));
+            }
+            JObject result = new JObject();
+            int i = 1;
+            foreach(var item in resultlist)
+            {
+                result.Add(i.ToString(),JsonConvert.SerializeObject(item));
+                i++;
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #endregion
+
+
+        #region------批量添加设备------
+        public ActionResult BatchInputEquipment()
+        {
+            //if (Session["User"] == null)
+            //{
+            //    return RedirectToAction("Login", "Users", new { col = "Equipment", act = "BatchInputEquipment" });
+            //}
+            return View();
+
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> BatchInputEquipment(List<EquipmentBasicInfo> inputList)
+        {
+            string repeat = null;
+            foreach (var item in inputList)
+            {
+                item.CreateTime = DateTime.Now;
+                item.Creator = ((Users)Session["User"])!=null? ((Users)Session["User"]).UserName:"";
+                if (db.EquipmentBasicInfo.Count(c => c.AssetNumber == item.AssetNumber) != 0)
+                repeat = repeat + item.AssetNumber + ",";
+            }
+            JObject result = new JObject();
+            if (!string.IsNullOrEmpty(repeat))
+            {
+                result.Add("repeat", repeat + "已经有相同的数据，请重新输入");
+                return Content(JsonConvert.SerializeObject(result));
+            }
+            db.EquipmentBasicInfo.AddRange(inputList);
+            int savecount = await db.SaveChangesAsync();
+            if(savecount>0)result.Add("success", "添加" + inputList.Count.ToString() + "台设备成功");
+            else result.Add("failure","添加失败");
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #endregion
+
+
+        #region------修改设备状态------
+        [HttpPost]
+        public async Task<bool> ModifyEquipmentStatusAsync(int id, string status)
+        {
+            if(!String.IsNullOrEmpty(id.ToString()) && !String.IsNullOrEmpty(status))
+            {
+                var record =await db.EquipmentBasicInfo.Where(c => c.Id == id).FirstOrDefaultAsync();
+                record.Status = status;
+                await db.SaveChangesAsync();
+                return true;
+            }
+            return false;
+        }
+        #endregion
+
+
+        #region------添加/修改状态记录------
+        [HttpPost]
+        public async Task<bool> AddEquipmentStatusRecordAsync(EquipmentStatusRecord record)
+        {
+            record.CreateTime = DateTime.Now;
+            db.EquipmentStatusRecord.Add(record);
+            if (record.StatusStarTime < DateTime.Now.AddMinutes(10) && record.StatusEndTime > DateTime.Now)
+            {
+                var eqm = db.EquipmentBasicInfo.Where(c => c.AssetNumber == record.AssetNumber).FirstOrDefault();
+                eqm.Status = record.Status;
+            }
+            int result = await db.SaveChangesAsync();
+            if(result>0) return true;// Content("添加成功!");
+            else return false;// Content("添加失败!");
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> GetEquipmentStatusRecordAsyn(int id)
+        {
+            var record =await db.EquipmentStatusRecord.Where(c => c.Id == id).FirstOrDefaultAsync();
+            return Content(JsonConvert.SerializeObject(record)); // Content("修改成功!");
+        }
+
+        [HttpPost]
+        public async Task<bool> EditEquipmentStatusRecordAsync(int id, EquipmentStatusRecord modifyrecord)
+        {
+            if(ModelState.IsValid)
+            {
+                var record = db.EquipmentStatusRecord.Where(c => c.Id == id).FirstOrDefault();
+                record = modifyrecord;
+                await db.SaveChangesAsync();
+                return true; // Content("修改成功!");
+            }
+            return false;// Content("修改失败!");
+        }
+        #endregion
+
+
+        #region ------添加设备维修保养记录（自用）------
+        public ActionResult InputEquipmentRepairRecord()
+        {
+            //if (Session["User"] == null)
+            //{
+            //    return RedirectToAction("Login", "Users", new { col = "Equipment", act = "InputEquipmentRepairRecord" });
+            //}
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult InputEquipmentRepairRecord(List<EquipmentStatusRecord> equipmentStatusRecordList)
+        {
+            if(ModelState.IsValid)
+            {
+                db.EquipmentStatusRecord.AddRange(equipmentStatusRecordList);
+                db.SaveChangesAsync();
+                return Content("保存成功!");
+            }
+            return Content("保存失败!");
+        }
+        public ActionResult InputEquipmentRepairRecordSingle()
+        {
+            //if (Session["User"] == null)
+            //{
+            //    return RedirectToAction("Login", "Users", new { col = "Equipment", act = "InputEquipmentRepairRecord" });
+            //}
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult InputEquipmentRepairRecordSingle(EquipmentStatusRecord equipmentStatusRecord)
+        {
+            if (ModelState.IsValid)
+            {
+                db.EquipmentStatusRecord.Add(equipmentStatusRecord);
+                db.SaveChangesAsync();
+                return Content("保存成功!");
+            }
+            return Content("保存失败!");
+        }
+
+        #endregion
+
+
+        #region------设备信息详情页------
+        public ActionResult Details()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> Details(string assetNumber)
+        {
+            if (assetNumber == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            JObject result = new JObject();
+            var basicinfo = await db.EquipmentBasicInfo.Where(c => c.AssetNumber == assetNumber).FirstOrDefaultAsync();
+            result.Add("basicinfo", JsonConvert.SerializeObject(basicinfo));
+            List<FileInfo> fileInfos = new List<FileInfo>();
+            if (Directory.Exists(@"D:\MES_Data\Equipment\" + assetNumber + "\\") == false)
+            {
+                result.Add("picture", "未上传图片。");
+            }
+            else
+            {
+                fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\Equipment\" + assetNumber + "\\").Where(c => c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+                result.Add("picture", JsonConvert.SerializeObject(fileInfos));
+            }
+            var statusrecord = await db.EquipmentStatusRecord.Where(c => c.AssetNumber == assetNumber).OrderBy(c => c.StatusStarTime).ToListAsync();
+            result.Add("statusrecord", JsonConvert.SerializeObject(statusrecord));
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #endregion
+
+
+        #region------上传设备照片(jpg)方法------
+        [HttpPost]
+        public ActionResult UploadEquipmentPicture(string assetNumber)
+        {
+            foreach (var file1 in Request.Files)
+            {
+                HttpPostedFileBase file = Request.Files[file1.ToString()];
+                var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
+                if (!String.Equals(fileType, ".jpg"))
+                {
+                    return Content("您选择文件的文件类型不正确，请选择jpg类型图片文件！");
+                }
+                if (Directory.Exists(@"D:\MES_Data\Equipment\" + assetNumber + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Equipment\" + assetNumber + "\\");
+                }
+                List<FileInfo> fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\Equipment\" + assetNumber + "\\");
+                //文件为jpg类型
+                if (fileType == ".jpg")
+                {
+                    int jpg_count = fileInfos.Where(c => c.Name.StartsWith(assetNumber) && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").Count();
+                    file.SaveAs(@"D:\MES_Data\Equipment\" + assetNumber + "\\" + assetNumber + (jpg_count + 1) + fileType);
+                }
+                //文件为pdf类型,直接存储或替换原文件
+                else
+                {
+                    file.SaveAs(@"D:\MES_Data\Equipment\" + assetNumber + "\\" + assetNumber + fileType);
+                }
+                //return RedirectToAction("Details", "Equipment", new { assetNumber = assetNumber });
+            }
+            if (Request.Files.Count > 0)
+            {
+                return Content("上传成功！");
+            }
+            return Content("上传失败！");
+        }
+        #endregion
+
+
+        // GET: Equipment/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Equipment/Create
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Create([Bind(Include = "Id,SerialNumber,EquipmentNumber,AssetNumber,EquipmentName,Brand,ModelSpecification,InfoPlate,ManufacturingNumber,Quantity,ActionDate,DepreciableLife,UserDepartment,StoragePlace,WorkShop,LineNum,Section,FunctionDiscription,Status,Creator,CreateTime,Modifier,ModifyTime,Remark")] EquipmentBasicInfo equipmentBasicInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.EquipmentBasicInfo.Add(equipmentBasicInfo);
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+
+            return View(equipmentBasicInfo);
+        }
+
+        // GET: Equipment/Edit/5
+        public async Task<ActionResult> Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            EquipmentBasicInfo equipmentBasicInfo = await db.EquipmentBasicInfo.FindAsync(id);
+            if (equipmentBasicInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(equipmentBasicInfo);
+        }
+
+        // POST: Equipment/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Edit([Bind(Include = "Id,SerialNumber,EquipmentNumber,AssetNumber,EquipmentName,Brand,ModelSpecification,InfoPlate,ManufacturingNumber,Quantity,ActionDate,DepreciableLife,UserDepartment,StoragePlace,WorkShop,LineNum,Section,FunctionDiscription,Status,Creator,CreateTime,Modifier,ModifyTime,Remark")] EquipmentBasicInfo equipmentBasicInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(equipmentBasicInfo).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(equipmentBasicInfo);
+        }
+
+        // GET: Equipment/Delete/5
+        public async Task<ActionResult> Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            EquipmentBasicInfo equipmentBasicInfo = await db.EquipmentBasicInfo.FindAsync(id);
+            if (equipmentBasicInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(equipmentBasicInfo);
+        }
+
+        // POST: Equipment/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> DeleteConfirmed(int id)
+        {
+            EquipmentBasicInfo equipmentBasicInfo = await db.EquipmentBasicInfo.FindAsync(id);
+            db.EquipmentBasicInfo.Remove(equipmentBasicInfo);
+            await db.SaveChangesAsync();
+            return RedirectToAction("Index");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+
+        #region --------------------返回指定目录下所有文件信息
+        /// <summary>  
+        /// 返回指定目录下所有文件信息  
+        /// </summary>  
+        /// <param name="strDirectory">目录字符串</param>  
+        /// <returns></returns>  
+        public List<FileInfo> GetAllFilesInDirectory(string strDirectory)
+        {
+            List<FileInfo> listFiles = new List<FileInfo>(); //保存所有的文件信息  
+            DirectoryInfo directory = new DirectoryInfo(strDirectory);
+            DirectoryInfo[] directoryArray = directory.GetDirectories();
+            FileInfo[] fileInfoArray = directory.GetFiles();
+            if (fileInfoArray.Length > 0) listFiles.AddRange(fileInfoArray);
+            foreach (DirectoryInfo _directoryInfo in directoryArray)
+            {
+                DirectoryInfo directoryA = new DirectoryInfo(_directoryInfo.FullName);
+                DirectoryInfo[] directoryArrayA = directoryA.GetDirectories();
+                FileInfo[] fileInfoArrayA = directoryA.GetFiles();
+                if (fileInfoArrayA.Length > 0) listFiles.AddRange(fileInfoArrayA);
+                GetAllFilesInDirectory(_directoryInfo.FullName);//递归遍历  
+            }
+            return listFiles;
+        }
+        #endregion
+
+    }
+}

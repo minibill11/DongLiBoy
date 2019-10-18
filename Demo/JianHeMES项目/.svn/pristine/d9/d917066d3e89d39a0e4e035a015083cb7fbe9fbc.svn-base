@@ -1,0 +1,879 @@
+﻿@model IEnumerable<JianHeMES.Models.Personnel_Roster>
+
+@{
+    ViewBag.Title = "LeavedPersonServiceLength";
+}
+@*@ViewBag.test*@
+@using (Html.BeginForm("LeavedPersonServiceLength", "Personnel_Roster", FormMethod.Post, new { year = 2019, month = 1 }))
+{
+    @*<button btn btn-default btn-sm>测试</button>
+    @Html.TextBox("year", 2019)
+    @Html.TextBox("month", 1)*@
+}
+@*@Html.Raw(ViewBag.test)*@
+
+@ViewBag.list
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/vue-resource.min.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/echarts.js"></script>
+
+
+<!-- elementui下载到本地使用：字体/图标会不生效，需要同时也下载：element-icons.woff element-icons.ttf 然后再修改路径：
+    font-face {
+    font-family: element-icons;
+    src: url(./element-icons.woff) format("woff"), url(./element-icons.ttf) format("truetype");
+    font-weight: 400;
+    font-style: normal
+    } -->
+<style>
+    #lineMain {
+        margin: 0 auto;
+        width: 1298px;
+        height: 350px;
+      }
+    /*.el-table__row td:last-child {
+        padding-right:16px;
+    }*/
+    .el-table__row:last-child .cell{
+        font-size:12px;
+    }
+    .el-table__row .cell{
+        font-size:12px !important;
+    }
+   
+    .container {
+    width: 1298px;
+}
+    .el-table .cell, .el-table th div{
+        padding-left:0;
+    }
+    .el-table thead{
+        color:#3c3535;
+    }
+    .el-input__inner{
+        width:96px;
+    }
+    .cell {
+        font-size: 11px;
+        text-align: center;
+    }
+
+    .el-table .cell, .el-table th div {
+        padding-right: 1px;
+    }
+
+    .el-table .cell, .el-table th div{
+        padding-left: 1px;
+    }
+
+    .el-table__header tr,
+    .el-table__header th {
+        padding: 0;
+        height: 20px;
+    }
+
+    .el-table__body tr,
+    .el-table__body td {
+        padding: 0;
+        height: 20px;
+    }
+    .el-table--border th:first-child .cell{
+        padding-left:2px;
+    }
+
+    .color{
+        background-color:yellow;
+    }
+    .choseDate{
+        margin-top:5px;
+        text-align:center;
+    }
+    .footer {
+        height:35px;
+    }
+    .tabletop thead tr:nth-child(1) th:nth-child(2) .cell,.tablebottom thead tr:nth-child(1) th:nth-child(3) .cell{
+        font-size:14px !important;
+        
+    }
+   .el-table .warning-row {
+    background: oldlace;
+  }
+
+  .el-table .success-row {
+    background: #f0f9eb;
+  }
+  .el-table--enable-row-hover .el-table__body tr:hover>td{
+background-color: palegreen !important;
+}
+</style>
+<div id="app" class="container">
+    @*日期选择框 *@
+    <div class="choseDate">
+        <el-select v-model="postYear" placeholder="请选择" size="mini">
+            <el-option v-for="item in optionsYears"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>年
+        <el-select v-model="postMonth" placeholder="请选择" size="mini">
+            <el-option v-for="item in optionsMonths"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>月 月度离职员工工龄详细分布
+    </div>
+    <!-- 测试table--begin -->
+    @*<el-table v-bind:data="topTableData" class="tabletop" style="width: 120%;margin-top:5px;" lazy
+    v-bind:load="load">
+        
+        <el-table-column prop="department" label="部门" width="75">
+        </el-table-column>
+        
+        <el-table-column v-bind:label=`${postYear}年${postMonth}月离职员工工龄` width="120">
+            <el-table-column prop="val1"  label="≤1个月" width="50">
+            </el-table-column>
+            <el-table-column prop="val2"  label="1-2月" width="45">
+            </el-table-column>
+            <el-table-column prop="val3" label="2-3月" width="45">
+            </el-table-column>
+            <el-table-column prop="val4" label="3-4月" width="45">
+            </el-table-column>
+            <el-table-column prop="val5" label="4-5月" width="45">
+            </el-table-column>
+            <el-table-column prop="val6" label="5-6月" width="45">
+            </el-table-column>
+            <el-table-column prop="val7" label="6-7月" width="45">
+            </el-table-column>
+            <el-table-column prop="val8" label="7-8月" width="45">
+            </el-table-column>
+            <el-table-column prop="val9" label="8-9月" width="45">
+            </el-table-column>
+            <el-table-column prop="val10" label="9-10月" width="45">
+            </el-table-column>
+            <el-table-column prop="val11" label="10-11月" width="50">
+            </el-table-column>
+            <el-table-column prop="val12" label="11-12月" width="50">
+            </el-table-column>
+            <el-table-column prop="val13" label="1-2年" width="45">
+            </el-table-column>
+            <el-table-column prop="val14" label="2-3年" width="45">
+            </el-table-column>
+            <el-table-column prop="val15" label="3-4年" width="45">
+            </el-table-column>
+            <el-table-column prop="val16" label="4-5年" width="45">
+            </el-table-column>
+            <el-table-column prop="val17" label="5-6年" width="45">
+            </el-table-column>
+            <el-table-column prop="val18" label="6-7年" width="45">
+            </el-table-column>
+            <el-table-column prop="val19" label="7-8年" width="45">
+            </el-table-column>
+            <el-table-column prop="val20" label="8-9年" width="45">
+            </el-table-column>
+            <el-table-column prop="val21" label="9-10年" width="45">
+            </el-table-column>
+            <el-table-column prop="val22" label="10年以上" width="55">
+            </el-table-column>
+        </el-table-column>
+        <el-table-column prop="val23" label="部门小计" width="40">
+        </el-table-column>
+        <el-table-column prop="val24" label="占比" width="50">
+        </el-table-column>
+        <el-table-column prop="val25" v-focus label="部门实际人数" width="40">
+        </el-table-column>
+        <el-table-column prop="val26" align="left" label="占比" width="46">
+        </el-table-column>
+    </el-table>*@
+    <!-- 测试table--end -->
+    <el-table id="table" class="tablebottom" v-bind:data="bottomTableData" style="width: 120%;margin-top:4px;" border v-bind:span-method="objectSpanMethod" lazy
+     size="medium " v-bind:row-class-name="tableRowClassName">
+
+        <el-table-column prop="department" label="部门" width="77">
+        </el-table-column>
+        <el-table-column prop="fork" label="类别" width="75">
+        </el-table-column>
+
+        <el-table-column v-bind:label=`${postYear}年${postMonth}月离职员工工龄` width="120">
+            <el-table-column prop="val1" label="≤1个月" width="50">
+            </el-table-column>
+            <el-table-column prop="val2" label="1-2月" width="45">
+            </el-table-column>
+            <el-table-column prop="val3" label="2-3月" width="45">
+            </el-table-column>
+            <el-table-column prop="val4" label="3-4月" width="45">
+            </el-table-column>
+            <el-table-column prop="val5" label="4-5月" width="45">
+            </el-table-column>
+            <el-table-column prop="val6" label="5-6月" width="45">
+            </el-table-column>
+            <el-table-column prop="val7" label="6-7月" width="45">
+            </el-table-column>
+            <el-table-column prop="val8" label="7-8月" width="45">
+            </el-table-column>
+            <el-table-column prop="val9" label="8-9月" width="45">
+            </el-table-column>
+            <el-table-column prop="val10" label="9-10月" width="45">
+            </el-table-column>
+            <el-table-column prop="val11" label="10-11月" width="50">
+            </el-table-column>
+            <el-table-column prop="val12" label="11-12月" width="50">
+            </el-table-column>
+            <el-table-column prop="val13" label="1-2年" width="45">
+            </el-table-column>
+            <el-table-column prop="val14" label="2-3年" width="45">
+            </el-table-column>
+            <el-table-column prop="val15" label="3-4年" width="45">
+            </el-table-column>
+            <el-table-column prop="val16" label="4-5年" width="45">
+            </el-table-column>
+            <el-table-column prop="val17" label="5-6年" width="45">
+            </el-table-column>
+            <el-table-column prop="val18" label="6-7年" width="45">
+            </el-table-column>
+            <el-table-column prop="val19" label="7-8年" width="45">
+            </el-table-column>
+            <el-table-column prop="val20" label="8-9年" width="45">
+            </el-table-column>
+            <el-table-column prop="val21" label="9-10年" width="45">
+            </el-table-column>
+            <el-table-column prop="val22" label="10年以上" width="55">
+            </el-table-column>
+        </el-table-column>
+        <el-table-column prop="val23" label="总计" width="45">
+        </el-table-column>
+        <el-table-column prop="val24" label="占比" width="55">
+        </el-table-column>
+    </el-table>
+    <div class="spinnerModel" v-show="flag">
+        <div class="bounce1"></div>
+        <div class="bounce2"></div>
+        <div class="bounce3"></div>
+    </div>
+    <div id="lineMain"></div>
+</div>
+
+
+
+<script>
+    //Vue 在修改数据后，视图不会立刻更新，而是等同一事件循环中的所有数据变化完成之后，再统一进行视图更新
+    //Vue.$nextTick(callback)，当dom发生变化更新后执行的回调。
+    //Vue.nextTick(callback)，当数据发生变化，更新后执行回调。
+    var vm =   new Vue({
+          el: '#app',
+          data: {
+              postYear: '',
+              postMonth: '',
+              flag:false,
+              topTableData: [],
+              bottomTableData: [],
+              optionsYears: [{
+                  value: '2019',
+                  label: '2019'
+              }, {
+                  value: '2020',
+                  label: '2020'
+              }, {
+                  value: '2021',
+                  label: '2021'
+              }, {
+                  value: '2022',
+                  label: '2022'
+              }, {
+                  value: '2023',
+                  label: '2023'
+              }],
+              optionsMonths: [
+                {
+                    value: '1',
+                    label: '01'
+                }, {
+                    value: '2',
+                    label: '02'
+                }, {
+                    value: '3',
+                    label: '03'
+                }, {
+                    value: '4',
+                    label: '04'
+                }, {
+                    value: '5',
+                    label: '05'
+                }, {
+                    value: '6',
+                    label: '06'
+                }, {
+                    value: '7',
+                    label: '07'
+                }, {
+                    value: '8',
+                    label: '08'
+                }, {
+                    value: '9',
+                    label: '09'
+                }, {
+                    value: '10',
+                    label: '10'
+                }, {
+                    value: '11',
+                    label: '11'
+                }, {
+                    value: '12',
+                    label: '12'
+                }
+              ],
+              echartData:[],
+          },
+          mounted(){
+              this.getDefualtInfo()
+          },
+          methods:{
+              getDefualtInfo(){
+                  axios.post('/Personnel_Roster/DefaualInfo').then(res =>{
+                      var targetTimeStr = res.data.时间
+                      //console.log(res.data)
+                      var firstStep = targetTimeStr.split("年");
+                      //console.log(firstStep)
+                      var secondStep = firstStep[1].replace(/月/,'');
+                      //console.log(secondStep)
+                      this.postYear = firstStep[0];
+                      this.postMonth = secondStep;
+                  }).catch(err =>{"获取默认信息失败！"})
+              },
+              tableRowClassName({row, rowIndex}) {
+                  if (rowIndex === 0) {
+                      //return 'success-row';
+                  } else if (rowIndex === 2) {
+                      return 'success-row';
+                  }else if (rowIndex === 5) {
+                      return 'success-row';
+                  }else if (rowIndex === 8) {
+                      return 'success-row';
+                  }else if (rowIndex === 11) {
+                      return 'success-row';
+                  }else if (rowIndex === 14) {
+                      return 'success-row';
+                  }else if (rowIndex === 17) {
+                      return 'success-row';
+                  }else if (rowIndex === 20) {
+                      return 'success-row';
+                  }else if (rowIndex === 23) {
+                      return 'success-row';
+                  }else if (rowIndex === 26) {
+                      return 'success-row';
+                  }else if (rowIndex === 29) {
+                      return 'success-row';
+                  }
+                  else if (rowIndex === 32) {
+                      return 'success-row';
+                  }
+                  else if (rowIndex === 35) {
+                      return 'success-row';
+                  }else if (rowIndex === 38) {
+                      return 'success-row';
+                  }else if (rowIndex === 41) {
+                      return 'success-row';
+                  }else if (rowIndex === 44) {
+                      return 'success-row';
+                  }else if (rowIndex === 47) {
+                      return 'success-row';
+                  }else if (rowIndex === 50) {
+                      return 'success-row';
+                  }else if (rowIndex === 53) {
+                      return 'success-row';
+                  }
+                  return '';
+              },
+              topAddClass() {
+                  this.$nextTick(function () {
+                      //if (this.topTableData == "") return;
+                      var tds = $("table tbody tr:last-child").children("td");
+
+                      var topTr = $(".tabletop tbody tr:last-child").prev();
+                      var topTrInner = $(topTr).children();
+                      var topTrInners = [];
+                      for(let i=0;i<topTrInner.length;i++){
+                          topTrInners.push(topTrInner[i])
+                      };
+                      var targettds = topTrInners.slice(1,24);
+                      targettds.forEach(item =>{
+                          //console.log(typeof $(item).children()[0].innerText);
+                          $(item).children()[0].innerText = ($(item).children()[0].innerText == ""?"0":$(item)[0].innerText);
+                      })
+                      var beforeOneInner = $(".tablebottom tbody tr:last-child").children();
+                      var bottomOneInner = $(".tablebottom tbody tr:last-child").prev().prev().children();
+                      var bottomTwoInner = $(".tablebottom tbody tr:last-child").prev().prev().prev().children();
+                      var bottomThreeInner = $(".tablebottom tbody tr:last-child").prev().prev().prev().prev().children();
+                      var bottomFourInner = $(".tablebottom tbody tr:last-child").prev().prev().prev().prev().prev().children();
+                      var beforeOne = [];
+                      var one = []
+                      var two = []
+                      var three = [];
+                      var four = [];
+                      for(let i =0;i<bottomOneInner.length;i++){
+                          one.push(bottomOneInner[i]);
+                          two.push(bottomTwoInner[i]);
+                          three.push(bottomThreeInner[i]);
+                          four.push(bottomFourInner[i])
+                          beforeOne.push(beforeOneInner[i])
+                      }
+                      var beforeOneInnerTarget = beforeOne.splice(1,23);
+                      var targetOne = one.splice(1,23);
+                      var targetTwo = two.splice(1,23);
+                      var targetThree = three.splice(1,23);
+                      var targetFour = four.splice(1,23);
+                      beforeOneInnerTarget.forEach(item =>{
+                          $(item).children()[0].innerText = ($(item).children()[0].innerText == ""?"0":$(item)[0].innerText);
+                      })
+                      targetOne.forEach(item =>{
+                          $(item).children()[0].innerText = ($(item).children()[0].innerText == ""?"0":$(item)[0].innerText);
+                      })
+                      targetTwo.forEach(item =>{
+                          $(item).children()[0].innerText = ($(item).children()[0].innerText == ""?"0":$(item)[0].innerText);
+                      })
+                      targetThree.forEach(item =>{
+                          $(item).children()[0].innerText = ($(item).children()[0].innerText == ""?"0":$(item)[0].innerText);
+                      })
+                      targetFour.forEach(item =>{
+                          $(item).children()[0].innerText = ($(item).children()[0].innerText == ""?"0":$(item)[0].innerText);
+                      })
+                      var tdss = [];
+                      for (let i = 0 ; i < tds.length; i++) {
+                          tdss.push(tds[i]);
+                      };
+                      var tdsss = tdss.slice(1, 23);
+                      tdsss.sort(function (td1, td2) {
+                          var a = parseFloat(td1.children[0].innerText);
+                          var b = parseFloat(td2.children[0].innerText);
+                          return b - a
+                      });
+                      //console.log(tdsss)
+                      $(tdsss[0].children[0]).addClass("color");
+                      $(tdsss[1].children[0]).addClass("color");
+                      $(tdsss[2].children[0]).addClass("color");
+                      $(tdsss[3].children[0]).removeClass("color");
+                      $(tdsss[4].children[0]).removeClass("color");
+                      $(tdsss[5].children[0]).removeClass("color");
+                  });
+                  
+              },
+              objectSpanMethod({row, column, rowIndex, columnIndex}) {  //该方法的参数是一个对象{当前行，当前列，当前行号，当前列号}
+                  var rowsNumber = this.bottomTableData.length;  //获取行数
+                 // console.log(rowsNumber)
+                  //alert(22323)
+                  if(rowIndex < rowsNumber-6){
+                  if (columnIndex === 0) {
+                      
+                          if (rowIndex % 3 === 0) {
+                          return {
+                              rowspan: 3,
+                              colspan: 1
+                          };
+                      } else {
+                          return {
+                              rowspan: 0,
+                              colspan: 0
+                          };
+                      }
+                      }
+                  }else if(rowIndex >=rowsNumber-7){
+                      if (rowIndex) {
+                          if (columnIndex === 0) {
+                              return [1, 2];
+                          } else if (columnIndex === 1) {
+                              return [0, 0];
+                          }
+                      }
+                  }
+              },
+          },
+    watch: {
+        bottomTableData(){   //从总数据中提取总占比数据---echart数据！
+            //var testss = this.bottomTableData.slice(1,24);
+            
+           // console.log(this.bottomTableData)
+            var testq
+            for(var item in this.bottomTableData){
+                if(this.bottomTableData.length > 30){
+                    if(item==59){
+                        testq = this.bottomTableData[item]
+                    }
+                }else{
+                    if(item==29){
+                        testq = this.bottomTableData[item]
+                    }
+                }
+            }
+            var finals = []
+            for(let gg in testq){
+                if(testq[gg].indexOf('%')!=-1){
+                    finals.push(testq[gg].replace(/%/,''))
+                }
+            }
+            this.echartData = finals
+           // console.log(finals)
+            var LineChart = echarts.init(document.getElementById('lineMain'));
+            //LineChart.showLoading();
+            //LineChart.hideLoading();
+            var lineOption = {
+                title: {
+                    left: 'center',
+                    text: `${this.postYear}年${this.postMonth}月离职工龄占比图`,
+                },
+                tooltip: {
+                    trigger: 'axis',
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['≤1个月', '1-2月', '2-3月', '3-4月', '4-5月', '5-6月', '6-7月', '7-8月', '8-9月', '9-10月', '10-11月', '11-12月',
+                      '1-2年', '2-3年', '3-4年', '4-5年', '5-6年', '6-7年', '7-8年', '8-9年', '9-10年'
+                    ]
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value} %'
+                    }
+                },
+                toolbox: {
+                    feature: {
+                        magicType: {
+                            type: ['line', 'bar']
+                        },
+                        //restore: {},
+                        saveAsImage: {}
+                    },
+                    right: 60,
+                    top: 30,
+                },
+                series: [{
+                    name: "离职工龄占比(%)",
+                    type: 'line',
+                    toolbox: {
+                        show: true,
+                        feature: {
+                            dataZoom: {
+                                yAxisIndex: 'none'
+                            },
+                            dataView: {
+                                readOnly: false
+                            },
+                            magicType: {
+                                type: ['line', 'bar']
+                            },
+                            restore: {},
+                            saveAsImage: {}
+                        }
+                    },
+                    itemStyle: {
+                        normal: {
+                            label: {
+                                show: true, //开启显示
+                                position: 'top', //在上方显示
+                                textStyle: { //数值样式
+                                    color: 'black',
+                                    fontSize: 12
+                                },
+                                formatter: "{c}%"
+                            }
+                        }
+                    },
+                    data: vm.echartData
+                }]
+            };
+            LineChart.setOption(lineOption);
+            
+        },
+              postYear() {
+                  this.topTableData = "";   //post之前需要清空数据，不然出错
+                  this.bottomTableData = '';
+                  if (this.postYear != "" && this.postMonth != "") {
+                      this.flag = true;
+                      this.$http.post('/Personnel_Roster/LeavedPersonServiceLength', {
+                          year: this.postYear,
+                          month: this.postMonth
+                      }, {
+                          emulateJSON: true
+                      }).then(res => {
+                          //console.log(res.bodyText);
+                          var top = res.body.表1;
+                          var departments = [];
+                          for (let p1 in top) {
+                              if (top.hasOwnProperty(p1)) {
+                                  departments.push(p1);
+                              }
+                          };
+                          var values = [];
+                          for (var val in top) {
+                              values.push(JSON.parse(top[val]))
+                          };
+                          var topDatas = [];
+                          for (let i = 0 ; i < departments.length; i++) {
+                              var obj = {
+                                  department: departments[i],
+                                  val1: values[i][0]?strManagement(values[i][0]):'',
+                                  val2: values[i][1]?strManagement(values[i][1]):'',
+                                  val3: values[i][2]?strManagement(values[i][2]):'',
+                                  val4: values[i][3]?strManagement(values[i][3]):'',
+                                  val5: values[i][4]?strManagement(values[i][4]):'',
+                                  val6: values[i][5]?strManagement(values[i][5]):'',
+                                  val7: values[i][6]?strManagement(values[i][6]):'',
+                                  val8: values[i][7]?strManagement(values[i][7]):'',
+                                  val9: values[i][8]?strManagement(values[i][8]):'',
+                                  val10: values[i][9]?strManagement(values[i][9]):'',
+                                  val11: values[i][10]?strManagement(values[i][10]):'',
+                                  val12: values[i][11]?strManagement(values[i][11]):'',
+                                  val13: values[i][12]?strManagement(values[i][12]):'',
+                                  val14: values[i][13]?strManagement(values[i][13]):'',
+                                  val15: values[i][14]?strManagement(values[i][14]):'',
+                                  val16: values[i][15]?strManagement(values[i][15]):'',
+                                  val17: values[i][16]?strManagement(values[i][16]):'',
+                                  val18: values[i][17]?strManagement(values[i][17]):'',
+                                  val19: values[i][18]?strManagement(values[i][18]):'',
+                                  val20: values[i][19]?strManagement(values[i][19]):'',
+                                  val21: values[i][20]?strManagement(values[i][20]):'',
+                                  val22: values[i][21]?strManagement(values[i][21]):'',
+                                  val23: values[i][22],
+                                  val24: values[i][23]?strManagement(values[i][23]):'',
+                                  val25: values[i][24],
+                                  val26: values[i][25]?strManagement(values[i][25]):'',
+                              };
+                              topDatas.push(obj);
+                          };
+                          this.topTableData = topDatas;
+
+                          var bottom = res.body.表2;  //处理表2数据
+                          //console.log(bottom);
+                          var departments2 = [];
+                          for (let p1 in bottom) {
+                              if (bottom.hasOwnProperty(p1)) {
+                                  departments2.push(p1);
+                              }
+                          };
+                          //console.log(departments2)
+                          var qian = [];
+                          var hou = [];
+                          for (let i = 0; i < departments2.length; i++) {
+                              var newarr = departments2[i].split(",");
+                              qian.push(newarr[0]);
+                              hou.push(newarr[1]);
+                          };
+                          //console.log(qian)  //部门 --含总计部门
+                         // console.log(hou)   //分类--含undefined
+                          var valuesBottom = [];
+                          for (var val in bottom) {
+                              valuesBottom.push(JSON.parse(bottom[val]))
+                          };
+                          //console.log(valuesBottom);
+                          var bottomDatas = [];
+                          for (let i = 0; i < qian.length; i++) {
+                              var boj2 = {
+                                  department: qian[i],
+                                  fork: hou[i],
+                                  val1: valuesBottom[i][0]?strManagement(valuesBottom[i][0]):'',
+                                  val2: valuesBottom[i][1]?strManagement(valuesBottom[i][1]):'',
+                                  val3: valuesBottom[i][2]?strManagement(valuesBottom[i][2]):'',
+                                  val4: valuesBottom[i][3]?strManagement(valuesBottom[i][3]):'',
+                                  val5: valuesBottom[i][4]?strManagement(valuesBottom[i][4]):'',
+                                  val6: valuesBottom[i][5]?strManagement(valuesBottom[i][5]):'',
+                                  val7: valuesBottom[i][6]?strManagement(valuesBottom[i][6]):'',
+                                  val8: valuesBottom[i][7]?strManagement(valuesBottom[i][7]):'',
+                                  val9: valuesBottom[i][8]?strManagement(valuesBottom[i][8]):'',
+                                  val10: valuesBottom[i][9]?strManagement(valuesBottom[i][9]):'',
+                                  val11: valuesBottom[i][10]?strManagement(valuesBottom[i][10]):'',
+                                  val12: valuesBottom[i][11]?strManagement(valuesBottom[i][11]):'',
+                                  val13: valuesBottom[i][12]?strManagement(valuesBottom[i][12]):'',
+                                  val14: valuesBottom[i][13]?strManagement(valuesBottom[i][13]):'',
+                                  val15: valuesBottom[i][14]?strManagement(valuesBottom[i][14]):'',
+                                  val16: valuesBottom[i][15]?strManagement(valuesBottom[i][15]):'',
+                                  val17: valuesBottom[i][16]?strManagement(valuesBottom[i][16]):'',
+                                  val18: valuesBottom[i][17]?strManagement(valuesBottom[i][17]):'',
+                                  val19: valuesBottom[i][18]?strManagement(valuesBottom[i][18]):'',
+                                  val20: valuesBottom[i][19]?strManagement(valuesBottom[i][19]):'',
+                                  val21: valuesBottom[i][20]?strManagement(valuesBottom[i][20]):'',
+                                  val22: valuesBottom[i][21]?strManagement(valuesBottom[i][21]):'',
+                                  val23: valuesBottom[i][22],
+                                  val24: valuesBottom[i][23]?strManagement(valuesBottom[i][23]):'',
+                              }
+                              
+                              bottomDatas.push(boj2);
+
+                          };
+                          this.bottomTableData = bottomDatas;
+
+                          this.flag = false;
+                      }, res=> { alert("连接失败！") })
+                  }
+              },
+              postMonth() {
+                  this.topTableData = "";   //post之前需要清空数据，不然出错
+                  this.bottomTableData = '';
+                  if (this.postYear != "" && this.postMonth != "") {
+                      this.flag = true;
+                      this.$http.post('/Personnel_Roster/LeavedPersonServiceLength', {
+                          year: this.postYear,
+                          month: this.postMonth
+                      }, {
+                          emulateJSON: true
+                      }).then(res =>{
+                          //console.log(res.bodyText);
+                          var top = res.body.表1;  //处理表1数据
+                          var departments = [];
+                          for (let p1 in top) {
+                              if (top.hasOwnProperty(p1)) {
+                                  departments.push(p1);
+                              }
+                          };
+                          var values = [];
+                          for (var val in top) {
+                              values.push(JSON.parse(top[val]))
+                          };
+                          var topDatas = [];
+                          for (let i = 0 ; i < departments.length; i++) {
+                              var obj = {
+                                  department: departments[i],
+                                  val1: values[i][0]?strManagement(values[i][0]):'',
+                                  val2: values[i][1]?strManagement(values[i][1]):'',
+                                  val3: values[i][2]?strManagement(values[i][2]):'',
+                                  val4: values[i][3]?strManagement(values[i][3]):'',
+                                  val5: values[i][4]?strManagement(values[i][4]):'',
+                                  val6: values[i][5]?strManagement(values[i][5]):'',
+                                  val7: values[i][6]?strManagement(values[i][6]):'',
+                                  val8: values[i][7]?strManagement(values[i][7]):'',
+                                  val9: values[i][8]?strManagement(values[i][8]):'',
+                                  val10: values[i][9]?strManagement(values[i][9]):'',
+                                  val11: values[i][10]?strManagement(values[i][10]):'',
+                                  val12: values[i][11]?strManagement(values[i][11]):'',
+                                  val13: values[i][12]?strManagement(values[i][12]):'',
+                                  val14: values[i][13]?strManagement(values[i][13]):'',
+                                  val15: values[i][14]?strManagement(values[i][14]):'',
+                                  val16: values[i][15]?strManagement(values[i][15]):'',
+                                  val17: values[i][16]?strManagement(values[i][16]):'',
+                                  val18: values[i][17]?strManagement(values[i][17]):'',
+                                  val19: values[i][18]?strManagement(values[i][18]):'',
+                                  val20: values[i][19]?strManagement(values[i][19]):'',
+                                  val21: values[i][20]?strManagement(values[i][20]):'',
+                                  val22: values[i][21]?strManagement(values[i][21]):'',
+                                  val23: values[i][22],
+                                  val24: values[i][23]?strManagement(values[i][23]):'',
+                                  val25: values[i][24],
+                                  val26: values[i][25]?strManagement(values[i][25]):'',
+                              };
+                              topDatas.push(obj);
+                          };
+                          this.topTableData = topDatas; //输出到Data--表1数据
+
+                          var bottom = res.body.表2;  //处理表2数据
+                          //console.log(bottom);
+                          var departments2 = [];
+                          for (let p1 in bottom) {
+                              if (bottom.hasOwnProperty(p1)) {
+                                  departments2.push(p1);
+                              }
+                          };
+                          //console.log(departments2)
+                          var qian = [];
+                          var hou = [];
+                          for (let i = 0; i < departments2.length; i++) {
+                              var newarr = departments2[i].split(",");
+                              qian.push(newarr[0]);
+                              hou.push(newarr[1]);
+                          };
+                          //console.log(qian)  //部门 --含总计部门
+                          //console.log(hou)   //分类--含undefined
+                          var valuesBottom = [];
+                          for (var val in bottom) {
+                              valuesBottom.push(JSON.parse(bottom[val]))
+                          };
+                          //console.log(valuesBottom);
+                          var bottomDatas = [];
+                          for (let i = 0; i < qian.length; i++) {
+                              var boj2 = {
+                                  department: qian[i],
+                                  fork: hou[i],
+                                  val1: valuesBottom[i][0]?strManagement(valuesBottom[i][0]):'',
+                                  val2: valuesBottom[i][1]?strManagement(valuesBottom[i][1]):'',
+                                  val3: valuesBottom[i][2]?strManagement(valuesBottom[i][2]):'',
+                                  val4: valuesBottom[i][3]?strManagement(valuesBottom[i][3]):'',
+                                  val5: valuesBottom[i][4]?strManagement(valuesBottom[i][4]):'',
+                                  val6: valuesBottom[i][5]?strManagement(valuesBottom[i][5]):'',
+                                  val7: valuesBottom[i][6]?strManagement(valuesBottom[i][6]):'',
+                                  val8: valuesBottom[i][7]?strManagement(valuesBottom[i][7]):'',
+                                  val9: valuesBottom[i][8]?strManagement(valuesBottom[i][8]):'',
+                                  val10: valuesBottom[i][9]?strManagement(valuesBottom[i][9]):'',
+                                  val11: valuesBottom[i][10]?strManagement(valuesBottom[i][10]):'',
+                                  val12: valuesBottom[i][11]?strManagement(valuesBottom[i][11]):'',
+                                  val13: valuesBottom[i][12]?strManagement(valuesBottom[i][12]):'',
+                                  val14: valuesBottom[i][13]?strManagement(valuesBottom[i][13]):'',
+                                  val15: valuesBottom[i][14]?strManagement(valuesBottom[i][14]):'',
+                                  val16: valuesBottom[i][15]?strManagement(valuesBottom[i][15]):'',
+                                  val17: valuesBottom[i][16]?strManagement(valuesBottom[i][16]):'',
+                                  val18: valuesBottom[i][17]?strManagement(valuesBottom[i][17]):'',
+                                  val19: valuesBottom[i][18]?strManagement(valuesBottom[i][18]):'',
+                                  val20: valuesBottom[i][19]?strManagement(valuesBottom[i][19]):'',
+                                  val21: valuesBottom[i][20]?strManagement(valuesBottom[i][20]):'',
+                                  val22: valuesBottom[i][21]?strManagement(valuesBottom[i][21]):'',
+                                  val23: valuesBottom[i][22],
+                                  val24: valuesBottom[i][23]?strManagement(valuesBottom[i][23]):'',
+                              }
+                              bottomDatas.push(boj2);
+                          };
+                          this.bottomTableData = bottomDatas;
+
+                          //var totlasData = this.bottomTableData.pop();
+                          //var targetTotalsArr = []
+                          //for(let item in totlasData){
+                          //    targetTotalsArr.push(totlasData[item])
+                          //}
+                          //targetTotalsArr.split(
+                          //console.log(targetTotalsArr)
+                          this.flag = false;
+                      }, res=>{ alert("连接失败！") })
+                  }
+              },
+              topTableData() {
+                  this.topAddClass();
+              }
+          },
+
+    })
+
+    function strManagement(str){
+        var strs = str +'';
+        //var rowsNumbers = this.bottomTableData.length;  //获取行数
+        if(strs.indexOf('%') != -1){
+                if(strs ==='0.00%'){
+                    return str = '0%'
+                }else if(strs ===0){
+                    return ''
+                }
+                else{
+                    var strs = str.replace(/%/,'');
+                    let _thisnum = strs.toString().split(".");
+                    if (_thisnum.length == 1) {
+                        return strs + '%';
+                    } else if (_thisnum[1] == "00") {
+                        return _thisnum[0] + '%';
+                    } else if (_thisnum[1].split("")[1] == "0") {
+                        return _thisnum[0] +"."+ _thisnum[1].split("")[0] + '%';
+                    } else {
+                        return strs + '%';
+                    }
+                }
+        }else {
+            if(strs === '0'){
+                return ''
+            }else{
+                return strs;
+            }
+        }
+       
+        
+    }
+
+      
+
+</script>

@@ -1,0 +1,365 @@
+﻿@model JianHeMES.Models.EquipmentStatusRecord
+
+@{
+    ViewBag.Title = "InputEquipmentRepairRecord";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+    .container {
+        padding: 0;
+    }
+
+    .color2 {
+        color: red;
+        font-size: 16px;
+    }
+
+    .has-gutter tr th .cell, .el-table__row td .cell {
+        text-align: center;
+    }
+
+    .el-table__header tr,
+    .el-table__header th {
+        font-size: 13px;
+        padding: 0;
+        height: 30px;
+    }
+
+    .el-table__body tr,
+    .el-table__body td {
+        padding: 0;
+        font-size: 12px;
+        height: 30px;
+    }
+
+    textarea {
+        height: 30px;
+        width: 15%;
+    }
+
+    .inputtext {
+        margin-top: 25px;
+        display: inline-flex;
+        width: 100%;
+    }
+
+    h4 {
+        width: 75%;
+        font-size: 20px;
+        text-align: center;
+    }
+
+    .bottomInfo {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .pone {
+        align-self: flex-end;
+        font-size: 14px;
+    }
+</style>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+
+@*<h2>InputEquipmentRepairRecord</h2>*@
+
+<div id="app">
+    <div class="inputtext">
+        <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+        <h4>批量添加维修记录666666</h4>
+    </div>
+
+
+    <el-table v-bind:data="tableData" style="width: 100%" max-height="690" border stripe>
+        <el-table-column prop="SerialNumber" label="序号" width="56">
+        </el-table-column>
+        <el-table-column prop="EquipmentNumber" label="故障现象描述" width="160">
+        </el-table-column>
+        <el-table-column prop="AssetNumber" label="原因分析" width="160">
+        </el-table-column>
+        <el-table-column prop="EquipmentName" label="维修或检测内容" width="160">
+        </el-table-column>
+        <el-table-column prop="Brand" label="接单时间" width="120">
+        </el-table-column>
+        <el-table-column prop="ModelSpecification" label="计划完成时间" width="110">
+        </el-table-column>
+        <el-table-column prop="ManufacturingNumber" label="实际完成时间" width="110">
+        </el-table-column>
+        <el-table-column prop="Quantity" label="维修人" width="80">
+        </el-table-column>
+        <el-table-column prop="ActionDate" label="备注" width="160">
+        </el-table-column>
+        <el-table-column label="操作" width="53">
+            <template slot-scope="scope">
+                <el-button v-on:click.native.prevent="deleteRow(scope.$index, tableData)"
+                           type="text"
+                           size="small">
+                    移除
+                </el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+    <div class="bottomInfo" v-if="flag">
+        <p class="pone">本次共提交<span style="color:red;font-size:18px;">{{count}}</span>条数据！<span v-if="flags">存在重复数据，请移除其中一项并点击上传！</span></p>
+        <p>
+            <el-button v-on:click="postdata" type="primary" size="mini">上传<i class="el-icon-upload el-icon--right"></i></el-button>
+            <el-button v-on:click="delated" type="primary" size="mini">清空<i class="el-icon-delete el-icon--right"></i></el-button>
+        </p>
+    </div>
+</div>
+<button onclick="goback()">返回</button>
+
+
+<script>
+    function goback() {
+        window, history.back();
+    }
+
+    let vm = new Vue({
+        el: "#app",
+        data: {
+            inputInfo: null,
+            flag: false,
+            flags: false,
+            count: null,
+            tableData:[]
+        },
+        methods: {
+            postdata() {
+                if (this.tableData.length >= 1) {
+                    axios.post("/Equipment/InputEquipmentRepairRecord", { equipmentStatusRecordList: this.tableData }).then(res=> {
+                        if (res.data != '添加失败') {
+                            this.$message({
+                                message: "上传成功!",
+                                type: "success"
+                            })
+                            this.delated();
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: "warning"
+                            })
+                        }
+                    }).catch(err=> {
+
+                    })
+
+
+                } else {
+                    this.$message({
+                        message: "请导入数据再上传!",
+                        type:"warning"
+                    })
+                }
+            },
+            delated() {
+                this.inputInfo = null;
+                this.tableData = [];
+                this.count = null
+            },
+            deleteRow(index) {
+                this.tableData.splice(index, 1);
+                this.count--;
+            }
+        },
+        watch: {
+            inputInfo(val) {
+                //console.log(this.inputInfo)
+                if (this.inputInfo == null) { this.flag = false } else { this.flag = true }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                //console.log(valOfPaste)
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                //console.log(initDatas)
+                initDatas.forEach(item=> {
+                    let obj = {
+                        SerialNumber: item[0], EquipmentNumber: item[1], AssetNumber: item[3], EquipmentName: item[4], Brand: item[7], ModelSpecification: item[8],
+                        ManufacturingNumber: item[9], Quantity: item[10], ActionDate: item[11]
+                    };
+                    this.tableData.push(obj);
+                })
+                this.count = this.tableData.length;
+                //console.log(initDatas)
+            }
+        }
+    })
+
+</script>
+
+@*@using (Html.BeginForm()) 
+{
+    @Html.AntiForgeryToken()
+    
+    <div class="form-horizontal">
+        <h4>EquipmentStatusRecord</h4>
+        <hr />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            @Html.LabelFor(model => model.EquipmentNumber, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.EquipmentNumber, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.EquipmentNumber, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.AssetNumber, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.AssetNumber, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.AssetNumber, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.EquipmentName, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.EquipmentName, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.EquipmentName, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.OrderNum, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Status, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Status, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Status, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.StatusStarTime, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.StatusStarTime, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.StatusStarTime, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.StatusEndTime, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.StatusEndTime, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.StatusEndTime, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.ReportRepairMan, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.ReportRepairMan, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.ReportRepairMan, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Reason, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Reason, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Reason, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.SparePartsInfo, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.SparePartsInfo, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.SparePartsInfo, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.UserDepartment, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.UserDepartment, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.UserDepartment, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.WorkShop, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.WorkShop, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.WorkShop, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.LineNum, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.LineNum, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.LineNum, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Section, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Section, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Section, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Creator, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Creator, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Creator, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.CreateTime, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.CreateTime, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.CreateTime, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Modifier, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Modifier, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Modifier, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.ModifyTime, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.ModifyTime, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.ModifyTime, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Remark, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Remark, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Remark, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" value="Create" class="btn btn-default" />
+            </div>
+        </div>
+    </div>
+}
+
+<div>
+    @Html.ActionLink("Back to List", "Index")
+</div>*@

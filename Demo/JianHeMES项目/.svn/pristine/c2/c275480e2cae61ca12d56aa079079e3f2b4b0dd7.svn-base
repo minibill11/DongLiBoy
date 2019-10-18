@@ -1,0 +1,361 @@
+﻿@{
+    ViewBag.Title = "条码信息查询";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-table th {
+        padding: 6px 0;
+        background-color: #f4df42;
+        color: #000;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+    }
+
+    .el-table th, .el-table td {
+        font-size: 12px;
+        text-align: center;
+    }
+
+        .el-table .cell, .el-table th div {
+            padding: 0;
+        }
+
+    .el-table thead.is-group .el-table_2_column_18 {
+        font-size: 15px;
+        padding: 10px;
+    }
+
+    .el-divider--horizontal{
+        margin:0;
+    }
+    .el-input {
+        width: 220px;
+    }
+
+    .green {
+        color: #67c23a;
+    }
+
+    .red {
+        color: #f56c6c;
+    }
+
+    .blue {
+        color: #16a0e3;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+            <span>条码号：</span>
+            <el-input placeholder="输入条码号"
+                      v-model.trim="barcodeVal"
+                      size="medium"
+                      clearable>
+            </el-input>
+            <span>类型：</span>
+            <el-select v-model="typeVal" placeholder="输入内容可查询" filterable size="medium">
+                <el-option v-for="item in typeOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-button v-on:click="getdata" type="primary" size="medium" :disabled="barcodeVal==''">
+                查找
+            </el-button>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <el-table :data="barcodesModuleList"
+                          v-show="barcodesModuleList.length>0"
+                          border
+                          stripe
+                          :max-height="600">
+                    <el-table-column label="模组信息">
+                        <el-table-column prop="barcode"
+                                         label="条码号">
+                        </el-table-column>
+                        <el-table-column prop="ordernum"
+                                         label="订单号">
+                        </el-table-column>
+                        <el-table-column prop="modulenum"
+                                         label="模组号">
+                        </el-table-column>
+                        <el-table-column prop="creator"
+                                         label="条码创建人">
+                        </el-table-column>
+                        <el-table-column prop="pqcStatu"
+                                         label="PQC信息">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.pqcStatu==1?'green el-icon-success':scope.row.pqcStatu==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.pqcStatu==1?"直通完成":scope.row.pqcStatu==2?"进行中":"未开始"}}
+                                </div>
+                                <div>{{scope.row.pqcCreator}}</div>
+                                <div>{{scope.row.pqcCreatdate.split("T")[0]}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="fqcStatu"
+                                         label="FQC信息">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.fqcStatu==1?'green el-icon-success':scope.row.fqcStatu==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.fqcStatu==1?"直通完成":scope.row.fqcStatu==2?"进行中":"未开始"}}
+                                </div>
+                                <div>{{scope.row.fqcCreator}}</div>
+                                <div>{{scope.row.fqcCreatdate.split("T")[0]}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="mosaicScreenStatu"
+                                         label="拼屏信息">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.mosaicScreenStatu==1?'green el-icon-success':scope.row.mosaicScreenStatu==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.mosaicScreenStatu==1?"直通完成":scope.row.mosaicScreenStatu==2?"进行中":"未开始"}}
+                                </div>
+                                <div>{{scope.row.mosaicScreenCreator}}</div>
+                                <div>{{scope.row.mosaicScreenCreatdate.split("T")[0]}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="burnInStatu"
+                                         label="老化信息">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.burnInStatu==1?'green el-icon-success':scope.row.burnInStatu==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.burnInStatu==1?"直通完成":scope.row.burnInStatu==2?"进行中":"未开始"}}
+                                </div>
+                                <div>{{scope.row.burnInCreator}}</div>
+                                <div>{{scope.row.burnInCreatdate.split("T")[0]}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="calibrationRecordStatu"
+                                         label="校正信息">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.calibrationRecordStatu==1?'green el-icon-success':scope.row.calibrationRecordStatu==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.calibrationRecordStatu==1?"直通完成":scope.row.calibrationRecordStatu==2?"进行中":"未开始"}}
+                                </div>
+                                <div>{{scope.row.calibrationRecordCreator}}</div>
+                                <div>{{scope.row.calibrationRecordCreatdate.split("T")[0]}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="appearanceStatu"
+                                         label="电检信息">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.appearanceStatu==1?'green el-icon-success':scope.row.appearanceStatu==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.appearanceStatu==1?"直通完成":scope.row.appearanceStatu==2?"进行中":"未开始"}}
+                                </div>
+                                <el-divider></el-divider>
+                                <div>操作者:{{scope.row.appearanceCreator}}</div>
+                                <el-divider></el-divider>
+                                <div>{{scope.row.appearanceCreatdate.split("T")[0]}}</div>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <br />
+            <el-row>
+                <el-table :data="barcodesOutherList"
+                          v-show="barcodesOutherList.length>0"
+                          border
+                          stripe
+                          :max-height="600">
+                    <el-table-column label="外箱信息">
+                        <el-table-column prop="otherBarcode"
+                                         label="条码号">
+                        </el-table-column>
+
+                        <el-table-column prop="ordernum"
+                                         label="订单号">
+                        </el-table-column>
+                        <el-table-column prop="type"
+                                         label="类型">
+                        </el-table-column>
+                        <el-table-column prop="statu"
+                                         label="状态">
+                        </el-table-column>
+                        <el-table-column prop="name"
+                                         label="名字">
+                        </el-table-column>
+                        <el-table-column prop="barcodelist"
+                                         label="条码列表">
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <br />
+            <el-row>
+                <el-table :data="barcodesSulderList"
+                          v-show="barcodesSulderList.length>0"
+                          border
+                          stripe
+                          :max-height="600">
+                    <el-table-column label="锡膏信息">
+                        <el-table-column prop="solderpasterBacrcode"
+                                         label="条码号">
+                        </el-table-column>
+                        <el-table-column prop="receivingNum"
+                                         label="物料号">
+                        </el-table-column>
+                        <el-table-column prop="batch"
+                                         label="批次">
+                        </el-table-column>
+                        <el-table-column prop="leaveFactoryTime"
+                                         label="生产日期">
+                        </el-table-column>
+                        <el-table-column prop="supplier"
+                                         label="供应商">
+                        </el-table-column>
+                        <el-table-column prop="effectiveDay"
+                                         label="有效期">
+                        </el-table-column>
+                        <el-table-column prop="smtFreeze"
+                                         label="入SMT冰柜">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.smtFreeze==1?'green el-icon-success':scope.row.smtFreeze==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.smtFreeze==1?"正常":scope.row.smtFreeze==2?"进行中":"未开始"}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="smtReam"
+                                         label="回温">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.smtReam==1?'green el-icon-success':scope.row.smtReam==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.smtReam==1?"正常":scope.row.smtReam==2?"进行中":"未开始"}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="smtStir"
+                                         label="搅拌">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.smtStir==1?'green el-icon-success':scope.row.smtStir==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.smtStir==1?"正常":scope.row.smtStir==2?"进行中":"未开始"}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="smtEmpty"
+                                         label="使用">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.smtEmpty==1?'green el-icon-success':scope.row.smtEmpty==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.smtEmpty==1?"正常":scope.row.smtEmpty==2?"进行中":"未开始"}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="smtrecly"
+                                         label="回收">
+                            <template slot-scope="scope">
+                                <div :class="scope.row.smtrecly==1?'green el-icon-success':scope.row.smtrecly==3?'red el-icon-remove':'blue el-icon-more-outline'">
+                                    {{scope.row.smtrecly==1?"正常":scope.row.smtrecly==2?"进行中":"未开始"}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            loadingnum: 0,
+            barcodeVal: '',
+            typeOptions: [
+                { value: "全部" },
+                { value: "模组" },
+                { value: "外箱" },
+                { value: "锡膏" },
+            ],
+            typeVal: "全部",
+            barcodesModuleList: [],
+            barcodesOutherList: [],
+            barcodesSulderList: [],
+        },
+        mounted: function () {
+
+        },
+        methods: {
+            //获取数据
+            getdata: function () {
+                this.loading = true;
+                let barcode = this.barcodeVal, type = this.typeVal;
+                if (type == "模组") {
+                    this.getModule(barcode);
+                } else if (type == "外箱") {
+                    this.getOuther(barcode);
+                } else if (type == "锡膏") {
+                    this.getSulder(barcode);
+                } else {
+                    this.getModule(barcode);
+                    this.getOuther(barcode);
+                    this.getSulder(barcode);
+                };
+            },
+            //获取模组信息
+            getModule: function (v) {
+                this.barcodesModuleList = [];
+                axios.post('/Query/DisplayBarcodesModule', {
+                    barcode: v,
+                }).then(res => {
+                    console.log(res.data);
+                    if (res.data != "") {
+                        this.barcodesModuleList.push(res.data);
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //获取外箱信息
+            getOuther: function (v) {
+                this.barcodesOutherList = [];
+                axios.post('/Query/DisplayBarcodesOuther', {
+                    barcode: v,
+                }).then(res => {
+                    console.log(res.data);
+                    if (res.data != "") {
+                        this.barcodesOutherList.push(res.data);
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //获取锡膏信息
+            getSulder: function (v) {
+                this.barcodesSulderList = [];
+                axios.post('/Query/DisplayBarcodesSulder', {
+                    barcode: v,
+                }).then(res => {
+                    console.log(res.data);
+                    if (res.data != "") {
+                        this.barcodesSulderList.push(res.data);
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            }
+        }
+    });
+</script>

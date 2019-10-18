@@ -1,0 +1,255 @@
+﻿@{
+    ViewBag.Title = "查看标签";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<link href="~/Content/styleFile/packaging/stockStyle.css" rel="stylesheet" />
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/Packagings/outsideBinningPrint"><el-button size="small">外箱装箱和标签打印</el-button></a>
+                <div class="adiv" href="/Packagings/lookTag"><el-button size="small" type="primary" plain disabled style="cursor:default">查看标签</el-button></div>
+                <a href="/Packagings/DeleteConfirm"><el-button size="small">外箱删除</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+
+                        <a href="/Packagings/outsideBinningPrint"><el-dropdown-item>外箱装箱和标签打印</el-dropdown-item></a>
+                        <div href="/Packagings/lookTag"><el-dropdown-item disabled>查看标签</el-dropdown-item></div>
+                        <a href="/Packagings/DeleteConfirm"><el-dropdown-item>外箱删除</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="inputframe">
+                    <span>订单号：</span>
+                    <el-select v-model="selectVal" v-bind:disabled="barcodeList.length>0" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in selectOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>条码号：</span>
+                    <el-input placeholder="请输入条码号"
+                              v-model.trim="barcode"
+                              style="text-align:right;display:inline-block;"
+                              v-on:keyup.enter.native="barScan($event)"
+                              size="medium"
+                              autofocus
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="divframe" style="height:auto;min-height:0;max-height:100px;border:0;text-align:right;">
+                    <div v-for="(item,index) in barcodeList" class="listbarcode">
+                        {{item}}
+                        <el-button @@click.native.prevent="deleteRow(index)"
+                                   type="text"
+                                   size="mini"
+                                   style="margin:0;padding:0;">
+                            <i class="el-icon-error"></i>
+                        </el-button>
+                    </div>
+                    <div>
+                        <el-button v-on:click="clearList" size="mini" round>重置</el-button>
+                        <el-button v-on:click="barGetListData" size="mini" round>查找</el-button>
+                    </div>
+                    <div>
+                        <span style="color:#409EFF">↓ 此订单已存在条码：</span>
+                        <div v-for="item in orderList">
+                            <el-checkbox v-model="item.statu" border size="mini">{{item.value}}</el-checkbox>
+                        </div>
+                        <el-button v-on:click="barGetListData2" size="mini" round>查找勾选条码</el-button>
+                    </div>
+                </div>
+            </el-row>
+            <el-row>
+                <div id="img">
+
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectOptions: [],
+            selectVal: '',
+            screenSize: document.body.clientWidth,
+            loading: false,
+            barcode: "",
+            barcodeList: [],
+            orderList: []
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+        },
+        methods: {
+            barScan: function (event) {
+                let v = event.target.value, listData = this.barcodeList;
+                if (v == "") {
+                    return;
+                };
+                //检查重复
+                for (let i in listData) {
+                    if (listData[i] == v) {
+                        this.$message({
+                            showClose: true,
+                            message: '已有重复条码！',
+                            type: 'warning'
+                        });
+                        return;
+                    };
+                };
+                axios.post('/Packagings/CheckOutsideBoxBadeCodeNumExistAsync', { outsidebarcode: v }).then(res => {
+                    if (res.data == "True") {
+                        listData.push(v);
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '不存在此条码！',
+                            type: 'error'
+                        });
+                    };
+                }).catch(err => {
+                    console.warn("出错")
+                });
+                this.barcode = "";
+            },
+            //获取图片
+            barGetListData: function () {
+                $("#img>img").remove();
+                let list = this.barcodeList, imgNum = 0;
+                if (list.length > 0) {
+                    //this.loading = true;
+                    for (let i in list) {
+                        console.log(list[i])
+                        axios.post('/Packagings/OutsideBoxLablePrintToImg', {
+                            outsidebarcode: list[i],
+                        }, {
+                                responseType: "arraybuffer",
+                            }).then(function (response) {
+                                //console.log(response.data)
+                                //将从后台获取的图片流进行转换
+                                return 'data:image/png;base64,' + btoa(
+                                    new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                                );
+                            }).then(function (data) {
+                                //接收转换后的Base64图片
+                                //console.log(data);
+                                let cc = new Image();
+                                cc.src = data;
+                                document.getElementById("img").appendChild(cc);
+                                imgNum++;
+                                if (imgNum == list.length) {
+                                    this.loading = false;
+                                };
+                            }).catch(err => {
+                                imgNum++;
+                                if (imgNum == list.length) {
+                                    this.loading = false;
+                                };
+                                console.warn("打印出错");
+                            });
+                    };
+                };
+            },
+            //获取图片
+            barGetListData2: function () {
+                let list = this.orderList, imgNum = 0, postList = [];
+                if (list.length > 0) {
+                    for (let i in list) {
+                        if (list[i].statu == true) {
+                            postList.push(list[i].value);
+                        };
+                    };
+                    if (postList.length > 0) {
+                        //this.loading = true;
+                        $("#img>img").remove();
+                        for (let i in postList) {
+                            console.log(postList[i])
+                            axios.post('/Packagings/OutsideBoxLablePrintToImg', {
+                                outsidebarcode: postList[i],
+                            }, {
+                                    responseType: "arraybuffer",
+                                }).then(function (response) {
+                                    //console.log(response.data)
+                                    //将从后台获取的图片流进行转换
+                                    return 'data:image/png;base64,' + btoa(
+                                        new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                                    );
+                                }).then(function (data) {
+                                    //接收转换后的Base64图片
+                                    //console.log(data);
+                                    let cc = new Image();
+                                    cc.src = data;
+                                    document.getElementById("img").appendChild(cc);
+                                    imgNum++;
+                                    if (imgNum == postList.length) {
+                                        this.loading = false;
+                                    };
+                                }).catch(err => {
+                                    imgNum++;
+                                    if (imgNum == postList.length) {
+                                        this.loading = false;
+                                    };
+                                    console.warn("打印出错");
+                                });
+                        };
+                    };
+                };
+            },
+            //删除行
+            deleteRow: function (i) {
+                this.barcodeList.splice(i, 1);
+            },
+            clearList: function () {
+                this.barcodeList = [];
+                $("#img>img").remove();
+            },
+        },
+        watch: {
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+                this.orderList=[];
+                axios.post('/Packagings/OutputOutsideBoxBadeCodeNumList', { ordernum: v }).then(res => {
+                    let rtd = res.data, OL = this.orderList;
+                    for (let i in rtd) {
+                        OL.push({
+                            value: rtd[i],
+                            statu: false
+                        });
+                    };
+                }).catch(err => {
+                    console.warn("出错")
+                });
+            }
+        }
+    });
+</script>

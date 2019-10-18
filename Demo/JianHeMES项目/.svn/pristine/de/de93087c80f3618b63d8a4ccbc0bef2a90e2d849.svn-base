@@ -1,0 +1,336 @@
+﻿@{
+    ViewBag.Title = "锡膏出库";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/SMT_Sulderpaster/mcBoard"><el-button size="small">MC看板</el-button></a>
+                <a href="/SMT_Sulderpaster/smtBoard"><el-button size="small">SMT看板</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouse_Material"><el-button size="small">录入物料信息</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">锡膏入库</el-button></a>
+                <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-button size="small">锡膏入冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/outWarehouseFreezer"><el-button size="small">锡膏出库</el-button></a>
+                <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-button size="small">入SMT冰柜</el-button></a>
+                <a href="/SMT_Sulderpaster/Rewarming"><el-button size="small">回温</el-button></a>
+                <a href="/SMT_Sulderpaster/RewarmRecord"><el-button size="small">回温记录</el-button></a>
+                <a href="/SMT_Sulderpaster/Stir"><el-button size="small">搅拌</el-button></a>
+                <a href="/SMT_Sulderpaster/Use"><el-button size="small">使用</el-button></a>
+                <a href="/SMT_Sulderpaster/recovery"><el-button size="small">回收</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/SMT_Sulderpaster/mcBoard"><el-dropdown-item>MC看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/smtBoard"><el-dropdown-item>SMT看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouse_Material"><el-dropdown-item>录入物料信息</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-dropdown-item>锡膏入库</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-dropdown-item>锡膏入冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/outWarehouseFreezer"><el-dropdown-item>锡膏出库</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/AddSMTFreezer"><el-dropdown-item>入SMT冰柜</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Rewarming"><el-dropdown-item>回温</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/RewarmRecord"><el-dropdown-item>回温记录</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Stir"><el-dropdown-item>搅拌</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/Use"><el-dropdown-item>使用</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/recovery"><el-dropdown-item>回收</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="inputframe">
+                    <span class="inputtext">锡膏条码：</span>
+                    <el-input placeholder="请输入锡膏条码"
+                              v-model.trim="solderpasterBarcode"
+                              v-on:keyup.enter.native="barcodescan"
+                              size="medium"
+                              autofocus
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">领料人工号：</span>
+                    <el-input placeholder="请输入工号"
+                              v-model.number.trim="lingliaoNum"
+                              maxlength="5"
+                              v-on:keyup.enter.native="getName"
+                              size="medium"
+                              clearable>
+                    </el-input>
+                    <p v-show="isexistJobNum" class="red">不存在此工号！</p>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">领料人姓名：</span>
+                    <el-input placeholder="输入工号回车"
+                              v-model.trim="lingliaoName"
+                              disabled
+                              size="medium"
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <div class="divframe">
+                        <el-table :data="barcodetable"
+                                  height="280"
+                                  :row-class-name="tableRowClassName"
+                                  border>
+                            <el-table-column prop="barcode"
+                                             label="条码清单"
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column prop="Tips"
+                                             label="状态">
+                            </el-table-column>
+                            <el-table-column prop="edit"
+                                             label=""
+                                             width="40">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,barcodetable)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <span v-if="barcodetable.length!=0">条码数量：{{barcodetable.length}}</span>
+                    </div>
+                    <el-button size="medium" @@click="checkList">检查清单</el-button>
+                    <el-button size="medium" @@click="confirm" :disabled="!isok||lingliaoName==''||lingliaoNum==''">确认出库</el-button>
+                </div>
+                <div class="inputframe">
+                    <div class="divframe">
+                        <el-table :data="smtTable"
+                                  :row-class-name="tableWarning"
+                                  border>
+                            <el-table-column prop="barcode"
+                                             label="条码号"
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column label="入冰柜时间">
+                                <template slot-scope="scope">
+                                    <span>{{scope.row.time.split("T")[0]}}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="有效时间"
+                                             width="65">
+                                <template slot-scope="scope">
+                                    <span>{{scope.row.overdue}}天</span>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            //入冰柜入 smt冰柜 回温 搅拌 使用 回收
+            solderpasterBarcode: "",
+            barcodeList: [],
+            barcodetable: [],
+            isok: false,
+            lingliaoNum: "",
+            isexistJobNum: false,
+            lingliaoName: "",
+            smtTable: []
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            this.gettable();
+            setInterval(function () {
+                app.gettable();
+            }, 60000);
+        },
+        methods: {
+            //获取列表数据
+            gettable: function () {
+                axios.post("/SMT_Sulderpaster/CheckWarehouse").then(res => {
+                    //console.log(res.data);
+                    this.smtTable = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            //检查
+            checkList: function () {
+                if (this.barcodeList == "") {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "清单不能为空！"
+                    });
+                    return;
+                };
+                this.loading = true;
+                axios.post('/SMT_Sulderpaster/CheckSMTFreezer', {
+                    smt_FreezerList: this.barcodeList,
+                    statu: "出库",
+                }).then(res => {
+                    //console.log(res.data);
+                    this.barcodetable = res.data;
+                    let rtd = res.data, isokNum = 0;
+                    for (let i in rtd) {
+                        if (rtd[i].Tips == "正常") {
+                            isokNum++;
+                        };
+                    };
+                    if (isokNum == rtd.length) {
+                        this.isok = true;
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //确认
+            confirm: function () {
+                this.isok = false;
+                this.loading = true;
+                axios.post('/SMT_Sulderpaster/UpdateWarehouseFreezerAsync', {
+                    warehouse_FreezerList: this.barcodeList,
+                    name: this.lingliaoName,
+                    jobnum: this.lingliaoNum
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data == "True") {
+                        this.$confirm('出库成功，是否进行下一组录入?', "录入成功", {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'success',
+                            center: true,
+                        }).then(() => {
+                            this.clear();
+                            this.gettable();
+                        }).catch(() => {
+                            this.gettable();
+                        });
+                        this.loading = false;
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '出库失败！',
+                            type: 'error'
+                        });
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+                this.barcodeList.splice(index, 1);
+                this.isok = false;
+            },
+            //清空
+            clear: function () {
+                this.solderpasterBarcode = "";
+                this.barcodeList = [];
+                this.barcodetable = [];
+                this.isok = false;
+                this.lingliaoNum = "";
+                this.lingliaoName = "";
+                this.$message({
+                    showClose: true,
+                    message: '已清空！'
+                });
+            },
+            //加入清单
+            barcodescan: function () {
+                let thisdata = this.solderpasterBarcode;
+                if (thisdata != "") {
+                    //检查重复
+                    let listcheck = this.barcodetable;
+                    for (let i in listcheck) {
+                        if (listcheck[i].barcode == thisdata) {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                message: '已有重复条码！',
+                                type: 'warning'
+                            });
+                            return;
+                        };
+                    };
+                    this.barcodetable.push({
+                        barcode: thisdata,
+                        Tips: ""
+                    });
+                    this.barcodeList.push(thisdata);
+                    this.isok = false;
+                    this.solderpasterBarcode = "";
+                } else {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "请输入条码！"
+                    });
+                };
+            },
+            //行颜色
+            tableRowClassName({ row, rowIndex }) {
+                if (row.Tips == "正常") {
+                    return 'success-row';
+                } else if (row.Tips != "") {
+                    return 'warning-row';
+                };
+                return '';
+            },
+            //超时的颜色
+            tableWarning({ row, rowIndex }) {
+                if (row.overdue <= 1) {
+                    return 'warning-row';
+                } else {
+                    return '';
+                };
+            },
+            //获取姓名
+            getName: function (v) {
+                axios.post("/Personnel_Framework/DisplayName", { jobNum: v.target.value }).then(res => {
+                    //console.log(res.data);
+                    if (res.data == false) {
+                        this.isexistJobNum = true;
+                        this.lingliaoName = "";
+                    } else {
+                        this.lingliaoName = res.data;
+                        this.isexistJobNum = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                });
+            }
+        },
+        watch: {
+            lingliaoNum: function (v) {
+                this.lingliaoName = "";
+                this.isexistJobNum = false;
+            }
+        }
+    });
+</script>

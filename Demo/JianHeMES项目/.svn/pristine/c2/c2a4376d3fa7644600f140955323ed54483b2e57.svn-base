@@ -1,0 +1,145 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+
+namespace JianHeMES.Controllers
+{
+    public class Small_SampleController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        // GET: Small_Sample
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult Create(Small_Sample small_Sample)
+        {
+            db.Small_Sample.Add(small_Sample);
+            db.SaveChanges();
+            return Content("");
+        }
+
+        [HttpPost]
+        public ActionResult Upload_small_Sample_report()
+        {
+            try
+            {
+                HttpPostedFileBase uploadfile = Request.Files["fileup"];
+                if (uploadfile == null)
+                {
+                    return Content("no:非法上传");
+                }
+                if (uploadfile.FileName == "")
+                {
+                    return Content("no:请选择文件");
+                }
+
+                string fileExt = Path.GetExtension(uploadfile.FileName);
+                StringBuilder sbtime = new StringBuilder();
+                sbtime.Append(DateTime.Now.Year).Append(DateTime.Now.Month).Append(DateTime.Now.Day).Append(DateTime.Now.Hour).Append(DateTime.Now.Minute).Append(DateTime.Now.Second);
+                string dir = "/UploadFile/" + sbtime.ToString() + fileExt;
+                string realfilepath = Request.MapPath(dir);
+                string readDir = Path.GetDirectoryName(realfilepath);
+                if (!Directory.Exists(readDir))
+                    Directory.CreateDirectory(readDir);
+                uploadfile.SaveAs(realfilepath);
+                //提取数据 
+                var dt = ExcelTool.ExcelToDataTable(true, realfilepath);
+                Small_Sample small_Sample_report = new Small_Sample();
+
+                var reportdate = dt.Rows[0][9].ToString();//报告日期
+
+                small_Sample_report.Customer = dt.Rows[2][2].ToString();//客户名称
+                small_Sample_report.OrderNumber = dt.Rows[2][5].ToString();//生产单号
+                small_Sample_report.Mo1 = dt.Rows[2][8].ToString();//规格型号
+                small_Sample_report.Module_Number = Convert.ToInt32(dt.Rows[2][11]); //模块数量PCS
+                //small_Sample_report.Te1 =  dt.Rows[][];//测试目的
+                //small_Sample_report.Actual_point =  dt.Rows[][];//实际点间距
+                //small_Sample_report.Te2 = dt.Rows[][];//测试工具
+                //small_Sample_report.ReceivingCard = dt.Rows[][];//订单接收卡
+                //small_Sample_report.Mo2 = dt.Rows[][];//模块型号
+                //small_Sample_report.Points = dt.Rows[][];//点数
+                //small_Sample_report.Scanningway = dt.Rows[][];//扫描数
+                //small_Sample_report.system = dt.Rows[][];//调式系统
+                //small_Sample_report.Te3 = dt.Rows[][];//测试条件
+                //small_Sample_report.fixed_value = dt.Rows[][];//固定值（温度）
+                //small_Sample_report.Driveplate = dt.Rows[][];//驱动板电压
+                //small_Sample_report.Mo3 = dt.Rows[][];//电源型号
+                small_Sample_report.Angle_R1 = Convert.ToDecimal(dt.Rows[11][3]);//角度.颜色.R.亮度
+                small_Sample_report.Angle_R2 = Convert.ToDouble(dt.Rows[12][3]);//角度.颜色.R.坐标.min
+                small_Sample_report.Angle_R3 = Convert.ToDouble(dt.Rows[12][4]);//角度.颜色.R.坐标.max
+                small_Sample_report.Angle_G1 = Convert.ToDecimal(dt.Rows[11][5]);//角度.颜色.G.亮度
+                small_Sample_report.Angle_G2 = Convert.ToDouble(dt.Rows[12][5]);//角度.颜色.G.坐标.min
+                small_Sample_report.Angle_G3 = Convert.ToDouble(dt.Rows[12][6]);//角度.颜色.G.坐标.max
+                small_Sample_report.Angle_B1 = Convert.ToDecimal(dt.Rows[11][7]);//角度.颜色.B.亮度
+                small_Sample_report.Angle_B2 = Convert.ToDouble(dt.Rows[12][7]);//角度.颜色.B.坐标.min
+                small_Sample_report.Angle_B3 = Convert.ToDouble(dt.Rows[12][8]);//角度.颜色.B.坐标.max
+                small_Sample_report.Angle_W1 = Convert.ToDecimal(dt.Rows[11][9]);//角度.颜色.W.亮度
+                small_Sample_report.Angle_W2 = Convert.ToDouble(dt.Rows[12][9]);//角度.颜色.W.坐标.min
+                small_Sample_report.Angle_W3 = Convert.ToDouble(dt.Rows[12][11]);//角度.颜色.W.坐标.max
+                //small_Sample_report.Client_R1 = dt.Rows[][];//角度.客户要求.亮度.R
+                //small_Sample_report.Client_R2 = dt.Rows[][];//角度.客户要求.坐标.R.min
+                //small_Sample_report.Client_R3 = dt.Rows[][];//角度.客户要求.坐标.R.max
+                //small_Sample_report.Client_G1 = dt.Rows[][];//角度.客户要求.亮度.G
+                //small_Sample_report.Client_G2 = dt.Rows[][];//角度.客户要求.坐标.G.min
+                //small_Sample_report.Client_G3 = dt.Rows[][];//角度.客户要求.坐标.G.max
+                //small_Sample_report.Client_B1 = dt.Rows[][];//角度.客户要求.亮度.B
+                //small_Sample_report.Client_B2 = dt.Rows[][];//角度.客户要求.坐标.B.min
+                //small_Sample_report.Client_B3 = dt.Rows[][];//角度.客户要求.坐标.B.max
+                //small_Sample_report.Client_W1 = dt.Rows[][];//角度.客户要求.亮度.W.min
+                //small_Sample_report.Client_W2 = dt.Rows[][];//角度.客户要求.亮度.W.max
+                //small_Sample_report.Client_W3 = dt.Rows[][];//角度.客户要求.坐标.W.min
+                //small_Sample_report.Client_W4 = dt.Rows[][];//角度.客户要求.坐标.W.max
+                small_Sample_report.Points_R = Convert.ToInt32(dt.Rows[15][3]);//分压电/排阻阻值（欧）.R
+                //small_Sample_report.Points_G = dt.Rows[15][5];//分压电/排阻阻值（欧）.G
+                //small_Sample_report.Points_B = dt.Rows[15][7];//分压电/排阻阻值（欧）.B
+                //small_Sample_report.Points_W = dt.Rows[15][9];//分压电/排阻阻值（欧）.W
+                small_Sample_report.Adju_R = Convert.ToInt32(dt.Rows[16][3]);//可调电阻阻值（欧）.R
+                small_Sample_report.Adju_G = Convert.ToInt32(dt.Rows[16][5]);//可调电阻阻值（欧）.G
+                small_Sample_report.Adju_B = Convert.ToInt32(dt.Rows[16][7]);//可调电阻阻值（欧）.B
+                //small_Sample_report.Adju_W = dt.Rows[16][9];//可调电阻阻值（欧）.W
+                small_Sample_report.IC_R1 = Convert.ToDecimal(dt.Rows[17][3]);//单IC引脚电流（mA）.R
+                small_Sample_report.IC_G1 = Convert.ToDecimal(dt.Rows[17][5]);//单IC引脚电流（mA）.G
+                small_Sample_report.IC_B1 = Convert.ToDecimal(dt.Rows[17][7]);//单IC引脚电流（mA）.B
+                small_Sample_report.IC_W1 = Convert.ToDecimal(dt.Rows[17][9]);//单IC引脚电流（mA）.W
+                //small_Sample_report = dt.Rows[][];//
+
+
+
+                var order_recieve_car = dt.Rows[6][9];//订单接收卡
+                //int rcount = dt.Rows.Count;
+                //for (int i = 0; i < rcount; i++)
+                //{
+                //    new Small_Sample()
+                //    {
+                //        No = Convert.ToInt32(dt.Rows[i][0]),
+                //        Name = dt.Rows[i][1].ToString(),
+                //        Age = Convert.ToInt32(dt.Rows[i][2]),
+                //        Sex = dt.Rows[i][3].ToString()
+                //    };
+                //}
+                return Json(small_Sample_report, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Content(ex.Message);
+            }
+        }
+
+
+    }
+}

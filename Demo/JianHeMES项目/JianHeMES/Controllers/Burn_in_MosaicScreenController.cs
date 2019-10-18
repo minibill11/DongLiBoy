@@ -16,7 +16,22 @@ namespace JianHeMES.Controllers
     {
         private ApplicationDbContext db = new ApplicationDbContext();
 
+        public class TempBurn_in
+        {
 
+            public string BarCodesNum { get; set; }
+            public DateTime? OQCCheckBT { get; set; }
+            public DateTime? OQCCheckFT { get; set; }
+            public bool OQCCheckFinish { get; set; }
+            public string Burn_in_OQCCheckAbnormal { get; set; }
+        }
+        public class TempBurn_in_MosaicScreen
+        {
+
+            public string BurnInShelfNum { get; set; }
+            public string OrderNum { get; set; }
+            public string BarCodesNum { get; set; }
+        }
         #region 开始拼屏
         public ActionResult mosaicScreen_B()
         {
@@ -110,6 +125,17 @@ namespace JianHeMES.Controllers
             return Content(JsonConvert.SerializeObject(list));
         }
 
+        //修改拼屏号
+        public void editShelfNum(string oldShelfNum, string newShelfNum, List<string> barcodeList)
+        {
+            foreach (var item in barcodeList)
+            {
+                var edit = db.Burn_in_MosaicScreen.Where(c => c.BurnInShelfNum == oldShelfNum && c.BarCodesNum == item).FirstOrDefault();
+                edit.BurnInShelfNum = newShelfNum;
+                db.SaveChangesAsync();
+            }
+        }
+
         #region 完成拼屏  暂时不用
         public ActionResult mosaicScreen_F()
         {
@@ -148,73 +174,79 @@ namespace JianHeMES.Controllers
         public ActionResult mosaicScreen_ShelfQueryData()
         {
             JObject oneShelfNum = new JObject();
-            JObject ShelfNumJosnList = new JObject();
+            JArray ShelfNumJosnList = new JArray();
             JObject onebarcodeInfo = new JObject();
-            JObject barcodeJsonList = new JObject();
+            JArray barcodeJsonList = new JArray();
             JObject oneOrderNum = new JObject();
-            JObject OrderNumJsonList = new JObject();
+            JArray OrderNumJsonList = new JArray();
             var displayList = new List<string>();
-            var BurnInShelfNumList = db.Burn_in_MosaicScreen.Select(c => c.BurnInShelfNum).Distinct().ToList();
-            int i = 0;
+            var BurnInmosaic = (from c in db.Burn_in_MosaicScreen select new TempBurn_in_MosaicScreen { BurnInShelfNum = c.BurnInShelfNum, OrderNum = c.OrderNum, BarCodesNum = c.BarCodesNum }).ToList();
+            var BurnInShelfNumList = BurnInmosaic.OrderBy(c => c.BurnInShelfNum).Select(c => c.BurnInShelfNum).Distinct().ToList();
+
+            var tempburn = db.Burn_in.Where(c => c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false).Select(c => new TempBurn_in { BarCodesNum = c.BarCodesNum, Burn_in_OQCCheckAbnormal = c.Burn_in_OQCCheckAbnormal, OQCCheckBT = c.OQCCheckBT, OQCCheckFinish = c.OQCCheckFinish, OQCCheckFT = c.OQCCheckFT }).ToList();
+            var tempburn1 = db.Burn_in.Where(c => c.OQCCheckBT != null && c.OQCCheckFT != null && c.OQCCheckFinish == true).Select(c => new TempBurn_in { BarCodesNum = c.BarCodesNum, Burn_in_OQCCheckAbnormal = c.Burn_in_OQCCheckAbnormal, OQCCheckBT = c.OQCCheckBT, OQCCheckFinish = c.OQCCheckFinish, OQCCheckFT = c.OQCCheckFT }).ToList();
             foreach (var item in BurnInShelfNumList)
             {
-                var OrderNumList = db.Burn_in_MosaicScreen.Where(c => c.BurnInShelfNum == item).Select(c => c.OrderNum).Distinct().ToList();
-                
-                int x = 0;
+                var OrderNumList = BurnInmosaic.Where(c => c.BurnInShelfNum == item).Select(c => c.OrderNum).Distinct().ToList();
+
+
                 foreach (var OrderNum in OrderNumList)
                 {
-                    var barcodeList = db.Burn_in_MosaicScreen.Where(c => c.BurnInShelfNum == item && c.OrderNum == OrderNum).Select(c => c.BarCodesNum).ToList();
+                    var barcodeList = BurnInmosaic.OrderBy(c => c.BarCodesNum).Where(c => c.BurnInShelfNum == item && c.OrderNum == OrderNum).Select(c => c.BarCodesNum).ToList();
                     //条码中已经完成老化的条码集合
-                    var endStartBurn_inList = db.Burn_in.Where(c => barcodeList.Contains(c.BarCodesNum) && c.OQCCheckBT != null && c.OQCCheckFT != null && c.OQCCheckFinish == true).Select(c => c.BarCodesNum).ToList();
+                    var endStartBurn_inList = tempburn1.Where(c => barcodeList.Contains(c.BarCodesNum)).Select(c => c.BarCodesNum).ToList();
                     //去除已经完成老化的条码
-                     displayList = barcodeList.Except(endStartBurn_inList).ToList();
-                    int j = 0;
+                    displayList = barcodeList.Except(endStartBurn_inList).ToList();
+
                     foreach (var barcode in displayList)
                     {
-                        onebarcodeInfo.Add("barcode", barcode); 
-
-                        //已经开始老化
-                        if (db.Burn_in.Count(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && c.Burn_in_OQCCheckAbnormal == null) > 0)
+                        onebarcodeInfo.Add("barcode", barcode);
+                        var currentburn = tempburn.OrderByDescending(c => c.OQCCheckBT).Where(c => c.BarCodesNum == barcode).FirstOrDefault();
+                        if (currentburn == null)
+                        {
+                            onebarcodeInfo.Add("status", 0);
+                            onebarcodeInfo.Add("Abnormal", "");
+                        }
+                        //已经拼屏已经开始老化
+                        else if (currentburn.Burn_in_OQCCheckAbnormal == null)
                         {
                             onebarcodeInfo.Add("status", 1);
                             onebarcodeInfo.Add("Abnormal", "");
                         }
                         //有异常
-                        else if (db.Burn_in.Count(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && c.Burn_in_OQCCheckAbnormal != null) >= 1)
+                        else if (currentburn.Burn_in_OQCCheckAbnormal != null)
                         {
                             onebarcodeInfo.Add("status", 2);
-                            var Abnormal = db.Burn_in.Where(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && c.Burn_in_OQCCheckAbnormal != null).Select(c => c.Burn_in_OQCCheckAbnormal).FirstOrDefault();
-                            onebarcodeInfo.Add("Abnormal", Abnormal);
+
+                            onebarcodeInfo.Add("Abnormal", currentburn.Burn_in_OQCCheckAbnormal);
                         }
-                        else
-                        {
-                            onebarcodeInfo.Add("status", 0);
-                            onebarcodeInfo.Add("Abnormal", "");
-                        }
-                        barcodeJsonList.Add(j.ToString(), onebarcodeInfo);
-                        j++;
+
+                        barcodeJsonList.Add(onebarcodeInfo);
+
                         onebarcodeInfo = new JObject();
                     }
-                    if(displayList.Count!=0)
+                    if (displayList.Count == 0)
                     {
-                        oneOrderNum.Add("barcodelist", barcodeJsonList);
-                        oneOrderNum.Add("ordernum", OrderNum);
-                        OrderNumJsonList.Add(x.ToString(), oneOrderNum);
-                        x++;
-                        barcodeJsonList = new JObject();
-                        oneOrderNum = new JObject();
+                        continue;
                     }
-                    
+
+                    oneOrderNum.Add("barcodelist", barcodeJsonList);
+                    oneOrderNum.Add("ordernum", OrderNum);
+                    OrderNumJsonList.Add(oneOrderNum);
+
+                    barcodeJsonList = new JArray();
+                    oneOrderNum = new JObject();
+
                 }
-                if (displayList.Count == 0)
+                if (OrderNumJsonList.Count == 0)
                 {
                     continue;
                 }
                 oneShelfNum.Add("ShelfNum", item);
                 oneShelfNum.Add("content", OrderNumJsonList);
-                ShelfNumJosnList.Add(i.ToString(), oneShelfNum);
-                i++;
-                OrderNumJsonList = new JObject();
+                ShelfNumJosnList.Add(oneShelfNum);
+
+                OrderNumJsonList = new JArray();
                 oneShelfNum = new JObject();
 
             }
@@ -232,7 +264,69 @@ namespace JianHeMES.Controllers
 
         }
 
+        [HttpPost]
+        public ActionResult mosaicScreen_ShelfQueryHistory(string ordernum)
+        {
+            JArray total = new JArray();
+            JObject BurnSelf = new JObject();
+            var BurnInShelfNumList = db.Burn_in_MosaicScreen.Where(c => c.OrderNum == ordernum).Select(c => c.BurnInShelfNum).Distinct().ToList();
+            foreach (var item in BurnInShelfNumList)
+            {
 
+                BurnSelf.Add("ShelfNum", item);
+                var barcodeList = db.Burn_in_MosaicScreen.Where(c => c.BurnInShelfNum == item && c.OrderNum == ordernum).Select(c => c.BarCodesNum).ToList();
+
+                JArray barcodeListJarrry = new JArray();
+                foreach (var barcode in barcodeList)
+                {
+                    JObject onebarcodeInfo = new JObject();
+                    onebarcodeInfo.Add("barcode", barcode);
+
+                    //已经开始老化
+                    if (db.Burn_in.Count(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && c.Burn_in_OQCCheckAbnormal == null) > 0)
+                    {
+                        onebarcodeInfo.Add("status", 1);
+                        onebarcodeInfo.Add("Abnormal", "");
+                    }
+                    //有异常
+                    else if (db.Burn_in.Count(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && c.Burn_in_OQCCheckAbnormal != null) >= 1)
+                    {
+                        onebarcodeInfo.Add("status", 2);
+                        var Abnormal = db.Burn_in.Where(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && c.Burn_in_OQCCheckAbnormal != null).Select(c => c.Burn_in_OQCCheckAbnormal).FirstOrDefault();
+                        onebarcodeInfo.Add("Abnormal", Abnormal);
+                    }
+                    //已完成老化
+                    else if (db.Burn_in.Count(c => c.BarCodesNum == barcode && c.OQCCheckBT != null && c.OQCCheckFT != null && c.OQCCheckFinish == true) > 0)
+                    {
+                        onebarcodeInfo.Add("status", 3);
+                        onebarcodeInfo.Add("Abnormal", "");
+                    }
+                    else
+                    {
+                        onebarcodeInfo.Add("status", 0);
+                        onebarcodeInfo.Add("Abnormal", "");
+                    }
+                    barcodeListJarrry.Add(onebarcodeInfo);
+                }
+                JObject oneOrderNum = new JObject();
+                JArray ordernumJoject = new JArray();
+                if (barcodeList.Count != 0)
+                {
+
+                    oneOrderNum.Add("barcodelist", barcodeListJarrry);
+                    oneOrderNum.Add("ordernum", ordernum);
+                }
+                ordernumJoject.Add(oneOrderNum);
+                BurnSelf.Add("content", ordernumJoject);
+                total.Add(BurnSelf);
+            }
+            if (BurnInShelfNumList.Count != 0)
+            {
+                return Content(JsonConvert.SerializeObject(total));
+            }
+            return Content("没有数据");
+
+        }
 
         // GET: Burn_in_MosaicScreen
         public ActionResult Index()
