@@ -1,0 +1,143 @@
+﻿@*上传img\pdf文件*@
+<script type="text/template" id="ImgPdfUpload">
+    <el-upload class="upload-demo"
+               ref="upload"
+               action="/Process_Capacity/UploadProcess_Capacity"
+               :on-preview="handlePreview"
+               :on-remove="handleRemove"
+               :before-remove="beforeRemove"
+               :on-exceed="handleExceed"
+               :on-success="handleAvatarSuccess"
+               :before-upload="beforeAvatarUpload"
+               :on-change="handleChange"
+               :limit="1"
+               @*list-type="picture-card"*@
+               :file-list="fileList"
+               :auto-upload="false"
+               accept=".jpg,.pdf"
+               name="uploadProcess_Capacity"
+               :data="{id:obj.id,processName:obj.title,seaction:obj.Section}">
+        <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
+        <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+        <div slot="tip" class="el-upload__tip">上传jpg或pdf文件</div>
+    </el-upload>
+</script>
+@*显示img\pdf文件*@
+<script type="text/template" id="ImgPdfShow">
+    <div>
+        <el-button size="small" type="danger" @@click="getImg()">查看IMG</el-button>
+        <el-button size="small" type="danger" @@click="getPdf()">查看PDF</el-button>
+        <a id="temporary" :href="'../../Scripts/pdf.js/web/viewer.html?file=' + pdfsrc + '?' + Math.random()" target="pdfIframe">ccc</a>
+        @*<span class="demonstration">安装实物图</span>*@
+        <div class="demo-image__preview">
+            <el-image style="width: 100px; height: 100px"
+                      :src="imgsrc"
+                      :preview-src-list="srcList">
+            </el-image>
+        </div>
+        <el-image :src="imgsrc"></el-image>
+        <iframe id="pdfIframe" name="pdfIframe" src="pdfsrc" style="width:100%;"></iframe>
+    </div>
+</script>
+<script>
+    //上传img\pdf文件
+    Vue.component('upload-img-pdf', {
+        props: ['obj'],
+        template: document.getElementById("ImgPdfUpload"),
+        data: function () {
+            return {
+                fileList: [],
+            }
+        },
+        methods: {
+            //上传
+            submitUpload() {
+                this.$refs.upload.submit();
+                this.$nextTick(function () {
+                    location.reload();
+                });
+            },
+            handleRemove(file, fileList) {
+                console.log(file, fileList);
+            },
+            handlePreview(file) {
+                console.log(file);
+            },
+            handleExceed(files, fileList) {
+                this.$message.warning(`当前限制选择 1 个文件`);
+                //，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件
+            },
+            beforeRemove(file, fileList) {
+                //return this.$confirm(`确定移除 ${file.name}？`);
+            },
+
+            handleAvatarSuccess(res, file) {
+                console.log(res)
+                this.imageUrl = URL.createObjectURL(file.raw);
+            },
+            beforeAvatarUpload(file) {
+                //console.log(file)
+                //var testmsg = file.name.substring(file.name.lastIndexOf('.') + 1)
+                //const extension = testmsg === 'xls'
+                //const extension2 = testmsg === 'xlsx'
+                //if (!extension && !extension2) {
+                //    this.$message({
+                //        message: '上传文件只能是 xls、xlsx格式!',
+                //        type: 'warning'
+                //    });
+                //};
+            },
+            handleChange(file, fileList) {
+                this.fileList = fileList.slice(-3);
+            },
+        }
+    });
+
+    //显示img\pdf文件
+    Vue.component('show-img-pdf', {
+        props: ['obj'],
+        template: document.getElementById("ImgPdfShow"),
+        data: function () {
+            return {
+                imgsrc: "",
+                srcList: [
+                    'https://fuss10.elemecdn.com/8/27/f01c15bb73e1ef3793e64e6b7bbccjpeg.jpeg',
+                    'https://fuss10.elemecdn.com/1/8e/aeffeb4de74e2fde4bd74fc7b4486jpeg.jpeg'
+                ],
+                pdfsrc: "",
+            }
+        },
+        methods: {
+            getImg() {
+                axios.post('/Process_Capacity/DisplayImg', {
+                    id: this.obj.id,
+                    seaction: this.obj.Section,
+                    processName: this.obj.title
+                }).then(res => {
+                    this.imgsrc = res.data.path[0];
+                    this.srcList = res.data.path.reverse();
+                    this.$message.success(res.data);
+                    console.log(res.data);
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                    this.$message.warning("获取数据失败");
+                });
+            },
+            getPdf() {
+                axios.post('/Process_Capacity/DisplayPdf', {
+                    id: this.obj.id,
+                    seaction: this.obj.Section,
+                    processName: this.obj.title
+                }).then(res => {
+                    //this.pdfsrc = res.data[0];
+                    this.$message.success(res.data);
+                    window.frames['pdfIframe'].location.href = `../../Scripts/pdf.js/web/viewer.html?file= ${res.data.path}?${Math.random()}`;
+                    console.log(res.data);
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                    this.$message.warning("获取数据失败");
+                });
+            }
+        }
+    });
+</script>

@@ -1,0 +1,250 @@
+﻿@{
+    ViewBag.Title = "标准产能一览表";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/processCapacity/ProcessCapacity.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Content/styleFile/processCapacity/ProcessCapacity.js"></script>
+<style>
+    .el-upload__input {
+        display: none !important;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h1>@ViewBag.Title</h1>
+            @*<a href="/Process_Capacity/Index"><el-button size="small">工序产能首页</el-button></a>
+                <a href="/Process_Capacity/StandardCapacity"><el-button size="small">标准产能</el-button></a>
+                <a href="/Process_Capacity/ProcessBalanceCard"><el-button size="small">工序平衡卡</el-button></a>*@
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <el-table v-bind:data="tableObj.Line"
+                          max-height="500"
+                          size="mini"
+                          align="center"
+                          border
+                          stripe>
+                    <div slot="empty">暂无数据</div>
+                    @*表格开始*@
+                    <el-table-column label="编号">
+                        <el-table-column prop="Line" label="线别(#)" width="50">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="">
+                        <template slot="header" slot-scope="scope">
+                            <div>
+                                {{tableObj.number}}
+                            </div>
+                        </template>
+                        <el-table-column prop="MachineConfiguration" label="机台配置(印刷机+锡膏检测+贴片机)">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="工段">
+                        <el-table-column prop="ProductType" label="产品型号" width="80">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="">
+                        <template slot="header" slot-scope="scope">
+                            <div>
+                                {{tableObj.Section}}
+                            </div>
+                        </template>
+                        <el-table-column prop="PCBNumber" label="PCB板号" width="80">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="标题">
+                        <el-table-column prop="ProcessDescription" label="工序描述" width="80">
+                        </el-table-column>
+                        <el-table-column prop="Print" label="印刷(S/PCS)" width="70">
+                        </el-table-column>
+                    </el-table-column>
+
+                    <el-table-column label="">
+                        <template slot="header" slot-scope="scope">
+                            <div>
+                                {{tableObj.FileName}}
+                            </div>
+                        </template>
+                        <el-table-column prop="SolderPasteInspection" label="锡膏检测(S/PCS)" width="70">
+                        </el-table-column>
+
+                        <el-table-column prop="PressedPatchNut" label="压贴片螺母(S/PCS)" width="70">
+                        </el-table-column>
+
+                        <el-table-column prop="SMTMachineNetWork" label="贴片机净作业(S/PCS)" width="70">
+                        </el-table-column>
+
+                        <el-table-column prop="PersonNum" label="人数(人)" width="70">
+                        </el-table-column>
+
+                        <el-table-column prop="Bottleneck" label="瓶颈T/T(S)" width="70">
+                        </el-table-column>
+
+                        <el-table-column prop="CapacityPerHour" label="每小时标准产能(PCS)" width="70">
+                        </el-table-column>
+
+                        <el-table-column prop="PerCapitaCapacity" label="每小时人均产能(PCS/H/R)" width="80">
+                        </el-table-column>
+
+                        <el-table-column prop="LatestUnitPrice" label="产品最新单价（元/PCS）" width="80">
+                        </el-table-column>
+
+                        <el-table-column prop="Remark" label="备注" width="95">
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table size="mini"
+                          align="center"
+                          :data="tableLine"
+                          border
+                          stripe>
+                    <el-table-column>
+                        <template slot="header" slot-scope="scope">
+                            <span>特别说明：</span>
+                            <br />
+                            <span>1.此产能汇总表作为PMC排日计划参考依据</span>
+                            <br />
+                            <span>2.此标准产能不包含任何异常,有异常需填写《异常工时转移单》</span>
+                        </template>
+
+                        <el-table-column type="index" label="修订" width="80">
+                        </el-table-column>
+
+                        <el-table-column prop="RevisionContent" label="修订内容">
+                            <template slot-scope="scope">
+                                {{tableObj.RevisionContent}}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="制定或修订/日期" width="150">
+                            <template slot-scope="scope">
+                                {{tableObj.MakingPeople}}
+                                <br />
+                                {{tableObj.MakingTime}}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="审核/日期" width="170">
+                            <template slot-scope="scope">
+                                <template v-if="tableObj.ExaminanPeople!=''&&tableObj.ExaminanTime!=''">
+                                    {{tableObj.IsPassExaminan==true?"通过":"不通过"}}
+                                    <br />
+                                    {{tableObj.ExaminanPeople}}
+                                    <br />
+                                    {{tableObj.ExaminanTime}}
+                                </template>
+                                <template v-else>
+                                    <el-select v-model="selectExaminan" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                        <el-option value="true" label="通过"></el-option>
+                                        <el-option value="false" label="不通过"></el-option>
+                                    </el-select>
+                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'审核',selectExaminan)" :disabled="selectExaminan==''" size="mini" type="primary" plain>确认</el-button>
+                                </template>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="批准/日期" width="170">
+                            <template slot-scope="scope">
+                                <template v-if="tableObj.ApproverPeople!=''&&tableObj.ApproverTime!=''">
+                                    {{tableObj.IsPassApprover==true?"通过":"不通过"}}
+                                    <br />
+                                    {{tableObj.ApproverPeople}}
+                                    <br />
+                                    {{tableObj.ApproverTime}}
+                                </template>
+                                <template v-else>
+                                    <el-select v-model="selectApprover" :disabled="tableObj.IsPassExaminan!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                        <el-option value="true" label="通过"></el-option>
+                                        <el-option value="false" label="不通过"></el-option>
+                                    </el-select>
+                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'批准',selectApprover)" :disabled="selectApprover==''" size="mini" type="primary" plain>确认</el-button>
+                                </template>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column label="受控/日期" width="170">
+                            <template slot-scope="scope">
+                                <template v-if="tableObj.ControlledPeople!=''&&tableObj.ControlledTime!=''">
+                                    {{tableObj.IsPassControlled==true?"通过":"不通过"}}
+                                    <br />
+                                    {{tableObj.ControlledPeople}}
+                                    <br />
+                                    {{tableObj.ControlledTime}}
+                                </template>
+                                <template v-else>
+                                    <el-select v-model="selectControlled" :disabled="tableObj.IsPassApprover!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                        <el-option value="true" label="通过"></el-option>
+                                        <el-option value="false" label="不通过"></el-option>
+                                    </el-select>
+                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'受控',selectControlled)" :disabled="selectControlled==''" size="mini" type="primary" plain>确认</el-button>
+                                </template>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <el-row>
+                <upload-img-pdf :obj="urlObj"></upload-img-pdf>
+                <show-img-pdf :obj="urlObj"></show-img-pdf>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*img、pdf显示和上传*@
+@RenderPage("_showImgPdf.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            tableObj: {},
+            tableLine: [{}],
+            urlObj: {},
+            selectExaminan: "",
+            selectApprover: "",
+            selectControlled: ""
+        },
+        created: function () {
+            this.urlObj = this.GetUrlPara();
+            axios.post('/Process_Capacity/Display_Pick_And_Place', this.urlObj).then(res => {
+                console.log(JSON.parse(JSON.stringify(res.data)));
+                this.tableObj = res.data;
+            }).catch(err => {
+                console.warn("获取数据失败");
+                this.$message.warning("获取数据失败");
+            });
+        },
+        methods: {
+            //返回地址对象
+            GetUrlPara() {
+                let urlParaArr = document.location.toString().split("?")[1].split("&"), rt = {};
+                for (let i of urlParaArr) {
+                    let objArr = i.split("=");
+                    rt[objArr[0]] = decodeURI(objArr[1]);
+                };
+                return rt;
+            },
+            //签名
+            Autograph(Section, number, status, isPass) {
+                this.urlObj.Section = Section;
+                this.urlObj.number = number;
+                this.urlObj.status = status;
+                this.urlObj.isPass = JSON.parse(isPass);
+
+                console.log(this.urlObj);
+                axios.post('/Process_Capacity/Autograph_Pick_And_Place', this.urlObj).then(res => {
+                    console.log(res.data);
+                    if (res.data == "True") {
+                        location.reload();
+                    } else {
+                        this.$message.warning(status + "不成功！")
+                    };
+                }).catch(err => {
+                    console.warn("签名失败");
+                });
+            }
+        }
+    });
+</script>

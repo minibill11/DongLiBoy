@@ -1,0 +1,349 @@
+﻿@{
+    ViewBag.Title = "工序平衡卡";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/processCapacity/ProcessCapacity.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Content/styleFile/processCapacity/ProcessCapacity.js"></script>
+<style>
+    .el-upload__input {
+        display: none !important;
+    }
+
+    .el-upload-dragger .el-icon-upload {
+        margin: 0;
+    }
+
+    .el-upload-dragger {
+        width: auto;
+        height: auto;
+    }
+
+    .titleDiv {
+        width: 33%;
+        border-right: 1px solid #EBEEF5;
+    }
+
+    .titleFlex {
+        display: flex !important;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h1>@ViewBag.Title</h1>
+            @*<a href="/Process_Capacity/Index"><el-button size="small">工序产能首页</el-button></a>
+                <a href="/Process_Capacity/StandardCapacity"><el-button size="small">标准产能</el-button></a>
+                <a href="/Process_Capacity/ProcessBalanceCard"><el-button size="small">工序平衡卡</el-button></a>*@
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <el-table v-bind:data="tableObj.List"
+                          max-height="500"
+                          size="mini"
+                          align="center"
+                          :span-method="objectSpanMethod"
+                          border>
+                    <div slot="empty">暂无数据</div>
+                    @*表格开始*@
+                    <el-table-column label="编号">
+                        <el-table-column label="标题">
+                            <el-table-column type="index" label="序号" width="50">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label-class-name="titleFlex">
+                        <template slot="header" slot-scope="scope">
+                            <span class="titleDiv">{{tableObj.number}}</span>
+                            <span class="titleDiv">工段</span>
+                            <span class="titleDiv">{{tableObj.Section}}</span>
+                        </template>
+                        <el-table-column>
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.Title}}</div>
+                            </template>
+                            <el-table-column prop="ProcessName" label="工序名称">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+
+                    <el-table-column label="标准总人数">
+                        <el-table-column label="">
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.StandardTotal}}</div>
+                            </template>
+                            <el-table-column prop="StandarPersondNumber" label="标准人数(人)" width="100">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="平衡率(%)">
+                        <el-table-column label="">
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.BalanceRate}}</div>
+                            </template>
+                            <el-table-column prop="StandardNumber" label="标准工时(秒)" width="100">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="瓶颈(秒)">
+                        <el-table-column label="">
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.Bottleneck}}</div>
+                            </template>
+                            <el-table-column prop="UnioTime" label="单位工时(秒)" width="100">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="标准产量(PCS/H)">
+                        <el-table-column label="">
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.StandardOutput}}</div>
+                            </template>
+                            <el-table-column prop="JigName" label="机器/夹具名称" width="100">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="标准人均时产量(PCS/H/R)">
+                        <el-table-column label="">
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.StandardHourlyOutputPerCapita}}</div>
+                            </template>
+                            <el-table-column prop="MachineTime" label="机器时间(秒)" width="100">
+                            </el-table-column>
+                            <el-table-column prop="MachineNumber" label="机器数量(台)" width="100">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="产品工时(分钟/PCS)">
+                        <el-table-column label="">
+                            <template slot="header" slot-scope="scope">
+                                <div>{{tableObj.ProductWorkingHours}}</div>
+                            </template>
+                            <el-table-column prop="JigNum" label="夹具/工具(个)" width="100">
+                            </el-table-column>
+                            <el-table-column prop="Remark" label="备注" width="100">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table size="mini"
+                          align="center"
+                          :data="tableLine"
+                          border
+                          stripe>
+                    <el-table-column>
+
+                        <el-table-column type="index" label="修订" width="80">
+                        </el-table-column>
+
+                        <el-table-column prop="RevisionContent" label="修订内容">
+                            <template slot-scope="scope">
+                                {{tableObj.RevisionContent}}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="index" label="制定或修订/日期" width="150">
+                            <template slot-scope="scope">
+                                {{tableObj.MakingPeople}}
+                                <br />
+                                {{tableObj.MakingTime}}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="index" label="审核/日期" width="170">
+                            <template slot-scope="scope">
+                                <template v-if="tableObj.ExaminanPeople!=''&&tableObj.ExaminanTime!=''">
+                                    {{tableObj.IsPassExaminan==true?"通过":"不通过"}}
+                                    <br />
+                                    {{tableObj.ExaminanPeople}}
+                                    <br />
+                                    {{tableObj.ExaminanTime}}
+                                </template>
+                                <template v-else>
+                                    <el-select v-model="selectExaminan" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                        <el-option value="true" label="通过"></el-option>
+                                        <el-option value="false" label="不通过"></el-option>
+                                    </el-select>
+                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'审核',selectExaminan)" :disabled="selectExaminan==''" size="mini" type="primary" plain>确认</el-button>
+                                </template>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="index" label="批准/日期" width="170">
+                            <template slot-scope="scope">
+                                <template v-if="tableObj.ApproverPeople!=''&&tableObj.ApproverTime!=''">
+                                    {{tableObj.IsPassApprover==true?"通过":"不通过"}}
+                                    <br />
+                                    {{tableObj.ApproverPeople}}
+                                    <br />
+                                    {{tableObj.ApproverTime}}
+                                </template>
+                                <template v-else>
+                                    <el-select v-model="selectApprover" :disabled="tableObj.IsPassExaminan!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                        <el-option value="true" label="通过"></el-option>
+                                        <el-option value="false" label="不通过"></el-option>
+                                    </el-select>
+                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'批准',selectApprover)" :disabled="selectApprover==''" size="mini" type="primary" plain>确认</el-button>
+                                </template>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="index" label="受控/日期" width="170">
+                            <template slot-scope="scope">
+                                <template v-if="tableObj.ControlledPeople!=''&&tableObj.ControlledTime!=''">
+                                    {{tableObj.IsPassControlled==true?"通过":"不通过"}}
+                                    <br />
+                                    {{tableObj.ControlledPeople}}
+                                    <br />
+                                    {{tableObj.ControlledTime}}
+                                </template>
+                                <template v-else>
+                                    <el-select v-model="selectControlled" :disabled="tableObj.IsPassApprover!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                        <el-option value="true" label="通过"></el-option>
+                                        <el-option value="false" label="不通过"></el-option>
+                                    </el-select>
+                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'受控',selectControlled)" :disabled="selectControlled==''" size="mini" type="primary" plain>确认</el-button>
+                                </template>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <el-row>
+                <upload-img-pdf :obj="urlObj"></upload-img-pdf>
+                <show-img-pdf :obj="urlObj"></show-img-pdf>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*img、pdf显示和上传*@
+@RenderPage("_showImgPdf.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            tableObj: {},
+            tableLine: [{}],
+            urlObj: {},
+            selectExaminan: "",
+            selectApprover: "",
+            selectControlled: "",
+        },
+        created: function () {
+            this.urlObj = this.GetUrlPara();
+            axios.post('/Process_Capacity/Display_ProcessBalance', this.urlObj).then(res => {
+                this.tableObj = res.data;
+                console.log(JSON.parse(JSON.stringify(res.data)));
+            }).catch(err => {
+                console.warn("获取数据失败");
+                this.$message.warning("获取数据失败");
+            });
+        },
+        methods: {
+            //返回地址对象
+            GetUrlPara() {
+                let urlParaArr = document.location.toString().split("?")[1].split("&"), rt = {};
+                for (let i of urlParaArr) {
+                    let objArr = i.split("=");
+                    rt[objArr[0]] = decodeURI(objArr[1]);
+                };
+                return rt;
+            },
+            //合并逻辑
+            objectSpanMethod({ row, column, rowIndex, columnIndex }) {
+                //console.log("row");
+                //console.log(row);
+                //console.log("column");
+                //console.log(column);
+                //console.log("rowIndex");
+                //console.log(rowIndex);
+                //console.log("columnIndex");
+                //console.log(columnIndex);
+                let List = this.tableObj.List;
+                if (columnIndex === 2) {
+                    if (List[rowIndex].StandarPersondNumber != null) {
+                        return {
+                            rowspan: this.digui(rowIndex, "StandarPersondNumber"),
+                            colspan: 1
+                        };
+                    } else {
+                        return {
+                            rowspan: 0,
+                            colspan: 0
+                        };
+                    }
+                }
+                if (columnIndex === 4) {
+                    if (List[rowIndex].UnioTime != null) {
+                        return {
+                            rowspan: this.digui(rowIndex, "UnioTime"),
+                            colspan: 1
+                        };
+                    } else {
+                        return {
+                            rowspan: 0,
+                            colspan: 0
+                        };
+                    }
+                }
+                if (columnIndex === 5) {
+                    if (List[rowIndex].JigName != null) {
+                        return {
+                            rowspan: this.digui(rowIndex, "JigName"),
+                            colspan: 1
+                        };
+                    } else {
+                        return {
+                            rowspan: 0,
+                            colspan: 0
+                        };
+                    }
+                }
+                if (columnIndex === 8) {
+                    if (List[rowIndex].JigNum != null) {
+                        return {
+                            rowspan: this.digui(rowIndex, "JigNum"),
+                            colspan: 1
+                        };
+                    } else {
+                        return {
+                            rowspan: 0,
+                            colspan: 0
+                        };
+                    }
+                }
+            },
+            digui: function (rowIndex, name) {
+                let tableList = this.tableObj.List;
+                let num = rowIndex + 1, rowspan = 1;
+                for (let i = 1; i < tableList.length; i++) {
+                    if (num < tableList.length && tableList[num][name] == null) {
+                        rowspan++;
+                        num++;
+                    };
+                };
+                return rowspan;
+            },
+            //签名
+            Autograph(Section, number, status, isPass) {
+                this.urlObj.Section = Section;
+                this.urlObj.number = number;
+                this.urlObj.status = status;
+                this.urlObj.isPass = JSON.parse(isPass);
+
+                console.log(this.urlObj);
+                axios.post('/Process_Capacity/Autograph_ProcessBalance', this.urlObj).then(res => {
+                    console.log(res.data);
+                    if (res.data == "True") {
+                        location.reload();
+                    } else {
+                        this.$message.warning(status + "不成功！")
+                    };
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                });
+            },
+        },
+    });
+</script>

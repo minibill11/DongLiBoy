@@ -1,0 +1,135 @@
+﻿@*文件上传弹出框*@
+<script type="text/template" id="popover">
+    <el-popover trigger="click" @*hover，click*@
+                @*:disabled="false"*@
+                v-model="popoverVisible"
+                placement="bottom-start"
+                @*style="float:right"*@>
+        @*<el-button type="primary" icon="el-icon-picture-outline" size="small">查看图片</el-button>
+            <el-button type="primary" icon="el-icon-tickets" size="small">查看PDF</el-button>*@
+        <el-upload class="upload-demo"
+                   ref="upload"
+                   :action="'/Process_Capacity/'+address"
+                   :on-preview="handlePreview"
+                   :on-remove="handleRemove"
+                   :before-remove="beforeRemove"
+                   :on-exceed="handleExceed"
+                   :on-success="handleAvatarSuccess"
+                   :before-upload="beforeAvatarUpload"
+                   :on-change="handleChange"
+                   :limit="1"
+                   @*list-type="picture"*@
+                   :file-list="fileList"
+                   :auto-upload="false"
+                   accept=".xls,.xlsx"
+                   name="fileup"
+                   :data="{id:rowdata.id,type:rowdata.Type,PCBNumber:rowdata.PCB,platform:rowdata.Platform,seaction:section}">
+            <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
+            <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+            <button @@click="popoverVisible = false" type="button" aria-label="Close" class="el-dialog__headerbtn" style="top:50px;right:15px;font-size:10px"><i class="el-dialog__close el-icon el-icon-close">关闭</i></button>
+            <div slot="tip" class="el-upload__tip">上传excel文件</div>
+        </el-upload>
+        <div slot="reference" style="width:36px;margin:0 auto;">
+            <el-button size="mini" class="miniBtn" type="primary" plain round>上传</el-button>
+            @*<br /><span>IMG:{{img}}</span>
+                <br /><span>PDF:{{pdf}}</span>*@
+        </div>
+        @*<slot></slot>*@
+    </el-popover>
+</script>
+@*文件跳转链接*@
+<script type="text/template" id="link">
+    <div>
+        <el-link :href=hrefname type="primary" target="_blank" :underline="false">{{nametext}}</el-link>
+        <div v-show="examinanstatu!='审核通过'" class="examinanMessage red">
+            {{examinanstatu}}
+        </div>
+    </div>
+</script>
+<script>
+    //文件上传弹出框
+    Vue.component('popover-upload', {
+        template: document.getElementById("popover"),
+        props: ['rowdata', 'img', 'pdf', 'section'],
+        data: function () {
+            return {
+                fileList: [],
+                popoverVisible: false,
+                address: ""
+            }
+        },
+        mounted: function () {
+            if (this.section == "SMT") {
+                this.address = "Upload_Pick_And_Place";
+            } else {
+                this.address = "Upload_ProcessBalance";
+            };
+        },
+        methods: {
+            submitUpload() {
+                this.$refs.upload.submit();
+                this.$nextTick(function () {
+                    app.getTableData();
+                });
+            },
+            handleRemove(file, fileList) {
+                console.log(file, fileList);
+            },
+            handlePreview(file) {
+                console.log(file);
+            },
+            handleExceed(files, fileList) {
+                this.$message.warning(`当前限制选择 1 个文件`);
+                //，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件
+            },
+            beforeRemove(file, fileList) {
+                //return this.$confirm(`确定移除 ${file.name}？`);
+            },
+
+            handleAvatarSuccess(res, file) {
+                console.log(res)
+                this.imageUrl = URL.createObjectURL(file.raw);
+            },
+            beforeAvatarUpload(file) {
+                console.log(file)
+                var testmsg = file.name.substring(file.name.lastIndexOf('.') + 1)
+                const extension = testmsg === 'xls'
+                const extension2 = testmsg === 'xlsx'
+                // const isLt2M = file.size / 1024 / 1024 < 10
+                if (!extension && !extension2) {
+                    this.$message({
+                        message: '上传文件只能是 xls、xlsx格式!',
+                        type: 'warning'
+                    });
+                };
+                // if(!isLt2M) {
+                //     this.$message({
+                //         message: '上传文件大小不能超过 10MB!',
+                //         type: 'warning'
+                //     });
+                // }
+                // return extension || extension2 && isLt2M
+            },
+            handleChange(file, fileList) {
+                this.fileList = fileList.slice(-3);
+            }
+        }
+    });
+    //文件跳转链接
+    Vue.component('jump-link', {
+        props: ['rowdata', 'section', 'nametext', 'examinanstatu'],
+        template: document.getElementById("link"),
+        data: function () {
+            return {
+                hrefname: "",
+            }
+        },
+        mounted: function () {
+            if (this.section == "SMT") {
+                this.hrefname = `/Process_Capacity/StandardCapacity?id=${this.rowdata.id}&type=${this.rowdata.Type}&PCBNumber=${this.rowdata.PCB}&platform=${this.rowdata.Platform}`;
+            } else {
+                this.hrefname = `/Process_Capacity/ProcessBalanceCard?id=${this.rowdata.id}&type=${this.rowdata.Type}&PCBNumber=${this.rowdata.PCB}&platform=${this.rowdata.Platform}&Section=${encodeURI(this.section)}&title=${encodeURI(this.nametext)}`;
+            };
+        }
+    });
+</script>
