@@ -1,28 +1,23 @@
 ﻿@*文件上传弹出框*@
 <script type="text/template" id="popover">
-    <el-popover trigger="click" @*hover，click*@
+    <el-popover trigger="click"
                 @*:disabled="false"*@
                 v-model="popoverVisible"
-                placement="bottom-start"
-                @*style="float:right"*@>
-        @*<el-button type="primary" icon="el-icon-picture-outline" size="small">查看图片</el-button>
-            <el-button type="primary" icon="el-icon-tickets" size="small">查看PDF</el-button>*@
-        <el-upload class="upload-demo"
+                placement="bottom-start">
+        <el-upload name="fileup"
+                   class="uploadStyle"
                    ref="upload"
+                   accept=".xls,.xlsx"
                    :action="'/Process_Capacity/'+address"
-                   :on-preview="handlePreview"
-                   :on-remove="handleRemove"
-                   :before-remove="beforeRemove"
                    :on-exceed="handleExceed"
-                   :on-success="handleAvatarSuccess"
-                   :before-upload="beforeAvatarUpload"
-                   :on-change="handleChange"
                    :limit="1"
-                   @*list-type="picture"*@
+                   @*:multiple="true"*@
                    :file-list="fileList"
                    :auto-upload="false"
-                   accept=".xls,.xlsx"
-                   name="fileup"
+                   :before-upload="beforeUpload"
+                   :on-change="handleChange"
+                   :on-success="handleSuccess"
+                   :on-error="handleError"
                    :data="{id:rowdata.id,type:rowdata.Type,PCBNumber:rowdata.PCB,platform:rowdata.Platform,seaction:section}">
             <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
             <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
@@ -31,8 +26,6 @@
         </el-upload>
         <div slot="reference" style="width:36px;margin:0 auto;">
             <el-button size="mini" class="miniBtn" type="primary" plain round>上传</el-button>
-            @*<br /><span>IMG:{{img}}</span>
-                <br /><span>PDF:{{pdf}}</span>*@
         </div>
         @*<slot></slot>*@
     </el-popover>
@@ -44,13 +37,15 @@
         <div v-show="examinanstatu!='审核通过'" class="examinanMessage red">
             {{examinanstatu}}
         </div>
+        @*<br /><span>IMG:{{img}}</span>
+            <br /><span>PDF:{{pdf}}</span>*@
     </div>
 </script>
 <script>
     //文件上传弹出框
     Vue.component('popover-upload', {
         template: document.getElementById("popover"),
-        props: ['rowdata', 'img', 'pdf', 'section'],
+        props: ['rowdata', 'itemdata', 'section'],
         data: function () {
             return {
                 fileList: [],
@@ -66,58 +61,98 @@
             };
         },
         methods: {
-            submitUpload() {
-                this.$refs.upload.submit();
-                this.$nextTick(function () {
-                    app.getTableData();
-                });
-            },
-            handleRemove(file, fileList) {
-                console.log(file, fileList);
-            },
-            handlePreview(file) {
-                console.log(file);
-            },
+            //文件超出个数限制时的钩子
             handleExceed(files, fileList) {
-                this.$message.warning(`当前限制选择 1 个文件`);
-                //，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件
+                this.$message.warning(`只能选择 1 个文件！`);
             },
-            beforeRemove(file, fileList) {
-                //return this.$confirm(`确定移除 ${file.name}？`);
-            },
-
-            handleAvatarSuccess(res, file) {
-                console.log(res)
-                this.imageUrl = URL.createObjectURL(file.raw);
-            },
-            beforeAvatarUpload(file) {
-                console.log(file)
-                var testmsg = file.name.substring(file.name.lastIndexOf('.') + 1)
-                const extension = testmsg === 'xls'
-                const extension2 = testmsg === 'xlsx'
-                // const isLt2M = file.size / 1024 / 1024 < 10
-                if (!extension && !extension2) {
+            //上传文件之前的钩子
+            beforeUpload(file) {
+                var suffix = file.name.substring(file.name.lastIndexOf('.') + 1);
+                const xlsExtension = suffix === 'xls';
+                const xlsxExtension = suffix === 'xlsx';
+                // const isLt2M = file.size / 1024 / 1024 < 10;
+                if (!xlsExtension && !xlsxExtension) {
                     this.$message({
                         message: '上传文件只能是 xls、xlsx格式!',
                         type: 'warning'
                     });
                 };
+                return xlsExtension || xlsxExtension;
                 // if(!isLt2M) {
                 //     this.$message({
                 //         message: '上传文件大小不能超过 10MB!',
                 //         type: 'warning'
                 //     });
-                // }
-                // return extension || extension2 && isLt2M
+                // };
+                // return xlsExtension || xlsxExtension && isLt2M;
             },
+            //文件状态改变时的钩子
             handleChange(file, fileList) {
-                this.fileList = fileList.slice(-3);
-            }
+                //ready,success,fail
+                if (file.status == "ready") {
+                    console.log("添加文件!")
+                } else {
+                    this.$refs.upload.clearFiles();
+                    this.popoverVisible = false;
+                };
+            },
+            //文件上传成功时的钩子
+            handleSuccess(response, file, fileList) {
+                //this.imageUrl = URL.createObjectURL(file.raw);
+                //console.log(response)
+                if (response.result == true) {
+                    let row = this.rowdata, item = this.itemdata, rtd = response.content;
+                    if (this.section == "SMT") {
+                        for (let i in rtd) {
+                            row[i] = rtd[i];
+                        };
+                    } else {
+                        if (item == null) {
+                            switch (this.section) {
+                                case '后焊':
+                                    row.AfterWeld = [];
+                                    row.AfterWeld.push(rtd)
+                                    break;
+                                case '打底壳':
+                                    row.BottomCas = [];
+                                    row.BottomCas.push(rtd)
+                                    break;
+                                case '锁面罩':
+                                    row.LockTheMask = [];
+                                    row.LockTheMask.push(rtd)
+                                    break;
+                                case '模组装配':
+                                    row.Module = [];
+                                    row.Module.push(rtd)
+                                    break;
+                                case '包装':
+                                    row.Packing = [];
+                                    row.Packing.push(rtd)
+                                    break;
+                                //default:
+                            };
+                        } else {
+                            item.push(rtd);
+                        };
+                    };
+                    this.$message.success("上传成功！");
+                } else {
+                    this.$message.error(response.content);
+                };
+            },
+            //文件上传失败时的钩子
+            handleError(err, file, fileList) {
+                this.$message.error("上传失败！");
+            },
+            //提交
+            submitUpload() {
+                this.$refs.upload.submit();
+            },
         }
     });
     //文件跳转链接
     Vue.component('jump-link', {
-        props: ['rowdata', 'section', 'nametext', 'examinanstatu'],
+        props: ['rowdata', 'section', 'nametext', 'examinanstatu', 'img', 'pdf'],
         template: document.getElementById("link"),
         data: function () {
             return {

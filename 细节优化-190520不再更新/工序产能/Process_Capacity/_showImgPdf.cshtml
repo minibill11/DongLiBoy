@@ -1,21 +1,19 @@
 ﻿@*上传img\pdf文件*@
 <script type="text/template" id="ImgPdfUpload">
-    <el-upload class="upload-demo"
+    <el-upload name="uploadProcess_Capacity"
+               class="uploadStyle"
                ref="upload"
+               accept=".jpg,.pdf"
                action="/Process_Capacity/UploadProcess_Capacity"
-               :on-preview="handlePreview"
-               :on-remove="handleRemove"
-               :before-remove="beforeRemove"
                :on-exceed="handleExceed"
-               :on-success="handleAvatarSuccess"
-               :before-upload="beforeAvatarUpload"
-               :on-change="handleChange"
                :limit="1"
-               @*list-type="picture-card"*@
+               :multiple="true"
                :file-list="fileList"
                :auto-upload="false"
-               accept=".jpg,.pdf"
-               name="uploadProcess_Capacity"
+               :before-upload="beforeUpload"
+               :on-change="handleChange"
+               :on-success="handleSuccess"
+               :on-error="handleError"
                :data="{id:obj.id,processName:obj.title,seaction:obj.Section}">
         <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
         <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
@@ -25,8 +23,8 @@
 @*显示img\pdf文件*@
 <script type="text/template" id="ImgPdfShow">
     <div>
-        <el-button size="small" type="danger" @@click="getImg()">查看IMG</el-button>
-        <el-button size="small" type="danger" @@click="getPdf()">查看PDF</el-button>
+        <el-button @@click="getImg()" type="primary" icon="el-icon-picture-outline" size="small">查看图片</el-button>
+        <el-button @@click="getPdf()" type="primary" icon="el-icon-tickets" size="small">查看PDF</el-button>
         <a id="temporary" :href="'../../Scripts/pdf.js/web/viewer.html?file=' + pdfsrc + '?' + Math.random()" target="pdfIframe">ccc</a>
         @*<span class="demonstration">安装实物图</span>*@
         <div class="demo-image__preview">
@@ -37,6 +35,9 @@
         </div>
         <el-image :src="imgsrc"></el-image>
         <iframe id="pdfIframe" name="pdfIframe" src="pdfsrc" style="width:100%;"></iframe>
+        <el-dialog :visible.sync="dialogVisible">
+            <img width="100%" :src="imgsrc" alt="">
+        </el-dialog>
     </div>
 </script>
 <script>
@@ -49,47 +50,41 @@
                 fileList: [],
             }
         },
-        methods: {
-            //上传
+        methods: {//文件超出个数限制时的钩子
+            handleExceed(files, fileList) {
+                this.$message.warning(`只能选择 1 个文件！`);
+            },
+            //上传文件之前的钩子
+            beforeUpload(file) {
+                if (file.type != "image/jpeg" && file.type != "application/pdf") {
+                    this.$message({
+                        message: '上传文件只能是 jpg、pdf 格式!',
+                        type: 'warning'
+                    });
+                    return false;
+                };
+            },
+            //文件状态改变时的钩子
+            handleChange(file, fileList) {
+                //ready,success,fail
+                if (file.status == "ready") {
+                    console.log("添加文件!")
+                };
+            },
+            //文件上传成功时的钩子
+            handleSuccess(response, file, fileList) {
+                this.$message.success("上传成功！");
+                console.log(response)
+                //this.imageUrl = URL.createObjectURL(file.raw);
+            },
+            //文件上传失败时的钩子
+            handleError(err, file, fileList) {
+                this.$message.error("上传失败！");
+            },
+            //提交
             submitUpload() {
                 this.$refs.upload.submit();
-                this.$nextTick(function () {
-                    location.reload();
-                });
-            },
-            handleRemove(file, fileList) {
-                console.log(file, fileList);
-            },
-            handlePreview(file) {
-                console.log(file);
-            },
-            handleExceed(files, fileList) {
-                this.$message.warning(`当前限制选择 1 个文件`);
-                //，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件
-            },
-            beforeRemove(file, fileList) {
-                //return this.$confirm(`确定移除 ${file.name}？`);
-            },
-
-            handleAvatarSuccess(res, file) {
-                console.log(res)
-                this.imageUrl = URL.createObjectURL(file.raw);
-            },
-            beforeAvatarUpload(file) {
-                //console.log(file)
-                //var testmsg = file.name.substring(file.name.lastIndexOf('.') + 1)
-                //const extension = testmsg === 'xls'
-                //const extension2 = testmsg === 'xlsx'
-                //if (!extension && !extension2) {
-                //    this.$message({
-                //        message: '上传文件只能是 xls、xlsx格式!',
-                //        type: 'warning'
-                //    });
-                //};
-            },
-            handleChange(file, fileList) {
-                this.fileList = fileList.slice(-3);
-            },
+            }
         }
     });
 
@@ -100,6 +95,7 @@
         data: function () {
             return {
                 imgsrc: "",
+                dialogVisible: false,
                 srcList: [
                     'https://fuss10.elemecdn.com/8/27/f01c15bb73e1ef3793e64e6b7bbccjpeg.jpeg',
                     'https://fuss10.elemecdn.com/1/8e/aeffeb4de74e2fde4bd74fc7b4486jpeg.jpeg'
