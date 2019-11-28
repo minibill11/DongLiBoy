@@ -23,7 +23,12 @@
                         <el-input v-model="queryTable.proplatform" placeholder="平台" clearable size="medium"></el-input>
                     </el-form-item>
                     <el-form-item label="型号">
-                        <el-input v-model="queryTable.protype" placeholder="型号" clearable size="medium"></el-input>
+                        <el-autocomplete v-model="queryTable.protype"
+                                         :fetch-suggestions="querySearchAsync"
+                                         placeholder="型号"
+                                         clearable
+                                         size="medium"></el-autocomplete>
+                        @*<el-input v-model="queryTable.protype" placeholder="型号" clearable size="medium"></el-input>*@
                     </el-form-item>
                     <el-form-item>
                         <el-button type="primary" @@click="onQuerySubmit" size="medium">查询</el-button>
@@ -59,23 +64,46 @@
                 axios.post('/Process_Capacity/DisplayTypeFromPlatfrom', {
                     platfrom: v,
                 }).then(res => {
+                    //console.log(res.data);
+                    this.restaurants = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //平台下拉列表
+            PlatfromList() {
+                axios.post('/Process_Capacity/PlatfromList').then(res => {
                     console.log(res.data);
                 }).catch(err => {
                     console.warn("型号列表获取失败");
                 });
             },
-            // 双击击单元格
-            singledblClick(row, column, cell, event) {
-                //console.log(row);
-                //console.log(column);
-                //console.log(cell);
-                //console.log(event);
+            //型号下拉列表
+            TypeList() {
+                axios.post('/Process_Capacity/TypeList').then(res => {
+                    console.log(res.data);
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
             },
+            //选择列表的回调函数
+            querySearchAsync(queryString, cb) {
+                var restaurants = this.restaurants;
+                var results = queryString ? restaurants.filter(this.createStateFilter(queryString)) : restaurants;
+                // 调用 callback 返回建议列表的数据
+                cb(results);
+            },
+            //查询选择列表
+            createStateFilter(queryString) {
+                return (state) => {
+                    return (state.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
+                };
+            }
         },
-        //watch: {
-        //    "queryTable.proplatform"(v) {
-        //        this.getPlatformList(v);
-        //    }
-        //}
+        watch: {
+            "queryTable.proplatform"(v) {
+                this.getPlatformList(v);
+            }
+        }
     });
 </script>

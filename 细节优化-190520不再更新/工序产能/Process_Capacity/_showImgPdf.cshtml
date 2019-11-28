@@ -5,8 +5,6 @@
                ref="upload"
                accept=".jpg,.pdf"
                action="/Process_Capacity/UploadProcess_Capacity"
-               :on-exceed="handleExceed"
-               :limit="1"
                :multiple="true"
                :file-list="fileList"
                :auto-upload="false"
@@ -17,26 +15,32 @@
                :data="{id:obj.id,processName:obj.title,seaction:obj.Section}">
         <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
         <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
-        <div slot="tip" class="el-upload__tip">上传jpg或pdf文件</div>
+        <div slot="tip" class="el-upload__tip">jpg或pdf</div>
     </el-upload>
 </script>
 @*显示img\pdf文件*@
 <script type="text/template" id="ImgPdfShow">
     <div>
-        <el-button @@click="getImg()" type="primary" icon="el-icon-picture-outline" size="small">查看图片</el-button>
-        <el-button @@click="getPdf()" type="primary" icon="el-icon-tickets" size="small">查看PDF</el-button>
-        <a id="temporary" :href="'../../Scripts/pdf.js/web/viewer.html?file=' + pdfsrc + '?' + Math.random()" target="pdfIframe">ccc</a>
-        @*<span class="demonstration">安装实物图</span>*@
-        <div class="demo-image__preview">
-            <el-image style="width: 100px; height: 100px"
-                      :src="imgsrc"
-                      :preview-src-list="srcList">
-            </el-image>
-        </div>
-        <el-image :src="imgsrc"></el-image>
-        <iframe id="pdfIframe" name="pdfIframe" src="pdfsrc" style="width:100%;"></iframe>
-        <el-dialog :visible.sync="dialogVisible">
-            <img width="100%" :src="imgsrc" alt="">
+        <el-button @@click="showImg()" type="primary" icon="el-icon-picture-outline" size="small" plain>查看图片</el-button>
+        <el-button @@click="showPdf()" type="danger" icon="el-icon-tickets" size="small" plain>查看PDF</el-button>
+        @*模态框*@
+        <el-dialog top="2vh"
+                   width="70%"
+                   @@open="open"
+                   @@close="close"
+                   :visible.sync="dialogVisible"
+                   center>
+            <div slot="title" class="dialogTitle">
+                {{dialogState.title}}
+            </div>
+            <el-image v-show="dialogState.ifshow=='img'"
+                      v-for="url in imgSrcList"
+                      :key="url"
+                      :src="url"
+                      :preview-src-list="imgSrcList"
+                      lazy></el-image>
+            <iframe v-show="dialogState.ifshow=='pdf'"
+                    id="pdfIframe" name="pdfIframe" style="width:100%;height:800px;"></iframe>
         </el-dialog>
     </div>
 </script>
@@ -50,10 +54,7 @@
                 fileList: [],
             }
         },
-        methods: {//文件超出个数限制时的钩子
-            handleExceed(files, fileList) {
-                this.$message.warning(`只能选择 1 个文件！`);
-            },
+        methods: {
             //上传文件之前的钩子
             beforeUpload(file) {
                 if (file.type != "image/jpeg" && file.type != "application/pdf") {
@@ -68,14 +69,20 @@
             handleChange(file, fileList) {
                 //ready,success,fail
                 if (file.status == "ready") {
-                    console.log("添加文件!")
+                    console.log("添加文件:" + file.name);
+                } else {
+                    //this.$refs.upload.clearFiles();
+                    //this.$refs.upload.abort();
                 };
             },
             //文件上传成功时的钩子
             handleSuccess(response, file, fileList) {
-                this.$message.success("上传成功！");
-                console.log(response)
                 //this.imageUrl = URL.createObjectURL(file.raw);
+                if (response == "True") {
+                    this.$message.success("上传成功！");
+                } else {
+                    this.$message.error("上传失败！");
+                };
             },
             //文件上传失败时的钩子
             handleError(err, file, fileList) {
@@ -94,46 +101,73 @@
         template: document.getElementById("ImgPdfShow"),
         data: function () {
             return {
-                imgsrc: "",
                 dialogVisible: false,
-                srcList: [
-                    'https://fuss10.elemecdn.com/8/27/f01c15bb73e1ef3793e64e6b7bbccjpeg.jpeg',
-                    'https://fuss10.elemecdn.com/1/8e/aeffeb4de74e2fde4bd74fc7b4486jpeg.jpeg'
-                ],
-                pdfsrc: "",
+                dialogState: {
+                    ifshow: 'img',
+                    title: "显示",
+                },
+                imgSrcList: [],
             }
         },
         methods: {
+            showImg() {
+                this.getImg();
+            },
+            showPdf() {
+                this.getPdf();
+            },
+            //打开模态框
+            open() {
+                console.log("open")
+            },
+            //关闭模态框
+            close() {
+                console.log("close")
+            },
+            //获取图片
             getImg() {
                 axios.post('/Process_Capacity/DisplayImg', {
                     id: this.obj.id,
                     seaction: this.obj.Section,
                     processName: this.obj.title
                 }).then(res => {
-                    this.imgsrc = res.data.path[0];
-                    this.srcList = res.data.path.reverse();
-                    this.$message.success(res.data);
                     console.log(res.data);
+                    if (res.data.have == true) {
+                        this.imgSrcList = res.data.path.reverse();
+                        this.dialogState.ifshow = "img";
+                        this.dialogState.title = "图片查看";
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message("还没有上传图片文件！");
+                    };
                 }).catch(err => {
                     console.warn("获取数据失败");
                     this.$message.warning("获取数据失败");
                 });
             },
+            //获取PDF
             getPdf() {
                 axios.post('/Process_Capacity/DisplayPdf', {
                     id: this.obj.id,
                     seaction: this.obj.Section,
                     processName: this.obj.title
                 }).then(res => {
-                    //this.pdfsrc = res.data[0];
-                    this.$message.success(res.data);
-                    window.frames['pdfIframe'].location.href = `../../Scripts/pdf.js/web/viewer.html?file= ${res.data.path}?${Math.random()}`;
                     console.log(res.data);
+                    if (res.data.have == true) {
+                        setTimeout(() => {
+                            window.frames['pdfIframe'].location.href = `../../Scripts/pdf.js/web/viewer.html?file= ${res.data.path}?${Math.random()}`;
+                        }, 0);
+                        this.dialogState.ifshow = "pdf";
+                        this.dialogState.title = "PDF查看";
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message("还没有上传PDF文件！");
+                    };
                 }).catch(err => {
                     console.warn("获取数据失败");
                     this.$message.warning("获取数据失败");
                 });
-            }
+            },
         }
     });
 </script>
