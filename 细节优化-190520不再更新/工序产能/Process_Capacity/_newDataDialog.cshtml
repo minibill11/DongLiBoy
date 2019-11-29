@@ -4,25 +4,40 @@
         <el-button type="primary" icon="el-icon-edit-outline" size="small" @@click="newDataVisible = true" style="float:left;">新建记录</el-button>
         @*<slot></slot>*@
         <el-dialog title="新建数据"
-                   :visible.sync="newDataVisible"
-                   width="30%">
+                   @@open="open"
+                   @@close="close"
+                   :visible.sync="newDataVisible">
             <div>
-                <el-form label-width="120px" :model="newDataForm">
-                    <el-form-item label="型号">
+                <el-form label-width="30%"
+                         label-position="right"
+                         :rules="rules"
+                         ref="ruleForm"
+                         :model="newDataForm"
+                         size="medium">
+                    <el-form-item label="粘贴excel内容">
+                        <el-input type="textarea"
+                                  :autosize="{ minRows: 1, maxRows: 1}"
+                                  placeholder="请粘贴内容"
+                                  v-model="pasteVal"
+                                  resize="none">
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item label="型号" prop="type">
                         <el-input v-model="newDataForm.type"></el-input>
                     </el-form-item>
-                    <el-form-item label="产品PCB编号">
+                    <el-form-item label="平台" prop="platform">
+                        <el-input v-model="newDataForm.platform"></el-input>
+                    </el-form-item>
+                    <el-form-item label="产品PCB编号" prop="pcbnumber">
                         <el-input v-model="newDataForm.pcbnumber"></el-input>
                     </el-form-item>
-                    <el-form-item label="平台">
-                        <el-input v-model="newDataForm.platform"></el-input>
+
+                    <el-form-item>
+                        <el-button @@click="newDataVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
                     </el-form-item>
                 </el-form>
             </div>
-            <span slot="footer" class="dialog-footer">
-                <el-button @@click="newDataVisible = false">取 消</el-button>
-                <el-button type="primary" @@click="addNewData">确 定</el-button>
-            </span>
         </el-dialog>
     </div>
 </script>
@@ -153,6 +168,21 @@
                     platform: ""
                 },
                 newDataVisible: false,
+                pasteVal: "",
+                rules: {
+                    type: [
+                        { required: true, message: '请填写型号', trigger: 'blur' },
+                        //v-model.number
+                        //{ required: true, message: '年龄不能为空' },
+                        //{ type: 'number', message: '年龄必须为数字值' }
+                    ],
+                    platform: [
+                        { required: true, message: '请填写平台', trigger: 'blur' }
+                    ],
+                    pcbnumber: [
+                        { required: true, message: '请填写产品PCB编号', trigger: 'blur' }
+                    ]
+                }
             }
         },
         methods: {
@@ -180,6 +210,24 @@
                     this.newDataVisible = false;
                 });
             },
+            //打开模态框
+            open() {
+
+            },
+            //关闭模态框
+            close() {
+                //this.$refs[formName].resetFields();
+            },
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        alert('submit!');
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    }
+                });
+            }
         }
     });
 
@@ -232,12 +280,12 @@
                     statu: "添加"
                 }).then(res => {
                     this.newInputVisible = false;
-                    if (res.data.message == "true") {
+                    if (res.data.message == true) {
                         //app.getTableData();
                         this.addNewItem(res.data.content);
                     } else {
                         this.$message({
-                            message: "添加失败",
+                            message: res.data.content,
                             type: 'error'
                         });
                     };

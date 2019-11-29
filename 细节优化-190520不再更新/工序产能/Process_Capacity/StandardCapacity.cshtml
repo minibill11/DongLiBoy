@@ -52,7 +52,20 @@
                     <el-table-column label="">
                         <template slot="header" slot-scope="scope">
                             <div>
-                                {{tableObj.number}}
+                                @*{{tableObj.number}}*@
+                                <el-select v-if="Object.keys(tableObj)!=''" v-model="tableObj.number" placeholder="版本号" size="mini">
+                                    <el-option :disabled="true">
+                                        <span style="float: left" class="green">{{ tableObj.number }}</span>
+                                        <span style="float: right; color: #8492a6; font-size: 9px">当前编号</span>
+                                    </el-option>
+                                    <el-option-group label="历史编号：">
+                                        <el-option v-for="item in numOptions"
+                                                   :key="item.value"
+                                                   :label="item.value"
+                                                   :value="item.value">
+                                        </el-option>
+                                    </el-option-group>
+                                </el-select>
                             </div>
                         </template>
                         <el-table-column prop="MachineConfiguration" label="机台配置(印刷机+锡膏检测+贴片机)">
@@ -221,14 +234,22 @@
             urlObj: {},
             selectExaminan: "",
             selectApprover: "",
-            selectControlled: ""
+            selectControlled: "",
+            allDataList: [],
+            numOptions: [],
         },
         created: function () {
             try {
                 this.urlObj = this.GetUrlPara();
                 axios.post('/Process_Capacity/DisplayALL_Pick_And_Place', this.urlObj).then(res => {
+                    this.allDataList = res.data.reverse();
                     console.log(JSON.parse(JSON.stringify(res.data)));
-                    this.tableObj = res.data[0];
+                    for (let item of this.allDataList) {
+                        this.numOptions.push({
+                            value: item.number
+                        });
+                    };
+                    this.tableObj = JSON.parse(JSON.stringify(this.allDataList[0]));
                 }).catch(err => {
                     console.warn("获取数据失败");
                     this.$message.warning("获取数据失败");
@@ -243,6 +264,15 @@
                     offset: 50
                 });
             };
+        },
+        watch: {
+            "tableObj.number"(v) {
+                for (let item of this.allDataList) {
+                    if (v == item.number) {
+                        this.tableObj = JSON.parse(JSON.stringify(item));
+                    };
+                };
+            }
         },
         methods: {
             //返回地址对象
