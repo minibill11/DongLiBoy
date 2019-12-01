@@ -4,21 +4,20 @@
         <el-button type="primary" icon="el-icon-edit-outline" size="small" @@click="newDataVisible = true" style="float:left;">新建记录</el-button>
         @*<slot></slot>*@
         <el-dialog title="新建数据"
-                   @@open="open"
-                   @@close="close"
+                   @@close="close('ruleForm')"
                    :visible.sync="newDataVisible">
             <div>
                 <el-form label-width="30%"
                          label-position="right"
-                         :rules="rules"
                          ref="ruleForm"
-                         :model="newDataForm"
-                         size="medium">
+                         size="medium"
+                         :rules="rules"
+                         :model="newDataForm">
                     <el-form-item label="粘贴excel内容">
                         <el-input type="textarea"
                                   :autosize="{ minRows: 1, maxRows: 1}"
                                   placeholder="请粘贴内容"
-                                  v-model="pasteVal"
+                                  v-model="pasteExcel"
                                   resize="none">
                         </el-input>
                     </el-form-item>
@@ -29,9 +28,12 @@
                         <el-input v-model="newDataForm.platform"></el-input>
                     </el-form-item>
                     <el-form-item label="产品PCB编号" prop="pcbnumber">
-                        <el-input v-model="newDataForm.pcbnumber"></el-input>
+                        <el-input type="textarea"
+                                  :autosize="{ minRows: 1, maxRows: 2}"
+                                  v-model="newDataForm.pcbnumber"
+                                  resize="none">
+                        </el-input>
                     </el-form-item>
-
                     <el-form-item>
                         <el-button @@click="newDataVisible = false">取 消</el-button>
                         <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
@@ -48,9 +50,12 @@
         <el-dialog :title="statu+'新增'"
                    :visible.sync="newInputVisible"
                    :append-to-body="true"
-                   width="30%">
+                   @@close="close">
             <div v-if="statu=='插件'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="设备名称">
                         <el-input v-model="newDataForm.Name"></el-input>
                     </el-form-item>
@@ -63,7 +68,10 @@
                 </el-form>
             </div>
             <div v-if="statu=='三防'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="工序名称">
                         <el-input v-model="newDataForm.ThreeProfProcessName"></el-input>
                     </el-form-item>
@@ -76,7 +84,10 @@
                 </el-form>
             </div>
             <div v-if="statu=='装磁吸安装板'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="工序名称">
                         <el-input v-model="newDataForm.MagneticSuctionProcessName"></el-input>
                     </el-form-item>
@@ -89,7 +100,10 @@
                 </el-form>
             </div>
             <div v-if="statu=='喷墨'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="工序名称">
                         <el-input v-model="newDataForm.InkjetProcessName"></el-input>
                     </el-form-item>
@@ -102,7 +116,10 @@
                 </el-form>
             </div>
             <div v-if="statu=='灌胶'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="工序名称">
                         <el-input v-model="newDataForm.GlueProcessName"></el-input>
                     </el-form-item>
@@ -115,7 +132,10 @@
                 </el-form>
             </div>
             <div v-if="statu=='气密'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="工序名称">
                         <el-input v-model="newDataForm.AirtightProcessName"></el-input>
                     </el-form-item>
@@ -128,7 +148,10 @@
                 </el-form>
             </div>
             <div v-if="statu=='老化'">
-                <el-form label-width="120px" :model="newDataForm">
+                <el-form label-width="30%"
+                         label-position="right"
+                         size="medium"
+                         :model="newDataForm">
                     <el-form-item label="老化1工序名称">
                         <el-input v-model="newDataForm.BurinOneProcessName"></el-input>
                     </el-form-item>
@@ -168,13 +191,10 @@
                     platform: ""
                 },
                 newDataVisible: false,
-                pasteVal: "",
+                pasteExcel: "",
                 rules: {
                     type: [
-                        { required: true, message: '请填写型号', trigger: 'blur' },
-                        //v-model.number
-                        //{ required: true, message: '年龄不能为空' },
-                        //{ type: 'number', message: '年龄必须为数字值' }
+                        { required: true, message: '请填写型号', trigger: 'blur' }
                     ],
                     platform: [
                         { required: true, message: '请填写平台', trigger: 'blur' }
@@ -210,36 +230,83 @@
                     this.newDataVisible = false;
                 });
             },
-            //打开模态框
-            open() {
-
-            },
             //关闭模态框
-            close() {
-                //this.$refs[formName].resetFields();
+            close(formName) {
+                this.$refs[formName].resetFields();
             },
+            //验证值
             submitForm(formName) {
                 this.$refs[formName].validate((valid) => {
                     if (valid) {
-                        alert('submit!');
+                        this.addNewData();
                     } else {
                         console.log('error submit!!');
                         return false;
-                    }
+                    };
                 });
             }
+        },
+        watch: {
+            //粘贴型号平台和产品PCB编号
+            pasteExcel: function (val) {
+                if (val == "") {
+                    return false;
+                };
+                let rtArr = [];
+                //按\t切割
+                let cutT = val.split("\t");
+                //console.log(cutT);
+                //按\n切割
+                for (let t of cutT) {
+                    //console.log(t);
+                    if (t == "\n" || t == "") {
+                        continue;
+                    };
+                    let cutN = t.split("\n");
+                    for (let n of cutN) {
+                        //console.log(n);
+                        let rt = n.replace(/\"|\s|\(|\)|\（|\）/g, "");
+                        rtArr.push(rt);
+                        //console.log(rt);
+                    };
+                };
+                //console.log(rtArr);
+                this.newDataForm.type = rtArr[0]
+                this.newDataForm.platform = "(" + rtArr[1] + ")";
+                this.newDataForm.pcbnumber = rtArr[2] + "\n(" + rtArr[3] + ")";
+                //pasteQuantity.pop();
+                this.pasteExcel = "";
+            },
         }
     });
 
     //新增工段数据框
     Vue.component('input-new', {
-        props: ['thisrow', 'thisitem', 'statu'],
+        props: ['thisrow', 'thisitem', 'thisid', 'statu'],
         template: document.getElementById("inputNew"),
         data: function () {
+            let checkFloat = (rule, value, callback) => {
+                let reg = /^(0|([1-9]\d*))(\.\d{0,2})?$/g;
+                if (reg.test(value)) {
+                    callback();
+                } else {
+                    callback(new Error('请输入正确的数值，数值最多为2位小数'));
+                };
+            };
             return {
                 newDataForm: {},
                 newInputVisible: false,
-                address: ""
+                address: "",
+                rules: {
+                    numberTest: [
+                        { required: true, message: '数量不能为空', trigger: 'blur' },
+                        { type: 'number', message: '必须为数字值' },
+                    ],
+                    floatTest: [
+                        { required: true, message: '数值不能为空', trigger: 'blur' },
+                        { validator: checkFloat, trigger: 'blur' }
+                    ]
+                }
             }
         },
         mounted: function () {
@@ -338,7 +405,11 @@
                     message: '添加成功！',
                     type: 'success'
                 });
-            }
+            },
+            //关闭模态框
+            close(formName) {
+                this.newDataForm = {}
+            },
         }
     });
 </script>

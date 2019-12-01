@@ -15,17 +15,26 @@
 @*inputEdit按钮组件*@
 <script type="text/template" id="inputEditBtn">
     <div v-if="isnull==null">
-        <input-new :thisrow="rowdata" :thisitem="isnull" :statu="section" style="display:inline-block;"></input-new>
+        <input-new :thisrow="rowdata" :thisitem="isnull" :thisid="itemid" :statu="section" style="display:inline-block;"></input-new>
+        <el-popover placement="bottom"
+                    v-model="passVisible">
+            <p><i class="el-icon-info red"></i>确认跳过此工段吗？</p>
+            <div style="text-align: right; margin: 0">
+                <el-button type="text" @@click="passVisible = false" size="mini">取消</el-button>
+                <el-button type="primary" @@click="saveClick('pass')" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="info" plain round>跳过</el-button>
+        </el-popover>
     </div>
     <div v-else>
-        <input-new :thisrow="rowdata" :thisitem="isnull" :statu="section" v-show="editShow()&&bottomAndLock" style="display:inline-block;"></input-new>
+        <input-new :thisrow="rowdata" :thisitem="isnull" :thisid="itemid" :statu="section" v-show="editShow()&&bottomAndLock" style="display:inline-block;"></input-new>
         <el-button @@click="editClick()" v-show="editShow()" size="mini" class="miniBtn" type="success" round>
             编辑
         </el-button>
         <el-button @@click="cancelClick()" v-show="!editShow()" size="mini" class="miniBtn" type="success" plain round>
             取消
         </el-button>
-        <el-button @@click="saveClick()" v-show="!editShow()" size="mini" class="miniBtn" type="success" round>
+        <el-button @@click="saveClick('save')" v-show="!editShow()" size="mini" class="miniBtn" type="success" round>
             保存
         </el-button>
         @*<slot></slot>*@
@@ -45,6 +54,8 @@
         data: function () {
             return {
                 initial: {},
+                passVisible: false,
+                passAddress: "",
             }
         },
         computed: {
@@ -93,182 +104,242 @@
                 };
             },
             //保存编辑
-            saveClick() {
-                let row = this.rowdata, statu = this.section, index = this.index, obj = {}, address = "";
-                switch (statu) {
-                    case '插件':
-                        address = "Add_Plug_In";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.PluginDevice[index].PluginDeviceID,
-                            Name: row.PluginDevice[index].PluginDeviceName,
-                            PCBASingleLampNumber: row.PluginDevice[index].PCBASingleLampNumber,
-                            PluginStandardNumber: row.PluginDevice[index].PluginStandardNumber
-                        };
-                        break;
-                    case '三防':
-                        address = "Add_ThreeProf";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.ThreeProf[index].ThreeProfID,
-                            ThreeProfProcessName: row.ThreeProf[index].ThreeProfProcessName,
-                            ThreeProfStandardTotal: row.ThreeProf[index].ThreeProfStandardTotal,
-                            ThreeProfStabdardOutput: row.ThreeProf[index].ThreeProfStabdardOutput
-                        };
-                        break;
-                    case '打底壳':
-                        address = "Add_MachineNum";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.BottomCas[index].BottomCasID,
-                            BottomCasDispensMachineNum: row.BottomCas[index].BottomCasDispensMachineNum,
-                            BottomCasScrewMachineNum: row.BottomCas[index].BottomCasScrewMachineNum
-                        };
-                        break;
-                    case '装磁吸安装板':
-                        address = "Add_MagneticSuction";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.Magnetic[index].MagneticID,
-                            MagneticSuctionProcessName: row.Magnetic[index].MagneticSuctionProcessName,
-                            MagneticSuctionStandardTotal: row.Magnetic[index].MagneticSuctionStandardTotal,
-                            MagneticSuctionStabdardOutput: row.Magnetic[index].MagneticSuctionStabdardOutput
-                        };
-                        break;
-                    case '喷墨':
-                        address = "Add_Inkjet";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.Inkjet[index].InkjetID,
-                            InkjetProcessName: row.Inkjet[index].InkjetProcessName,
-                            InkjetSuctionStandardTotal: row.Inkjet[index].InkjetSuctionStandardTotal,
-                            InkjetStabdardOutputPerHour: row.Inkjet[index].InkjetStabdardOutputPerHour
-                        };
-                        break;
-                    case '灌胶':
-                        address = "Add_Glue";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.Glue[index].GlueID,
-                            GlueProcessName: row.Glue[index].GlueProcessName,
-                            GlueStandardTotal: row.Glue[index].GlueStandardTotal,
-                            GlueStabdardOutput: row.Glue[index].GlueStabdardOutput
-                        };
-                        break;
-                    case '气密':
-                        address = "Add_Airtight";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.Airtight[index].AirtightID,
-                            AirtightProcessName: row.Airtight[index].AirtightProcessName,
-                            AirtightStandardTotal: row.Airtight[index].AirtightStandardTotal,
-                            AirtightStabdardOutput: row.Airtight[index].AirtightStabdardOutput
-                        };
-                        break;
-                    case '锁面罩':
-                        address = "Add_MachineNum";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.LockTheMask[index].LockTheMaskID,
-                            LockTheMaskScrewMachineNum: row.LockTheMask[index].LockTheMaskScrewMachineNum,
-                        };
-                        break;
-                    case '老化':
-                        address = "Add_Burin";
-                        obj = {
-                            Type: row.Type,
-                            Platform: row.Platform,
-                            ProductPCBnumber: row.PCB,
-                            Id: row.Burin[index].BurinID,
-                            BurinOneProcessName: row.Burin[index].BurinOneProcessName,
-                            BurninOneSuctionStandardTotal: row.Burin[index].BurninOneSuctionStandardTotal,
-                            BurinOneStabdardOutputPerHour: row.Burin[index].BurinOneStabdardOutputPerHour,
-                            BurinTwoProcessName: row.Burin[index].BurinTwoProcessName,
-                            BurinTwoSuctionStandardTotal: row.Burin[index].BurinTwoSuctionStandardTotal,
-                            BurinTwoStabdardOutputPerHour: row.Burin[index].BurinTwoStabdardOutputPerHour
-                        };
-                        break;
-                    //default:
-                };
-
-                if (statu == "打底壳" || statu == "锁面罩") {
-                    let machineObj = {};
-                    if (statu == "打底壳") {
-                        machineObj = {
-                            id: obj.Id,
-                            ScrewMachineNum: obj.BottomCasScrewMachineNum,
-                            DispensMachineNum: obj.BottomCasDispensMachineNum,
-                        };
-                    } else {
-                        machineObj = {
-                            id: obj.Id,
-                            ScrewMachineNum: obj.LockTheMaskScrewMachineNum,
-                            DispensMachineNum: 0,
-                        };
+            saveClick(comefrom) {
+                if (comefrom == "pass") {
+                    let obj = {};
+                    switch (this.section) {
+                        case '插件':
+                            this.passAddress = "Add_Plug_In";
+                            obj.Name = "/";
+                            break;
+                        case '三防':
+                            this.passAddress = "Add_ThreeProf";
+                            obj.ThreeProfProcessName = "/";
+                            break;
+                        case '装磁吸安装板':
+                            this.passAddress = "Add_MagneticSuction";
+                            obj.MagneticSuctionProcessName = "/";
+                            break;
+                        case '喷墨':
+                            this.passAddress = "Add_Inkjet";
+                            obj.InkjetProcessName = "/";
+                            break;
+                        case '灌胶':
+                            this.passAddress = "Add_Glue";
+                            obj.GlueProcessName = "/";
+                            break;
+                        case '气密':
+                            this.passAddress = "Add_Airtight";
+                            obj.AirtightProcessName = "/";
+                            break;
+                        case '老化':
+                            this.passAddress = "Add_Burin";
+                            obj.BurinOneProcessName = "/";
+                            break;
+                        //default:
                     };
-                    axios.post('/Process_Capacity/' + address, machineObj).then(res => {
-                        if (res.data.message == true) {
-                            app.$message({
-                                message: res.data.content,
-                                type: 'success'
-                            });
-                            this.closeEdit();
-                        } else {
-                            app.$message({
-                                message: res.data.content,
-                                type: 'error'
-                            });
-                            this.cancelClick();
-                        };
-                    }).catch(err => {
-                        app.$message({
-                            message: '修改失败！',
-                            type: 'error'
-                        });
-                        this.cancelClick();
-                    });
-                } else {
-                    axios.post('/Process_Capacity/' + address, {
+                    obj['Type'] = this.rowdata.Type;
+                    obj['Platform'] = this.rowdata.Platform;
+                    obj['ProductPCBnumber'] = this.rowdata.PCB;
+
+                    axios.post('/Process_Capacity/' + this.passAddress, {
                         newData: obj,
-                        statu: "修改"
+                        statu: "添加"
                     }).then(res => {
                         if (res.data.message == true) {
-                            app.$message({
-                                message: res.data.content,
-                                type: 'success'
-                            });
-                            this.closeEdit();
+                            //app.getTableData();
+                            this.passItem(res.data.content);
                         } else {
-                            app.$message({
+                            this.$message({
                                 message: res.data.content,
                                 type: 'error'
                             });
-                            this.cancelClick();
                         };
                     }).catch(err => {
-                        app.$message({
-                            message: '修改失败！',
+                        this.$message({
+                            message: '添加失败！',
                             type: 'error'
                         });
-                        this.cancelClick();
                     });
-                }
+
+                    this.passVisible = false;
+                } else {
+                    let row = this.rowdata, statu = this.section, index = this.index, obj = {}, address = "";
+                    switch (statu) {
+                        case '插件':
+                            address = "Add_Plug_In";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.PluginDevice[index].PluginDeviceID,
+                                Name: row.PluginDevice[index].PluginDeviceName,
+                                PCBASingleLampNumber: row.PluginDevice[index].PCBASingleLampNumber,
+                                PluginStandardNumber: row.PluginDevice[index].PluginStandardNumber
+                            };
+                            break;
+                        case '三防':
+                            address = "Add_ThreeProf";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.ThreeProf[index].ThreeProfID,
+                                ThreeProfProcessName: row.ThreeProf[index].ThreeProfProcessName,
+                                ThreeProfStandardTotal: row.ThreeProf[index].ThreeProfStandardTotal,
+                                ThreeProfStabdardOutput: row.ThreeProf[index].ThreeProfStabdardOutput
+                            };
+                            break;
+                        case '打底壳':
+                            address = "Add_MachineNum";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.BottomCas[index].BottomCasID,
+                                BottomCasDispensMachineNum: row.BottomCas[index].BottomCasDispensMachineNum,
+                                BottomCasScrewMachineNum: row.BottomCas[index].BottomCasScrewMachineNum
+                            };
+                            break;
+                        case '装磁吸安装板':
+                            address = "Add_MagneticSuction";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.Magnetic[index].MagneticID,
+                                MagneticSuctionProcessName: row.Magnetic[index].MagneticSuctionProcessName,
+                                MagneticSuctionStandardTotal: row.Magnetic[index].MagneticSuctionStandardTotal,
+                                MagneticSuctionStabdardOutput: row.Magnetic[index].MagneticSuctionStabdardOutput
+                            };
+                            break;
+                        case '喷墨':
+                            address = "Add_Inkjet";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.Inkjet[index].InkjetID,
+                                InkjetProcessName: row.Inkjet[index].InkjetProcessName,
+                                InkjetSuctionStandardTotal: row.Inkjet[index].InkjetSuctionStandardTotal,
+                                InkjetStabdardOutputPerHour: row.Inkjet[index].InkjetStabdardOutputPerHour
+                            };
+                            break;
+                        case '灌胶':
+                            address = "Add_Glue";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.Glue[index].GlueID,
+                                GlueProcessName: row.Glue[index].GlueProcessName,
+                                GlueStandardTotal: row.Glue[index].GlueStandardTotal,
+                                GlueStabdardOutput: row.Glue[index].GlueStabdardOutput
+                            };
+                            break;
+                        case '气密':
+                            address = "Add_Airtight";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.Airtight[index].AirtightID,
+                                AirtightProcessName: row.Airtight[index].AirtightProcessName,
+                                AirtightStandardTotal: row.Airtight[index].AirtightStandardTotal,
+                                AirtightStabdardOutput: row.Airtight[index].AirtightStabdardOutput
+                            };
+                            break;
+                        case '锁面罩':
+                            address = "Add_MachineNum";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.LockTheMask[index].LockTheMaskID,
+                                LockTheMaskScrewMachineNum: row.LockTheMask[index].LockTheMaskScrewMachineNum,
+                            };
+                            break;
+                        case '老化':
+                            address = "Add_Burin";
+                            obj = {
+                                Type: row.Type,
+                                Platform: row.Platform,
+                                ProductPCBnumber: row.PCB,
+                                Id: row.Burin[index].BurinID,
+                                BurinOneProcessName: row.Burin[index].BurinOneProcessName,
+                                BurninOneSuctionStandardTotal: row.Burin[index].BurninOneSuctionStandardTotal,
+                                BurinOneStabdardOutputPerHour: row.Burin[index].BurinOneStabdardOutputPerHour,
+                                BurinTwoProcessName: row.Burin[index].BurinTwoProcessName,
+                                BurinTwoSuctionStandardTotal: row.Burin[index].BurinTwoSuctionStandardTotal,
+                                BurinTwoStabdardOutputPerHour: row.Burin[index].BurinTwoStabdardOutputPerHour
+                            };
+                            break;
+                        //default:
+                    };
+
+                    if (statu == "打底壳" || statu == "锁面罩") {
+                        let machineObj = {};
+                        if (statu == "打底壳") {
+                            machineObj = {
+                                id: obj.Id,
+                                ScrewMachineNum: obj.BottomCasScrewMachineNum,
+                                DispensMachineNum: obj.BottomCasDispensMachineNum,
+                            };
+                        } else {
+                            machineObj = {
+                                id: obj.Id,
+                                ScrewMachineNum: obj.LockTheMaskScrewMachineNum,
+                                DispensMachineNum: 0,
+                            };
+                        };
+                        axios.post('/Process_Capacity/' + address, machineObj).then(res => {
+                            if (res.data.message == true) {
+                                app.$message({
+                                    message: res.data.content,
+                                    type: 'success'
+                                });
+                                this.closeEdit();
+                            } else {
+                                app.$message({
+                                    message: res.data.content,
+                                    type: 'error'
+                                });
+                                this.cancelClick();
+                            };
+                        }).catch(err => {
+                            app.$message({
+                                message: '修改失败！',
+                                type: 'error'
+                            });
+                            this.cancelClick();
+                        });
+                    } else {
+                        axios.post('/Process_Capacity/' + address, {
+                            newData: obj,
+                            statu: "修改"
+                        }).then(res => {
+                            if (res.data.message == true) {
+                                app.$message({
+                                    message: res.data.content,
+                                    type: 'success'
+                                });
+                                this.closeEdit();
+                            } else {
+                                app.$message({
+                                    message: res.data.content,
+                                    type: 'error'
+                                });
+                                this.cancelClick();
+                            };
+                        }).catch(err => {
+                            app.$message({
+                                message: '修改失败！',
+                                type: 'error'
+                            });
+                            this.cancelClick();
+                        });
+                    }
+                };
             },
             //取消编辑
             cancelClick() {
@@ -344,6 +415,49 @@
                         break;
                     //default:
                 };
+            },
+            //跳过后的显示
+            passItem(newitem) {
+                let item = this.isnull, row = this.rowdata;
+                if (item == null) {
+                    switch (this.section) {
+                        case '插件':
+                            row.PluginDevice = [];
+                            row.PluginDevice.push(newitem)
+                            break;
+                        case '三防':
+                            row.ThreeProf = [];
+                            row.ThreeProf.push(newitem)
+                            break;
+                        case '装磁吸安装板':
+                            row.Magnetic = [];
+                            row.Magnetic.push(newitem)
+                            break;
+                        case '喷墨':
+                            row.Inkjet = [];
+                            row.Inkjet.push(newitem)
+                            break;
+                        case '灌胶':
+                            row.Glue = [];
+                            row.Glue.push(newitem)
+                            break;
+                        case '气密':
+                            row.Airtight = [];
+                            row.Airtight.push(newitem)
+                            break;
+                        case '老化':
+                            row.Burin = [];
+                            row.Burin.push(newitem)
+                            break;
+                        //default:
+                    };
+                } else {
+                    item.push(newitem);
+                };
+                this.$message({
+                    message: '添加成功！',
+                    type: 'success'
+                });
             },
         }
     });

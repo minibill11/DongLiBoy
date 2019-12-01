@@ -14,7 +14,7 @@
         }
     },
     created: function () {
-        //this.getTableData();
+        this.getTableData();
         this.getProtype();
         this.getPlatfrom();
     },
