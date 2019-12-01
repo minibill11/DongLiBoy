@@ -1,4 +1,4 @@
-﻿var mixin = {
+﻿let mixin = {
     data: function () {
         return {
             loading: false,
@@ -15,8 +15,8 @@
     },
     created: function () {
         this.getTableData();
-        this.getProtype();
-        this.getPlatfrom();
+        this.getProtype("");
+        this.getPlatfrom("");
     },
     methods: {
         //总表数据显示
@@ -52,8 +52,8 @@
             });
         },
         //型号下拉列表
-        getProtype() {
-            axios.post('/Process_Capacity/TypeList').then(res => {
+        getProtype(v) {
+            axios.post('/Process_Capacity/DisplayTypeFromPlatfrom', { platfrom: v }).then(res => {
                 //console.log(res.data);
                 this.options.protype = res.data;
             }).catch(err => {
@@ -61,8 +61,8 @@
             });
         },
         //平台下拉列表
-        getPlatfrom() {
-            axios.post('/Process_Capacity/PlatfromList').then(res => {
+        getPlatfrom(v) {
+            axios.post('/Process_Capacity/DisplayPlatfromFromType', { type: v }).then(res => {
                 //console.log(res.data);
                 this.options.proplatform = res.data;
             }).catch(err => {
@@ -70,9 +70,16 @@
             });
         },
     },
-    //watch: {
-    //    "queryTable.proplatform"(v) {
-    //        this.onQuerySubmit(v);
-    //    }
-    //}
-}
+    watch: {
+        "queryTable.protype"(v) {
+            this.getPlatfrom(v);
+        },
+        "queryTable.proplatform"(v) {
+            this.getProtype(v);
+        },
+    }
+};
+var app = new Vue({
+    el: "#app",
+    mixins: [mixin]
+});
