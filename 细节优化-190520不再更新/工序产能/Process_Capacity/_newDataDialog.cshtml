@@ -51,6 +51,19 @@
                    :visible.sync="newInputVisible"
                    :append-to-body="true"
                    @@close="close('ruleForm')">
+            @*<div class="el-form-item el-form-item--medium">
+                    <label for="Name" class="el-form-item__label" style="width: 30%;">粘贴excel内容</label>
+                    <div class="el-form-item__content" style="margin-left: 30%;">
+                        <div class="el-input el-input--medium">
+                            <el-input type="textarea"
+                                      :autosize="{ minRows: 1, maxRows: 1}"
+                                      placeholder="请粘贴内容"
+                                      v-model="pasteExcel"
+                                      resize="none">
+                            </el-input>
+                        </div>
+                    </div>
+                </div>*@
             <div v-if="statu=='插件'">
                 <el-form label-width="30%"
                          label-position="right"
@@ -59,7 +72,7 @@
                          :rules="rules"
                          :model="newDataForm">
                     <el-form-item label="设备名称" prop="Name">
-                        <el-input v-model="newDataForm.Name"></el-input>
+                        <el-input v-model="newDataForm.Name='插件'"></el-input>
                     </el-form-item>
                     <el-form-item label="PCBA插件单灯数" prop="PCBASingleLampNumber">
                         <el-input v-model.number="newDataForm.PCBASingleLampNumber"></el-input>
@@ -167,7 +180,7 @@
                          :rules="rules"
                          :model="newDataForm">
                     <el-form-item label="老化1工序名称" prop="BurinOneProcessName">
-                        <el-input v-model="newDataForm.BurinOneProcessName"></el-input>
+                        <el-input v-model="newDataForm.BurinOneProcessName='拼屏'"></el-input>
                     </el-form-item>
                     <el-form-item label="老化1标配人数" prop="BurninOneSuctionStandardTotal">
                         <el-input v-model.number="newDataForm.BurninOneSuctionStandardTotal"></el-input>
@@ -176,7 +189,7 @@
                         <el-input v-model="newDataForm.BurinOneStabdardOutputPerHour"></el-input>
                     </el-form-item>
                     <el-form-item label="老化2工序名称" prop="BurinTwoProcessName">
-                        <el-input v-model="newDataForm.BurinTwoProcessName"></el-input>
+                        <el-input v-model="newDataForm.BurinTwoProcessName='拆屏'"></el-input>
                     </el-form-item>
                     <el-form-item label="老化2标配人数" prop="BurinTwoSuctionStandardTotal">
                         <el-input v-model.number="newDataForm.BurinTwoSuctionStandardTotal"></el-input>
@@ -207,15 +220,9 @@
                 newDataVisible: false,
                 pasteExcel: "",
                 rules: {
-                    type: [
-                        { required: true, message: '请填写型号', trigger: 'blur' }
-                    ],
-                    platform: [
-                        { required: true, message: '请填写平台', trigger: 'blur' }
-                    ],
-                    pcbnumber: [
-                        { required: true, message: '请填写产品PCB编号', trigger: 'blur' }
-                    ]
+                    type: [{ required: true, message: '请填写型号', trigger: 'blur' }],
+                    platform: [{ required: true, message: '请填写平台', trigger: 'blur' }],
+                    pcbnumber: [{ required: true, message: '请填写产品PCB编号', trigger: 'blur' }]
                 }
             }
         },
@@ -228,19 +235,15 @@
                     platform: this.newDataForm.platform,
                 }).then(res => {
                     //console.log(res.data)
-                    this.newDataVisible = false;
                     if (res.data.content == null) {
                         this.$message.error(res.data.message);
                     } else {
                         app.tableList.unshift(res.data.content);
                         this.$message.success(res.data.message);
                     };
-                    //app.getTableData();
+                    this.newDataVisible = false;
                 }).catch(err => {
-                    this.$message({
-                        message: '新建失败！',
-                        type: 'error'
-                    });
+                    this.$message.error('新建失败！');
                     this.newDataVisible = false;
                 });
             },
@@ -286,8 +289,8 @@
                 };
                 //console.log(rtArr);
                 this.newDataForm.type = rtArr[0]
-                this.newDataForm.platform = "(" + rtArr[1] + ")";
-                this.newDataForm.pcbnumber = rtArr[2] + "\n(" + rtArr[3] + ")";
+                this.newDataForm.platform = rtArr[1];
+                this.newDataForm.pcbnumber = rtArr[2] + "(" + rtArr[3] + ")";
                 //pasteQuantity.pop();
                 this.pasteExcel = "";
             },
@@ -308,6 +311,7 @@
         },
         mounted: function () {
             let checkFloat = (rule, value, callback) => {
+                if (value == undefined || value == '') { callback() };
                 let reg = /^(0|([1-9]\d*))(\.\d{0,2})?$/g;
                 if (reg.test(value)) {
                     callback();
@@ -315,7 +319,7 @@
                     callback(new Error('请输入正确的数值，数值最多为2位小数'));
                 };
             };
-            let stringTest = [{ required: true, message: '请填写型号', trigger: 'blur' }],
+            let stringTest = [{ required: true, message: '请填写名称', trigger: 'blur' }],
                 numberTest = [
                     { required: true, message: '数量不能为空', trigger: 'blur' },
                     { type: 'number', message: '必须为数字值' }
@@ -377,11 +381,11 @@
                     this.address = "Add_Burin";
                     this.rules = {
                         BurinOneProcessName: stringTest,
-                        BurninOneSuctionStandardTotal: numberTest,
-                        BurinOneStabdardOutputPerHour: floatTest,
+                        BurninOneSuctionStandardTotal: [{ type: 'number', message: '必须为数字值' }],
+                        BurinOneStabdardOutputPerHour: [{ validator: checkFloat, trigger: 'blur' }],
                         BurinTwoProcessName: stringTest,
-                        BurinTwoSuctionStandardTotal: numberTest,
-                        BurinTwoStabdardOutputPerHour: floatTest,
+                        BurinTwoSuctionStandardTotal: [{ type: 'number', message: '必须为数字值' }],
+                        BurinTwoStabdardOutputPerHour: [{ validator: checkFloat, trigger: 'blur' }],
                     };
                     break;
                 //default:
@@ -469,7 +473,7 @@
                     if (valid) {
                         this.addNewData();
                     } else {
-                        console.log('error submit!!');
+                        //console.log('error submit!!');
                         return false;
                     };
                 });

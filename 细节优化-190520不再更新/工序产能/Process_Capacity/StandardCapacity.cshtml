@@ -4,14 +4,13 @@
 <link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
 <link href="~/Content/styleFile/processCapacity/ProcessCapacity.css" rel="stylesheet" />
 <script src="~/Content/styleFile/packaging/index.js"></script>
-<script src="~/Content/styleFile/processCapacity/ProcessCapacity.js"></script>
 <style>
     .el-upload__input {
         display: none !important;
     }
 
     .showBtn {
-        margin: 0 auto;
+        margin-left: 15px;
     }
 
     .el-dialog__body {
@@ -26,16 +25,34 @@
     .dialogTitle {
         font-size: 3vmin;
     }
+
+    .el-table .cell, .el-table--border td:first-child .cell {
+        padding: 0;
+    }
+
+    .editDiv {
+        position: relative;
+    }
+
+    .editBtn {
+        position: absolute;
+        top: 3px;
+        left: 10px;
+        padding: 0;
+    }
 </style>
 <div id="app" v-cloak>
     <el-container>
         <el-header class="text-center">
-            <h1>@ViewBag.Title</h1>
+            <h2>@ViewBag.Title</h2>
             @*<a href="/Process_Capacity/Index"><el-button size="small">工序产能首页</el-button></a>
                 <a href="/Process_Capacity/StandardCapacity"><el-button size="small">标准产能</el-button></a>
                 <a href="/Process_Capacity/ProcessBalanceCard"><el-button size="small">工序平衡卡</el-button></a>*@
         </el-header>
         <el-main v-loading="loading">
+            <el-row style="margin: 0 0 5px;">
+                <a href="/Process_Capacity/Index"><el-button size="small">返回</el-button></a>
+            </el-row>
             <el-row class="text-center">
                 <el-table v-bind:data="tableObj.Line"
                           max-height="500"
@@ -46,7 +63,7 @@
                     <div slot="empty">暂无数据</div>
                     @*表格开始*@
                     <el-table-column label="编号">
-                        <el-table-column prop="Line" label="线别(#)" width="50">
+                        <el-table-column prop="Line" label="线别(#)" width="45">
                         </el-table-column>
                     </el-table-column>
                     <el-table-column label="">
@@ -68,7 +85,7 @@
                                 </el-select>
                             </div>
                         </template>
-                        <el-table-column prop="MachineConfiguration" label="机台配置(印刷机+锡膏检测+贴片机)">
+                        <el-table-column prop="MachineConfiguration" label="机台配置(印刷机+锡膏检测+贴片机)" width="165">
                         </el-table-column>
                     </el-table-column>
                     <el-table-column label="工段">
@@ -85,7 +102,7 @@
                         </el-table-column>
                     </el-table-column>
                     <el-table-column label="标题">
-                        <el-table-column prop="ProcessDescription" label="工序描述" width="80">
+                        <el-table-column prop="ProcessDescription" label="工序描述" width="75">
                         </el-table-column>
                         <el-table-column prop="Print" label="印刷(S/PCS)" width="70">
                         </el-table-column>
@@ -106,22 +123,22 @@
                         <el-table-column prop="SMTMachineNetWork" label="贴片机净作业(S/PCS)" width="70">
                         </el-table-column>
 
-                        <el-table-column prop="PersonNum" label="人数(人)" width="70">
+                        <el-table-column prop="PersonNum" label="人数(人)" width="60">
                         </el-table-column>
 
-                        <el-table-column prop="Bottleneck" label="瓶颈T/T(S)" width="70">
+                        <el-table-column prop="Bottleneck" label="瓶颈T/T(S)" width="60">
                         </el-table-column>
 
                         <el-table-column prop="CapacityPerHour" label="每小时标准产能(PCS)" width="70">
                         </el-table-column>
 
-                        <el-table-column prop="PerCapitaCapacity" label="每小时人均产能(PCS/H/R)" width="80">
+                        <el-table-column prop="PerCapitaCapacity" label="每小时人均产能(PCS/H/R)" width="70">
                         </el-table-column>
 
-                        <el-table-column prop="LatestUnitPrice" label="产品最新单价（元/PCS）" width="80">
+                        <el-table-column prop="LatestUnitPrice" label="产品最新单价（元/PCS）" width="65">
                         </el-table-column>
 
-                        <el-table-column prop="Remark" label="备注" width="95">
+                        <el-table-column prop="Remark" label="备注">
                         </el-table-column>
                     </el-table-column>
                 </el-table>
@@ -158,66 +175,98 @@
 
                         <el-table-column label="审核/日期" width="170">
                             <template slot-scope="scope">
-                                <template v-if="tableObj.ExaminanPeople!=''&&tableObj.ExaminanTime!=''">
-                                    {{tableObj.IsPassExaminan==true?"通过":"不通过"}}
-                                    <br />
-                                    {{tableObj.ExaminanPeople}}
-                                    <br />
-                                    {{tableObj.ExaminanTime}}
-                                </template>
-                                <template v-else>
-                                    <el-select v-model="selectExaminan" placeholder="请选择" clearable size="mini" style="width:100px;">
-                                        <el-option value="true" label="通过"></el-option>
-                                        <el-option value="false" label="不通过"></el-option>
-                                    </el-select>
-                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'审核',selectExaminan)" :disabled="selectExaminan==''" size="mini" type="primary" plain>确认</el-button>
-                                </template>
+
+                                <div class="editDiv">
+                                    <el-button v-show="limitsRole[5] && editExaminan && tableObj.IsPassApprover==false" class="editBtn" @@click="editExaminan=false" type="text" icon="el-icon-edit" size="mini">修改</el-button>
+                                    <el-button v-show="limitsRole[5] && !editExaminan && tableObj.IsPassApprover==false" class="editBtn" @@click="editExaminan=true" type="text" icon="el-icon-edit" size="mini" style="margin-left:0">取消</el-button>
+                                    <br v-if="limitsRole[5] && !editExaminan && tableObj.IsPassApprover==false" />
+                                    <template v-if="editExaminan && (tableObj.ExaminanPeople!='' && tableObj.ExaminanTime!='')">
+                                        <span :class="{green:tableObj.IsPassExaminan,red:!tableObj.IsPassExaminan}">
+                                            {{tableObj.IsPassExaminan==true?"通过":tableObj.IsPassExaminan==false?"不通过":""}}
+                                        </span>
+                                        <br />
+                                        {{tableObj.ExaminanPeople}}
+                                        <br />
+                                        {{tableObj.ExaminanTime}}
+                                    </template>
+                                    <template v-else>
+                                        <el-select v-model="selectExaminan" :disabled="!limitsRole[5]" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                            <el-option value="true" label="通过"></el-option>
+                                            <el-option value="false" label="不通过"></el-option>
+                                        </el-select>
+                                        <el-button @@click="Autograph(tableObj.Section,tableObj.number,'审核',selectExaminan)" :disabled="!limitsRole[5] || selectExaminan==''" size="mini" type="primary" plain>确认</el-button>
+                                    </template>
+                                </div>
                             </template>
                         </el-table-column>
 
                         <el-table-column label="批准/日期" width="170">
                             <template slot-scope="scope">
-                                <template v-if="tableObj.ApproverPeople!=''&&tableObj.ApproverTime!=''">
-                                    {{tableObj.IsPassApprover==true?"通过":"不通过"}}
-                                    <br />
-                                    {{tableObj.ApproverPeople}}
-                                    <br />
-                                    {{tableObj.ApproverTime}}
-                                </template>
-                                <template v-else>
-                                    <el-select v-model="selectApprover" :disabled="tableObj.IsPassExaminan!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
-                                        <el-option value="true" label="通过"></el-option>
-                                        <el-option value="false" label="不通过"></el-option>
-                                    </el-select>
-                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'批准',selectApprover)" :disabled="selectApprover==''" size="mini" type="primary" plain>确认</el-button>
-                                </template>
+                                <div class="editDiv">
+                                    <el-button v-show="limitsRole[6] && editApprover && tableObj.IsPassControlled==false" class="editBtn" @@click="editApprover=false" type="text" icon="el-icon-edit" size="mini">修改</el-button>
+                                    <el-button v-show="limitsRole[6] && !editApprover && tableObj.IsPassControlled==false" class="editBtn" @@click="editApprover=true" type="text" icon="el-icon-edit" size="mini" style="margin-left:0">取消</el-button>
+                                    <br v-if="limitsRole[6] && !editApprover && tableObj.IsPassControlled==false" />
+                                    <template v-if="editApprover && (tableObj.ApproverPeople!='' && tableObj.ApproverTime!='')">
+                                        <span :class="{green:tableObj.IsPassApprover,red:!tableObj.IsPassApprover}">
+                                            {{tableObj.IsPassApprover==true?"通过":tableObj.IsPassApprover==false?"不通过":""}}
+                                        </span>
+                                        <br />
+                                        {{tableObj.ApproverPeople}}
+                                        <br />
+                                        {{tableObj.ApproverTime}}
+                                    </template>
+                                    <template v-else>
+                                        <el-select v-model="selectApprover" :disabled="!limitsRole[6] || tableObj.IsPassExaminan!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                            <el-option value="true" label="通过"></el-option>
+                                            <el-option value="false" label="不通过"></el-option>
+                                        </el-select>
+                                        <el-button @@click="Autograph(tableObj.Section,tableObj.number,'批准',selectApprover)" :disabled="!limitsRole[6] || selectApprover==''" size="mini" type="primary" plain>确认</el-button>
+                                    </template>
+                                </div>
                             </template>
                         </el-table-column>
 
                         <el-table-column label="受控/日期" width="170">
                             <template slot-scope="scope">
-                                <template v-if="tableObj.ControlledPeople!=''&&tableObj.ControlledTime!=''">
-                                    {{tableObj.IsPassControlled==true?"通过":"不通过"}}
-                                    <br />
-                                    {{tableObj.ControlledPeople}}
-                                    <br />
-                                    {{tableObj.ControlledTime}}
-                                </template>
-                                <template v-else>
-                                    <el-select v-model="selectControlled" :disabled="tableObj.IsPassApprover!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
-                                        <el-option value="true" label="通过"></el-option>
-                                        <el-option value="false" label="不通过"></el-option>
-                                    </el-select>
-                                    <el-button @@click="Autograph(tableObj.Section,tableObj.number,'受控',selectControlled)" :disabled="selectControlled==''" size="mini" type="primary" plain>确认</el-button>
-                                </template>
+                                <div class="editDiv">
+                                    <el-button v-show="limitsRole[7] && editControlled " class="editBtn" @@click="editControlled=false" type="text" icon="el-icon-edit" size="mini">修改</el-button>
+                                    <el-button v-show="limitsRole[7] && !editControlled " class="editBtn" @@click="editControlled=true" type="text" icon="el-icon-edit" size="mini" style="margin-left:0">取消</el-button>
+                                    <br v-if="limitsRole[7] && !editControlled " />
+                                    <template v-if="editControlled && (tableObj.ControlledPeople!='' && tableObj.ControlledTime!='')">
+                                        <span :class="{green:tableObj.IsPassControlled,red:!tableObj.IsPassControlled}">
+                                            {{tableObj.IsPassControlled==true?"通过":tableObj.IsPassControlled==false?"不通过":""}}
+                                        </span>
+                                        <br />
+                                        {{tableObj.ControlledPeople}}
+                                        <br />
+                                        {{tableObj.ControlledTime}}
+                                    </template>
+                                    <template v-else>
+                                        <el-select v-model="selectControlled" :disabled="!limitsRole[7] || tableObj.IsPassApprover!=true" placeholder="请选择" clearable size="mini" style="width:100px;">
+                                            <el-option value="true" label="通过"></el-option>
+                                            <el-option value="false" label="不通过"></el-option>
+                                        </el-select>
+                                        <el-button @@click="Autograph(tableObj.Section,tableObj.number,'受控',selectControlled)" :disabled="!limitsRole[7] || selectControlled==''" size="mini" type="primary" plain>确认</el-button>
+                                    </template>
+                                </div>
                             </template>
                         </el-table-column>
                     </el-table-column>
                 </el-table>
             </el-row>
             <el-row style="margin-top:10px;display:flex">
-                <upload-img-pdf :obj="urlObj" class="uploadBtn"></upload-img-pdf>
+                <upload-img-pdf v-if="limitsRole[4]" :obj="urlObj" class="uploadBtn"></upload-img-pdf>
                 <show-img-pdf :obj="urlObj" class="showBtn"></show-img-pdf>
+            </el-row>
+            @*<el-row>
+                    <a href="/MES_Data/Process_Capacity/21/打底壳/VH三代 模块1.xls">测试</a>
+                </el-row>*@
+            <el-row style="margin-top:10px;">
+                <el-image v-for="url in imgSrcList"
+                          :key="url"
+                          :src="url"
+                          :preview-src-list="imgSrcList"
+                          lazy></el-image>
             </el-row>
         </el-main>
     </el-container>
@@ -235,12 +284,21 @@
             selectExaminan: "",
             selectApprover: "",
             selectControlled: "",
+            editExaminan: true,
+            editApprover: true,
+            editControlled: true,
             allDataList: [],
             numOptions: [],
+            imgSrcList: [],
+            //权限列表 和 是否拥有权限
+            limitsList: {},
+            limitsRole: {}
         },
         created: function () {
+            this.loading = true;
             try {
                 this.urlObj = this.GetUrlPara();
+                this.getImg();
                 axios.post('/Process_Capacity/DisplayALL_Pick_And_Place', this.urlObj).then(res => {
                     this.allDataList = res.data.reverse();
                     console.log(JSON.parse(JSON.stringify(res.data)));
@@ -250,9 +308,11 @@
                         });
                     };
                     this.tableObj = JSON.parse(JSON.stringify(this.allDataList[0]));
+                    this.loading = false;
                 }).catch(err => {
                     console.warn("获取数据失败");
                     this.$message.warning("获取数据失败");
+                    this.loading = false;
                 });
             } catch (err) {
                 this.$alert("页面信息已丢失，请从工序产能首页重新打开页面！");
@@ -263,6 +323,19 @@
                     showClose: false,
                     offset: 50
                 });
+                this.loading = false;
+            };
+            //获取权限
+            //1、新建平台 ，2、上传文件和编辑 ， 3、查看附表 ， 4、上传PDF和图片 ， 5、审核附表 ，6、批准附表 ，7、受控附表
+            this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            this.limitsRole = {
+                1: this.checkRoles("新建平台"),
+                2: this.checkRoles("上传文件和编辑"),
+                3: this.checkRoles("查看附表"),
+                4: this.checkRoles("上传PDF和图片"),
+                5: this.checkRoles("审核附表"),
+                6: this.checkRoles("批准附表"),
+                7: this.checkRoles("受控附表"),
             };
         },
         watch: {
@@ -302,7 +375,34 @@
                 }).catch(err => {
                     console.warn("签名失败");
                 });
-            }
+            },
+            //权限筛选
+            checkRoles(roleName) {   //检测权限
+                list = this.limitsList;
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //获取图片
+            getImg() {
+                axios.post('/Process_Capacity/DisplayImg', {
+                    id: this.urlObj.id,
+                    seaction: this.urlObj.Section,
+                    processName: this.urlObj.title
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data.have == true) {
+                        this.imgSrcList = res.data.path.reverse();
+                    };
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                });
+            },
         }
     });
 </script>

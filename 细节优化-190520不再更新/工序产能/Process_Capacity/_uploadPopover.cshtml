@@ -2,7 +2,7 @@
 <script type="text/template" id="popover">
     <div>
         <el-popover trigger="click"
-                    @*:disabled="false"*@
+                    v-if="nametext!='/'"
                     v-model="popoverVisible"
                     placement="bottom-start"
                     style="display:inline-block">
@@ -20,7 +20,7 @@
                        :on-change="handleChange"
                        :on-success="handleSuccess"
                        :on-error="handleError"
-                       :data="{id:rowdata.id,type:rowdata.Type,PCBNumber:rowdata.PCB,platform:rowdata.Platform,seaction:section}">
+                       :data="{type:rowdata.Type,PCBNumber:rowdata.PCB,platform:rowdata.Platform,seaction:section}">
                 <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
                 <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
                 <button @@click="popoverVisible = false" type="button" aria-label="Close" class="el-dialog__headerbtn" style="top:50px;right:15px;font-size:10px"><i class="el-dialog__close el-icon el-icon-close">关闭</i></button>
@@ -31,25 +31,36 @@
             </div>
         </el-popover>
         @*<slot></slot>*@
-        @*<el-popover v-if="itemdata==null"
-                        placement="bottom"
-                        v-model="passVisible">
-                <p><i class="el-icon-info red"></i> 确认跳过此工段吗？</p>
-                <div style="text-align: right; margin: 0">
-                    <el-button type="text" @@click="passVisible = false" size="mini">取消</el-button>
-                    <el-button type="primary" @@click="passClick()" size="mini">确定</el-button>
-                </div>
-                <el-button slot="reference" size="mini" class="miniBtn" type="info" plain round>跳过</el-button>
-            </el-popover>*@
+        <el-popover v-if="isnull==null"
+                    placement="bottom"
+                    v-model="passVisible">
+            <p><i class="el-icon-info red"></i> 确认跳过此工段吗？</p>
+            <div style="text-align: right; margin: 0">
+                <el-button type="text" @@click="passVisible = false" size="mini">取消</el-button>
+                <el-button type="primary" @@click="passClick()" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="info" plain round>跳过</el-button>
+        </el-popover>
+        <el-popover v-else
+                    placement="bottom"
+                    v-model="deleteVisible">
+            <p><i class="el-icon-info red"></i> 确认删除此工段吗？</p>
+            <div style="text-align: right; margin: 0">
+                <el-button type="text" @@click="deleteVisible = false" size="mini">取消</el-button>
+                <el-button type="primary" @@click="deleteClick()" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="warning" plain round>删除</el-button>
+        </el-popover>
     </div>
 </script>
 @*文件跳转链接*@
 <script type="text/template" id="link">
     <div>
-        <el-link :href=hrefname type="primary" target="_blank" :underline="false">{{nametext}}</el-link>
-        <div v-show="examinanstatu!='审核通过'" class="examinanMessage red">
+        <el-link v-if="ispower" :href=hrefname type="primary" target="_blank" :underline="false">{{nametext}}</el-link>
+        <span v-else>{{nametext}}</span>
+        @*<div v-show="examinanstatu!='审核通过'" class="examinanMessage red">
             {{examinanstatu}}
-        </div>
+        </div>*@
         @*<br /><span>IMG:{{img}}</span>
             <br /><span>PDF:{{pdf}}</span>*@
     </div>
@@ -58,20 +69,24 @@
     //文件上传弹出框
     Vue.component('popover-upload', {
         template: document.getElementById("popover"),
-        props: ['rowdata', 'itemdata', 'section'],
+        props: ['rowdata', 'itemdata', 'section', 'index', 'isnull', 'nametext'],
         data: function () {
             return {
                 fileList: [],
                 popoverVisible: false,
                 address: "",
-                //passVisible: false
+                deleteAddress: "",
+                passVisible: false,
+                deleteVisible:false
             }
         },
         mounted: function () {
             if (this.section == "SMT") {
                 this.address = "Upload_Pick_And_Place";
+                this.deleteAddress = "Delete_Pick_And_Place";
             } else {
                 this.address = "Upload_ProcessBalance";
+                this.deleteAddress = "Delete_ProcessBalance";
             };
         },
         methods: {
@@ -115,7 +130,7 @@
                 //this.imageUrl = URL.createObjectURL(file.raw);
                 //console.log(response)
                 if (response.result == true) {
-                    let row = this.rowdata, item = this.itemdata, rtd = response.content;
+                    let row = this.rowdata, item = this.isnull, rtd = response.content;
                     if (this.section == "SMT") {
                         for (let i in rtd) {
                             row[i] = rtd[i];
@@ -146,25 +161,25 @@
                                 //default:
                             };
                         } else {
-                            let textName;
-                            switch (this.section) {
-                                case '后焊':
-                                    textName = "AfterWeldProcessName";
-                                    break;
-                                case '打底壳':
-                                    textName = "BottomCasProcessName";
-                                    break;
-                                case '锁面罩':
-                                    textName = "LockTheMaskProcessName";
-                                    break;
-                                case '模组装配':
-                                    textName = "ModuleProcessName";
-                                    break;
-                                case '包装':
-                                    textName = "PackingProcessName";
-                                    break;
-                                //default:
-                            };
+                            let textName = this.nametext;
+                            //switch (this.section) {
+                            //    case '后焊':
+                            //        textName = "AfterWeldProcessName";
+                            //        break;
+                            //    case '打底壳':
+                            //        textName = "BottomCasProcessName";
+                            //        break;
+                            //    case '锁面罩':
+                            //        textName = "LockTheMaskProcessName";
+                            //        break;
+                            //    case '模组装配':
+                            //        textName = "ModuleProcessName";
+                            //        break;
+                            //    case '包装':
+                            //        textName = "PackingProcessName";
+                            //        break;
+                            //    //default:
+                            //};
                             //如果有重复的，应该是替换
                             for (let i in item) {
                                 if (item[i][textName] == rtd[textName]) {
@@ -172,6 +187,7 @@
                                     return;
                                 };
                             };
+                            //若没重复，增加
                             item.push(rtd);
                         };
                     };
@@ -189,15 +205,118 @@
                 this.$refs.upload.submit();
             },
             //跳过的方法
-            //passClick() {
-            //    console.log("pass");
-            //    this.passVisible = false;
-            //}
+            passClick() {
+                axios.post(`/Process_Capacity/${this.address}`, {
+                    type: this.rowdata.Type,
+                    PCBNumber: this.rowdata.PCB,
+                    platform: this.rowdata.Platform,
+                    seaction: this.section
+                }).then(res => {
+                    if (res.data.result == true) {
+                        this.passItem(res.data.content);
+                        //console.log(res.data.content);
+                    } else {
+                        this.$message.error(res.data.content);
+                        this.passVisible = false;
+                    };
+                }).catch(err => {
+                    this.$message.error("跳过失败！");
+                    this.passVisible = false;
+                });
+            },
+            //跳过后的显示
+            passItem(newitem) {
+                let row = this.rowdata;
+                this.passVisible = false;
+                this.$message.success('已跳过该工段！');
+                return {
+                    'SMT': () => {
+                        for (let item in newitem) {
+                            row[item] = newitem[item];
+                        };
+                    },
+                    '后焊': () => { row.AfterWeld = []; row.AfterWeld.push(newitem) },
+                    '打底壳': () => { row.BottomCas = []; row.BottomCas.push(newitem) },
+                    '锁面罩': () => { row.LockTheMask = []; row.LockTheMask.push(newitem) },
+                    '模组装配': () => { row.Module = []; row.Module.push(newitem) },
+                    '包装': () => { row.Packing = []; row.Packing.push(newitem) }
+                }[this.section].call(this);
+            },
+            //删除方法
+            deleteClick() {
+                axios.post(`/Process_Capacity/${this.deleteAddress}`, {
+                    type: this.rowdata.Type,
+                    PCBNumber: this.rowdata.PCB,
+                    platform: this.rowdata.Platform,
+                    Section: this.section,
+                    title: this.nametext
+                }).then(res => {
+                    if (res.data.message == true) {
+                        this.deleteItem(res.data.content);
+                        //console.log(res.data.content);
+                    } else {
+                        this.$message.error(res.data.content);
+                        this.deleteVisible = false;
+                    };
+                }).catch(err => {
+                    this.$message.error("跳过失败！");
+                    this.deleteVisible = false;
+                });
+            },
+            //删除后的显示
+            deleteItem(content) {
+                let item = this.isnull, row = this.rowdata;
+                this.$message.success(content);
+                this.deleteVisible = false;
+                if (item.length > 1) {
+                    return {
+                        'SMT': () => {
+                            row.SMTExaminanMessage = null;
+                            row.icProductName = null;
+                            row.icMaxStandardTotal = null;
+                            row.icMaxStandardOutput = null;
+                            row.icMinStandardTotal = null;
+                            row.icMinStandardOutput = null;
+                            row.LightProductName = null;
+                            row.LightMaxStandardTotal = null;
+                            row.LightMaxStandardOutput = null;
+                            row.LightMinStandardTotal = null;
+                            row.LightMinStandardOutput = null;
+                        },
+                        '后焊': () => { row.AfterWeld.splice(this.index, 1); },
+                        '打底壳': () => { row.BottomCas.splice(this.index, 1); },
+                        '锁面罩': () => { row.LockTheMask.splice(this.index, 1); },
+                        '模组装配': () => { row.Module.splice(this.index, 1); },
+                        '包装': () => { row.Packing.splice(this.index, 1); },
+                    }[this.section].call(this);
+                } else {
+                    return {
+                        'SMT': () => {
+                            row.SMTExaminanMessage = null;
+                            row.icProductName = null;
+                            row.icMaxStandardTotal = null;
+                            row.icMaxStandardOutput = null;
+                            row.icMinStandardTotal = null;
+                            row.icMinStandardOutput = null;
+                            row.LightProductName = null;
+                            row.LightMaxStandardTotal = null;
+                            row.LightMaxStandardOutput = null;
+                            row.LightMinStandardTotal = null;
+                            row.LightMinStandardOutput = null;
+                        },
+                        '后焊': () => { row.AfterWeld = null; },
+                        '打底壳': () => { row.BottomCas = null; },
+                        '锁面罩': () => { row.LockTheMask = null; },
+                        '模组装配': () => { row.Module = null; },
+                        '包装': () => { row.Packing = null; },
+                    }[this.section].call(this);
+                };
+            }
         }
     });
     //文件跳转链接
     Vue.component('jump-link', {
-        props: ['rowdata', 'section', 'nametext', 'examinanstatu', 'img', 'pdf'],
+        props: ['rowdata', 'section', 'nametext', 'examinanstatu', 'img', 'pdf', 'ispower'],
         template: document.getElementById("link"),
         computed: {
             hrefname() {
