@@ -1,0 +1,70 @@
+﻿var tableFilterMixin = {
+    methods: {
+        filterHandler(value, row, column) {
+            const property = column['property'];
+            return row[property] === value;
+        },
+        //终极过滤器
+        filterMethod(list) {
+            //声明需要返回的数组对象
+            let arrObj = {};
+            //给数据对象创建与表格相符的键值
+            for (let name in list[0]) {
+                arrObj[name] = [];
+            };
+            //把每一列的值存在一起
+            for (let item of list) {
+                for (let i in item) {
+                    arrObj[i].push(item[i]);
+                };
+            };
+            //给每一列去重
+            for (let arr in arrObj) {
+                arrObj[arr] = [...new Set(arrObj[arr])];
+            };
+            //每一列都映射为筛选需要的格式
+            for (let i in arrObj) {
+                arrObj[i] = arrObj[i].map(o => { let rtval = typeof o == 'string' ? (o.split('T').length == 2 ? o.split('T')[0] : o) : o; return { text: rtval, value: o } });
+            };
+            //返回所有筛选列表
+            return arrObj;
+        }
+    }
+}
+
+/*页面上的使用方法
+   <script src="~/Scripts/filterMethod/tableFilter.js"></script>
+   1、 mixins: [tableFilterMixin],
+   2、 watch: {
+            监听表的数据
+            dataList(v) {
+                try {
+                    if (v != '') {
+                        let rtArr = this.filterMethod(v);
+                        this.$refs.filterTable.clearFilter();
+                        for (let i in this.filterObj) {
+                            this.$set(this.filterObj, i, rtArr[i]);
+                        };
+                    };
+                } catch (err) {
+                    console.log('筛选错误')
+                }
+            }
+        }
+   3、 <el-table-column prop="state"
+            label="状态"
+            :filters="filterObj.state"
+            :filter-method="filterHandler"
+            sortable>
+       </el-table-column>
+   4、filterObj: {   
+            具体的变量列表
+            MaterialNumber: [],
+            Batch: [],
+            Supplier: [],
+            LeaveFactoryTime: [],
+            SolderpasteType: [],
+            statue: []
+      }
+   5、 ref="filterTable"
+*/

@@ -1,0 +1,164 @@
+﻿@*上传img\pdf文件*@
+<script type="text/template" id="ImgPdfUpload">
+    <el-upload name="uploadProcess_Capacity"
+               class="uploadStyle"
+               ref="upload"
+               accept=".jpg,.pdf"
+               action="/Process_Capacity/UploadProcess_Capacity"
+               :multiple="true"
+               :file-list="fileList"
+               :auto-upload="false"
+               :before-upload="beforeUpload"
+               :on-change="handleChange"
+               :on-success="handleSuccess"
+               :on-error="handleError"
+               :data="{id:obj.id,processName:obj.title,seaction:obj.Section}">
+        <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
+        <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+        <div slot="tip" class="el-upload__tip">jpg或pdf</div>
+    </el-upload>
+</script>
+@*显示img\pdf文件*@
+<script type="text/template" id="ImgPdfShow">
+    <div>
+        @*<el-button @@click="showImg()" type="primary" icon="el-icon-picture-outline" size="small" plain>查看图片</el-button>*@
+        <el-button @@click="showPdf()" type="danger" icon="el-icon-tickets" size="small" plain>查看PDF</el-button>
+        @*模态框*@
+        <el-dialog top="2vh"
+                   width="70%"
+                   :visible.sync="dialogVisible"
+                   center>
+            <div slot="title" class="dialogTitle">
+                {{dialogState.title}}
+            </div>
+            <el-image v-show="dialogState.ifshow=='img'"
+                      v-for="url in imgSrcList"
+                      :key="url"
+                      :src="url"
+                      :preview-src-list="imgSrcList"
+                      lazy></el-image>
+            <iframe v-show="dialogState.ifshow=='pdf'"
+                    id="pdfIframe" name="pdfIframe" style="width:100%;height:800px;"></iframe>
+        </el-dialog>
+    </div>
+</script>
+<script>
+    //上传img\pdf文件
+    Vue.component('upload-img-pdf', {
+        props: ['obj'],
+        template: document.getElementById("ImgPdfUpload"),
+        data: function () {
+            return {
+                fileList: [],
+            }
+        },
+        methods: {
+            //上传文件之前的钩子
+            beforeUpload(file) {
+                if (file.type != "image/jpeg" && file.type != "application/pdf") {
+                    this.$message({
+                        message: '上传文件只能是 jpg、pdf 格式!',
+                        type: 'warning'
+                    });
+                    return false;
+                };
+            },
+            //文件状态改变时的钩子
+            handleChange(file, fileList) {
+                //ready,success,fail
+                if (file.status == "ready") {
+                    console.log("添加文件:" + file.name);
+                } else {
+                    //this.$refs.upload.clearFiles();
+                    //this.$refs.upload.abort();
+                };
+            },
+            //文件上传成功时的钩子
+            handleSuccess(response, file, fileList) {
+                //this.imageUrl = URL.createObjectURL(file.raw);
+                if (response == "True") {
+                    this.$message.success("上传成功！");
+                    app.getImg();
+                } else {
+                    this.$message.error("上传失败！");
+                };
+            },
+            //文件上传失败时的钩子
+            handleError(err, file, fileList) {
+                this.$message.error("上传失败！");
+            },
+            //提交
+            submitUpload() {
+                this.$refs.upload.submit();
+            }
+        }
+    });
+
+    //显示img\pdf文件
+    Vue.component('show-img-pdf', {
+        props: ['obj'],
+        template: document.getElementById("ImgPdfShow"),
+        data: function () {
+            return {
+                dialogVisible: false,
+                dialogState: {
+                    ifshow: 'img',
+                    title: "显示",
+                },
+                imgSrcList: [],
+            }
+        },
+        methods: {
+            showImg() {
+                this.getImg();
+                this.dialogState.ifshow = "img";
+                this.dialogState.title = "图片查看";
+            },
+            showPdf() {
+                this.getPdf();
+                this.dialogState.ifshow = "pdf";
+                this.dialogState.title = "PDF查看";
+            },
+            //获取图片
+            getImg() {
+                axios.post('/Process_Capacity/DisplayImg', {
+                    id: this.obj.id,
+                    seaction: this.obj.Section,
+                    processName: this.obj.title
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data.have == true) {
+                        this.imgSrcList = res.data.path.reverse();
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message("还没有上传图片文件！");
+                    };
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                    this.$message.warning("获取数据失败");
+                });
+            },
+            //获取PDF
+            getPdf() {
+                axios.post('/Process_Capacity/DisplayPdf', {
+                    id: this.obj.id,
+                    seaction: this.obj.Section,
+                    processName: this.obj.title
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data.have == true) {
+                        setTimeout(() => {
+                            window.frames['pdfIframe'].location.href = `../../Scripts/pdf.js/web/viewer.html?file= ${res.data.path}?${Math.random()}`;
+                        }, 0);
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message("还没有上传PDF文件！");
+                    };
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                    this.$message.warning("获取数据失败");
+                });
+            },
+        }
+    });
+</script>

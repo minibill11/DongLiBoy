@@ -1,0 +1,199 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web.Mvc;
+using System.Data.Entity;
+using System.Web.Http;
+
+namespace JianHeMES.Controllers
+{
+    public class APIController : ApiController
+    {
+        // GET api/<controller>
+        private ApplicationDbContext db = new ApplicationDbContext();
+        public IEnumerable<string> Get()
+        {
+            return new string[] { "value1", "value2" };
+        }
+
+        // GET api/<controller>/5
+        public string Get(int id)
+        {
+            return "value";
+        }
+
+        // POST api/<controller>
+        public void Post([FromBody]string value)
+        {
+        }
+
+        // PUT api/<controller>/5
+        public void Put(int id, [FromBody]string value)
+        {
+        }
+
+        // DELETE api/<controller>/5
+        public void Delete(int id)
+        {
+        }
+        #region 校正API接口
+        public string CalibrationApi(string parameter)
+        {
+            var prepare = JsonConvert.DeserializeObject<JObject>(parameter);//字符串转成json
+            UserOperateLog log = new UserOperateLog();
+            JObject result = new JObject();
+            if (prepare.Property("checking") != null)//判断是否含有checking
+            {
+                JObject item = new JObject();
+                var content = (JObject)prepare["checking"];
+                var name = content["Name"].ToString();
+                var pass = content["pwd"].ToString();
+                var userid = Convert.ToInt32(content["UserID"].ToString());
+                var barcode = content["BarcodeNumber"].ToString();
+                var duleGroupnum = content["ModuleGroupNumber"].ToString();
+                var ordernum = content["Ordernum"].ToString();
+
+                if (db.Users.Count(c => c.UserName == name && c.UserNum == userid && c.PassWord == pass) == 0)
+                {
+                    item.Add("UserComfirm", false);
+                }
+                else
+                {
+                    if (db.Useroles.Count(c => c.UserName == name && c.UserID == userid && c.RolesName == "校正管理") != 0)
+                    {
+                        if (db.Useroles.Where(c => c.UserName == name && c.UserID == userid && c.RolesName == "校正管理").Select(c => c.Roles).FirstOrDefault().Split(',').Contains("1"))
+                            item.Add("UserComfirm", true);
+                        else
+                        { item.Add("UserComfirm", false); }
+                    }
+                    else
+                    {
+                        item.Add("UserComfirm", false);
+                    }
+                }
+                if (db.BarCodes.Count(c => c.BarCodesNum == barcode) == 0 || db.BarCodes.Where(c => c.BarCodesNum == barcode).Select(c => c.OrderNum).FirstOrDefault() != ordernum)
+                {
+                    item.Add("BarcodeNumberChecked", false);
+                }
+                else
+                {
+                    item.Add("BarcodeNumberChecked", true);
+                }
+                if (db.CalibrationRecord.Count(c => c.BarCodesNum == barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == barcode) && c.Normal == true) == 0)
+                {
+                    item.Add("ReCalibration", false);
+                }
+                else
+                {
+                    item.Add("ReCalibration", true);
+                }
+                result.Add("checking_resul", item);
+                log.Operator = "校正API";
+                log.OperateDT = DateTime.Now;
+                log.OperateRecord = "传入参数" + parameter + ",传出结果" + item;
+            }
+
+            //{"Calibration_result":{"UserName":"suse","Ordernum":"123","BarcodeNumberChecked":"true","BeginTime":"","EndTime":"","Calibrationresult":"false","FailueReason":"",”BarcodeNumber”:””,"ReCalibration":"true",”RecalibrartionReason”:””,”ModuleGroupNumber”:””}}
+            if (prepare.Property("Calibration_result") != null)
+            {
+                try
+                {
+                    var content = (JObject)prepare["Calibration_result"];
+                    var username = content["UserName"].ToString();
+                    var ordernum = content["Ordernum"].ToString();
+                    var pass = content["pwd"].ToString();
+                    var userid = Convert.ToInt32(content["UserID"].ToString());
+                    var barcodenumbercheck = Convert.ToBoolean(content["BarcodeNumberChecked"].ToString());
+                    var begintime = Convert.ToDateTime(content["BeginTime"].ToString());
+                    var endtime = Convert.ToDateTime(content["EndTime"].ToString());
+                    var normal = Convert.ToBoolean(content["Calibrationresult"].ToString());
+                    var failue = normal == true ? "正常" : content["FailueReason"].ToString();
+                    var barcode = content["BarcodeNumber"].ToString();
+                    var reCalibration = Convert.ToBoolean(content["ReCalibration"].ToString());
+                    var recalibrartionReason = reCalibration == false ? null : content["RecalibrartionReason"].ToString();
+                    var moduleGroupNumber = content["ModuleGroupNumber"].ToString();
+                    //查看权限和用户密码是否正确
+                    if (db.Users.Count(c => c.UserName == username && c.UserNum == userid && c.PassWord == pass) == 0)
+                    {
+                        result.Add("Calibration_Recorded", false);
+                        return JsonConvert.SerializeObject(result);
+                    }
+                    else
+                    {
+                        if (db.Useroles.Count(c => c.UserName == username && c.UserID == userid && c.RolesName == "校正管理") == 0)
+                        {
+                            result.Add("Calibration_Recorded", false);
+                            return JsonConvert.SerializeObject(result);
+                        }
+                        else
+                        {
+                            if (!db.Useroles.Where(c => c.UserName == username && c.UserID == userid && c.RolesName == "校正管理").Select(c => c.Roles).FirstOrDefault().Split(',').Contains("1"))
+                            {
+                                result.Add("Calibration_Recorded", false);
+                                return JsonConvert.SerializeObject(result);
+                            }
+                        }
+                    }
+                    //计算校正的时间间隔
+                    int ctDay = 0;
+                    TimeSpan timespan;
+                    string TimeSpantostring = "";
+                    var CT = begintime - endtime;
+                    if (CT.Days > 0)
+                    {
+                        ctDay = CT.Days;
+                        timespan = new TimeSpan(CT.Hours, CT.Minutes, CT.Seconds);
+                        TimeSpantostring = CT.Days.ToString() + "天" + CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                    }
+                    else
+                    {
+                        timespan = new TimeSpan();
+                        timespan = CT;
+                        TimeSpantostring = CT.Minutes.ToString() + "分" + CT.Seconds.ToString() + "秒";
+                    }
+                    //添加新的校正信息
+                    CalibrationRecord calibration = new CalibrationRecord() { BarCodesNum = barcode, OldBarCodesNum = barcode, OrderNum = ordernum, OldOrderNum = ordernum, ModuleGroupNum = moduleGroupNumber, BeginCalibration = begintime, FinishCalibration = endtime, Normal = normal, AbnormalDescription = failue, CalibrationDate = ctDay, CalibrationTime = timespan, CalibrationTimeSpan = TimeSpantostring, Operator = username, RepetitionCalibration = reCalibration, RepetitionCalibrationCause = recalibrartionReason };
+
+                    db.CalibrationRecord.Add(calibration);
+                    db.SaveChanges();
+                    //修改条码和外观电检的模组号
+                    var barcodecount = db.BarCodes.Where(c => c.BarCodesNum == barcode).FirstOrDefault();
+                    if (barcodecount != null)
+                    {
+                        barcodecount.ModuleGroupNum = moduleGroupNumber;
+                        db.Entry(barcodecount).State = EntityState.Modified;
+                        db.SaveChanges();
+                    }
+                    var appearancecount = db.Appearance.Where(c => c.BarCodesNum == barcode && (c.Appearance_OQCCheckAbnormal == "正常" || c.Appearance_OQCCheckAbnormal == null) && (c.OldBarCodesNum == null || c.OldBarCodesNum == barcode)).ToList();
+                    if (appearancecount.Count > 0)
+                    {
+                        foreach (var item in appearancecount)
+                        {
+                            item.ModuleGroupNum = moduleGroupNumber;
+                            db.Entry(item).State = EntityState.Modified;
+                            db.SaveChanges();
+                        }
+                    }
+                    result.Add("Calibration_Recorded", true);
+                    log.Operator = "校正API";
+                    log.OperateDT = DateTime.Now;
+                    log.OperateRecord = "传入参数" + parameter + ",传出结果" + true;
+                }
+                catch
+                {
+                    result.Add("Calibration_Recorded", false);
+                    log.Operator = "校正API";
+                    log.OperateDT = DateTime.Now;
+                    log.OperateRecord = "传入参数" + parameter + ",传出结果" + false;
+                }
+            }
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+            return JsonConvert.SerializeObject(result);
+        }
+        #endregion
+    }
+}

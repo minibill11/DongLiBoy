@@ -1,0 +1,413 @@
+﻿@model IEnumerable<JianHeMES.Models.Small_Sample>
+
+@{
+    ViewBag.Title = "小样查询首页";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .searchContainer {
+        text-align: center;
+    }
+
+    .bottomContainer {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+    }
+
+    table > thead > tr > th, table > tbody > tr > td {
+        text-align: center !important;
+    }
+
+    .inpuwidth {
+        width: 138px !important;
+    }
+
+    .el-select {
+        display: inline-table;
+    }
+
+    .corparationBtn {
+        margin: 0;
+        padding: 5px;
+        float: left;
+        height: 100%;
+        text-align: center;
+    }
+
+    .corparationBtn1 {
+        margin: 0;
+        padding: 5px;
+        float: left;
+        height: 100%;
+        text-align: center;
+    }
+
+    @@media screen and (max-width:868px) {
+        .bb {
+            width: 300px
+        }
+
+        .el-container {
+            margin-left: 75px;
+        }
+
+        .inpuwidth {
+            margin-bottom: 2px;
+        }
+
+        .opwidth {
+            margin-bottom: 2px;
+        }
+
+        .etable {
+            width: 868px
+        }
+
+        .el-select-dropdown__wrap {
+            max-height: 182px !important;
+        }
+    }
+
+    @@media screen and (min-width:868px) {
+        .el-container {
+            margin-left: 490px
+        }
+
+        .bb {
+            width: 920px
+        }
+
+        .etable {
+            width: 920px;
+        }
+    }
+
+    .el-picker-panel {
+        background-color: #E6E6FA;
+    }
+</style>
+
+<div id="app">
+    <h3 style="text-align:center;margin-top:10px;">小样查询首页</h3>
+    <el-container style="">
+        <a href="/Small_Sample/Small_Sample_Arguments"><el-button size="small" type="primary" plain>相关参数</el-button></a>
+        <a href="/Small_Sample/Create"><el-button size="small" type="primary" plain class="cret" style="margin-left:5px">新建报告</el-button></a>&nbsp;&nbsp;&nbsp;
+    </el-container>
+    <p></p>
+    <div class="searchContainer">
+        <el-select v-model="orderNum" size="small" allow-create filterable clearable placeholder="请选择订单号" style="width:155px" class="opwidth">
+            <el-option v-for="item in options"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-input placeholder="请输入客户名称"
+                  v-model="customerName"
+                  size="small"
+                  clearable class="inpuwidth">
+        </el-input>
+        <el-input placeholder="请输入LED厂家"
+                  v-model="ledfactory"
+                  size="small"
+                  clearable class="inpuwidth">
+        </el-input>
+        <el-input placeholder="请输入规格型号"
+                  size="small"
+                  v-model="mo1"
+                  clearable class="inpuwidth">
+        </el-input>
+        <el-input placeholder="请输入模块型号"
+                  size="small"
+                  v-model="mo2"
+                  clearable class="inpuwidth">
+        </el-input>
+        <el-select v-model="status" size="small" allow-create filterable clearable placeholder="请选择审核 / 核准状态" style="width:195px">
+            <el-option v-for="item in optionStatus"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.label">
+            </el-option>
+        </el-select>
+        <el-date-picker v-model="dataVal"
+                        type="daterange"
+                        range-separator="至"
+                        start-placeholder="开始日期"
+                        end-placeholder="结束日期" size="small" style="margin-top:9px">
+        </el-date-picker>
+        <el-button id="searchinfos" size="small" type="success" v-on:click="searchInfos">查询</el-button>
+    </div>
+    <div class="bottomContainer">
+        <div class="bb">
+            <el-table v-bind:data="tableData"
+                      ref="filterTable"
+                      border
+                      v-bind:cell-style="yellowBg"
+                      class="etable"
+                      max-height="580">
+                <el-table-column prop="Customer"
+                                 label="客户"
+                                 :filters="filterObj.Customer"
+                                 :filter-method="filterHandler"
+                                 sortable
+                                 width="95">
+                </el-table-column>
+                <el-table-column prop="OrderNumber"
+                                 label="订单号"
+                                 sortable
+                                 width="130">
+                </el-table-column>
+                <el-table-column prop="Mo1"
+                                 width="113"
+                                 :filters="filterObj.Mo1"
+                                 :filter-method="filterHandler"
+                                 sortable
+                                 label="规格型号">
+                </el-table-column>
+                <el-table-column prop="Mo2"
+                                 width="120"
+                                 :filters="filterObj.Mo2"
+                                 :filter-method="filterHandler"
+                                 sortable
+                                 label="模块型号">
+                </el-table-column>
+                <el-table-column prop="ReportDate"
+                                 width="135"
+                                 :filters="filterObj.ReportDate"
+                                 :filter-method="filterHandler"
+                                 sortable
+                                 label="报告时间">
+                </el-table-column>
+                <el-table-column prop="Assessor"
+                                 width="108"
+                                 :filters="filterObj.Assessor"
+                                 :filter-method="filterHandler"
+                                 sortable
+                                 label="审核人">
+                    <template slot-scope="scope">
+                        <span v-bind:title="scope.row.AssessorResultFailureReason==null?'通过':scope.row.AssessorResultFailureReason">{{scope.row.Assessor}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Approved"
+                                 width="108"
+                                 :filters="filterObj.Approved"
+                                 :filter-method="filterHandler"
+                                 sortable
+                                 label="核准人">
+                    <template slot-scope="scope">
+                        <span v-bind:title="scope.row.ApprovedResultFailureReason==null?'通过':scope.row.ApprovedResultFailureReason">{{scope.row.Approved}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 width="109"
+                                 label="操作">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="primary" class="corparationBtn1" v-on:click="goDisplay(scope.row)">详细</el-button>
+                        <el-button size="mini" v-show="checkRoles(roles, '新建小样报告')&&scope.row.Creator==username&&scope.row.Assessor==null&&scope.row.Approved==null" class="corparationBtn" type="danger" v-on:click="deleteReport(scope.$index, scope.row)">删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+    </div>
+</div>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+<script src="~/Scripts/filterMethod/tableFilter.js"></script>
+<script>
+    let app = new Vue({
+        el: "#app",
+        mixins: [tableFilterMixin],
+        data: {
+            username:"@UserName",
+            customerName: '',
+            showbtn: false,
+            mo1: '',
+            mo2: '',
+            orderNum: '',
+            options: [],
+            tableData: [],
+            ledfactory: '',
+            status: '',
+            dataVal:'',
+            optionStatus: [{ value: '选项一', label: '未审核' }, { value: '选项二', label: '已审核已通过' }, { value: '选项三', label: '已审核未通过' }, { value: '选项四', label: '未核准' }, { value: '选项四', label: '已核准已通过' }, { value: '选项四', label: '已核准未通过' }],
+            filterObj: {
+                Customer: [],
+                Mo2: [],
+                Mo1: [],
+                ReportDate: [],
+                Assessor: [],
+                Approved: [],
+            }
+        },
+        watch: {
+            tableData(v) {
+                if (this.tableData.length > 0) {
+                    this.timer()
+                } else { };
+                //筛选条件
+                try {
+                    if (v != '') {
+                        let rtArr = this.filterMethod(v);
+                        this.$refs.filterTable.clearFilter();
+                        for (let i in this.filterObj) {
+                            this.$set(this.filterObj, i, rtArr[i]);
+                        };
+                    };
+                } catch (err) {
+                    console.log('筛选错误')
+                };
+            },
+            customerName() {
+                if (this.customerName == '') { this.tableData =[] }
+            },
+            orderNum() {
+                if (this.orderNum == '') { this.tableData =[] }
+            },
+            mo1() {
+                if (this.mo1 == '') { this.tableData =[] }
+            },
+            mo2() {
+                if (this.mo2 == '') { this.tableData =[] }
+            },
+            ledfactory() {
+                if (this.ledfactory == '') { this.tableData =[] }
+            },
+            status() {
+                if (this.status == '') { this.tableData =[] }
+            },
+            dataVal() {
+
+                if (this.dataVal == null) { this.tableData = []; this.dataVal ='' }
+            }
+        },
+        methods: {
+
+            timer() {
+                return setTimeout(() => {
+                    this.searchInfos()
+                }, 3000)
+            },
+            searchInfos() {
+                if (this.customerName != '' || this.orderNum != '' || this.mo1 != '' || this.mo2 != '' || this.ledfactory != '' || this.status != '' || this.dataVal != '') {
+                    axios.post("/Small_Sample/Index", { customer: this.customerName, ordernum: this.orderNum, mo1: this.mo1, mo2: this.mo2, led_factory: this.ledfactory, approve: this.status, date_s: this.dataVal[0], date_e:this.dataVal[1]}).then(res => {
+                        console.log(res.data);
+                        if (res.data.length > 0) {
+                            let tt = res.data;
+                            tt.forEach(item => {
+                                let dd = new Date(item.ReportDate);
+                                let year = dd.getFullYear();
+                                let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+                                let days = dd.getDate().toString().padStart(2, 0);
+                                item.ReportDate = `${year}年${month}月${days}日`
+                            })
+                            this.tableData = res.data;
+                        } else {
+                            this.tableData = [];
+                            this.$message({
+                                message: "无对应数据",
+                                type: "warning",
+                                duration: 1000,
+                            })
+                        };
+                    }).catch(err => {
+                    })
+                } else {
+                }
+            },
+            yellowBg({ row, column, rowIndex, columnIndex }) {
+                if (row.AssessorResult == true && columnIndex == 5) {
+                    return {
+                        color: 'green',
+                    }
+                } else if (row.AssessorResult == false && columnIndex == 5) {
+                    return {
+                        color: 'red',
+                    }
+                } else if (row.ApprovedResult == true && columnIndex == 6) {
+                    return {
+                        color: 'green',
+                    }
+                } else if (row.ApprovedResult == false && columnIndex == 6) {
+                    return {
+                        color: 'red',
+                    }
+                } else {
+                    return {
+                        color: '',
+                    }
+                };
+            },
+            getOrderList() {
+                axios.post("/Commonality/GetOrderNumListJSON").then(res => {
+                    for (let item in res.data) {
+                        let obj = { label: res.data[item], value: res.data[item] }
+                        this.options.push(obj)
+                    }
+                }).catch(err => { })
+            },
+            goDisplay(item) {
+                window.open("/Small_Sample/Display?" + "id=" + item.Id);
+            },
+            deleteReport(index, row) {
+                var comfirm = confirm(`确认删除订单号为${row.OrderNumber}这条信息吗？`);
+                if (comfirm) {
+                    axios.post("/Small_Sample/DeleteSmallSampleReport", { id: row.Id }).then(res => {
+                        console.log(res.data)
+                        if (res.data == '小样报告删除成功！') {
+                            this.$message({
+                                message: res.data,
+                                type: 'success',
+                            })
+                            this.tableData.forEach((item, index) => {
+                                if (item.Id == row.Id) {
+                                    this.tableData.splice(index, 1)
+                                }
+                            })
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                            })
+                        }
+                    })
+                }
+            },
+        },
+        mounted() {
+            this.getOrderList();
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '新建小样报告')) {
+                $('.cret').show()
+            } else {
+                $('.cret').hide()
+            };
+        }
+    });
+    document.onkeydown = function (event) {
+        var e = event || window.event;    // 兼容IE
+        if (e && e.keyCode == 13) { //回车键的键值为13
+            $("#searchinfos").click();
+        }
+    };
+
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>
+

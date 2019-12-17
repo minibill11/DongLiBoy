@@ -1,0 +1,1082 @@
+﻿
+@{
+    ViewBag.Title = "小样测试报告";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/jsPdf.debug.js"></script>
+<script src="~/Scripts/html2canvas_0.5.0-beta4.js"></script>
+
+<style>
+    #app {
+        width: 880px;
+        margin: 0 auto;
+    }
+
+    table td {
+        font-size: 13px;
+        text-align: center;
+        line-height: 20px;
+        height: 31px;
+    }
+
+    .red {
+        color: red;
+        border-color: black;
+    }
+
+    .pass {
+        color: green;
+    }
+
+    .tdco {
+        border-left: solid 1px #ffffff;
+        border-right: solid 1px #ffffff;
+    }
+
+    .el-upload__input {
+        display: none !important;
+    }
+
+
+
+    .el-upload-list__item:first-child {
+        margin-left: 50px;
+        height: 20px;
+        margin-top: 2px;
+    }
+
+    .color {
+        color: red;
+    }
+
+    .red1 {
+        background-color: red;
+    }
+
+    .tdco1 {
+        border-left: solid 1px #ffffff;
+        border-right: solid 1px #ffffff;
+        border-bottom: solid 1px #ffffff;
+    }
+
+    .tdsty {
+        text-align: left;
+        border: none
+    }
+
+    @@media screen and (max-width:822px) {
+        .bt {
+            font-size: 20px;
+            margin-left: 0px;
+        }
+
+        .divid {
+            margin: 0px;
+            justify-content: flex-end;
+            display: flex;
+        }
+
+        #testid {
+            margin-left: 395px;
+        }
+
+        .returnid {
+            margin-left: 40px;
+            margin-bottom: 2px;
+            margin-top: 5px;
+        }
+    }
+
+    @@media screen and (min-width:822px) {
+        .divid {
+            display: flex;
+            /*justify-content: flex-end;*/
+            /*width: 100%;*/
+        }
+
+        .bt {
+            margin-top: 5px;
+            margin-left: 300px;
+        }
+
+        #testid {
+            margin-left: 100px;
+            margin-top: 10px;
+        }
+
+        .returnid {
+            display: flex;
+            justify-content: space-between;
+            margin-left: 65%;
+            width: 72%;
+            margin-top: 12px;
+            margin-bottom: 2px;
+        }
+    }
+
+    .el-textarea__inner {
+        height: 110px;
+    }
+    [v-cloak] {
+        display: none !important;
+    }
+</style>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+<div id="app" v-cloak>
+    <div class="returnid" style="display:inline-block">
+        @*<button class="btn btn-primary" id="printpdf" style="display:none">PDF(图片)</button>*@
+        <button class="btn btn-primary" id="printpdf1" style="display:none" v-on:click="goDisplay()">PDF预览(矢量)</button>
+        <button class="btn btn-primary" id="printpdf2" style="display:none" v-on:click="goDisplay2()">PDF下载(矢量)</button>
+
+    </div>
+    <div id="jsPDF" style="padding:5px 3px 20px">
+        <div id="htmlId">
+            <h5 style="margin-left:36px;border-bottom: 1px solid black ;padding: 0px;width:808px">&nbsp;惠州市健和光电有限公司</h5>
+            <div class="divid">
+                <h3 class="bt" style="border-bottom: 2px solid black ;padding: 0px;">小样光电参数测试报告</h3>
+                <span id="testid">报告日期:{{list.ReportDate | timeFilter}}</span>
+            </div>
+            <table border="1" cellspacing="0" style="margin:0 auto;width:822px;border-left:none;border-right:none;border-bottom:none;">
+                <colgroup>
+                    <col width="40">
+                    <col width="78">
+                    <col width="90">
+                    <col width="85">
+                    <col width="85">
+                    <col width="85">
+                    <col width="85">
+                    <col width="90">
+                    <col width="98">
+                    <col width="85">
+                    <col width="85">
+                    <col width="82">
+                </colgroup>
+                <tr>
+                    <td colspan="2">客户名称</td>
+                    <td colspan="2">{{list.Customer}}</td>
+                    <td>生产单号</td>
+                    <td colspan="2">{{list.OrderNumber}}</td>
+                    <td>规格型号</td>
+                    <td>{{list.Mo1}}</td>
+                    <td colspan="2">模块数量(单位:PCS)</td>
+                    <td>{{list.Module_Number}}</td>
+                </tr>
+                <tr>
+                    <td colspan="12" class="tdco">&nbsp</td>
+                </tr>
+                <tr>
+                    <td colspan="7" style="text-align:left">{{list.Te1}}</td>
+                    <td>实际点间距</td>
+                    <td>{{list.Actual_point}}</td>
+                    <td colspan="3"></td>
+                </tr>
+                <tr>
+                    <td colspan="8" style="text-align:left">{{list.Te2}}</td>
+                    <td>订单接收卡:</td>
+                    <td colspan="3">{{list.ReceivingCard}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">模块型号：</td>
+                    <td colspan="2" class="moduleNum">{{list.Mo2}}</td>
+                    <td>点数：</td>
+                    <td>{{list.Points}}</td>
+                    <td>扫描数</td>
+                    <td>{{list.Scanningway}}</td>
+                    <td>调试系统</td>
+                    <td colspan="3">{{list.system}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">测试条件:</td>
+                    <td class="tdspan">{{list.Te3}}</td>
+                    <td>{{list.fixed_value}}</td>
+                    <td colspan="2">驱动板电压(V)</td>
+                    <td>{{list.Driveplate}}</td>
+                    <td>电源型号</td>
+                    <td colspan="4">{{list.Mo3}}</td>
+                </tr>
+                <tr>
+                    <td colspan="12" class="tdco">样品参数实测值</td>
+                </tr>
+                <tr>
+                    <td colspan="2">角度</td>
+                    <td>颜色</td>
+                    <td colspan="2">R</td>
+                    <td colspan="2">G</td>
+                    <td colspan="2">B</td>
+                    <td colspan="3">W</td>
+                </tr>
+                <tr>
+                    <td colspan="2" rowspan="2">0°</td>
+                    <td>亮度</td>
+                    <td colspan="2" class="luminance">{{list.Angle_R1}}</td>
+                    <td colspan="2" class="luminance">{{list.Angle_G1}}</td>
+                    <td colspan="2" class="luminance">{{list.Angle_B1}}</td>
+                    <td colspan="3">{{list.Angle_W1}}</td>
+                </tr>
+                <tr>
+                    <td>坐标</td>
+                    <td>{{list.Angle_R2}}</td>
+                    <td>{{list.Angle_R3}}</td>
+                    <td>{{list.Angle_G2}}</td>
+                    <td>{{list.Angle_G3}}</td>
+                    <td>{{list.Angle_B2}}</td>
+                    <td>{{list.Angle_B3}}</td>
+                    <td colspan="2" class="colorTmin">{{list.Angle_W2}}</td>
+                    <td class="colorTmax">{{list.Angle_W3}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" rowspan="2">客户要求</td>
+                    <td>亮度</td>
+                    <td colspan="2">{{list.Client_R1==0?'/':list.Client_R1}}</td>
+                    <td colspan="2">{{list.Client_G1==0?'/':list.Client_G1}}</td>
+                    <td colspan="2">{{list.Client_B1==0?'/':list.Client_B1}}</td>
+                    <td>{{list.Client_W1}}</td>
+                    <td class="front">{{list.Client_W1_V==0?'':list.Client_W1_V}}</td>
+                    <td>{{list.Client_W2==0?'':list.Client_W2}}</td>
+                </tr>
+                <tr>
+                    <td>坐标</td>
+                    <td>{{list.Client_R2==0?'/':list.Client_R2}}</td>
+                    <td>{{list.Client_R3==0?'/':list.Client_R3}}</td>
+                    <td>{{list.Client_G2==0?'/':list.Client_G2}}</td>
+                    <td>{{list.Client_G3==0?'/':list.Client_G3}}</td>
+                    <td>{{list.Client_B2==0?'/':list.Client_B2}}</td>
+                    <td>{{list.Client_B3==0?'/':list.Client_B3}}</td>
+                    <td colspan="2">{{list.Client_W3==0?'/':list.Client_W3}}</td>
+                    <td>{{list.Client_W4==0?'/':list.Client_W4}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">{{list.Points_R_G_B_W==null?"分压电/排阻阻值(欧)":list.Points_R_G_B_W}}</td>
+                    <td colspan="2">{{list.Points_R}}</td>
+                    <td colspan="2">/</td>
+                    <td colspan="2">/</td>
+                    <td colspan="3">/</td>
+                </tr>
+                <tr>
+                    <td colspan="3">可调用电阻阻值(欧)</td>
+                    <td colspan="2">{{list.Adju_R}}</td>
+                    <td colspan="2">{{list.Adju_G}}</td>
+                    <td colspan="2">{{list.Adju_B}}</td>
+                    <td colspan="3">/</td>
+                </tr>
+                <tr>
+                    <td colspan="3">单IC引脚电流(mA)</td>
+                    <td class="targetOne" colspan="2">{{list.IC_R1}}</td>
+                    <td class="targetTwo" colspan="2">{{list.IC_G1}}</td>
+                    <td class="targetThree" colspan="2">{{list.IC_B1}}</td>
+                    <td colspan="3">{{list.IC_W1==0?'':list.IC_W1}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">IC   VDS</td>
+                    <td colspan="2">{{list.IC_R2}}</td>
+                    <td colspan="2">{{list.IC_G2}}</td>
+                    <td colspan="2">{{list.IC_B2}}</td>
+                    <td colspan="3">{{list.IC_W2==0?'':list.IC_W2}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">模 块 电 流(A)</td>
+                    <td colspan="4" class="electricity">{{list.Module_current}}</td>
+                    <td colspan="2">IC 型号</td>
+                    <td colspan="3" class="icstyle">{{list.IC3}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">刷新频率</td>
+                    <td colspan="2">{{list.R1}}</td>
+                    <td colspan="2">接收卡Data包</td>
+                    <td colspan="5">{{list.R2}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">接收卡带载点数</td>
+                    <td>{{list.R3}}</td>
+                    <td>{{list.R4}}</td>
+                    <td colspan="2">LCT版本</td>
+                    <td colspan="5">{{list.LCT}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">亮度有效率(%)</td>
+                    <td colspan="2">{{list.De1_dec}}</td>
+                    <td colspan="2">灰度等级</td>
+                    <td colspan="2">{{list.De2}}</td>
+                    <td>DCLK</td>
+                    <td colspan="2">{{list.DCLK}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">电源带载率(%)</td>
+                    <td colspan="2">{{list.Load}}</td>
+                    <td colspan="2">每平方最大功耗(W/m²)</td>
+                    <td colspan="2">{{list.Per}}</td>
+                    <td>GCLK</td>
+                    <td colspan="2">{{list.GCLK==0?'':list.GCLK}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">MOS管型号</td>
+                    <td colspan="2">{{list.MOS1}}</td>
+                    <td colspan="2">MOS压降(V)</td>
+                    <td colspan="2">{{list.MOS2}}</td>
+                    <td>电流增益</td>
+                    <td colspan="2">{{list.Current}}</td>
+                </tr>
+
+                <tr>
+                    <td colspan="12" class="tdco">小样灯管及参数(供应商测试值)</td>
+                </tr>
+                <tr>
+                    <td colspan="3">LED厂家及型号</td>
+                    <td colspan="2"></td>
+                    <td colspan="2">IV(mcd)</td>
+                    <td colspan="2">WD(nm)</td>
+                    <td colspan="2">正向电压（vf）</td>
+                    <td>IV@IF(mA)</td>
+                </tr>
+                <tr>
+                    <td rowspan="2">R</td>
+                    <td colspan="2" rowspan="2">{{list.LED_R1}}</td>
+                    <td colspan="2">实际范围</td>
+                    <td>{{list.LED_R2==0?'':list.LED_R2}}</td>
+                    <td>{{list.LED_R4==0?'':list.LED_R4}}</td>
+                    <td>{{list.LED_R6==0?'':list.LED_R6}}</td>
+                    <td>{{list.LED_R7==0?'':list.LED_R7}}</td>
+                    <td rowspan="2">{{list.LED_R9==0?'':list.LED_R9}}</td>
+                    <td rowspan="2">{{list.LED_R10==0?'':list.LED_R10}}</td>
+                    <td rowspan="2">{{list.LED_R11==0?'':list.LED_R11}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Min:Max</td>
+                    <td>{{list.LED_R3==0?'':list.LED_R3}}</td>
+                    <td>{{list.LED_R5==0?'':list.LED_R5}}</td>
+                    <td colspan="2">{{list.LED_R8==0?'':list.LED_R8}}</td>
+                </tr>
+
+                <tr>
+                    <td rowspan="2">G</td>
+                    <td colspan="2" rowspan="2">{{list.LED_G1}}</td>
+                    <td colspan="2">实际范围</td>
+                    <td>{{list.LED_G2==0?'':list.LED_G2}}</td>
+                    <td>{{list.LED_G4==0?'':list.LED_G4}}</td>
+                    <td>{{list.LED_G6==0?'':list.LED_G6}}</td>
+                    <td>{{list.LED_G7==0?'':list.LED_G7}}</td>
+                    <td rowspan="2">{{list.LED_G9==0?'':list.LED_G9}}</td>
+                    <td rowspan="2">{{list.LED_G10==0?'':list.LED_G10}}</td>
+                    <td rowspan="2">{{list.LED_G11==0?'':list.LED_G11}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Min:Max</td>
+                    <td>{{list.LED_G3==0?'':list.LED_G3}}</td>
+                    <td>{{list.LED_G5==0?'':list.LED_G5}}</td>
+                    <td colspan="2">{{list.LED_G8==0?'':list.LED_G8}}</td>
+                </tr>
+
+                <tr>
+                    <td rowspan="2">B</td>
+                    <td colspan="2" rowspan="2">{{list.LED_B1}}</td>
+                    <td colspan="2">实际范围</td>
+                    <td>{{list.LED_B2==0?'':list.LED_B2}}</td>
+                    <td>{{list.LED_B4==0?'':list.LED_B4}}</td>
+                    <td>{{list.LED_B6==0?'':list.LED_B6}}</td>
+                    <td>{{list.LED_B7==0?'':list.LED_B7}}</td>
+                    <td rowspan="2">{{list.LED_B9==0?'':list.LED_B9}}</td>
+                    <td rowspan="2">{{list.LED_B10==0?'':list.LED_B10}}</td>
+                    <td rowspan="2">{{list.LED_B11==0?'':list.LED_B11}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Min:Max</td>
+                    <td>{{list.LED_B3==0?'':list.LED_B3}}</td>
+                    <td>{{list.LED_B5==0?'':list.LED_B5}}</td>
+                    <td colspan="2">{{list.LED_B8==0?'':list.LED_B8}}</td>
+                </tr>
+
+                <tr>
+                    <td colspan="12" class="tdco">小样灯管及参数(联建测试值)</td>
+                </tr>
+                <tr>
+                    <td colspan="3">LED厂家及型号</td>
+                    <td colspan="2"></td>
+                    <td colspan="2">IV(mcd)</td>
+                    <td colspan="2">WD(nm)</td>
+                    <td colspan="2">正向电压（vf）</td>
+                    <td>IV@IF(mA)</td>
+                </tr>
+                <tr>
+                    <td rowspan="2">R</td>
+                    <td colspan="2" rowspan="2">{{list.Small_R1}}</td>
+                    <td colspan="2">实际范围</td>
+                    <td>{{list.Small_R2==0?'':list.Small_R2}}</td>
+                    <td>{{list.Small_R4==0?'':list.Small_R4}}</td>
+                    <td>{{list.Small_R6==0?'':list.Small_R6}}</td>
+                    <td>{{list.Small_R7==0?'':list.Small_R7}}</td>
+                    <td rowspan="2">{{list.Small_R9==0?'':list.Small_R9}}</td>
+                    <td rowspan="2">{{list.Small_R10==0?'':list.Small_R10}}</td>
+                    <td rowspan="2">{{list.Small_R11==0?'':list.Small_R11}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Min:Max</td>
+                    <td>{{list.Small_R3==0?'':list.Small_R3}}</td>
+                    <td>{{list.Small_R5==0?'':list.Small_R5}}</td>
+                    <td colspan="2">{{list.Small_R8==0?'':list.Small_R8}}</td>
+                </tr>
+
+                <tr>
+                    <td rowspan="2">G</td>
+                    <td colspan="2" rowspan="2">{{list.Small_G1}}</td>
+                    <td colspan="2">实际范围</td>
+                    <td>{{list.Small_G2==0?'':list.Small_G2}}</td>
+                    <td>{{list.Small_G4==0?'':list.Small_G4}}</td>
+                    <td>{{list.Small_G6==0?'':list.Small_G6}}</td>
+                    <td>{{list.Small_G7==0?'':list.Small_G7}}</td>
+                    <td rowspan="2">{{list.Small_G9==0?'':list.Small_G9}}</td>
+                    <td rowspan="2">{{list.Small_G10==0?'':list.Small_G10}}</td>
+                    <td rowspan="2">{{list.Small_G11==0?'':list.Small_G11}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Min:Max</td>
+                    <td>{{list.Small_G3==0?'':list.Small_G3}}</td>
+                    <td>{{list.Small_G5==0?'':list.Small_G5}}</td>
+                    <td colspan="2">{{list.Small_G8==0?'':list.Small_G8}}</td>
+                </tr>
+
+                <tr>
+                    <td rowspan="2">B</td>
+                    <td colspan="2" rowspan="2">{{list.Small_B1}}</td>
+                    <td colspan="2">实际范围</td>
+                    <td>{{list.Small_B2==0?'':list.Small_B2}}</td>
+                    <td>{{list.Small_B4==0?'':list.Small_B4}}</td>
+                    <td>{{list.Small_B6==0?'':list.Small_B6}}</td>
+                    <td>{{list.Small_B7==0?'':list.Small_B7}}</td>
+                    <td rowspan="2">{{list.Small_B9==0?'':list.Small_B9}}</td>
+                    <td rowspan="2">{{list.Small_B10==0?'':list.Small_B10}}</td>
+                    <td rowspan="2">{{list.Small_B11==0?'':list.Small_B11}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Min:Max</td>
+                    <td>{{list.Small_B3==0?'':list.Small_B3}}</td>
+                    <td>{{list.Small_B5==0?'':list.Small_B5}}</td>
+                    <td colspan="2">{{list.Small_B8==0?'':list.Small_B8}}</td>
+                </tr>
+
+                <tr>
+                    <td colspan="12" style="text-align:left">&nbsp;{{list.ReportRemark}}</td>
+                </tr>
+                <tr class="tdco1">
+                    <td class="tdsty"></td>
+                    <td colspan="4" class="tdsty">
+                        核准：{{reasonAps}}
+                        <el-select v-model="value" placeholder="请选择" class="approveOne" clearable size="mini" style="width:100px;margin-top:2px">
+                            <el-option v-for="item in options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.label">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" type="primary" plain v-on:click="postInfor1" class="approveOne" v-bind:disabled="bind1">确认</el-button>
+                        {{list.Approved}}
+                    </td>
+                    <td colspan="4" class="tdsty">
+                        审核：{{reasonRe}}
+                        <el-select v-model="value1" placeholder="请选择" clearable class="approveTwo" size="mini" style="width:120px;margin-top:2px">
+                            <el-option v-for="item in options1"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.label">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" type="primary" plain v-on:click="postInfor" class="approveTwo" v-bind:disabled="bind">确认</el-button>
+                        {{list.Assessor}}
+                    </td>
+                    <td colspan="3" class="tdsty" style="text-align:left">测试：{{list.Tester}}</td>
+                </tr>
+                <tr class="tdco1">
+                    <td class="tdsty"></td>
+                    <td colspan="3" class="tdsty">{{list.ApprovedDate | timeFilter2}}</td>
+                    <td class="tdsty"></td>
+                    <td colspan="3" class="tdsty">{{list.AssessedDate | timeFilter2}}</td>
+                    <td class="tdsty"></td>
+                    <td colspan="3" class="tdsty">{{list.CreatedDate | timeFilter2}}</td>
+                </tr>
+                <tr class="tdco1">
+                    <td colspan="1" class="tdsty"></td>
+                    <td colspan="4" class="tdsty">
+                        <span style="width:200px">{{list.ApprovedResultFailureReason}}</span>
+                    </td>
+                    <td colspan="4" class="tdsty">
+                        <span style="width:200px">{{list.AssessorResultFailureReason}}</span>
+                    </td>
+                    <td colspan="3" class="tdsty">&nbsp;&nbsp;{{list.ReportVersionNumber}}</td>
+                </tr>
+            </table>
+        </div>
+
+        <el-dialog title="提示" v-bind:visible.sync="assVisible" width="400px">
+            <span slot="title">
+                <h3 style="text-align:center;">审核不通过原因</h3>
+                <el-form label-position="labelPosition" label-width="80px">
+                    <el-form-item label="原因：" style="margin-top:25px">
+                        <el-input v-model="reason" size="small" style="width:250px;" type="textarea"></el-input>
+                    </el-form-item>
+                </el-form>
+            </span>
+            <span slot="footer" class="dialog-footer">
+                <el-button v-on:click="cancel" size="small">取 消</el-button>
+                <el-button type="primary" v-on:click="addReason" size="small">添 加</el-button>
+            </span>
+        </el-dialog>
+        <el-dialog title="提示" v-bind:visible.sync="apsVisible" width="400px">
+            <span slot="title">
+                <h3 style="text-align:center;">核准不通过原因</h3>
+                <el-form label-position="labelPosition" label-width="80px">
+                    <el-form-item label="原因：" style="margin-top:25px">
+                        <el-input v-model="reason1" size="small" style="width:250px;" type="textarea"></el-input>
+                    </el-form-item>
+                </el-form>
+            </span>
+            <span slot="footer" class="dialog-footer">
+                <el-button v-on:click="cancel1" size="small">取 消</el-button>
+                <el-button type="primary" v-on:click="addReason1" size="small">添 加</el-button>
+            </span>
+        </el-dialog>
+    </div>
+</div>
+
+<script>
+    Vue.filter("timeFilter", function (val) {
+        if (!val) return '';
+        let dd = new Date(val);
+        let yy = dd.getFullYear();
+        let mm = (dd.getMonth() + 1).toString().padStart(2,0);
+        let ds = dd.getDate().toString().padStart(2, 0);
+        let hour = dd.getHours().toString().padStart(2, 0);
+        let minium = dd.getMinutes().toString().padStart(2, 0);
+        let seconds = dd.getSeconds().toString().padStart(2, 0);
+        return `${yy}年${mm}月${ds}日`
+    })
+    Vue.filter("timeFilter2", function (val) {
+        if (!val) return '';
+        let dd = new Date(val);
+        let yy = dd.getFullYear();
+        let mm = (dd.getMonth() + 1).toString().padStart(2, 0);
+        let ds = dd.getDate().toString().padStart(2, 0);
+        let hour = dd.getHours().toString().padStart(2, 0);
+        let minium = dd.getMinutes().toString().padStart(2, 0);
+        let seconds = dd.getSeconds().toString().padStart(2, 0);
+        return `${yy}年${mm}月${ds}日 ${hour}:${minium}:${seconds}`
+    })
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r != null) return unescape(r[2]); return null;
+    }
+    let app = new Vue({
+        el: "#app",
+        data: {
+            
+            id: null,
+            list: {},
+            assVisible: false, //用于审核不通过显示原因输入框
+            reason: null,      //审核不通过原因
+            reasonRe:null,     //用于将审核通过，未通过放在名字的前面
+            flags: true,
+            bind: true,        //控制审核确认按钮
+            value1: null,      //用于存放审核选择框中的值
+            bind1: true,       //用于控制核准确认按钮
+            reason1: null,     //核准不通过原因
+            flagss: true,
+            reasonAps:null,     //用于将核准通过、不通过放在名字的前面
+            apsVisible: false,  //用于核准不通过显示原因输入框
+            value: null,        //用于存放核准选择框中的值
+            options: [{ value: '选项一', label: '通过' }, { value: '选项二', label: '不通过' }],
+            options1: [{ value: '选项一', label: '通过' }, { value: '选项二', label: '不通过' }],
+        },
+        methods: {
+            goDisplay() {
+                window.open("/Small_Sample/DisplayAsPdf?" + "id=" + this.list.Id);
+            },
+            goDisplay2() {
+                window.open("/Small_Sample/DisplayAsPdf?" + "id=" + this.list.Id+"&downloadfile=true");
+            },
+
+            //取消填写审核原因
+            cancel() {
+                this.reason = null;
+                this.assVisible = false;
+                this.reason = null;
+            },
+            //添加审核不通过原因
+            addReason() {
+                this.assVisible = false;
+                if (this.reason != null || this.reason != '') {
+                    this.bind = false;
+                } else {
+                    this.bind = true;
+                }
+            },
+            // 取消填写核准原因
+            cancel1(){
+                this.reason1 = null;
+                this.apsVisible = false;
+                this.reason1 = null;
+            },
+            //添加核准不通过原因
+            addReason1() {
+                this.apsVisible = false;
+                if (this.reason1 != null || this.reason1 != '') {
+                    this.bind1 = false;
+                } else {
+                    this.bind1 = true;
+                }
+            },
+            geTableData() {
+                axios.post("/Small_Sample/Display", { id: this.id }).then(res => {                   
+                    console.log(res.data)
+                    this.list = res.data
+                    this.checkInfos();
+                    if (this.list.AssessorResult == true) {
+                        this.reasonRe = '通过'
+                    } else if (this.list.AssessorResult == false) {
+                        this.reasonRe = '不通过'
+                    } else {
+                        this.reasonRe = null
+                    };
+                    if (this.list.ApprovedResult == true) {
+                        this.reasonAps = '通过'
+                    } else if (this.list.ApprovedResult == false) {
+                        this.reasonAps = '不通过'
+                    } else {
+                        this.reasonAps = null
+                    };
+                }).catch(err => {
+                    this.$message({
+                        message: "连接失败",
+                        type: "warning"
+                    })
+                })
+            },
+            checkInfos() {
+                //白色亮度确认
+                var rgbs = ((this.list.Angle_R1 + this.list.Angle_G1 + this.list.Angle_B1) * 0.98).toFixed(2);
+                //console.log(this.list)
+                var rgb1 = ((this.list.Angle_R1 + this.list.Angle_G1 + this.list.Angle_B1) * 1.02).toFixed(2);
+                //console.log(rgb1)
+                if (rgbs > this.list.Angle_W1 || this.list.Angle_W1 > rgb1) {
+                    $(".luminance").removeClass("pass")
+                    $(".luminance").addClass("red")
+                    $(".luminance").removeAttr("title")
+                    $(".luminance").attr("title", 'R+G+B之和应在' + rgbs + '-' + rgb1 + '之间')
+                } else {
+                    $(".luminance").removeClass("red")
+                    $(".luminance").addClass("pass")
+                    $(".luminance").removeAttr("title")
+                    $(".luminance").attr("title", 'R+G+B之和在' + rgbs + '-' + rgb1 + '之间')
+                };
+
+                //白色温度确认
+                if (this.list.Client_W2 === 8500) { //8500K
+                    if (0.285 > this.list.Angle_W2 || this.list.Angle_W2 > 0.291) {
+                        $(".colorTmin").removeClass("pass")
+                        $(".colorTmin").addClass("red")
+                        $(".colorTmin").removeAttr("title")
+                        $(".colorTmin").attr("title", '色温范围应在0.285-0.291之间')
+                    } else {
+                        $(".colorTmin").removeClass("red")
+                        $(".colorTmin").addClass("pass")
+                        $(".colorTmin").removeAttr("title")
+                        $(".colorTmin").attr("title", '色温范围在0.285-0.291之间')
+                    };
+                    if (0.302 > this.list.Angle_W3 || this.list.Angle_W3 > 0.308) {
+                        $(".colorTmax").removeClass("pass")
+                        $(".colorTmax").addClass("red")
+                        $(".colorTmax").removeAttr("title")
+                        $(".colorTmax").attr("title", '色温范围应在0.302-0.308之间')
+                    } else {
+                        $(".colorTmax").removeClass("red")
+                        $(".colorTmax").addClass("pass")
+                        $(".colorTmax").removeAttr("title")
+                        $(".colorTmax").attr("title", '色温范围在0.302-0.308之间')
+                    };
+                } else if (this.list.Client_W2 === 6500) { //6500K
+                    if (0.310 > this.list.Angle_W2 || this.list.Angle_W2 > 0.316) {
+                        $(".colorTmin").removeClass("pass")
+                        $(".colorTmin").addClass("red")
+                        $(".colorTmin").removeAttr("title")
+                        $(".colorTmin").attr("title", '色温范围应在0.310-0.316之间')
+                    } else {
+                        $(".colorTmin").removeClass("red")
+                        $(".colorTmin").addClass("pass")
+                        $(".colorTmin").removeAttr("title")
+                        $(".colorTmin").attr("title", '色温范围在0.310-0.316之间')
+
+                    };
+                    if (0.325 > this.list.Angle_W3 || this.list.Angle_W3 > 0.331) {
+                        $(".colorTmax").removeClass("pass")
+                        $(".colorTmax").addClass("red")
+                        $(".colorTmax").removeAttr("title")
+                        $(".colorTmax").attr("title", '色温范围应在0.325-0.331之间')
+                    } else {
+                        $(".colorTmax").removeClass("red")
+                        $(".colorTmax").addClass("pass")
+                        $(".colorTmax").removeAttr("title")
+                        $(".colorTmax").attr("title", '色温范围在0.325-0.331之间')
+
+                    }
+                } else {
+                    this.$message({
+                        message: "L15单元格不是8500或6500,无法给出范围值",
+                        type: "warning",
+                        duration: 8000,
+                    })
+                };
+
+                //白平衡确认
+                if (this.list.Client_W1 === '校正前') {
+                    var minq = (this.list.Client_W1_V * 1.1 * 0.97).toFixed(2);
+                    var maxq = (this.list.Client_W1_V * 1.1 * 1.03).toFixed(2);
+                    if (minq > this.list.Angle_W1 || this.list.Angle_W1 > maxq) {
+                        $(".front").removeClass("pass")
+                        $(".front").addClass("red")
+                        $(".front").removeAttr("title")
+                        $(".front").attr("title", '白平衡范围应在' + minq + '-' + maxq + '之间')
+                    } else {
+                        $(".front").removeClass("red")
+                        $(".front").addClass("pass")
+                        $(".front").removeAttr("title")
+                        $(".front").attr("title", '白平衡范围在' + minq + '-' + maxq + '之间')
+                    }
+                } else if (this.list.Client_W1 === '校正后') {
+                    var minh = (this.list.Client_W1_V * 1.17 * 0.97).toFixed(2);
+                    var maxh = (this.list.Client_W1_V * 1.17 * 1.03).toFixed(2);
+                    if (minh > this.list.Angle_W1 || this.list.Angle_W1 > maxh) {
+                        $(".front").removeClass("pass")
+                        $(".front").addClass("red")
+                        $(".front").removeAttr("title")
+                        $(".front").attr("title", '白平衡范围应在' + minh + '-' + maxh + '之间')
+                    } else {
+                        $(".front").removeClass("red")
+                        $(".front").addClass("pass")
+                        $(".front").removeAttr("title")
+                        $(".front").attr("title", '白平衡范围在' + minh + '-' + maxh + '之间')
+                    }
+                } else {
+                    this.$message({
+                        message: 'J15单元格不是校正前，也不是校正后,无法计算',
+                        type: "warning",
+                        duration: 8000,
+                    })
+                };
+
+                //单板电流确认，恢复有0时的提示
+                if (this.list.Mo2 != null) {
+                    if (this.list.Scanningway == 0) {
+                        $(".electricity").attr("title", "扫描数为0,无法计算模块电流!")
+                        $(".electricity").addClass("red")
+                    }
+                    else {
+                        $(".electricity").removeAttr("title")
+                        $(".electricity").removeClass("red")
+                        axios.post("/Small_Sample/IC_ModelRange", {
+                            IC_R1: this.list.IC_R1,
+                            IC_G1: this.list.IC_G1,
+                            IC_B1: this.list.IC_B1,
+                            Points: this.list.Points,
+                            Scanningway: this.list.Scanningway,
+                            Mo2: this.list.Mo2
+                        }).then(res => {
+                            console.log(res.data.最低值)
+                            console.log(res.data.最高值)
+                            if (res.data == '找不到模块型号!') {
+                                this.$message({
+                                    message: '找不到模块型号!',
+                                    type: 'warning', duration: 8000
+                                });
+                                $(".moduleNum").addClass("red1")
+                                $(".electricity").addClass("red")
+                                $(".electricity").attr("title", res.data)
+                            } else {
+                                $(".moduleNum").removeClass("red1")
+                                $(".electricity").removeClass("red")
+                                $(".electricity").removeAttr("title")
+                                if (true) {
+                                    var arry = {};
+                                    arry = res.data;
+                                    if ((arry.最低值).toFixed(2) > this.list.Module_current || this.list.Module_current > (arry.最高值).toFixed(2)) {
+                                        $(".electricity").removeClass("pass")
+                                        $(".electricity").addClass("red")
+                                        $(".electricity").removeAttr("title")
+                                        $(".electricity").attr("title", '单板电流应在' + (arry.最低值).toFixed(2) + '-' + (arry.最高值).toFixed(2) + '之间')
+                                    } else {
+                                        $(".electricity").removeClass("red")
+                                        $(".electricity").addClass("pass")
+                                        $(".electricity").removeAttr("title")
+                                        $(".electricity").attr("title", '单板电流在' + (arry.最低值).toFixed(2) + '-' + (arry.最高值).toFixed(2) + '之间')
+                                    }
+                                } else {
+                                    this.$message({
+                                        message: res.data,
+                                        type: "warning"
+                                    });
+                                    $(".moduleNum").css("background-color", "red")
+                                    $(".electricity").css("background-color", "red")
+                                }
+                            }
+                        })
+                    }
+                } else {
+                    this.$message({
+                        message: "没有模块型号,无法计算模块电流!",
+                        type: "warning"
+                    });
+                    $(".moduleNum").css("background-color", "red")
+                    $(".electricity").css("background-color", "red")
+                    $(".electricity").attr("title", "没有模块型号,无法计算模块电流!")
+                };
+
+                //单IC引脚计算
+                if (this.list.Adju_R != null && this.list.Adju_G != null && this.list.Adju_B != null) {
+                    if (this.list.IC3 == '' || this.list.IC3 == null) {
+                        this.$message({
+                            message: "此报告没有IC型号",
+                            type: "warning",
+                            duration: 0,
+                            showClose: true,
+                        });
+                        $(".targetOne").addClass("red")
+                        $(".targetTwo").addClass("red")
+                        $(".targetThree").addClass("red")
+                        $(".icstyle").addClass("red1")
+                        $(".targetOne").attr('title', '此报告没有IC型号')
+                        $(".targetTwo").attr("title", '此报告没有IC型号')
+                        $(".targetThree").attr("title", '此报告没有IC型号')
+                    } else {
+                        $(".icstyle").removeClass("red1")
+                        range1 = this.range(this.list.Adju_R);
+                        range2 = this.range(this.list.Adju_G);
+                        range3 = this.range(this.list.Adju_B);
+                        if (range1[0] > this.list.IC_R1 || this.list.IC_R1 > range1[1]) {
+                            $(".targetOne").addClass("red")
+                            $(".targetOne").attr("title", '单IC引脚电流应在' + range1[0] + '-' + range1[1] + '之间')
+                        } else {
+                            $(".targetOne").addClass("pass")
+                            $(".targetOne").attr("title", '单IC引脚电流在' + range1[0] + '-' + range1[1] + '之间')
+                        }
+                        if (range2[0] > this.list.IC_G1 || this.list.IC_G1 > range2[1]) {
+                            $(".targetTwo").addClass("red")
+                            $(".targetTwo").attr("title", '单IC引脚电流应在' + range2[0] + '-' + range2[1] + '之间')
+                        } else {
+                            $(".targetTwo").addClass("pass")
+                            $(".targetTwo").attr("title", '单IC引脚电流在' + range2[0] + '-' + range2[1] + '之间')
+                        }
+                        if (range3[0] > this.list.IC_B1 || this.list.IC_B1 > range3[1]) {
+                            $(".targetThree").addClass("red")
+                            $(".targetThree").attr("title", '单IC引脚电流应在' + range3[0] + '-' + range3[1] + '之间')
+                        } else {
+                            $(".targetThree").addClass("pass")
+                            $(".targetThree").attr("title", '单IC引脚电流在' + range3[0] + '-' + range3[1] + '之间')
+                        }
+                    }
+                }
+            },
+            // 计算范围
+            range(r) {
+                let Lvalue = parseFloat(this.list.De1_dec)
+                if (Lvalue > 1) {
+                    var L = (Lvalue / 100).toFixed(4)
+                } else {
+                    var L = Lvalue;
+                };
+                let i = this.list.V_REXT * this.list.N_Value * this.list.Gain * L * 1000 / r
+                let min = (i * 0.9).toFixed(2);
+                let max = (i * 1.1).toFixed(2);
+                return [min, max]
+            },
+
+            //核准确认
+            postInfor1() {
+                this.bind1 = true;
+                if (this.value == '通过') {
+                    this.flagss = true;
+                } else {
+                    this.flagss = false;
+                };
+                axios.post("/Small_Sample/Approve", { id: this.list.Id, name: "@UserName", result: this.flagss, reason: this.reason1 }).then(res => {
+                    console.log(res.data)
+                    if (res.data == '核准通过。' || res.data =='核准不通过。') {
+                        $('.approveOne').hide()
+                        this.geTableData()
+                    } else {
+                        $('.approveOne').show()
+                    };
+                    this.$message({
+                        message: res.data,
+                        type: 'success'
+                    })
+                })
+            },
+             //审核确认
+            postInfor() {
+               if (this.value1 == '通过') {
+                   this.flags = true;
+               } else  {
+                    this.flags = false;
+                };
+                axios.post("/Small_Sample/Comfirm", { id: this.list.Id, name: "@UserName", result: this.flags, reason: this.reason }).then(res => {
+                    console.log(res.data)
+                    if (res.data == '审核成功') {
+                        $('.approveTwo').hide()
+                        this.geTableData()
+                    } else {
+                        $('.approveTwo').show()
+                    };
+                    this.$message({
+                        message: res.data,
+                        type: 'success'
+                    })
+                })
+            },
+            outputpdf() {
+                axios.post("/Small_Sample/GetViewHtml", { context:"Small_Sample", viewName:"Display?id="+this.list.Id}).then(res => {
+                    console.log(res.data)
+                    if (res.data === '审核成功') {
+                        $('.approveTwo').hide()
+                        this.geTableData()
+                    } else {
+                        $('.approveTwo').show()
+                    };
+                    this.$message({
+                        message: res.data,
+                        type: 'success'
+                    })
+                })
+            },
+        },
+        mounted() {
+            this.id = getUrlParam("id")
+            this.geTableData();
+
+        },
+        watch: {
+            list() {
+                if (this.list == "{}") {
+                } else {
+                    //核准
+                    if (this.list.Approved == '' || this.list.Approved == null) {
+                        if (this.list.Assessor == '' || this.list.Assessor == null) {
+                            $('.approveOne').hide()
+                        } else {
+                            if (this.list.AssessorResult == true) {
+                                var roles = JSON.parse(localStorage.getItem("rigths"))
+                                if (checkRoles(roles, '小样报告确认核准')) {
+                                    $('.approveOne').show()
+                                } else {
+                                    $('.approveOne').hide()
+                                };
+                            } else {
+                                $('.approveOne').hide()
+                            }
+                        }
+                    } else { $('.approveOne').hide() };
+
+                    //审核
+                    if (this.list.Assessor == '' || this.list.Assessor == null) {
+                        var roles = JSON.parse(localStorage.getItem("rigths"))
+                        if (checkRoles(roles, '小样报告确认审核')) {
+                            $('.approveTwo').show()
+                        } else {
+                            $('.approveTwo').hide()
+                        };
+                    } else { $('.approveTwo').hide() };
+
+                    //报告未审核与未核准，就不显示导出pdf按钮
+                    if (this.list.Approved == null || this.list.ApprovedResult == false) {
+                        $("#printpdf").hide()
+                        $("#printpdf1").hide()
+                        $("#printpdf2").hide()
+                        
+                    } else {
+                        $("#printpdf").show()
+                        $("#printpdf1").show()
+                        $("#printpdf2").show()
+                    }
+                }
+            },
+            //监听审核选择框
+            value1() {
+                 if (this.value1 == '通过') {
+                    this.assVisible = false
+                    this.bind = false;
+                } else if (this.value1 == '不通过') {
+                    this.assVisible = true
+                    this.bind = true
+                } else {
+                    this.assVisible = false
+                    this.bind = true;
+                }
+            } ,
+            //监听核准选择框
+            value() {
+                if (this.value == '通过') {
+                    this.bind1 = false;
+                    this.apsVisible = false
+                } else if (this.value == '不通过') {
+                    this.bind1 = true;
+                    this.apsVisible = true
+                } else {
+                    this.bind1 = true;
+                    this.apsVisible = false
+                }
+            }
+        },
+    });
+    function checkRoles(list, roleName) {   //检测权限
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>
+@*保存为pdf*@
+<script>
+    $("#printpdf").click(function () {
+        let Table = document.getElementById("jsPDF");//需要截图的包裹的DOM 元素
+        Table.style.background = "#FFFFFF";
+        let width = Table.offsetWidth; //获取dom 宽度
+        let height = Table.offsetHeight; //获取dom 高度
+        let canvas2 = document.createElement("canvas"); //创建一个canvas节点
+        let scale = 8; //定义任意放大倍数 支持小数
+        canvas2.width = width * scale; //定义canvas 宽度 * 缩放
+        canvas2.height = height * scale; //定义canvas高度 *缩放
+        canvas2.style.width = width + "px";
+        canvas2.style.height = height + "px";
+        canvas2.getContext("2d").scale(scale, scale); //获取context,设置scale
+        let opts = {
+            scale: scale, // 添加的scale 参数
+            canvas: canvas2, //自定义 canvas
+            logging: false, //日志开关
+            width: width, //dom 原始宽度
+            height: height //dom 原始高度
+        };
+        //两个参数：所需要截图的元素id，截图后要执行的函数， canvas为截图后返回的最后一个canvas
+        html2canvas(Table, { opts }).then(function (canvas) {
+            //document.querySelector("#printpdf").appendChild(canvas);
+
+            //返回图片URL，参数：图片格式和清晰度(0-1)
+            let pageData = canvas.toDataURL('image/jpeg', 1.0);
+
+            //方向默认竖直，尺寸ponits，格式a4【595.28,841.89]
+            let pdf = new jsPDF('', 'pt', [595.28, 555.28 / canvas.width * canvas.height]);
+
+            //需要dataUrl格式
+            pdf.addImage(pageData, 'JPEG', 20, 0, 555.28, 555.28 / canvas.width * canvas.height);
+
+            pdf.save(app.list.OrderNumber + '小样报告.pdf');
+
+        });
+    });
+</script>

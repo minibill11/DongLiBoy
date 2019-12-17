@@ -1,0 +1,331 @@
+﻿
+@{
+    ViewBag.Title = "提示项参数";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;
+        padding: 6px;
+        font-size: 14px;
+    }
+
+    .el-dialog__body {
+        display: none;
+    }
+
+    .inpuwidth {
+        width: 180px
+    }
+
+    .searchinfos {
+        padding: 8px
+    }
+    .cenclass {
+        margin: 0 auto;
+        margin-top:15px;
+    }
+</style>
+<div id="app">
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+            <el-button size="mini" type="primary" v-on:click="goBack">返回</el-button>
+        </el-header>
+        <el-main class="cenclass">
+            <div style="text-align:center;margin-bottom:5px;">
+                <el-input placeholder="请输入员工编号" v-model="employeeId" size="small" clearable class="inpuwidth"></el-input>
+                <el-button class="searchinfos" size="small" type="primary" v-on:click="searchInfos" >查询</el-button>
+            </div>
+            <div style="display:flex;">
+                <el-aside width="432px">
+                    <el-table v-bind:data="tipsData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="500px" key="oneTable">
+                        <el-table-column prop="index" label="序号" width="80">
+                            <template slot-scope="scope">
+                                <span>{{scope.$index + 1}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Matters" label="提示权限名" width="230">
+                            <template slot-scope="scope">
+                                <el-button size="middle" type="text" v-on:click="postData(scope.$index, scope.row)" style="padding:2px">{{scope.row.Matters}}</el-button>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="option" label="操作" width="120">
+                            <template slot-scope="scope">
+                                <el-button size="mini" type="danger" v-on:click="delTipsName(scope.$index, scope.row)" style="padding:5px">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-button type="primary" size="mini" v-on:click="tipsVisible = true" style="margin-top:5px" plain>添加</el-button>
+                    <el-dialog title="提示" v-bind:visible.sync="tipsVisible" width="360px">
+                        <span slot="title">
+                            <h4 style="text-align:center;">添加提示名称</h4>
+                            <el-form label-position="labelPosition" label-width="80px" style="margin-top:20px">
+                                <el-form-item label="提示名">
+                                    <el-select v-model="tipname" size="small" allow-create filterable clearable placeholder="请选择权限名" style="width:210px">
+                                        <el-option v-for="item in options"
+                                                   v-bind:key="item.value"
+                                                   v-bind:label="item.label"
+                                                   v-bind:value="item.value">
+                                        </el-option>
+                                    </el-select>                                   
+                                </el-form-item>
+                            </el-form>
+                        </span>
+                        <span slot="footer" style="text-align:center">
+                            <el-button v-on:click="cancelAdd" size="small">取 消</el-button>
+                            <el-button type="primary" v-on:click="addTips" size="small">添 加</el-button>
+                        </span>
+                    </el-dialog>
+                </el-aside>
+                <el-aside width="601px" style="margin-left:10px">
+                    <el-table v-bind:data="tableData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="500px" key="twoTable">
+                        <el-table-column prop="UserNum" label="工号" width="150">
+                        </el-table-column>
+                        <el-table-column prop="UserName" label="姓名" width="150">
+                        </el-table-column>
+                        <el-table-column prop="Matters" label="提示项" width="180">
+                        </el-table-column>
+                        <el-table-column prop="option" label="操作" width="120">
+                            <template slot-scope="scope">
+                                <el-button size="mini" type="danger" v-on:click="delUserTips(scope.$index, scope.row)" style="padding:5px">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-button type="primary" size="mini" v-on:click="userVisible = true" style="margin-top:5px" plain>添加</el-button>
+                    <el-dialog title="提示" v-bind:visible.sync="userVisible" width="360px">
+                        <span slot="title">
+                            <h4 style="text-align:center;">添加用户提示项</h4>
+                            <el-form label-position="labelPosition" label-width="80px" style="margin-top:20px">
+                                <el-form-item label="用户编号">
+                                    <el-select v-model="userId" size="small" allow-create filterable clearable placeholder="请选择用户id" style="width:210px">
+                                        <el-option v-for="item in userIdOption"
+                                                   v-bind:key="item.value"
+                                                   v-bind:label="item.value"
+                                                   v-bind:value="item.label">
+                                        </el-option>
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="用户名">
+                                    <el-select v-model="userName" size="small" allow-create filterable clearable placeholder="请选择用户名" style="width:210px">
+                                        <el-option v-for="item in userNameOption"
+                                                   v-bind:key="item.value"
+                                                   v-bind:label="item.label"
+                                                   v-bind:value="item.value">
+                                        </el-option>
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="提示项">
+                                    <el-select v-model="userTipsName" size="small" allow-create filterable clearable placeholder="请选择提示权限名" style="width:210px">
+                                        <el-option v-for="item in userTipsOption"
+                                                   v-bind:key="item.value"
+                                                   v-bind:label="item.value"
+                                                   v-bind:value="item.label">
+                                        </el-option>
+                                    </el-select>
+                                </el-form-item></el-form>
+                        </span>
+                        <span slot="footer" style="text-align:center">
+                            <el-button v-on:click="cancelAddTipsName" size="small">取 消</el-button>
+                            <el-button type="primary" v-on:click="addTipsName" size="small">添 加</el-button>
+                        </span>
+                    </el-dialog>
+                </el-aside>
+            </div>
+        </el-main>
+    </el-container>
+</div>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            uId: "@UserIds",
+            tipsData: [],        //第一张表数据
+            tableData:[],       //第二章表数据
+            tipsVisible: false,
+            userVisible: false,
+            tipname: '',         //提示名
+            employeeId: '',      //用户id
+            options: [],
+            userIdOption: [],
+            userId: '',         //第二张表中的用户id
+            userName:'',
+            userNameOption: [], //第二张表用户名
+            userTipsName:'',
+            userTipsOption: [],
+            homologous: [],
+            homologous1:[],
+        },
+        created: function () {
+            this.getData()
+            this.getJurisdiction()
+            this.postUserName()
+        },
+        methods: {
+            //返回上一页
+            goBack() {
+                window.location.href = "/Tips/Index";
+            },
+            //获取所有权限名，赋给第一站表的添加选择框
+            getJurisdiction() {
+                axios.post("/Tips/GetRoleName").then(res => {
+                    console.log(res.data)
+                    let arr = [];
+                    for (let item in res.data) {
+                        let obj = { value: res.data[item], label: res.data[item] }
+                        arr.push(obj)
+                    }
+                    this.options = arr;
+                })
+            },
+            //获取第一张表所有提示项
+            getData() {
+                axios.post("/Tips/UserTipsList").then(res => {
+                    let tone = JSON.parse(res.data.result);
+                    this.tipsData = tone
+                    let userTipsOption1 = [];
+                    for (let item in this.tipsData) {
+                        let obj = { value: this.tipsData[item].Matters, label: this.tipsData[item].Matters }
+                        userTipsOption1.push(obj)
+                    }
+                    this.userTipsOption = userTipsOption1;
+                })
+            },
+            //添加第一张提示项名称
+            addTips() {
+                let arr = { Matters: this.tipname, Creator: "@UserName", CreateTime:new Date() }
+                axios.post("/Tips/TipsItemManagement_add", { tipsItem:arr  }).then(res => {
+                    this.tipsVisible = false;
+                    console.log(res.data)
+                    this.getData()
+                    this.$message({
+                        message: res.data,
+                        type:'success',
+                    })
+                    this.tipname = '';
+                })
+            },
+            //取消第一张表添加
+            cancelAdd() {
+                this.tipsVisible = false;
+                this.tipname =''
+            },
+            //删除第一张表提示项名称
+            delTipsName(index, row) {               
+                var comfirm = confirm(`确认删除${row.Matters}这条信息吗？`);
+                if (comfirm) {
+                    axios.post("/Tips/TipsItemManagement_delete", { id: row.id }).then(res => {
+                        this.getData()
+                        this.$message({ message: res.data, type: 'success' });
+                    })
+                }               
+            },
+            //删除第二张表的用户提示项
+            delUserTips(index, row) {
+                var comfirm = confirm(`确认删除${row.Matters}这条信息吗？`)
+                if (comfirm) {
+                    axios.post("/Tips/UserTipsItem_delete", { id: row.id }).then(res => {
+                        this.$message({ message: res.data, type: 'success' });
+                        this.getData()
+                        this.tableData.forEach((item, index) => {
+                            if (item.id == row.id) {
+                                this.tableData.splice(index, 1);
+                            }
+                        })
+                    })
+                }
+            },
+            //获取所有用户名
+            postUserName() {
+                axios.post("/Tips/GetUserNameUserId").then(res => {
+                    console.log(res.data)
+                    let name = [];
+                    let uid = [];
+                    this.homologous = res.data
+                    for (let item in res.data) {
+                        let obj = { value: res.data[item].UserName, label: res.data[item].UserName }
+                        let obj1 = { value: res.data[item].UserNum, label: res.data[item].UserNum }
+                        name.push(obj)
+                        uid.push(obj1)
+                    }
+                    this.userNameOption = name;
+                    this.userIdOption = uid;  
+                    this.homologous1 = uid;
+                })
+            },
+            //取消添加用户提示项
+            cancelAddTipsName() {
+                this.userVisible = false
+                this.userId = this.userName = this.userTipsName = '';
+            },
+            //添加用户提示项
+            addTipsName() {
+                let obj = { UserNum: this.userId, UserName: this.userName, Matters: this.userTipsName }
+                axios.post("/Tips/UserTipsItem_add", { tipsItem: obj }).then(res => {
+                    console.log(res.data)
+                    this.$message({ message: res.data, type: 'success' });
+                    this.userVisible = false
+                    this.userId = this.userName = this.userTipsName = '';
+                })
+
+            },
+            //获取第二个表格数据
+            postData(index, row) {
+                axios.post("/Tips/UserTipsList2", { matter: row.Matters }).then(res => {
+                    console.log(res.data)
+                    let tone = JSON.parse(res.data.result);
+                    this.tableData = tone;
+                    console.log(this.tableData)
+                })
+            },
+            searchInfos() {
+                if (this.employeeId != '') {
+                    axios.post("/Tips/UserTipsList1", { userId: this.employeeId }).then(res => {
+                        console.log(res.data)
+                        let tone = JSON.parse(res.data.result);
+                        this.tableData = tone;
+                        console.log(this.tableData)
+                    })
+                } else {
+                    this.$message({
+                        message: '请输入员工编号',
+                        type: 'warning',
+                    })
+                }
+            }
+        },
+        watch: {
+            userName() {
+                if (this.userName != '') {
+                    let arr = [];
+                    for (let i = 0; i < this.homologous.length; i++) {
+                        if (this.homologous[i].UserName == this.userName) {
+                            arr.push(this.homologous[i])                            
+                        } else {
+                            this.userIdOption = this.homologous1;
+                        }
+                    }
+                    let arr1 = [];
+                    for (let i = 0; i < arr.length; i++) {
+                        let obj = { value: arr[i].UserNum, label: arr[i].UserNum }
+                        arr1.push(obj)
+                    }
+                    this.userIdOption = arr1;                    
+                } else {
+                    this.userIdOption = this.homologous1;
+                }
+            }
+            
+        }
+
+
+    })
+</script>

@@ -1,0 +1,554 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data.Entity;
+using System.Threading.Tasks;
+using System.Net;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using System.IO;
+using System.Text;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using iTextSharp.tool.xml;
+using JianHeMES.Controllers;
+using System.Drawing;
+using System.Drawing.Imaging;
+using Font = iTextSharp.text.Font;
+using static JianHeMES.Controllers.PdfViewController;
+using System.Linq;
+using Rotativa.MVC;
+using Rotativa.Core.Options;
+using System.Threading;
+
+namespace JianHeMES.Controllers
+{
+    public class IQCReportsController : Controller
+{
+        private ApplicationDbContext db = new ApplicationDbContext();
+        CommonController com = new CommonController();
+
+        #region --------------------物料列表
+
+        private List<SelectListItem> Material()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "请选择物料",
+                    Value = ""
+                },
+                new SelectListItem
+                {
+                    Text = "三合一贴片灯",
+                    Value = "三合一贴片灯"
+                },
+                new SelectListItem
+                {
+                    Text = "LED插件灯",
+                    Value = "LED插件灯"
+                },
+                new SelectListItem
+                {
+                    Text = "四合一贴片灯",
+                    Value = "四合一贴片灯"
+                }
+            };
+        }
+
+        #endregion
+
+        #region --------------------检验水平等级
+
+        private List<SelectListItem> level()
+        {
+            return new List<SelectListItem>()
+            {
+                new SelectListItem
+                {
+                    Text = "请选择",
+                    Value = ""
+                },
+                new SelectListItem
+                {
+                    Text = "一般Ⅱ级",
+                    Value = "一般Ⅱ级"
+                },
+                new SelectListItem
+                {
+                    Text = "一般Ⅲ级",
+                    Value = "一般Ⅲ级"
+                }
+            };
+        }
+
+        #endregion
+
+        #region --------------------首页
+        // GET: IQCReports
+        public async Task<ActionResult> Index()
+        {
+            ViewBag.bitch = GetBitchList();
+            ViewBag.specifition = GetSpecificationList();
+            return View(await db.IQCReports.OrderByDescending(c => c.CreatedDate).Take(10).ToListAsync());
+        }
+        [HttpPost]
+        public async Task<ActionResult> Index(DateTime? time, string bitch, DateTime? InspectionDate,string Specification)
+        {
+            //JObject itemjobject = new JObject();
+            //JObject result = new JObject();
+            ViewBag.bitch = GetBitchList();
+            ViewBag.specifition = GetSpecificationList();
+            var iqcmessage = await db.IQCReports.ToListAsync();
+            if (time != null)
+            {
+                iqcmessage = iqcmessage.Where(c => c.IncomingDate == time).ToList();
+            }
+            if (!string.IsNullOrEmpty(bitch))
+            {
+                iqcmessage = iqcmessage.Where(c => c.BatchNum == bitch).ToList();
+            }
+            if (InspectionDate != null)
+            {
+                iqcmessage = iqcmessage.Where(c => c.InspectionDate == InspectionDate).ToList();
+            }
+            if (!string.IsNullOrEmpty(Specification))
+            {
+                iqcmessage = iqcmessage.Where(c => c.Specification == Specification).ToList();
+            }
+            //int i = 0;
+            //foreach (var item in iqcmessage)
+            //{
+            //    //物料编号
+            //    itemjobject.Add("Material_SN", item.Material_SN);
+            //    //供应商
+            //    itemjobject.Add("Provider", item.Provider);
+            //    //物料名称
+            //    itemjobject.Add("MaterialName", item.MaterialName);
+            //    //型号
+            //    itemjobject.Add("ModelNumber", item.ModelNumber);
+            //    //规格
+            //    itemjobject.Add("Specification", item.Specification);
+            //    //来料数量
+            //    itemjobject.Add("MaterialQuantity", item.MaterialQuantity);
+            //    //来料日期
+            //    itemjobject.Add("IncomingDate", item.IncomingDate);
+            //    //请购单号
+            //    itemjobject.Add("ApplyPurchaseOrderNum", item.ApplyPurchaseOrderNum);
+            //    //批号
+            //    itemjobject.Add("BatchNum", item.BatchNum);
+            //    //检验日期
+            //    itemjobject.Add("InspectionDate", item.InspectionDate);
+            //    //抽样方案
+            //    itemjobject.Add("SamplingPlan", item.SamplingPlan);
+            //    //最终判定
+            //    itemjobject.Add("NGD", item.NGD);
+            //    //不合格批处理
+            //    itemjobject.Add("NGHandle", item.NGHandle);
+            //    //备注
+            //    itemjobject.Add("ReportRemark", item.ReportRemark);
+
+            //    result.Add(i.ToString(), itemjobject);
+            //    i++;
+            //    itemjobject = new JObject();
+            //}
+            return View(iqcmessage);
+        }
+        #endregion
+
+        #region --------------------Details页
+        // GET: IQCReports/Details/5
+        public async Task<ActionResult> Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            if (((Users)Session["User"]) == null)
+            {
+                ViewBag.checkIQC = null;
+            }
+            //else if (com.isCheckRole("IQC管理", "编辑IQC报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //    ViewBag.checkIQC = "edit";
+            //else if (com.isCheckRole("IQC管理", "审核报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //    ViewBag.checkIQC = "examine";
+            //else if (com.isCheckRole("IQC管理", "批准报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //    ViewBag.checkIQC = "pass";
+            //else
+            //    ViewBag.checkIQC = null;
+            IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+            if (iQCReport == null)
+            {
+                return HttpNotFound();
+            }
+            return View(iQCReport);
+        }
+
+        public async Task<ActionResult> DetailsAsPdf(int? id,bool downloadfile = false)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            if (((Users)Session["User"]) == null)
+            {
+                ViewBag.checkIQC = null;
+            }
+            IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+            if (iQCReport == null)
+            {
+                return HttpNotFound();
+            }
+            string filename = iQCReport.Material_SN + "_Report";
+            if (downloadfile)
+            {
+                //Thread.Sleep(1000);
+                return new ViewAsPdf("DetailsAsPdf", iQCReport)
+                {
+                    RotativaOptions = {
+                           PageOrientation = Orientation.Portrait,
+                           PageMargins = { Left = 0, Bottom = 0, Right = 0, Top = 10 },
+                           PageSize = Rotativa.Core.Options.Size.A4,
+                           },
+                    FileName = iQCReport.Material_SN + "_报告.pdf",
+                };
+            }
+            else
+            {
+                //Thread.Sleep(1000);
+                return new ViewAsPdf("DetailsAsPdf", iQCReport)
+                {
+                    RotativaOptions = {
+                           PageOrientation = Orientation.Portrait,
+                           PageMargins = { Left = 0, Bottom = 0, Right = 0, Top = 10 },
+                           PageSize = Rotativa.Core.Options.Size.A4,
+                           },
+                };
+            }
+        }
+
+
+        #endregion
+
+        #region --------------------IQCReportCreate页
+        // GET: IQCReports/Create
+        public ActionResult IQCReportCreate()
+        {
+            ViewBag.Material = Material();
+            ViewBag.Level = level();
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "IQCReports", act = "IQCReportCreate" });
+            }
+            //if (((Users)Session["User"]).Role == "IQC检验员" || com.isCheckRole("IQC管理", "新建IQC报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //{
+            //    return View();
+            //}
+            return View();
+        }
+
+        // POST: IQCReports/Create
+        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> IQCReportCreate([Bind(Include = "Id,Material_SN,RoHS_REACH,OrderNumber,EquipmentNum,Provider,MaterialName,ModelNumber,Specification,MaterialQuantity,IncomingDate,ApplyPurchaseOrderNum,BatchNum,InspectionDate,SamplingPlan,MaterialVersion,C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,D2,D3,D4,D5,D6,D7,D8,D9,E1,E2,E3,E4,E5,E6,E7,E8,E9,F1,F2,F3,F4,F5,F6,F7,F8,F9,S0,S1,S11,S12,S13,S14,S15,S2,S21,S22,S23,S24,S25,S3,S31,S32,S33,S34,S35,SR,SRJson,SG,SGJson,SB,SBJson,R0,R1,R11,R12,R13,R2,R21,R22,R23,R3,R31,R32,R33,P0,P1,P11,P12,P13,P2,P21,P22,P23,P3,P31,P32,P33,AM,AM0,AM1,AM11,AM12,AM13,AM2,AM21,AM22,AM23,AM3,AM31,AM32,AM33,AM4,AM41,AM42,AM43,NG1,NG2,NG3,NGD,NGHandle,ReportRemark,Inspector,Creator,CreatedDate,Assessor,AssessedDate,AssessorRemark,AssessorPass,Approve,ApprovedDate,ApproveRemark,ApprovePass")] IQCReport iQCReport)
+        {
+            ViewBag.Material = Material();
+            ViewBag.Level = level();
+            iQCReport.Creator = ((Users)Session["User"]).UserName;
+            iQCReport.CreatedDate = DateTime.Now;
+            if (ModelState.IsValid)
+            {
+                db.IQCReports.Add(iQCReport);
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(iQCReport);
+        }
+        #endregion
+
+        #region --------------------IQCReportEdit页
+        // GET: IQCReports/Edit/5
+        public async Task<ActionResult> IQCReportEdit(int? id)
+        {
+            ViewBag.Material = Material();
+            ViewBag.Level = level();
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "IQCReports", act = "IQCReportEdit"+"/"+id.ToString() });
+            }
+            //if (((Users)Session["User"]).Role == "IQC检验员" || com.isCheckRole("IQC管理", "编辑IQC报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //{
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+                if (iQCReport == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(iQCReport);
+            //}
+            //return RedirectToAction("Index", "IQCReports");
+        }
+
+        // POST: IQCReports/Edit/5
+        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
+        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> IQCReportEdit([Bind(Include = "Id,Material_SN,RoHS_REACH,OrderNumber,EquipmentNum,Provider,MaterialName,ModelNumber,Specification,MaterialQuantity,IncomingDate,ApplyPurchaseOrderNum,BatchNum,InspectionDate,SamplingPlan,MaterialVersion,C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,D2,D3,D4,D5,D6,D7,D8,D9,E1,E2,E3,E4,E5,E6,E7,E8,E9,F1,F2,F3,F4,F5,F6,F7,F8,F9,S0,S1,S11,S12,S13,S14,S15,S2,S21,S22,S23,S24,S25,S3,S31,S32,S33,S34,S35,SR,SRJson,SG,SGJson,SB,SBJson,R0,R1,R11,R12,R13,R2,R21,R22,R23,R3,R31,R32,R33,P0,P1,P11,P12,P13,P2,P21,P22,P23,P3,P31,P32,P33,AM,AM0,AM1,AM11,AM12,AM13,AM2,AM21,AM22,AM23,AM3,AM31,AM32,AM33,AM4,AM41,AM42,AM43,NG1,NG2,NG3,NGD,NGHandle,ReportRemark,Inspector,Creator,CreatedDate,Assessor,AssessedDate,AssessorRemark,AssessorPass,Approve,ApprovedDate,ApproveRemark,ApprovePass")] IQCReport iQCReport)
+        {
+            ViewBag.Material = Material();
+            ViewBag.Level = level();
+            if (ModelState.IsValid)
+            {
+                db.Entry(iQCReport).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(iQCReport);
+        }
+        #endregion
+
+        #region --------------------IQCReportAssessor页
+        public async Task<ActionResult> IQCReportAssessor(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users",new { col = "IQCReports", act = "IQCReportAssessor"+"/"+id.ToString() });
+            }
+            //if (((Users)Session["User"]).Role == "IQC组长" || com.isCheckRole("IQC管理", "审核报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //{
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+                if (iQCReport == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(iQCReport);
+            //}
+            //return RedirectToAction("Index", "IQCReports");
+
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> IQCReportAssessor([Bind(Include = "Id,Material_SN,RoHS_REACH,OrderNumber,EquipmentNum,Provider,MaterialName,ModelNumber,Specification,MaterialQuantity,IncomingDate,ApplyPurchaseOrderNum,BatchNum,InspectionDate,SamplingPlan,MaterialVersion,C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,D2,D3,D4,D5,D6,D7,D8,D9,E1,E2,E3,E4,E5,E6,E7,E8,E9,F1,F2,F3,F4,F5,F6,F7,F8,F9,S0,S1,S11,S12,S13,S14,S15,S2,S21,S22,S23,S24,S25,S3,S31,S32,S33,S34,S35,SR,SRJson,SG,SGJson,SB,SBJson,R0,R1,R11,R12,R13,R2,R21,R22,R23,R3,R31,R32,R33,P0,P1,P11,P12,P13,P2,P21,P22,P23,P3,P31,P32,P33,AM,AM0,AM1,AM11,AM12,AM13,AM2,AM21,AM22,AM23,AM3,AM31,AM32,AM33,AM4,AM41,AM42,AM43,NG1,NG2,NG3,NGD,NGHandle,ReportRemark,Inspector,Creator,CreatedDate,Assessor,AssessedDate,AssessorRemark,AssessorPass,Approve,ApprovedDate,ApproveRemark,ApprovePass")] IQCReport iQCReport)
+        {
+            iQCReport.Assessor = ((Users)Session["User"]).UserName;
+            iQCReport.AssessedDate = DateTime.Now;
+
+            if (ModelState.IsValid)
+            {
+                db.Entry(iQCReport).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(iQCReport);
+        }
+        #endregion
+
+        #region --------------------IQCReportApprove页
+        public async Task<ActionResult> IQCReportApprove(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "IQCReports", act = "IQCReportApprove" +"/"+id.ToString()});
+            }
+            //if (((Users)Session["User"]).Role == "品质部经理" || com.isCheckRole("IQC管理", "批准报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //{
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+                if (iQCReport == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(iQCReport);
+            //}
+            //return RedirectToAction("Index", "IQCReports");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> IQCReportApprove([Bind(Include = "Id,Material_SN,RoHS_REACH,OrderNumber,EquipmentNum,Provider,MaterialName,ModelNumber,Specification,MaterialQuantity,IncomingDate,ApplyPurchaseOrderNum,BatchNum,InspectionDate,SamplingPlan,MaterialVersion,C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,D2,D3,D4,D5,D6,D7,D8,D9,E1,E2,E3,E4,E5,E6,E7,E8,E9,F1,F2,F3,F4,F5,F6,F7,F8,F9,S0,S1,S11,S12,S13,S14,S15,S2,S21,S22,S23,S24,S25,S3,S31,S32,S33,S34,S35,SR,SRJson,SG,SGJson,SB,SBJson,R0,R1,R11,R12,R13,R2,R21,R22,R23,R3,R31,R32,R33,P0,P1,P11,P12,P13,P2,P21,P22,P23,P3,P31,P32,P33,AM,AM0,AM1,AM11,AM12,AM13,AM2,AM21,AM22,AM23,AM3,AM31,AM32,AM33,AM4,AM41,AM42,AM43,NG1,NG2,NG3,NGD,NGHandle,ReportRemark,Inspector,Creator,CreatedDate,Assessor,AssessedDate,AssessorRemark,AssessorPass,Approve,ApprovedDate,ApproveRemark,ApprovePass")] IQCReport iQCReport)
+        {
+            iQCReport.Approve = ((Users)Session["User"]).UserName;
+            iQCReport.ApprovedDate = DateTime.Now;
+
+            if (ModelState.IsValid)
+            {
+                db.Entry(iQCReport).State = EntityState.Modified;
+                await db.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
+            return View(iQCReport);
+        }
+        #endregion
+
+        #region --------------------Delete页
+        // GET: IQCReports/Delete/5
+        public async Task<ActionResult> Delete(int? id)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users" ,new { col = "IQCReports", act = "Delete" + "/" + id.ToString() });
+            }
+            //if (com.isCheckRole("IQC管理", "删除报告", ((Users)Session["User"]).UserName, ((Users)Session["User"]).UserNum))
+            //{
+                if (id == null)
+                {
+                    return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                }
+                IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+                if (iQCReport == null)
+                {
+                    return HttpNotFound();
+                }
+                return View(iQCReport);
+            //}
+            //return RedirectToAction("Index", "IQCReports");
+        }
+
+        // POST: IQCReports/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> DeleteConfirmed(int id)
+        {
+            IQCReport iQCReport = await db.IQCReports.FindAsync(id);
+            db.IQCReports.Remove(iQCReport);
+            await db.SaveChangesAsync();
+            return RedirectToAction("Index");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+        #endregion
+
+
+        //批次列表
+        private List<SelectListItem> GetBitchList()
+        {
+            var BatchNum = db.IQCReports.OrderByDescending(m => m.Id).Select(m => m.BatchNum);    
+            var items = new List<SelectListItem>();
+            foreach (string batchNum in BatchNum)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = batchNum,
+                    Value = batchNum
+                });
+            }
+            return items;
+        }
+        //规格列表
+        private List<SelectListItem> GetSpecificationList()
+        {
+            var Specification = db.IQCReports.OrderByDescending(m => m.Id).Select(m => m.Specification);
+            var items = new List<SelectListItem>();
+            foreach (string specification in Specification)
+            {
+                items.Add(new SelectListItem
+                {
+                    Text = specification,
+                    Value = specification
+                });
+            }
+            return items;
+        }
+        private static ViewContext CreateViewContext(TextWriter responseWriter, ControllerContext fakeControllerContext)
+        {
+            return new ViewContext(fakeControllerContext, new FakeView(), new ViewDataDictionary(), new TempDataDictionary(), responseWriter);
+        }
+
+    }
+
+}
+
+namespace ClassLibrary1
+{
+    /// <summary>
+    /// 测试类
+    /// </summary>
+    public class PersonEntity
+    {
+        /// <summary>
+        /// html模版绝对路径
+        /// </summary>
+        public string m_HtmlTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts/person.html");
+
+        /// <summary>
+        /// PDF生成的目录（绝对路径）
+        /// </summary>
+        public string m_PdfSaveFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PDFFolder");
+
+        public PersonEntity()
+        {
+        }
+
+        /// <summary>
+        /// 生成PDF
+        /// </summary>
+        public void BuildPDF()
+        {
+
+            using (StreamReader reader = new StreamReader(m_HtmlTemplatePath))
+            {
+                string htmlStr = reader.ReadToEnd();//读取html模版
+
+                string iamgeBase64Str1 = ImageToBase64String(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts/img1.jpg"));
+                string iamgeBase64Str2 = ImageToBase64String(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts/img2.jpg"));
+
+                htmlStr = htmlStr.Replace("@PersonName", "张三");
+                htmlStr = htmlStr.Replace("@PersonImage1", iamgeBase64Str1);
+                htmlStr = htmlStr.Replace("@PersonImage2", iamgeBase64Str2);
+
+                Dictionary<string, Tuple<float, float>> imageXYDic = new Dictionary<string, Tuple<float, float>>();
+                imageXYDic.Add("img1", new Tuple<float, float>(10, 20));
+                imageXYDic.Add("img2", new Tuple<float, float>(200, 300));
+
+                //HtmlToPdfHelper pdfHelper = new HtmlToPdfHelper.HtmlToPdfHelper(htmlStr, m_PdfSaveFolder, imageXYDic);
+                //pdfHelper.BuilderPDF();//生成PDF
+            }
+        }
+
+        //图片转为base64字符串
+        public string ImageToBase64String(string imagePath)
+        {
+            try
+            {
+                Bitmap bitmap = new Bitmap(imagePath);
+
+                MemoryStream ms = new MemoryStream();
+
+                bitmap.Save(ms, ImageFormat.Jpeg);
+                byte[] bytes = new byte[ms.Length];
+
+                ms.Position = 0;
+                ms.Read(bytes, 0, (int)ms.Length);
+                ms.Close();
+
+                return Convert.ToBase64String(bytes);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("图片转base64字符串时异常", ex);
+            }
+        }
+    }
+}
+

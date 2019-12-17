@@ -1,0 +1,207 @@
+﻿@{
+    ViewBag.Title = "查看模组号使用情况";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<link href="~/Content/styleFile/packaging/stockStyle.css" rel="stylesheet" />
+<style>
+    .grid-card {
+        margin-bottom: 10px;
+    }
+
+    .el-card {
+        border: 1px solid #9C9791;
+    }
+
+    .el-main, .el-aside {
+        padding: 8px 15px;
+    }
+
+    .el-main {
+        min-height: 0;
+    }
+
+    .el-header {
+        padding: 0 15px;
+        height: auto !important;
+    }
+
+    .el-card__header {
+        text-align: center;
+        border-bottom: 1px solid #9C9791;
+        padding: 8px 15px;
+    }
+
+    .cardbody {
+        border: 1px solid #D2CFCF;
+        margin: -1px;
+    }
+
+    .el-card__body {
+        overflow-y: hidden;
+        overflow-x: hidden;
+        padding: 0px;
+    }
+
+    .cardbody-right {
+        padding: 5px;
+        text-align: center
+    }
+
+    .cardbody-left {
+        padding: 5px 0px;
+        border-right: 1px solid #D2CFCF;
+        text-align: center;
+        vertical-align: middle;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .el-divider--horizontal {
+        margin: 5px 0;
+    }
+
+    .cardbody-left, .cardbody-right {
+        padding: 0px;
+    }
+
+    .notDiv {
+        height: 295px;
+        overflow: auto;
+    }
+
+    .el-table th > .cell, .el-table--border th:first-child .cell {
+        padding: 0;
+    }
+
+    .el-table th {
+        font-size: 12px;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+            <div>
+                <span>订单号：</span>
+                <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium" clearable multiple collapse-tags>
+                    <el-option v-for="item in selectOptions"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-button type="primary" @@click="onQuerySubmit" size="medium">{{selectVal==""?'查询全部':'查询'}}</el-button>
+            </div>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px;">
+            <el-row :gutter="10">
+                <template v-for="(item,index) in jsonList">
+                    <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
+                        <el-card shadow="hover" class="grid-card">
+                            <div slot="header">
+                                <span>{{'订单:'+item.ordernum}}(数量:{{item.count}}) 模组号使用情况</span>
+                            </div>
+                            <el-container class="cardbody">
+                                <el-aside style="width:50%;" class="cardbody-left">
+                                    <el-table :data="item.notuser" height="380" size="mini" @@header-click="sortClickMethod($event,index)">
+                                        <el-table-column label="未使用">
+                                            <el-table-column :label="'条码(数量:'+item.notuser[0].barcode.length+')'"
+                                                             min-width="129"
+                                                             prop="barcode"
+                                                             sortable>
+                                                <template slot-scope="scope">
+                                                    <div class="notDiv">
+                                                        <div v-for="i in scope.row.barcode">{{i}}</div>
+                                                    </div>
+                                                </template>
+                                            </el-table-column>
+                                            <el-table-column :label="'模组(数量:'+(item.notuser[0].module[0]=='手工录入'?0:item.notuser[0].module.length)+')'"
+                                                             prop="module"
+                                                             sortable>
+                                                <template slot-scope="scope">
+                                                    <div class="notDiv">
+                                                        <div v-for="i in scope.row.module">{{i}}</div>
+                                                    </div>
+                                                </template>
+                                            </el-table-column>
+                                        </el-table-column>
+                                    </el-table>
+                                </el-aside>
+                                <el-main class="cardbody-right">
+                                    <el-table :data="item.user" height="380" size="mini">
+                                        <el-table-column label="已使用">
+                                            <el-table-column :label="'条码(数量:'+item.user.length+')'"
+                                                             prop="barcode"
+                                                             min-width="129"
+                                                             sortable>
+                                            </el-table-column>
+                                            <el-table-column :label="'模组(数量:'+item.user.length+')'"
+                                                             prop="module"
+                                                             sortable>
+                                            </el-table-column>
+                                        </el-table-column>
+                                    </el-table>
+                                </el-main>
+                            </el-container>
+                        </el-card>
+                    </el-col>
+                </template>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectOptions: [],
+            selectVal: '',
+            screenSize: document.body.clientWidth,
+            loading: false,
+            jsonList: []
+        },
+        created: function () {
+            axios.post('/Packagings/GetJosnOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            //this.onQuerySubmit()
+        },
+        methods: {
+            onQuerySubmit() {
+                this.loading = true;
+                let orderList = this.selectVal;
+                axios.post('/Packagings/DiaplayMuduleUserMessage', {
+                    ordernum: orderList == "" ? [] : orderList
+                }).then(res => {
+                    console.log(res.data)
+                    this.jsonList = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("获取数据失败");
+                    this.loading = false;
+                });
+            },
+            sortClickMethod(column, index) {
+                if (column.label != '未使用') {
+                    if (column.property == 'barcode') {
+                        this.jsonList[index].notuser[0].barcode.reverse();
+                    };
+                    if (column.property == 'module') {
+                        this.jsonList[index].notuser[0].module.reverse();
+
+                    };
+                };
+            }
+        }
+    });
+</script>
