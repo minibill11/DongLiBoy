@@ -97,7 +97,7 @@
         },
         //权限筛选
         checkRoles(roleName) {   //检测权限
-            list = this.limitsList;
+            let list = this.limitsList;
             if (list && roleName) {
                 for (let item in list) {
                     if (list[item] == roleName) {
@@ -116,8 +116,20 @@
         //行style
         rowStyle({ row, rowIndex }) {
             let rtObj;
-            row.editNum > 0 ? rtObj = { height: '100%', backgroundColor: '#f0ffec' } : rtObj = { height: '100%' };
+            row.editNum > 0 ? rtObj = { height: '100%', backgroundColor: '#d9f9d1' } : rtObj = { height: '100%' };
             return rtObj
+        },
+        //删除型号记录
+        DeleteTotal(id, index) {
+            this.$confirm('是否确认删除此行记录！', "请确认", {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'error',
+            }).then(() => {
+
+            }).catch(() => {
+
+            });
         }
     },
     watch: {

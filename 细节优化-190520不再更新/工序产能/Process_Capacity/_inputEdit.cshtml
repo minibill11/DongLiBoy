@@ -79,12 +79,23 @@
                 //行编辑数量
                 this.rowdata.editNum++;
                 let item = this.itemdata, itemStr = JSON.stringify(item);
-                this.initial = JSON.parse(itemStr);
+                if (this.section === '型号平台PCB') {
+                    let total = JSON.parse(itemStr);
+                    this.initial = {
+                        Type: total.Type,
+                        Platform: total.Platform,
+                        PCB: total.PCB,
+                        TotalEdit: false
+                    };
+                } else {
+                    this.initial = JSON.parse(itemStr);
+                };
                 return {
+                    '型号平台PCB': () => { item.TotalEdit = true },
                     '插件': () => { item.PluginEidt = true },
                     '三防': () => { item.ThreeProfEidt = true },
                     '打底壳': () => { item.BottomCasEidt = true },
-                    '装磁吸安装板': () => { item.MagneticSuctionEidt = true },
+                    //'装磁吸安装板': () => { item.MagneticEidt = true },
                     '喷墨': () => { item.InkjetEidt = true },
                     '灌胶': () => { item.GlueEidt = true },
                     '气密': () => { item.AirtightEidt = true },
@@ -94,6 +105,7 @@
             },
             //保存-跳过-删除
             saveClick(comefrom) {
+                app.loading = true;
                 //声明共同数据
                 let obj = {
                     Type: this.rowdata.Type,
@@ -102,10 +114,11 @@
                 }, statu = this.section, address = "";
                 //地址赋值
                 let switchAddress = {
+                    '型号平台PCB': () => { address = comefrom === "delete" ? "DeleteTotalProcess_Capacity" : "UpdateTotalProcess_Capacity"; },
                     '插件': () => { address = "Add_Plug_In"; },
                     '三防': () => { address = "Add_ThreeProf"; },
                     '打底壳': () => { address = "Add_MachineNum"; },
-                    '装磁吸安装板': () => { address = "Add_MagneticSuction"; },
+                    //'装磁吸安装板': () => { address = "Add_MagneticSuction"; },
                     '喷墨': () => { address = "Add_Inkjet"; },
                     '灌胶': () => { address = "Add_Glue"; },
                     '气密': () => { address = "Add_Airtight"; },
@@ -120,7 +133,7 @@
                     let switchobj = {
                         '插件': () => { obj['Name'] = "/"; },
                         '三防': () => { obj['ThreeProfProcessName'] = "/"; },
-                        '装磁吸安装板': () => { obj['MagneticSuctionProcessName'] = "/"; },
+                        //'装磁吸安装板': () => { obj['MagneticProcessName'] = "/"; },
                         '喷墨': () => { obj['InkjetProcessName'] = "/"; },
                         '灌胶': () => { obj['GlueProcessName'] = "/"; },
                         '气密': () => { obj['AirtightProcessName'] = "/"; },
@@ -134,13 +147,22 @@
                     }).then(res => {
                         res.data.message === true ? this.passItem(res.data.content) : this.$message.error(res.data.content);
                         this.passVisible = false;
+                        app.loading = false;
                     }).catch(err => {
                         this.$message.error('添加失败！');
                         this.passVisible = false;
+                        app.loading = false;
                     });
                 } else {
                     let row = this.rowdata, index = this.index;
                     switch (statu) {
+                        case '型号平台PCB':
+                            obj = {};
+                            obj['id'] = row.id;
+                            obj['type'] = row.Type;
+                            obj['pcb'] = row.PCB;
+                            obj['platfrom'] = row.Platform;
+                            break;
                         case '插件':
                             obj['Id'] = row.PluginDevice[index].PluginDeviceID;
                             obj['Name'] = row.PluginDevice[index].PluginDeviceName;
@@ -158,12 +180,12 @@
                             obj['BottomCasDispensMachineNum'] = row.BottomCas[index].BottomCasDispensMachineNum;
                             obj['BottomCasScrewMachineNum'] = row.BottomCas[index].BottomCasScrewMachineNum;
                             break;
-                        case '装磁吸安装板':
-                            obj['Id'] = row.Magnetic[index].MagneticID;
-                            obj['MagneticSuctionProcessName'] = row.Magnetic[index].MagneticSuctionProcessName;
-                            obj['MagneticSuctionStandardTotal'] = row.Magnetic[index].MagneticSuctionStandardTotal;
-                            obj['MagneticSuctionStabdardOutput'] = row.Magnetic[index].MagneticSuctionStabdardOutput;
-                            break;
+                        //case '装磁吸安装板':
+                        //    obj['Id'] = row.Magnetic[index].MagneticID;
+                        //    obj['MagneticProcessName'] = row.Magnetic[index].MagneticProcessName;
+                        //    obj['MagneticStandardTotal'] = row.Magnetic[index].MagneticStandardTotal;
+                        //    obj['MagneticStabdardOutput'] = row.Magnetic[index].MagneticStabdardOutput;
+                        //    break;
                         case '喷墨':
                             obj['Id'] = row.Inkjet[index].InkjetID;
                             obj['InkjetProcessName'] = row.Inkjet[index].InkjetProcessName;
@@ -198,16 +220,16 @@
                         //default:
                     };
                     if (comefrom === "delete") {
+                        let deleteObj = statu === '型号平台PCB' ? { id: obj.id } : { newData: obj, statu: "删除" };
                         //删除信息
-                        axios.post('/Process_Capacity/' + address, {
-                            newData: obj,
-                            statu: "删除"
-                        }).then(res => {
+                        axios.post('/Process_Capacity/' + address, deleteObj).then(res => {
                             res.data.message === true ? this.deleteItem() : this.$message.error(res.data.content);
                             this.deleteVisible = false;
+                            app.loading = false;
                         }).catch(err => {
                             this.$message.error('删除失败！');
                             this.deleteVisible = false;
+                            app.loading = false;
                         });
                     } else {
                         //区分 --打底壳和打底壳 与其它工段不同
@@ -239,10 +261,8 @@
                                 this.cancelClick();
                             });
                         } else {
-                            axios.post('/Process_Capacity/' + address, {
-                                newData: obj,
-                                statu: "修改"
-                            }).then(res => {
+                            let editObj = statu === '型号平台PCB' ? obj : { newData: obj, statu: "修改" };
+                            axios.post('/Process_Capacity/' + address, editObj).then(res => {
                                 if (res.data.message === true) {
                                     this.$message.success(res.data.content);
                                     this.closeEdit();
@@ -268,6 +288,7 @@
                 for (let i in ini) {
                     item[i] = ini[i];
                 };
+                app.loading = false;
             },
             //关闭编辑框
             closeEdit() {
@@ -275,12 +296,14 @@
                 this.openTimer();
                 //行编辑数量
                 this.rowdata.editNum--;
+                app.loading = false;
                 let item = this.itemdata;
                 return {
+                    '型号平台PCB': () => { item.TotalEdit = false },
                     '插件': () => { item.PluginEidt = false },
                     '三防': () => { item.ThreeProfEidt = false },
                     '打底壳': () => { item.BottomCasEidt = false },
-                    '装磁吸安装板': () => { item.MagneticSuctionEidt = false },
+                    //'装磁吸安装板': () => { item.MagneticEidt = false },
                     '喷墨': () => { item.InkjetEidt = false },
                     '灌胶': () => { item.GlueEidt = false },
                     '气密': () => { item.AirtightEidt = false },
@@ -292,10 +315,11 @@
             editShow() {
                 let item = this.itemdata;
                 return {
+                    '型号平台PCB': () => { return item.TotalEdit === true ? false : true; },
                     '插件': () => { return item.PluginEidt === true ? false : true; },
                     '三防': () => { return item.ThreeProfEidt === true ? false : true; },
                     '打底壳': () => { return item.BottomCasEidt === true ? false : true; },
-                    '装磁吸安装板': () => { return item.MagneticSuctionEidt === true ? false : true; },
+                    //'装磁吸安装板': () => { return item.MagneticEidt === true ? false : true; },
                     '喷墨': () => { return item.InkjetEidt === true ? false : true; },
                     '灌胶': () => { return item.GlueEidt === true ? false : true; },
                     '气密': () => { return item.AirtightEidt === true ? false : true; },
@@ -309,7 +333,7 @@
                 return {
                     '插件': () => { row.PluginDevice = []; row.PluginDevice.push(newitem) },
                     '三防': () => { row.ThreeProf = []; row.ThreeProf.push(newitem) },
-                    '装磁吸安装板': () => { row.Magnetic = []; row.Magnetic.push(newitem) },
+                    //'装磁吸安装板': () => { row.Magnetic = []; row.Magnetic.push(newitem) },
                     '喷墨': () => { row.Inkjet = []; row.Inkjet.push(newitem) },
                     '灌胶': () => { row.Glue = []; row.Glue.push(newitem) },
                     '气密': () => { row.Airtight = []; row.Airtight.push(newitem) },
@@ -322,9 +346,10 @@
                 let item = this.isnull, row = this.rowdata;
                 if (item.length > 1) {
                     return {
+                        '型号平台PCB': () => { item.splice(this.index, 1); },
                         '插件': () => { row.PluginDevice.splice(this.index, 1); },
                         '三防': () => { row.ThreeProf.splice(this.index, 1); },
-                        '装磁吸安装板': () => { row.Magnetic.splice(this.index, 1); },
+                        //'装磁吸安装板': () => { row.Magnetic.splice(this.index, 1); },
                         '喷墨': () => { row.Inkjet.splice(this.index, 1); },
                         '灌胶': () => { row.Glue.splice(this.index, 1); },
                         '气密': () => { row.Airtight.splice(this.index, 1); },
@@ -332,9 +357,10 @@
                     }[this.section].call(this);
                 } else {
                     return {
+                        '型号平台PCB': () => { item = []; },
                         '插件': () => { row.PluginDevice = null; },
                         '三防': () => { row.ThreeProf = null; },
-                        '装磁吸安装板': () => { row.Magnetic = null; },
+                        //'装磁吸安装板': () => { row.Magnetic = null; },
                         '喷墨': () => { row.Inkjet = null; },
                         '灌胶': () => { row.Glue = null; },
                         '气密': () => { row.Airtight = null; },
