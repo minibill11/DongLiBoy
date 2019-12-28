@@ -60,7 +60,7 @@
                 protype: this.queryTable.protype.toUpperCase(),
                 proplatform: this.queryTable.proplatform == "" ? [] : this.queryTable.proplatform
             }).then(res => {
-                console.log(JSON.parse(JSON.stringify(res.data)));
+                //console.log(JSON.parse(JSON.stringify(res.data)));
                 this.tableList = res.data;
                 this.loading = false;
                 this.$message.success('查询成功！');
@@ -85,14 +85,6 @@
                 this.options.proplatform = res.data;
             }).catch(err => {
                 console.warn("型号列表获取失败");
-            });
-        },
-        //获取文件列表
-        getFileStatu(v) {
-            axios.post('/Process_Capacity/DisplayStatuMessage', { statu: v }).then(res => {
-                console.log(res.data);
-            }).catch(err => {
-                console.warn("获取列表失败");
             });
         },
         //权限筛选
@@ -132,13 +124,13 @@
             });
         }
     },
+    mounted: function () {
+        this.queryTable.statu = '未审核';
+    },
     watch: {
         "queryTable.protype"(v) {
             this.getPlatfrom(v.toUpperCase());
-        },
-        "queryTable.statu"(v) {
-            this.getFileStatu(v)
-        },
+        }
     }
 };
 var app = new Vue({
