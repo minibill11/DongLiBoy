@@ -25,10 +25,10 @@
         </el-popover>
     </div>
     <div v-else>
-        <input-new v-if="nametext!='/'" :thisrow="rowdata" :thisitem="isnull" :thisid="itemid" :statu="section" v-show="editShow()&&bottomAndLock" style="display:inline-block;"></input-new>
+        <input-new v-if="nametext!='/'" :thisrow="rowdata" :thisitem="isnull" :thisid="itemid" :statu="section" v-show="editShow()&&!isUploadEdit" style="display:inline-block;"></input-new>
         <el-popover placement="bottom"
                     v-model="deleteVisible"
-                    v-show="editShow()">
+                    v-show="editShow()&&!isUploadEdit">
             <p><i class="el-icon-info red"></i>确认删除吗？</p>
             <div style="text-align: right; margin: 0">
                 <el-button type="text" @@click="deleteVisible = false" size="mini">取消</el-button>
@@ -45,6 +45,24 @@
         <el-button @@click="saveClick('save')" v-show="!editShow()" size="mini" class="miniBtn" type="success" round>
             保存
         </el-button>
+        <el-popover v-if="isnull!=null &&  nametext!='/'"
+                    v-show="editShow() && section!='打底壳' &&section!='锁面罩' &&section!='型号平台PCB' "
+                    placement="right-end"
+                    @@show="contactShow()"
+                    v-model="contactVisble">
+            <p><i class="el-icon-info red"></i> 请勾选关联项</p>
+            <div>
+                <el-checkbox-group v-if="contactOptions.length>0" v-model="contactVal" style="max-width:400px;">
+                    <el-checkbox v-for="ct in contactOptions" :label="ct.nextID" :key="ct.nextID">{{ct.nextName}}</el-checkbox>
+                </el-checkbox-group>
+                <div v-else class="red" style="margin-bottom:7px">前工段无可关联项</div>
+            </div>
+            <div style="text-align: center; margin: 0">
+                <el-button type="text" @@click="contactVisble = false" size="mini">取消</el-button>
+                <el-button type="primary" @@click="contactClick()" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="danger" plain round>关联</el-button>
+        </el-popover>
         @*<slot></slot>*@
     </div>
 </script>
@@ -63,13 +81,25 @@
             return {
                 initial: {},
                 passVisible: false,
-                deleteVisible: false
+                deleteVisible: false,
+                contactVisble: false,
+                isUploadEdit: false,//用来记录是不是属于需要上传工段的编辑
+                //关联
+                contactVal: [],
+                contactOptions: [],
+                contactName: ''
             }
         },
-        computed: {
-            bottomAndLock() {
-                return (this.section === "打底壳" || this.section === "锁面罩") ? false : true;
-            }
+        created: function () {
+            let section = this.section;
+            if (section === '贴装' || section === '后焊' || section === '打底壳' || section === '装磁吸安装板' || section === '锁面罩' || section === '模组装配' || section === '包装') {
+                this.isUploadEdit = true;
+            } else {
+                this.isUploadEdit = false;
+            };
+        },
+        mounted: function () {
+
         },
         methods: {
             //开启编辑
@@ -79,13 +109,18 @@
                 //行编辑数量
                 this.rowdata.editNum++;
                 let item = this.itemdata, itemStr = JSON.stringify(item);
-                if (this.section === '型号平台PCB') {
+                if (this.section === '型号平台PCB' || this.section === '贴装') {
                     let total = JSON.parse(itemStr);
                     this.initial = {
                         Type: total.Type,
                         Platform: total.Platform,
                         PCB: total.PCB,
-                        TotalEdit: false
+                        PlatformModul: total.PlatformModul,
+                        PCBDrying: total.PCBDrying,
+                        OutboundProcess: total.OutboundProcess,
+                        DryTime: total.DryTime,
+                        TotalEdit: false,
+                        SMTEidt: false,
                     };
                 } else {
                     this.initial = JSON.parse(itemStr);
@@ -94,13 +129,18 @@
                     '型号平台PCB': () => { item.TotalEdit = true },
                     '插件': () => { item.PluginEidt = true },
                     '三防': () => { item.ThreeProfEidt = true },
+                    '模块线': () => { item.ModuleLineEidt = true },
                     '打底壳': () => { item.BottomCasEidt = true },
-                    //'装磁吸安装板': () => { item.MagneticEidt = true },
+                    '装磁吸安装板': () => { item.MagneticEidt = true },
                     '喷墨': () => { item.InkjetEidt = true },
                     '灌胶': () => { item.GlueEidt = true },
                     '气密': () => { item.AirtightEidt = true },
                     '锁面罩': () => { item.LockTheMaskEdit = true },
                     '老化': () => { item.BurinEidt = true },
+                    '贴装': () => { item.SMTEidt = true },
+                    '后焊': () => { item.AfterWeldEidt = true },
+                    '模组装配': () => { item.ModuleEidt = true },
+                    '包装': () => { item.PackingEidt = true }
                 }[this.section].call(this);
             },
             //保存-跳过-删除
@@ -117,13 +157,18 @@
                     '型号平台PCB': () => { address = comefrom === "delete" ? "DeleteTotalProcess_Capacity" : "UpdateTotalProcess_Capacity"; },
                     '插件': () => { address = "Add_Plug_In"; },
                     '三防': () => { address = "Add_ThreeProf"; },
-                    '打底壳': () => { address = "Add_MachineNum"; },
-                    //'装磁吸安装板': () => { address = "Add_MagneticSuction"; },
+                    '模块线': () => { address = "Add_MachineNum"; },
                     '喷墨': () => { address = "Add_Inkjet"; },
                     '灌胶': () => { address = "Add_Glue"; },
                     '气密': () => { address = "Add_Airtight"; },
-                    '锁面罩': () => { address = "Add_MachineNum"; },
                     '老化': () => { address = "Add_Burin"; },
+                    '贴装': () => { address = "Add_PickmoduleNeed"; },
+                    '后焊': () => { address = "Add_MachineNum"; },
+                    '打底壳': () => { address = "Add_MachineNum"; },
+                    '装磁吸安装板': () => { address = "Add_MachineNum"; },
+                    '锁面罩': () => { address = "Add_MachineNum"; },
+                    '模组装配': () => { address = "Add_MachineNum"; },
+                    '包装': () => { address = "Add_MachineNum"; },
                 };
                 switchAddress[statu].call(this);
 
@@ -133,7 +178,7 @@
                     let switchobj = {
                         '插件': () => { obj['Name'] = "/"; },
                         '三防': () => { obj['ThreeProfProcessName'] = "/"; },
-                        //'装磁吸安装板': () => { obj['MagneticProcessName'] = "/"; },
+                        '模块线': () => { obj['ModuleLineProcessName'] = "/"; },
                         '喷墨': () => { obj['InkjetProcessName'] = "/"; },
                         '灌胶': () => { obj['GlueProcessName'] = "/"; },
                         '气密': () => { obj['AirtightProcessName'] = "/"; },
@@ -162,51 +207,52 @@
                             obj['type'] = row.Type;
                             obj['pcb'] = row.PCB;
                             obj['platfrom'] = row.Platform;
+                            obj['plafromodule'] = row.PlatformModul;
+                            obj['pcbdry'] = row.PCBDrying;
+                            obj['outboundProcess'] = row.OutboundProcess;
+                            obj['drytime'] = row.DryTime;
                             break;
                         case '插件':
                             obj['Id'] = row.PluginDevice[index].PluginDeviceID;
                             obj['Name'] = row.PluginDevice[index].PluginDeviceName;
                             obj['PCBASingleLampNumber'] = row.PluginDevice[index].PCBASingleLampNumber;
                             obj['PluginStandardNumber'] = row.PluginDevice[index].PluginStandardNumber;
+                            obj['ModuleNeedNum2'] = row.PluginDevice[index].PluginModuleNeed;
                             break;
                         case '三防':
                             obj['Id'] = row.ThreeProf[index].ThreeProfID;
                             obj['ThreeProfProcessName'] = row.ThreeProf[index].ThreeProfProcessName;
                             obj['ThreeProfStandardTotal'] = row.ThreeProf[index].ThreeProfStandardTotal;
                             obj['ThreeProfStabdardOutput'] = row.ThreeProf[index].ThreeProfStabdardOutput;
+                            obj['ModuleNeedNum2'] = row.ThreeProf[index].ThreeProfModuleNeed;
                             break;
-                        case '打底壳':
-                            obj['Id'] = row.BottomCas[index].BottomCasID;
-                            obj['BottomCasDispensMachineNum'] = row.BottomCas[index].BottomCasDispensMachineNum;
-                            obj['BottomCasScrewMachineNum'] = row.BottomCas[index].BottomCasScrewMachineNum;
+                        case '模块线':
+                            obj['Id'] = row.ModuleLine[index].ModuleLineID;
+                            obj['ModuleLineProcessName'] = row.ModuleLine[index].ModuleLineProcessName;
+                            obj['ModuleLineStandardTotal'] = row.ModuleLine[index].ModuleLineStandardTotal;
+                            obj['ModuleLineStandardOutput'] = row.ModuleLine[index].ModuleLineStandardOutput;
+                            obj['ModuleNeedNum2'] = row.ModuleLine[index].ModuleLineModuleNeed;
                             break;
-                        //case '装磁吸安装板':
-                        //    obj['Id'] = row.Magnetic[index].MagneticID;
-                        //    obj['MagneticProcessName'] = row.Magnetic[index].MagneticProcessName;
-                        //    obj['MagneticStandardTotal'] = row.Magnetic[index].MagneticStandardTotal;
-                        //    obj['MagneticStabdardOutput'] = row.Magnetic[index].MagneticStabdardOutput;
-                        //    break;
                         case '喷墨':
                             obj['Id'] = row.Inkjet[index].InkjetID;
                             obj['InkjetProcessName'] = row.Inkjet[index].InkjetProcessName;
                             obj['InkjetSuctionStandardTotal'] = row.Inkjet[index].InkjetSuctionStandardTotal;
                             obj['InkjetStabdardOutputPerHour'] = row.Inkjet[index].InkjetStabdardOutputPerHour;
+                            obj['ModuleNeedNum2'] = row.Inkjet[index].InkjetModuleNeed;
                             break;
                         case '灌胶':
                             obj['Id'] = row.Glue[index].GlueID;
                             obj['GlueProcessName'] = row.Glue[index].GlueProcessName;
                             obj['GlueStandardTotal'] = row.Glue[index].GlueStandardTotal;
                             obj['GlueStabdardOutput'] = row.Glue[index].GlueStabdardOutput;
+                            obj['ModuleNeedNum2'] = row.Glue[index].GlueModuleNeed;
                             break;
                         case '气密':
                             obj['Id'] = row.Airtight[index].AirtightID;
                             obj['AirtightProcessName'] = row.Airtight[index].AirtightProcessName;
                             obj['AirtightStandardTotal'] = row.Airtight[index].AirtightStandardTotal;
                             obj['AirtightStabdardOutput'] = row.Airtight[index].AirtightStabdardOutput;
-                            break;
-                        case '锁面罩':
-                            obj['Id'] = row.LockTheMask[index].LockTheMaskID;
-                            obj['LockTheMaskScrewMachineNum'] = row.LockTheMask[index].LockTheMaskScrewMachineNum;
+                            obj['ModuleNeedNum2'] = row.Airtight[index].AirtightModuleNeed;
                             break;
                         case '老化':
                             obj['Id'] = row.Burin[index].BurinID;
@@ -216,6 +262,59 @@
                             obj['BurinTwoProcessName'] = row.Burin[index].BurinTwoProcessName;
                             obj['BurinTwoSuctionStandardTotal'] = row.Burin[index].BurinTwoSuctionStandardTotal;
                             obj['BurinTwoStabdardOutputPerHour'] = row.Burin[index].BurinTwoStabdardOutputPerHour;
+                            obj['ModuleNeedNum2'] = row.Burin[index].BurinModuleNeed;
+                            break;
+
+
+                        case '贴装':
+                            obj = {};
+                            obj['id'] = row.id;
+                            obj['type'] = row.Type;
+                            obj['productPCBnumber'] = row.PCB;
+                            obj['platform'] = row.Platform;
+                            obj['moduleNeed'] = row.SMTmoduleneed;
+                            break;
+                        case '后焊':
+                            obj = {};
+                            obj['id'] = row.AfterWeld[index].AfterWeldID;
+                            obj['ScrewMachineNum'] = 0;
+                            obj['DispensMachineNum'] = 0;
+                            obj['moduleNeed'] = row.AfterWeld[index].AfterModuleNeed;
+                            break;
+                        case '打底壳':
+                            obj = {};
+                            obj['id'] = row.BottomCas[index].BottomCasID;
+                            obj['ScrewMachineNum'] = row.BottomCas[index].BottomCasScrewMachineNum;
+                            obj['DispensMachineNum'] = row.BottomCas[index].BottomCasDispensMachineNum;
+                            obj['moduleNeed'] = row.BottomCas[index].BottomCasModuleNeed;
+                            break;
+                        case '装磁吸安装板':
+                            obj = {};
+                            obj['id'] = row.Magnetic[index].MagneticID;
+                            obj['ScrewMachineNum'] = 0;
+                            obj['DispensMachineNum'] = 0;
+                            obj['moduleNeed'] = row.Magnetic[index].MagneticModuleNeed;
+                            break;
+                        case '锁面罩':
+                            obj = {};
+                            obj['id'] = row.LockTheMask[index].LockTheMaskID;
+                            obj['ScrewMachineNum'] = row.LockTheMask[index].LockTheMaskScrewMachineNum;
+                            obj['DispensMachineNum'] = 0;
+                            obj['moduleNeed'] = row.LockTheMask[index].LockTheMaskModuleNeed;
+                            break;
+                        case '模组装配':
+                            obj = {};
+                            obj['id'] = row.Module[index].ModuleID;
+                            obj['ScrewMachineNum'] = 0;
+                            obj['DispensMachineNum'] = 0;
+                            obj['moduleNeed'] = row.Module[index].ModuleNeed;
+                            break;
+                        case '包装':
+                            obj = {};
+                            obj['id'] = row.Packing[index].PackingID;
+                            obj['ScrewMachineNum'] = 0;
+                            obj['DispensMachineNum'] = 0;
+                            obj['moduleNeed'] = row.Packing[index].PackingModuleNeed;
                             break;
                         //default:
                     };
@@ -232,23 +331,9 @@
                             app.loading = false;
                         });
                     } else {
-                        //区分 --打底壳和打底壳 与其它工段不同
-                        if (statu === "打底壳" || statu === "锁面罩") {
-                            let machineObj = {};
-                            if (statu === "打底壳") {
-                                machineObj = {
-                                    id: obj.Id,
-                                    ScrewMachineNum: obj.BottomCasScrewMachineNum,
-                                    DispensMachineNum: obj.BottomCasDispensMachineNum,
-                                };
-                            } else {
-                                machineObj = {
-                                    id: obj.Id,
-                                    ScrewMachineNum: obj.LockTheMaskScrewMachineNum,
-                                    DispensMachineNum: 0,
-                                };
-                            };
-                            axios.post('/Process_Capacity/' + address, machineObj).then(res => {
+                        //区分 --由上传文件带来的编辑功能 与其它工段不同
+                        if (this.isUploadEdit) {
+                            axios.post('/Process_Capacity/' + address, obj).then(res => {
                                 if (res.data.message === true) {
                                     this.$message.success(res.data.content);
                                     this.closeEdit();
@@ -302,13 +387,18 @@
                     '型号平台PCB': () => { item.TotalEdit = false },
                     '插件': () => { item.PluginEidt = false },
                     '三防': () => { item.ThreeProfEidt = false },
+                    '模块线': () => { item.ModuleLineEidt = false },
                     '打底壳': () => { item.BottomCasEidt = false },
-                    //'装磁吸安装板': () => { item.MagneticEidt = false },
+                    '装磁吸安装板': () => { item.MagneticEidt = false },
                     '喷墨': () => { item.InkjetEidt = false },
                     '灌胶': () => { item.GlueEidt = false },
                     '气密': () => { item.AirtightEidt = false },
                     '锁面罩': () => { item.LockTheMaskEdit = false },
                     '老化': () => { item.BurinEidt = false },
+                    '贴装': () => { item.SMTEidt = false },
+                    '后焊': () => { item.AfterWeldEidt = false },
+                    '模组装配': () => { item.ModuleEidt = false },
+                    '包装': () => { item.PackingEidt = false }
                 }[this.section].call(this);
             },
             //编辑按钮显示
@@ -318,13 +408,18 @@
                     '型号平台PCB': () => { return item.TotalEdit === true ? false : true; },
                     '插件': () => { return item.PluginEidt === true ? false : true; },
                     '三防': () => { return item.ThreeProfEidt === true ? false : true; },
+                    '模块线': () => { return item.ModuleLineEidt === true ? false : true; },
                     '打底壳': () => { return item.BottomCasEidt === true ? false : true; },
-                    //'装磁吸安装板': () => { return item.MagneticEidt === true ? false : true; },
+                    '装磁吸安装板': () => { return item.MagneticEidt === true ? false : true; },
                     '喷墨': () => { return item.InkjetEidt === true ? false : true; },
                     '灌胶': () => { return item.GlueEidt === true ? false : true; },
                     '气密': () => { return item.AirtightEidt === true ? false : true; },
                     '锁面罩': () => { return item.LockTheMaskEdit === true ? false : true; },
                     '老化': () => { return item.BurinEidt === true ? false : true; },
+                    '贴装': () => { return item.SMTEidt === true ? false : true; },
+                    '后焊': () => { return item.AfterWeldEidt === true ? false : true; },
+                    '模组装配': () => { return item.ModuleEidt === true ? false : true; },
+                    '包装': () => { return item.PackingEidt === true ? false : true; }
                 }[this.section].call(this);
             },
             //跳过后的显示
@@ -333,6 +428,7 @@
                 return {
                     '插件': () => { row.PluginDevice = []; row.PluginDevice.push(newitem) },
                     '三防': () => { row.ThreeProf = []; row.ThreeProf.push(newitem) },
+                    '模块线': () => { row.ModuleLine = []; row.ModuleLine.push(newitem) },
                     //'装磁吸安装板': () => { row.Magnetic = []; row.Magnetic.push(newitem) },
                     '喷墨': () => { row.Inkjet = []; row.Inkjet.push(newitem) },
                     '灌胶': () => { row.Glue = []; row.Glue.push(newitem) },
@@ -349,6 +445,7 @@
                         '型号平台PCB': () => { item.splice(this.index, 1); },
                         '插件': () => { row.PluginDevice.splice(this.index, 1); },
                         '三防': () => { row.ThreeProf.splice(this.index, 1); },
+                        '模块线': () => { row.ModuleLine.splice(this.index, 1); },
                         //'装磁吸安装板': () => { row.Magnetic.splice(this.index, 1); },
                         '喷墨': () => { row.Inkjet.splice(this.index, 1); },
                         '灌胶': () => { row.Glue.splice(this.index, 1); },
@@ -360,6 +457,7 @@
                         '型号平台PCB': () => { item = []; },
                         '插件': () => { row.PluginDevice = null; },
                         '三防': () => { row.ThreeProf = null; },
+                        '模块线': () => { row.ModuleLine = null; },
                         //'装磁吸安装板': () => { row.Magnetic = null; },
                         '喷墨': () => { row.Inkjet = null; },
                         '灌胶': () => { row.Glue = null; },
@@ -377,6 +475,80 @@
             openTimer() {
                 app.editNumTimer--;
                 app.editNumTimer == 0 && app.monitorTimer();
+            },
+            //关联显示
+            contactShow() {
+                let thisInfo = app.getSectionInfo(this.section);
+                this.contactVal = [];
+                let contactInfo = app.checkBeforeContact(this.rowdata, this.section);
+                this.contactName = contactInfo.name;
+                this.contactOptions = contactInfo.options;
+
+                axios.post('/Process_Capacity/DisplayAssociated', {
+                    type: this.rowdata.Type,
+                    plafrom: this.rowdata.Platform,
+                    platformModul: this.rowdata.PlatformModul,
+                    ChildSeaction: thisInfo.section,
+                    ChildID: this.itemdata[thisInfo.idName]
+                }).then(res => {
+                    //console.log(res.data);
+                    for (let i of this.contactOptions) {
+                        for (let j of res.data) {
+                            if (i.nextID == j.id) {
+                                this.contactVal.push(j.id);
+                            };
+                        };
+                    };
+                }).catch(err => {
+                    this.$message.error("查看关联信息失败！");
+                    this.contactVisble = false;
+                });
+            },
+            //确认关联
+            contactClick() {
+                if (this.contactOptions.length == 0) {
+                    this.contactVisble = false;
+                    return;
+                };
+                let thisInfo = app.getSectionInfo(this.section);
+                let postData = [];
+                for (let i of this.contactOptions) {
+                    let next = true;
+                    for (let j of this.contactVal) {
+                        if (i.nextID == j) {
+                            postData.push({
+                                id: i.nextID,
+                                name: i.nextName,
+                                IsRelevannce: true
+                            });
+                            next = false;
+                            break;
+                        };
+                    };
+                    if (next) {
+                        postData.push({
+                            id: i.nextID,
+                            name: i.nextName,
+                            IsRelevannce: false
+                        });
+                    };
+                };
+                axios.post('/Process_Capacity/CreateAssociated', {
+                    type: this.rowdata.Type,
+                    plafrom: this.rowdata.Platform,
+                    platformModul: this.rowdata.PlatformModul,
+                    faterSeaction: this.contactName,
+                    faterID: postData,
+                    ChildSeaction: thisInfo.section,
+                    ChildID: this.itemdata[thisInfo.idName]
+                }).then(res => {
+                    //console.log(res.data);
+                    this.$message.success("保存关联信息成功！");
+                    this.contactVisble = false;
+                }).catch(err => {
+                    this.$message.error("保存关联信息失败！");
+                    this.contactVisble = false;
+                });
             }
         }
     });

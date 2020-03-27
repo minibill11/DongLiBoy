@@ -20,7 +20,7 @@
                        :on-change="handleChange"
                        :on-success="handleSuccess"
                        :on-error="handleError"
-                       :data="{type:rowdata.Type,PCBNumber:rowdata.PCB,platform:rowdata.Platform,seaction:section}">
+                       :data="uploadObj">
                 <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
                 <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
                 <button @@click="popoverVisible = false" type="button" aria-label="Close" class="el-dialog__headerbtn" style="top:50px;right:15px;font-size:10px"><i class="el-dialog__close el-icon el-icon-close">关闭</i></button>
@@ -42,7 +42,7 @@
             <el-button slot="reference" size="mini" class="miniBtn" type="info" plain round>跳过</el-button>
         </el-popover>
         <el-popover v-else
-                    placement="bottom"
+                    placement="top"
                     v-model="deleteVisible">
             <p><i class="el-icon-info red"></i> 确认删除此工段吗？</p>
             <div style="text-align: right; margin: 0">
@@ -50,6 +50,24 @@
                 <el-button type="primary" @@click="deleteClick()" size="mini">确定</el-button>
             </div>
             <el-button slot="reference" size="mini" class="miniBtn" type="warning" plain round>删除</el-button>
+        </el-popover>
+        <el-button v-show="isnull!=null && section !='SMT' && nametext!='/'" @@click="editName()" size="mini" class="miniBtn" type="success" plain round>改名</el-button>
+        <el-popover v-if="isnull!=null && section !='SMT' && nametext!='/'"
+                    placement="right-end"
+                    @@show="contactShow()"
+                    v-model="contactVisble">
+            <p><i class="el-icon-info red"></i> 请勾选关联项</p>
+            <div>
+                <el-checkbox-group v-if="contactOptions.length>0" v-model="contactVal" style="max-width:400px;">
+                    <el-checkbox v-for="ct in contactOptions" :label="ct.nextID" :key="ct.nextID">{{ct.nextName}}</el-checkbox>
+                </el-checkbox-group>
+                <div v-else class="red" style="margin-bottom:7px">前工段无可关联项</div>
+            </div>
+            <div style="text-align: center; margin: 0">
+                <el-button type="text" @@click="contactVisble = false" size="mini">取消</el-button>
+                <el-button type="primary" @@click="contactClick()" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="danger" plain round>关联</el-button>
         </el-popover>
     </div>
 </script>
@@ -72,21 +90,85 @@
         props: ['rowdata', 'itemdata', 'section', 'index', 'isnull', 'nametext'],
         data: function () {
             return {
+                uploadObj: {},
                 fileList: [],
                 popoverVisible: false,
                 address: "",
                 deleteAddress: "",
                 passVisible: false,
-                deleteVisible: false
+                deleteVisible: false,
+                contactVisble: false,
+                itemId: '',
+                itemIdName: '',
+                //关联
+                contactVal: [],
+                contactOptions: [],
+                contactName: ''
             }
         },
         mounted: function () {
+            if (this.rowdata.PlatformModul) {
+                this.uploadObj = {
+                    type: this.rowdata.Type,
+                    PCBNumber: this.rowdata.PCB,
+                    platform: this.rowdata.Platform,
+                    plafmodule: this.rowdata.PlatformModul,
+                    seaction: this.section
+                };
+            } else {
+                this.uploadObj = {
+                    type: this.rowdata.Type,
+                    PCBNumber: this.rowdata.PCB,
+                    platform: this.rowdata.Platform,
+                    seaction: this.section
+                };
+            };
+
+
             if (this.section == "SMT") {
                 this.address = "Upload_Pick_And_Place";
                 this.deleteAddress = "Delete_Pick_And_Place";
             } else {
                 this.address = "Upload_ProcessBalance";
                 this.deleteAddress = "Delete_ProcessBalance";
+            };
+
+
+            if (this.isnull != null && this.nametext != '/') {
+                switch (this.section) {
+                    case '后焊':
+                        this.itemId = this.itemdata.AfterWeldID;
+                        this.itemIdName = "AfterWeldProcessName";
+                        break;
+                    case '三防':
+                        this.itemId = this.itemdata.ThreeProfID;
+                        this.itemIdName = "ThreeProfProcessName";
+                        break;
+                    case '打底壳':
+                        this.itemId = this.itemdata.BottomCasID;
+                        this.itemIdName = "BottomCasProcessName";
+                        break;
+                    case '装磁吸安装板':
+                        this.itemId = this.itemdata.MagneticID;
+                        this.itemIdName = "MagneticProcessName";
+                        break;
+                    case '锁面罩':
+                        this.itemId = this.itemdata.LockTheMaskID;
+                        this.itemIdName = "LockTheMaskProcessName";
+                        break;
+                    case '模块线':
+                        this.itemId = this.itemdata.ModuleLineID;
+                        this.itemIdName = "ModuleLineProcessName";
+                        break;
+                    case '模组装配':
+                        this.itemId = this.itemdata.ModuleID;
+                        this.itemIdName = "ModuleProcessName";
+                        break;
+                    case '包装':
+                        this.itemId = this.itemdata.PackingID;
+                        this.itemIdName = "PackingProcessName";
+                        break;
+                };
             };
         },
         methods: {
@@ -142,6 +224,10 @@
                                     row.AfterWeld = [];
                                     row.AfterWeld.push(rtd)
                                     break;
+                                case '三防':
+                                    row.ThreeProf = [];
+                                    row.ThreeProf.push(rtd)
+                                    break;
                                 case '打底壳':
                                     row.BottomCas = [];
                                     row.BottomCas.push(rtd)
@@ -154,6 +240,10 @@
                                     row.LockTheMask = [];
                                     row.LockTheMask.push(rtd)
                                     break;
+                                case '模块线':
+                                    row.ModuleLine = [];
+                                    row.ModuleLine.push(rtd)
+                                    break;
                                 case '模组装配':
                                     row.Module = [];
                                     row.Module.push(rtd)
@@ -165,28 +255,7 @@
                                 //default:
                             };
                         } else {
-                            let textName = this.nametext;
-                            //switch (this.section) {
-                            //    case '后焊':
-                            //        textName = "AfterWeldProcessName";
-                            //        break;
-                            //    case '打底壳':
-                            //        textName = "BottomCasProcessName";
-                            //        break;
-                            //    case '装磁吸安装板':
-                            //        textName = "MagneticProcessName";
-                            //        break;
-                            //    case '锁面罩':
-                            //        textName = "LockTheMaskProcessName";
-                            //        break;
-                            //    case '模组装配':
-                            //        textName = "ModuleProcessName";
-                            //        break;
-                            //    case '包装':
-                            //        textName = "PackingProcessName";
-                            //        break;
-                            //    //default:
-                            //};
+                            let textName = this.itemIdName;
                             //如果有重复的，应该是替换
                             for (let i in item) {
                                 if (item[i][textName] == rtd[textName]) {
@@ -219,6 +288,7 @@
                     type: this.rowdata.Type,
                     PCBNumber: this.rowdata.PCB,
                     platform: this.rowdata.Platform,
+                    plafmodule: this.rowdata.PlatformModul,
                     seaction: this.section
                 }).then(res => {
                     if (res.data.result == true) {
@@ -245,9 +315,11 @@
                         };
                     },
                     '后焊': () => { row.AfterWeld = []; row.AfterWeld.push(newitem) },
+                    '三防': () => { row.ThreeProf = []; row.ThreeProf.push(newitem) },
                     '打底壳': () => { row.BottomCas = []; row.BottomCas.push(newitem) },
                     '装磁吸安装板': () => { row.Magnetic = []; row.Magnetic.push(newitem) },
                     '锁面罩': () => { row.LockTheMask = []; row.LockTheMask.push(newitem) },
+                    '模块线': () => { row.ModuleLine = []; row.ModuleLine.push(newitem) },
                     '模组装配': () => { row.Module = []; row.Module.push(newitem) },
                     '包装': () => { row.Packing = []; row.Packing.push(newitem) }
                 }[this.section].call(this);
@@ -294,9 +366,11 @@
                             row.LightMinStandardOutput = null;
                         },
                         '后焊': () => { row.AfterWeld.splice(this.index, 1); },
+                        '三防': () => { row.ThreeProf.splice(this.index, 1); },
                         '打底壳': () => { row.BottomCas.splice(this.index, 1); },
                         '装磁吸安装板': () => { row.Magnetic.splice(this.index, 1); },
                         '锁面罩': () => { row.LockTheMask.splice(this.index, 1); },
+                        '模块线': () => { row.ModuleLine.splice(this.index, 1); },
                         '模组装配': () => { row.Module.splice(this.index, 1); },
                         '包装': () => { row.Packing.splice(this.index, 1); },
                     }[this.section].call(this);
@@ -316,13 +390,116 @@
                             row.LightMinStandardOutput = null;
                         },
                         '后焊': () => { row.AfterWeld = null; },
+                        '三防': () => { row.ThreeProf = null; },
                         '打底壳': () => { row.BottomCas = null; },
                         '装磁吸安装板': () => { row.Magnetic = null; },
                         '锁面罩': () => { row.LockTheMask = null; },
+                        '模块线': () => { row.ModuleLine = null; },
                         '模组装配': () => { row.Module = null; },
                         '包装': () => { row.Packing = null; },
                     }[this.section].call(this);
                 };
+            },
+            //改文件名字
+            editName() {
+                this.$prompt(`原文件名为：${this.nametext}`, '修改文件名称', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                }).then(({ value }) => {
+                    axios.post('/Process_Capacity/Edit_ModuleName', {
+                        id: this.itemId,
+                        name: value,
+                    }).then(res => {
+                        if (res.data.message === true) {
+                            this.itemdata[this.itemIdName] = value;
+                            this.$message.success(res.data.content);
+                        } else {
+                            this.$message.error("修改失败");
+                        };
+                    }).catch(err => {
+                        this.$message.error("修改失败");
+                        this.deleteVisible = false;
+                    });
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '取消修改'
+                    });
+                });
+            },
+            //关联显示
+            contactShow() {
+                let thisInfo = app.getSectionInfo(this.section);
+                this.contactVal = [];
+                let contactInfo = app.checkBeforeContact(this.rowdata, this.section);
+                this.contactName = contactInfo.name;
+                this.contactOptions = contactInfo.options;
+
+                axios.post('/Process_Capacity/DisplayAssociated', {
+                    type: this.rowdata.Type,
+                    plafrom: this.rowdata.Platform,
+                    platformModul: this.rowdata.PlatformModul,
+                    ChildSeaction: thisInfo.section,
+                    ChildID: this.itemdata[thisInfo.idName]
+                }).then(res => {
+                    //console.log(res.data);
+                    for (let i of this.contactOptions) {
+                        for (let j of res.data) {
+                            if (i.nextID == j.id) {
+                                this.contactVal.push(j.id);
+                            };
+                        };
+                    };
+                }).catch(err => {
+                    this.$message.error("查看关联信息失败！");
+                    this.contactVisble = false;
+                });
+            },
+            //确认关联
+            contactClick() {
+                if (this.contactOptions.length == 0) {
+                    this.contactVisble = false;
+                    return;
+                };
+                let thisInfo = app.getSectionInfo(this.section);
+                let postData = [];
+                for (let i of this.contactOptions) {
+                    let next = true;
+                    for (let j of this.contactVal) {
+                        if (i.nextID == j) {
+                            postData.push({
+                                id: i.nextID,
+                                name: i.nextName,
+                                IsRelevannce: true
+                            });
+                            next = false;
+                            break;
+                        };
+                    };
+                    if (next) {
+                        postData.push({
+                            id: i.nextID,
+                            name: i.nextName,
+                            IsRelevannce: false
+                        });
+                    };
+                };
+                axios.post('/Process_Capacity/CreateAssociated', {
+                    type: this.rowdata.Type,
+                    plafrom: this.rowdata.Platform,
+                    platformModul: this.rowdata.PlatformModul,
+                    faterSeaction: this.contactName,
+                    faterID: postData,
+                    ChildSeaction: thisInfo.section,
+                    ChildID: this.itemdata[thisInfo.idName]
+                }).then(res => {
+                    //console.log(res.data);
+                    this.$message.success("保存关联信息成功！");
+                    this.contactVisble = false;
+                }).catch(err => {
+                    this.$message.error("保存关联信息失败！");
+                    this.contactVisble = false;
+                });
             }
         }
     });
