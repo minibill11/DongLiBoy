@@ -77,7 +77,7 @@ let mixin = {
             this.loading = true;
             axios.post('/Process_Capacity/TotalProcess_Capacity', {
                 protype: this.queryTable.protype.toUpperCase(),
-                proplatform: 'FM'/*this.queryTable.proplatform == "" ? [] : this.queryTable.proplatform*/
+                proplatform: this.queryTable.proplatform == "" ? [] : this.queryTable.proplatform
             }).then(res => {
                 //console.log(JSON.parse(JSON.stringify(res.data)));
                 this.tableList = res.data;
@@ -148,7 +148,15 @@ let mixin = {
         //返回传入工段的 字段名称
         getSectionInfo(val) {
             return {
-                //'SMT': () => {},
+                'SMT': () => {
+                    //SMT特殊，属于row的信息
+                    return {
+                        name: '贴装',
+                        idName: 'id',
+                        sectionName: 'row',
+                        section: 'SMT'
+                    }
+                },
                 '插件': () => {
                     return {
                         name: 'PluginDeviceName',
@@ -257,7 +265,8 @@ let mixin = {
         },
         //查找前工段是否存在多工艺工段
         checkBeforeContact(row, name) {
-            let sectionArr = ['包装', '老化', '模组装配', '模块线', '喷墨', '气密', '锁面罩', '装磁吸安装板', '灌胶', '打底壳', '三防', '后焊', '插件'],
+            //['包装', '老化', '模组装配', '模块线', '喷墨', '气密', '锁面罩', '装磁吸安装板', '灌胶', '打底壳', '三防', '后焊', '插件']
+            let sectionArr = ['包装', '模组装配', '灌胶', '三防'],
                 thisIndex = 999;
             for (let i in sectionArr) {
                 if (sectionArr[i] == name) {
@@ -265,7 +274,7 @@ let mixin = {
                 };
                 if (Number(i) > Number(thisIndex)) {
                     let sn = this.getSectionInfo(sectionArr[i]);
-                    if (row[sn.sectionName] != null && row[sn.sectionName].length > 1) {
+                    if (row[sn.sectionName] != null && (row[sn.sectionName].length > 1 || sn.section == "三防")) {
                         let rtd = {
                             name: sectionArr[i],
                             options: []
@@ -289,8 +298,8 @@ let mixin = {
     //页面加载完后执行
     mounted: function () {
         this.queryTable.statu = '未审核';//赋值文件状态默认值为未审核
-        this.onQuerySubmit();//页面加载完后 调用方法获取表格数据
-        //this.monitorTimer();//启动轮询计时器
+        //this.onQuerySubmit();//页面加载完后 调用方法获取表格数据
+        this.monitorTimer();//启动轮询计时器
     },
     watch: {
         //监听平台选择，调用筛选方法，即时更新筛选后的表格

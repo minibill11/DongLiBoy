@@ -22,6 +22,7 @@
                        :on-error="handleError"
                        :data="uploadObj">
                 <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
+                <el-button v-if="isnull!=null && section !='SMT' && nametext!='/'&& isnull.length>=1" style="margin-left: 5px;" size="small" type="info" @@click="nullUpload">增加跳过</el-button>
                 <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
                 <button @@click="popoverVisible = false" type="button" aria-label="Close" class="el-dialog__headerbtn" style="top:50px;right:15px;font-size:10px"><i class="el-dialog__close el-icon el-icon-close">关闭</i></button>
                 <div slot="tip" class="el-upload__tip">excel</div>
@@ -52,7 +53,8 @@
             <el-button slot="reference" size="mini" class="miniBtn" type="warning" plain round>删除</el-button>
         </el-popover>
         <el-button v-show="isnull!=null && section !='SMT' && nametext!='/'" @@click="editName()" size="mini" class="miniBtn" type="success" plain round>改名</el-button>
-        <el-popover v-if="isnull!=null && section !='SMT' && nametext!='/'"
+        <el-popover v-if="isnull!=null && section !='SMT' && (nametext!='/' || section=='包装')"
+                    v-show="section=='包装' || section=='模组装配'"
                     placement="right-end"
                     @@show="contactShow()"
                     v-model="contactVisble">
@@ -69,6 +71,43 @@
             </div>
             <el-button slot="reference" size="mini" class="miniBtn" type="danger" plain round>关联</el-button>
         </el-popover>
+        <copy-dialog v-if="isnull!=null &&  nametext!='/'" :thisrow="rowdata" :thisitem="isnull" :statu="section" style="display:inline-block;"></copy-dialog>
+        @*  模组 改名模态框 *@
+        <el-dialog @@close="editNameClose('editNameRuleForm')"
+                   :append-to-body="true"
+                   :visible.sync="editNameVisible">
+            <div slot="title" style="font-size:17px;">
+                修改文件名称<br />
+                原文件名为：<span style="color:dodgerblue">{{nametext}}</span>
+            </div>
+            <el-form label-width="30%"
+                     label-position="right"
+                     ref="editNameRuleForm"
+                     size="medium"
+                     :rules="editNameRules"
+                     :model="editNameForm">
+                <el-form-item label="出货方式" prop="mzOut">
+                    <el-select v-model="editNameForm.mzOut" placeholder="请选择出货方式">
+                        <el-option label="模组出货" value="模组出货"></el-option>
+                        <el-option label="模块出货" value="模块出货"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="模组类别" prop="mzType">
+                    <el-select v-model="editNameForm.mzType" placeholder="请选择模组类别">
+                        <el-option label="普通箱" value="普通箱"></el-option>
+                        <el-option label="简易箱" value="简易箱"></el-option>
+                        <el-option label="封闭箱" value="封闭箱"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="箱体尺寸" prop="mzSize">
+                    <el-input v-model="editNameForm.mzSize"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button @@click="editNameVisible = false">取 消</el-button>
+                    <el-button type="primary" @@click="submitForm('editNameRuleForm')">确 定</el-button>
+                </el-form-item>
+            </el-form>
+        </el-dialog>
     </div>
 </script>
 @*文件跳转链接*@
@@ -103,27 +142,34 @@
                 //关联
                 contactVal: [],
                 contactOptions: [],
-                contactName: ''
+                contactName: '',
+                //模组改名模态框
+                editNameVisible: false,
+                editNameForm: {
+                    mzOut: "",
+                    mzType: "",
+                    mzSize: "",
+                },
+                editNameRules: {
+                    mzOut: [{ required: true, message: '请选择出货方式', trigger: 'change' }],
+                    //mzType: [{ required: true, message: '请选择模组类别', trigger: 'change' }],
+                    //mzSize: [{ required: true, message: '请填写箱体尺寸', trigger: 'blur' }]
+                }
             }
         },
         mounted: function () {
-            if (this.rowdata.PlatformModul) {
-                this.uploadObj = {
-                    type: this.rowdata.Type,
-                    PCBNumber: this.rowdata.PCB,
-                    platform: this.rowdata.Platform,
-                    plafmodule: this.rowdata.PlatformModul,
-                    seaction: this.section
-                };
-            } else {
-                this.uploadObj = {
-                    type: this.rowdata.Type,
-                    PCBNumber: this.rowdata.PCB,
-                    platform: this.rowdata.Platform,
-                    seaction: this.section
-                };
+            this.uploadObj = {
+                type: this.rowdata.Type,
+                PCBNumber: this.rowdata.PCB,
+                platform: this.rowdata.Platform,
+                seaction: this.section
             };
-
+            if (this.rowdata.PlatformModul != null) {
+                this.uploadObj['plafmodule'] = this.rowdata.PlatformModul;
+            };
+            if (this.rowdata.Maintenance != null) {
+                this.uploadObj['Maintenance'] = this.rowdata.Maintenance;
+            };
 
             if (this.section == "SMT") {
                 this.address = "Upload_Pick_And_Place";
@@ -178,7 +224,7 @@
             },
             //上传文件之前的钩子
             beforeUpload(file) {
-                var suffix = file.name.substring(file.name.lastIndexOf('.') + 1);
+                let suffix = file.name.substring(file.name.lastIndexOf('.') + 1);
                 const xlsExtension = suffix === 'xls';
                 const xlsxExtension = suffix === 'xlsx';
                 // const isLt2M = file.size / 1024 / 1024 < 10;
@@ -202,6 +248,18 @@
                 //ready,success,fail
                 if (file.status == "ready") {
                     console.log("添加文件:" + file.name);
+                    this.uploadObj = {
+                        type: this.rowdata.Type,
+                        PCBNumber: this.rowdata.PCB,
+                        platform: this.rowdata.Platform,
+                        seaction: this.section
+                    };
+                    if (this.rowdata.PlatformModul != null) {
+                        this.uploadObj['plafmodule'] = this.rowdata.PlatformModul;
+                    };
+                    if (this.rowdata.Maintenance != null) {
+                        this.uploadObj['Maintenance'] = this.rowdata.Maintenance;
+                    };
                 } else {
                     this.$refs.upload.clearFiles();
                     this.popoverVisible = false;
@@ -282,6 +340,57 @@
             submitUpload() {
                 this.$refs.upload.submit();
             },
+            //新增空白
+            nullUpload() {
+                this.$prompt('此跳过工段的工序描述名称', '填写跳过描述', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                }).then(({ value }) => {
+                    this.uploadObj = {
+                        type: this.rowdata.Type,
+                        PCBNumber: this.rowdata.PCB,
+                        platform: this.rowdata.Platform,
+                        seaction: this.section,
+                        isnull: true,
+                        name: value
+                    };
+                    if (this.rowdata.PlatformModul != null) {
+                        this.uploadObj['plafmodule'] = this.rowdata.PlatformModul;
+                    };
+                    if (this.rowdata.Maintenance != null) {
+                        this.uploadObj['Maintenance'] = this.rowdata.Maintenance;
+                    };
+
+                    axios.post(`/Process_Capacity/${this.address}`, this.uploadObj).then(res => {
+                        if (res.data.result == true) {
+                            let item = this.isnull, rtd = res.data.content;
+                            let textName = this.itemIdName;
+                            //如果有重复的，应该是替换
+                            for (let i in item) {
+                                if (item[i][textName] == rtd[textName]) {
+                                    item.splice(i, 1, rtd);
+                                    return;
+                                };
+                            };
+                            //若没重复，增加
+                            item.push(rtd);
+                            //刷新审核/批准 列表
+                            //app.$refs.statuRef.getFileStatu(app.queryTable.statu);
+                            this.$message.success("上传成功！");
+                        } else {
+                            this.$message.error(res.data.content);
+                        };
+                    }).catch(err => {
+                        this.$message.error("新增跳过失败");
+                        this.popoverVisible = false;
+                    });
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '取消'
+                    });
+                });
+            },
             //跳过的方法
             passClick() {
                 axios.post(`/Process_Capacity/${this.address}`, {
@@ -289,6 +398,7 @@
                     PCBNumber: this.rowdata.PCB,
                     platform: this.rowdata.Platform,
                     plafmodule: this.rowdata.PlatformModul,
+                    Maintenance: this.rowdata.Maintenance,
                     seaction: this.section
                 }).then(res => {
                     if (res.data.result == true) {
@@ -330,6 +440,8 @@
                     type: this.rowdata.Type,
                     PCBNumber: this.rowdata.PCB,
                     platform: this.rowdata.Platform,
+                    PlatformModul: this.rowdata.PlatformModul,
+                    Maintenance: this.rowdata.Maintenance,
                     Section: this.section,
                     title: this.nametext
                 }).then(res => {
@@ -341,7 +453,7 @@
                         this.deleteVisible = false;
                     };
                 }).catch(err => {
-                    this.$message.error("跳过失败！");
+                    this.$message.error("删除失败！");
                     this.deleteVisible = false;
                 });
             },
@@ -402,29 +514,67 @@
             },
             //改文件名字
             editName() {
-                this.$prompt(`原文件名为：${this.nametext}`, '修改文件名称', {
-                    confirmButtonText: '确定',
-                    cancelButtonText: '取消',
-                }).then(({ value }) => {
-                    axios.post('/Process_Capacity/Edit_ModuleName', {
-                        id: this.itemId,
-                        name: value,
-                    }).then(res => {
-                        if (res.data.message === true) {
-                            this.itemdata[this.itemIdName] = value;
-                            this.$message.success(res.data.content);
-                        } else {
+                if (this.section === "模组装配") {
+                    this.editNameVisible = true;
+                } else {
+                    this.$prompt(`原文件名为：${this.nametext}`, '修改文件名称', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                    }).then(({ value }) => {
+                        axios.post('/Process_Capacity/Edit_ModuleName', {
+                            id: this.itemId,
+                            name: value,
+                        }).then(res => {
+                            if (res.data.message === true) {
+                                this.itemdata[this.itemIdName] = value;
+                                this.$message.success(res.data.content);
+                            } else {
+                                this.$message.error("修改失败");
+                            };
+                        }).catch(err => {
                             this.$message.error("修改失败");
-                        };
-                    }).catch(err => {
+                            this.deleteVisible = false;
+                        });
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '取消修改'
+                        });
+                    });
+                };
+            },
+            //改名
+            editNamePost() {
+                this.editNameVisible = false;
+                let nameVal = this.editNameForm.mzOut + '➸' + this.editNameForm.mzType + '➸' + this.editNameForm.mzSize;
+                axios.post('/Process_Capacity/Edit_ModuleName', {
+                    id: this.itemId,
+                    name: nameVal,
+                }).then(res => {
+                    if (res.data.message === true) {
+                        this.itemdata[this.itemIdName] = nameVal;
+                        this.$message.success(res.data.content);
+                    } else {
                         this.$message.error("修改失败");
-                        this.deleteVisible = false;
-                    });
-                }).catch(() => {
-                    this.$message({
-                        type: 'info',
-                        message: '取消修改'
-                    });
+                    };
+                }).catch(err => {
+                    this.$message.error("修改失败");
+                    this.deleteVisible = false;
+                });
+            },
+            //关闭模组改名模态框
+            editNameClose(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证改名模态框值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.editNamePost();
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
                 });
             },
             //关联显示
@@ -439,6 +589,7 @@
                     type: this.rowdata.Type,
                     plafrom: this.rowdata.Platform,
                     platformModul: this.rowdata.PlatformModul,
+                    Maintenance: this.rowdata.Maintenance,
                     ChildSeaction: thisInfo.section,
                     ChildID: this.itemdata[thisInfo.idName]
                 }).then(res => {
@@ -488,6 +639,7 @@
                     type: this.rowdata.Type,
                     plafrom: this.rowdata.Platform,
                     platformModul: this.rowdata.PlatformModul,
+                    Maintenance: this.rowdata.Maintenance,
                     faterSeaction: this.contactName,
                     faterID: postData,
                     ChildSeaction: thisInfo.section,
@@ -510,9 +662,9 @@
         computed: {
             hrefname() {
                 if (this.section == "SMT") {
-                    return `/Process_Capacity/StandardCapacity?id=${this.rowdata.id}&type=${this.rowdata.Type}&PCBNumber=${this.rowdata.PCB}&platform=${this.rowdata.Platform}&Section=${encodeURI(this.section)}&title=${encodeURI(this.section)}`;
+                    return `/Process_Capacity/StandardCapacity?id=${this.rowdata.id}&type=${this.rowdata.Type}&PCBNumber=${this.rowdata.PCB}&platform=${this.rowdata.Platform}&PlatformModul=${this.rowdata.PlatformModul}&Maintenance=${this.rowdata.Maintenance}&Section=${encodeURI(this.section)}&title=${encodeURI(this.section)}`;
                 } else {
-                    return `/Process_Capacity/ProcessBalanceCard?id=${this.rowdata.id}&type=${this.rowdata.Type}&PCBNumber=${this.rowdata.PCB}&platform=${this.rowdata.Platform}&Section=${encodeURI(this.section)}&title=${encodeURI(this.nametext)}`;
+                    return `/Process_Capacity/ProcessBalanceCard?id=${this.rowdata.id}&type=${this.rowdata.Type}&PCBNumber=${this.rowdata.PCB}&platform=${this.rowdata.Platform}&PlatformModul=${this.rowdata.PlatformModul}&Maintenance=${this.rowdata.Maintenance}&Section=${encodeURI(this.section)}&title=${encodeURI(this.nametext)}`;
                 };
             }
         }

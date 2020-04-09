@@ -1,0 +1,64 @@
+﻿@*
+    班组下拉框组件
+*@
+<script type="text/template" id="groupSelect">
+    <div class="el-input banzuComponent">
+        <input id="banzuDepartment" type="hidden" v-model="depart" name="Department1" />
+        <select id="banzuGroup" name="Group" class="form-control" v-model="group" required="required">
+            <option value="">请选择班组</option>
+            <option v-for="item in groupList" :value="item">{{item}}</option>
+        </select>
+    </div>
+</script>
+<script>
+    Vue.component('group-select', {
+        template: document.getElementById("groupSelect"),
+        data: function () {
+            return {
+                group: '',
+                depart: '',
+                groupList: false,
+            }
+        },
+        //页面创建时执行
+        created: function () {
+            this.getData();
+        },
+        mounted: function () {
+        },
+        methods: {
+            //获取账号班组列表
+            getData() {
+                axios.post("/Users/DisplayGroup").then(res => {
+                    //未登陆则返回null
+                    if (res.data == '') {
+                        //this.$message.warning("登陆状态已丢失，请重试打开页面！")
+                    } else {
+                        this.depart = res.data.department;
+                        this.groupList = res.data.Group;
+
+                        //查看班组列表里是否存在本地存储的值
+                        let sGroup = localStorage.getItem('selectgroup');
+                        if (sGroup != null) {
+                            let list = this.groupList;
+                            for (let i of list) {
+                                if (i == sGroup) {
+                                    this.group = sGroup;
+                                };
+                            };
+                        };
+
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                });
+            }
+        },
+        watch: {
+            group(v) {
+                localStorage.setItem('selectgroup', v);
+            }
+        }
+    });
+</script>
+
