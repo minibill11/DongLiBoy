@@ -1,0 +1,247 @@
+﻿
+@{
+    ViewBag.Title = "Departmental_usage";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+
+<style>
+    h2 {
+        text-align: center;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        font-size: 21px;
+    }
+
+    .topContainer {
+        margin-top: 15px;
+        margin: 0 auto;
+        display: flex;
+        width: 60%;
+        justify-content: space-around;
+    }
+</style>
+<h2>部门设备使用率</h2>
+
+<div id="app">
+    <div class="topContainer">
+        <el-select clearable filterable size="mini" v-model="equipmentnumber" placeholder="请输入设备号">
+            <el-option v-for="item in equipmentnumberoptions"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select clearable filterable size="mini" v-model="userdepartment" placeholder="请选择使用部门">
+            <el-option v-for="item in deparOpions"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-date-picker v-model="Year"
+                        align="right"
+                        type="year"
+                        size="mini"
+                        placeholder="选择年份">
+        </el-date-picker>
+        <el-select clearable filterable size="mini" v-model="Month" placeholder="请选择月份">
+            <el-option v-for="item in monthList"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-button id="search" style="margin-left:15px;" type="primary" v-on:click="search" size="small">查询</el-button>
+    </div>
+    <div class="bottomContainer">
+        <el-table :data="tableList"
+                  v-loading="loading"
+                  max-height="600"
+                  size="mini"
+                  align="center"
+                  cell-class-name="cellParent"
+                  stripe
+                  border>
+            <el-table-column type="index" label="序号"
+                             align="center">
+                <template slot-scope="scope">
+                    <span>{{scope.$index+1}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Userdeparment"
+                             label="使用部门"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="EquipmentNumber"
+                             label="设备号"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="Year"
+                             label="年份"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="Month"
+                             label="月份"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="timeList"
+                             label="使用情况"
+                             align="center">
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+
+<script>
+    let app = new Vue({
+        el: "#app",
+        data: {
+            deparOpions: [],  // 使用部门列表
+            equipmentnumberoptions: [],  // 所有设备编号,
+            monthList: [],
+            equipmentnumber: null,
+            userdepartment: null,
+            Year: null,
+            Month: null,
+            whendepar: [],
+            nodepar: [],
+            tableList: [],
+            loading: false
+        },
+        mounted() {
+            this.getDeparList();
+            this.getequipmentnumberoptions();
+            this.getMonthList();
+        },
+        methods: {
+            // 获取设备使用部门
+            getDeparList() {
+                axios.post("/Equipment/Userdepartment_list").then(res => {
+                    res.data.forEach(item => {
+                        let obj = {
+                            value: item,
+                            label: item
+                        };
+                        this.deparOpions.push(obj);
+                    })
+                })
+            },
+            // 获取设备编号
+            getequipmentnumberoptions() {
+                axios.post("/Equipment/EQNumberList").then(res => {
+                    //console.log(res.data)
+                    this.equipmentnumberoptions = [];
+                    res.data.forEach(item => {
+                        let obj = { label: item, value: item }
+                        this.equipmentnumberoptions.push(obj)
+                    })
+                })
+            },
+            // 获取月份
+            getMonthList() {
+                for (i = 1; i < 13; i++) {
+                    let obj = { label: i, value: i }
+                    this.monthList.push(obj)
+                }
+            },
+            // 查询按钮
+            search() {
+                if (this.Year != null) {
+                    if ((this.equipmentnumber != null && this.equipmentnumber != '') || (this.userdepartment != null && this.userdepartment != '')) {
+                        let arr = []
+                        this.tableList = [];
+                        arr = this.nodepar;
+                        console.log(arr)
+                        if (arr.length > 0) {
+
+                        } else {
+                            arr = []
+                            arr.push(this.equipmentnumber);
+                        }
+                        let dd = new Date(this.Year);
+                        let year = dd.getFullYear();
+                        this.getInfos(arr, this.userdepartment, year, this.Month);
+                    } else {
+                        this.$notify({
+                            message: "请选择部门或设备编号",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    this.$notify({
+                        message: "请选择年份",
+                        type: "warning"
+                    })
+                }
+            },
+            // 共用查找方法
+            getInfos(equipmentNumber, userDepartment, year, month) {
+                this.loading = true;
+                axios.post("/Equipment/Equipment_Timeusage", { equipmentNumber, userDepartment, year, month }).then(res => {
+                    console.log(res.data);
+                    if (res.data.length > 0) {
+                        this.$notify({
+                            message: "获取数据成功!",
+                            type: "success"
+                        });
+                        this.tableList = res.data;
+                        this.loading = false;
+                    } else {
+                        this.$notify({
+                            message: "查无数据",
+                            type: "warning"
+                        });
+                        this.loading = false;
+                    }
+                }).catch(err => {
+                    this.loading = false;
+                })
+            },
+            // 根据部门获取部门中所有设备编号
+            getSomeEQNumber(depar) {
+                axios.post("/Equipment/Number_List", { userdepartment: depar }).then(res => {
+                    let arr = []
+                    this.nodepar = res.data;
+                    res.data.forEach(item => {
+                        let obj = { label: item, value: item }
+                        arr.push(obj)
+                    });
+                    this.equipmentnumberoptions = arr;
+                })
+            }
+        },
+        watch: {
+            equipmentnumber() {
+                if (this.equipmentnumber == null || this.equipmentnumber == '') {
+                    if (this.userdepartment != null && this.userdepartment != '') {
+                        this.getSomeEQNumber(this.userdepartment);
+                    } else {
+                        this.nodepar = []
+                    }
+                }
+            },
+            userdepartment() {
+                console.log(this.userdepartment)
+                if (this.userdepartment != null && this.userdepartment != '') {
+                    if (this.equipmentnumber == null || this.equipmentnumber == '') {
+                        this.getSomeEQNumber(this.userdepartment);
+                    } else {
+
+                    }
+                } else {
+                    this.nodepar = []
+                    this.getequipmentnumberoptions();
+                }
+            },
+            Year() {
+
+            },
+            Month() {
+
+            }
+        }
+    })
+</script>

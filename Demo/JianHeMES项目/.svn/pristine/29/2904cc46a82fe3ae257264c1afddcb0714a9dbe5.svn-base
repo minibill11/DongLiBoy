@@ -1,0 +1,363 @@
+﻿@{
+    ViewBag.Title = "条码规则录入";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 20px 0 0;
+    }
+
+    .divframe {
+        margin: 1px auto;
+        text-align: center;
+        border: 1px solid #ccc;
+        display: inline-block;
+    }
+
+    .inputframe {
+        width: 300px;
+        text-align: right;
+        margin: 1px auto;
+    }
+
+    .el-table th {
+        padding: 5px 0;
+        background-color: #f4df42;
+        color: #000;
+        text-align: center;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+        text-align: center;
+    }
+
+    .el-drawer__header {
+        padding: 10px 20px;
+        text-align: center;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 10px;
+        border-bottom: 1px solid #808080;
+    }
+
+    .el-drawer__body {
+        overflow: auto;
+        padding: 5px 0 30px;
+    }
+
+    .el-transfer-panel__filter {
+        margin: 5px;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+
+    .green {
+        color: #67c23a;
+    }
+
+    .red {
+        color: #f56c6c;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/OrderMgms/Create"><el-button size="small">创建订单</el-button></a>
+                <div class="adiv" href="/BarCodes/SetJsonFile"><el-button size="small" type="primary" plain disabled style="cursor:default">录入模组号规则</el-button></div>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/OrderMgms/Create"><el-dropdown-item>创建订单</el-dropdown-item></a>
+                        <div href="/BarCodes/SetJsonFile"><el-dropdown-item disabled>录入模组号规则</el-dropdown-item></div>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <div class="text-center" style="margin:0 auto;">
+                <div class="inputframe">
+                    <span>订单号：</span>
+                    <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium" style="width:220px;">
+                        <el-option v-for="item in selectOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>输入前缀：</span>
+                    <el-input placeholder="输入前缀" v-model="Prefix" clearable size="medium" style="width:220px"></el-input>
+                </div>
+                <div class="inputframe">
+                    <span>输入后缀：</span>
+                    <el-input placeholder="输入后缀" v-model="Suffix" clearable size="medium" style="width:220px"></el-input>
+                </div>
+                <div class="inputframe">
+                    <span>数量：</span>
+                    <el-input-number size="medium" v-model="Num" :min="1" style="width:220px"></el-input-number>
+                </div>
+                <div class="inputframe">
+                    <span>起始值：</span>
+                    <el-input-number size="medium" v-model="startNum" :min="1" style="width:220px"></el-input-number>
+                </div>
+                <div class="inputframe" style="margin-bottom:10px;">
+                    <el-switch v-model="Rule"
+                               active-text="补零"
+                               inactive-text="不补零"
+                               size="medium">
+                    </el-switch>
+                </div>
+                <div class="inputframe">
+                    <el-button size="medium" @@click="confirmRule" :disabled="(ruleList.length==0)">确认</el-button>
+                    <el-button size="medium" @@click="addrule">添加</el-button>
+                </div>
+                <br />
+                <div class="divframe">
+                    <el-table :data="ruleList"
+                              border>
+                        <el-table-column prop="Prefix"
+                                         label="前缀"
+                                         width="90">
+                        </el-table-column>
+                        <el-table-column prop="Suffix"
+                                         label="后缀"
+                                         width="70">
+                        </el-table-column>
+                        <el-table-column prop="Num"
+                                         label="数量"
+                                         width="60">
+                        </el-table-column>
+                        <el-table-column label="是否补零"
+                                         width="80">
+                            <template slot-scope="scope">
+                                <span v-if="scope.row.Rule" class="el-icon-success green"></span>
+                                <span v-else class="el-icon-error red"></span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="startNum"
+                                         label="起始值"
+                                         width="70">
+                        </el-table-column>
+                        <el-table-column label="预览"
+                                         width="200">
+                            <template slot-scope="scope">
+                                <span>{{zero(scope.row.Prefix,scope.row.Suffix,scope.row.Num,scope.row.Rule,scope.row.startNum)}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label=""
+                                         width="40">
+                            <template slot-scope="scope">
+                                <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,ruleList)"
+                                           type="text"
+                                           size="mini"
+                                           style="margin:0;padding:0;width:100%;">
+                                    <i class="el-icon-error"></i>
+                                </el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            </div>
+            <el-drawer title="录入模组号规则"
+                       :visible.sync="drawer"
+                       direction="ttb"
+                       size="auto"
+                       :before-close="handleClose">
+                <div>
+                    <el-button size="small" type="primary" round plain>确认</el-button>
+                    <el-button size="small" @@click="drawer=false" type="primary" round plain>取消</el-button>
+                </div>
+            </el-drawer>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            screenSize: document.body.clientWidth,
+            drawer: false,
+            ruleList: [],
+            Prefix: "",
+            Suffix: "",
+            Num: 1,
+            Rule: true,
+            startNum: 1,
+        },
+        methods: {
+            //预览排序
+            zero: function (Prefix, Suffix, Num, Rule, startNum) {
+                let returnString = "", numLength = (Num + startNum - 1).toString().length;
+                for (let i = 0; i < Num; i++) {
+                    if (Num <= 4) {
+                        if (!Rule) {
+                            returnString += Prefix + (startNum + i) + Suffix;
+                        } else {
+                            returnString += Prefix + (Array(numLength).join('0') + (startNum + i)).slice(-numLength) + Suffix;
+                        };
+                        if (i != Num - 1) {
+                            returnString += ","
+                        };
+                    };
+                    if (Num > 4) {
+                        if (i < 3) {
+                            if (!Rule) {
+                                returnString += Prefix + (startNum + i) + Suffix;
+                            } else {
+                                returnString += Prefix + (Array(numLength).join('0') + (startNum + i)).slice(-numLength) + Suffix;
+                            };
+                            if (i != Num - 1) {
+                                returnString += ","
+                            };
+                        };
+                        if (i == 3) {
+                            returnString += "..."
+                        };
+                        if (i == Num - 1) {
+                            if (!Rule) {
+                                returnString += Prefix + (startNum + i) + Suffix;
+                            } else {
+                                returnString += Prefix + (Array(numLength).join('0') + (startNum + i)).slice(-numLength) + Suffix;
+                            };
+                        };
+                    };
+                };
+                return returnString;
+            },
+            //确认
+            confirmRule: function () {
+                axios.post('/BarCodes/SetJsonFile', {
+                    sequences: this.ruleList,
+                    ordenum: this.selectVal,
+                }).then(res => {
+                    if (res.data == true) {
+                        this.$confirm('录入成功，是否打印条码？', "录入成功", {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'success',
+                            center: true,
+                        }).then(() => {
+                            //this.open();
+                        }).catch(() => {
+                            location.reload();
+                        });
+                    } else {
+                        this.$alert(`<span>${res.data}</span>`, '录入失败', {
+                            dangerouslyUseHTMLString: true,
+                            type: 'error'
+                        });
+                    }
+                    //console.log(res.data)
+                }).catch(err => {
+                    console.warn("失败")
+                });
+            },
+            //打开抽屉
+            open: function () {
+                this.drawer = true;
+            },
+            //关闭抽屉
+            handleClose(done) {
+                done();
+                //this.$confirm('确认关闭？')
+                //    .then(_ => {
+                //        done();
+                //    })
+                //    .catch(_ => { });
+            },
+            //添加数据
+            addrule: function () {
+                let list = this.ruleList, pre = this.Prefix, suf = this.Suffix;
+                //检查重复
+                //for (let i in list) {
+                //    if (list[i].Prefix == pre && list[i].Suffix == suf) {
+                //        this.$message({
+                //            showClose: true,
+                //            dangerouslyUseHTMLString: true,
+                //            message: '<h4 style="margin:0">已有重复条码！</h4>',
+                //            type: 'warning'
+                //        });
+                //        return;
+                //    };
+                //};
+                list.push({
+                    Prefix: this.Prefix,
+                    Suffix: this.Suffix,
+                    Num: this.Num,
+                    Rule: this.Rule,
+                    startNum: this.startNum
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+            },
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+        },
+        watch: {
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+            },
+        },
+    });
+</script>

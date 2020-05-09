@@ -1,0 +1,207 @@
+﻿@*@{
+        ViewBag.Title = "物料查询";
+        Layout = "~/Views/Shared/_Layout.cshtml";
+    }*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    table .cell, table td {
+        text-align: center
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .container {
+        width: 1630px;
+    }
+</style>
+<div id="app">
+    <h3 class="text-center">库存金额（统计截止日期:）</h3>
+    <div class="text-center">
+        订单录入日期：
+        <el-date-picker v-model="inputDate"
+                        type="date"
+                        placeholder="选择录入日期">
+        </el-date-picker>
+        订单结案日期：
+        <el-date-picker v-model="endDate"
+                        type="date"
+                        placeholder="选择结案日期">
+        </el-date-picker>
+        <el-button type="success" size="midel" v-on:click="selectInfo">查询</el-button>
+        <el-button type="success" size="midel" v-on:click="getAllExcelFile">导出结存明细表</el-button>
+    </div>
+    <h4>查询时长:{{ count }}秒</h4>
+    @*<p>MC部未发料记录: @ViewBag.mcunissuerecordcount 条，财务明细记录: @ViewBag.financerecordcount 条。</p>*@
+    <el-table v-bind:data="tableData"
+              style="width: 100%">
+        <el-table-column prop="类别"
+                         label="类别"
+                         width="90">
+        </el-table-column>
+        <el-table-column prop="分类明细"
+                         label="分类明细"
+                         width="140">
+            <template slot-scope="scope">
+                <span class="spcolor" type="text" size="middle" v-on:click="getExcelFile(scope.row)">{{scope.row.分类明细}}</span>
+                <form style="display:none;" action="~/Warehouse_Material/StockAmountCalculateGetExcel" method="post">
+                    <input type="text" name="inputDate" id="input2" />
+                    <input type="text" name="endDate" id="input3" />
+                    <input type="text" name="outputexcelfile" id="input1" />
+                    <button type="submit" id="aa">下载记录</button>
+                </form>
+            </template>
+        </el-table-column>
+        <el-table-column prop=""
+                         label="库龄"
+                         width="180">
+            <el-table-column prop="1个月以内"
+                             label="1个月以内"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="2-3个月"
+                             label="2-3个月"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="4-6个月"
+                             label="4-6个月"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="7-12个月"
+                             label="7-12个月"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="1-2年"
+                             label="1-2年"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="2-3年"
+                             label="2-3年"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="3-5年"
+                             label="3-5年"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="5年以上"
+                             label="5年以上"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="合计金额"
+                             label="合计金额"
+                             width="130">
+            </el-table-column>
+        </el-table-column>
+        <el-table-column prop=""
+                         label="">
+            <el-table-column prop="10月库存金额"
+                             label="10月库存金额"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop=""
+                             label="差异"
+                             width="100">
+            </el-table-column>
+        </el-table-column>
+    </el-table>
+</div>
+<form style="display:none;" action="~/Warehouse_Material/StockAmountCalculateGetExcel" method="post">
+        <input type="text" name="inputDate" id="input5"   hidden="hidden" />
+        <input type="text" name="endDate" id="input4"  hidden="hidden" />
+        <input type="text" name="outputexcelfile" id="allrecord" hidden="hidden" />
+        <button type="submit" id="detail"></button>
+    </form>
+
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            tableData: [],
+            inputDate: '',//录入日期
+            endDate: '',//结案日期
+            count: 0,
+            intervalId: null,
+
+        },
+        methods: {
+            //查询
+            selectInfo() {
+                this.count = 0;
+                if (this.inputDate != '' && this.endDate != '') {
+                    if (this.intervalId != null) {// 计时器正在进行中，退出函数
+                        return
+                    };
+                    this.intervalId = setInterval(() => {// 计时器为空，操作
+                        this.count += 1
+                    }, 1000)
+                    axios.post('/Warehouse_Material/StockAmountCalculate', {
+                        inputdate: this.inputDate,//录入日期
+                        enddate: this.endDate,//结案日期
+                    }).then(res => {
+                        console.log(res.data)
+                        this.tableData = res.data
+                        if (this.tableData.length > 0) {
+                            // 停止定时器
+                            clearInterval(this.intervalId)//清除计时器
+                            this.intervalId = null;//设置为null
+                        }
+                    }).catch(err => {
+                        console.warn("请求数据失败!")
+                    })
+                } else {
+                    this.$message({
+                        message: "请选择查询日期！",
+                        duration: 0,
+                        showClose: true,
+                        type: 'warning',
+                    });
+                }
+            },
+            getExcelFile(item) {
+                $("#input1").val(item.分类明细)
+                let dd = new Date(this.inputDate);
+                let year = dd.getFullYear();
+                let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+                let days = dd.getDate().toString().padStart(2, 0);
+                let inputime = `${year}-${month}-${days}`
+
+                let tt = new Date(this.endDate);
+                let year1 = tt.getFullYear();
+                let month1 = (tt.getMonth() + 1).toString().padStart(2, 0);
+                let days1 = tt.getDate().toString().padStart(2, 0);
+                let endtime = `${year1}-${month1}-${days1}`
+
+                $("#input2").val(inputime)
+                $("#input3").val(endtime)
+                $("#aa").click();
+            },
+            getAllExcelFile() {
+                $("#allrecord").val('整个结存表')
+                let dd = new Date(this.inputDate);
+                let year = dd.getFullYear();
+                let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+                let days = dd.getDate().toString().padStart(2, 0);
+                let inputime = `${year}-${month}-${days}`
+                let tt = new Date(this.endDate);
+                let year1 = tt.getFullYear();
+                let month1 = (tt.getMonth() + 1).toString().padStart(2, 0);
+                let days1 = tt.getDate().toString().padStart(2, 0);
+                let endtime = `${year1}-${month1}-${days1}`
+                $("#input4").val(inputime)
+                $("#input5").val(endtime)
+                $("#detail").click();
+            },
+        }
+    })
+</script>

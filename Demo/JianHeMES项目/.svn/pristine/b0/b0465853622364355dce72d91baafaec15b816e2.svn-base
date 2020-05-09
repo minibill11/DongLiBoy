@@ -1,0 +1,207 @@
+﻿
+@{
+    ViewBag.Title = "SPC_QueryByOrderNumber";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是查询信息（有两种查询方式，一种是输入订单号查询，另一种是什么都不输查询全部信息）
+    1.1.根据订单号查询（可查询出：外箱号、物料号、数量、备料状态、是否有图片、是否有图纸、订单物料种类个数，已装箱个数，已确认备料个数）信息
+    1.2.不输入订单号查，可查询个数据库表中全部数据(查询输出的信息包括：订单号、外箱号、物料号、数量、备料状态、是否有图片、是否有图纸)
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;
+    }
+
+    .et {
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-start;
+        margin-top: 5px;
+    }
+
+    .searchContainer {
+        text-align: center;
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>备品配件查询</h3>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px" v-show="materialPreparation">物料备料</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="packingMaterial">备品配件检验</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+        <a href="/Packagings/SPC_PrintOuterBoxLable" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="printOutsibox">打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_storage" style="margin-left:2px"><el-button size="small" type="primary" plain >备品出入库</el-button></a>
+    </div>
+    <div class="searchContainer">
+            <select-input v-model.trim="orderNum"                         
+                          :options="options"
+                          :isfocus="true"
+                          :ismultiple="false"
+                          size="medium"
+                          style="width:190px"                         
+                          allow-create filterable clearable>
+            </select-input>
+        <el-button size="medium" type="primary" v-on:click="selectInfor">查询</el-button>
+        <span class="et">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;订单物料种类：{{material_Count}}个，已装箱个数：{{outsideBox_Count}}个，已备料个数：{{material_Confrim}}个</span>
+        <el-table v-bind:data="tableData" border style="margin-top:5px;width:1269px;margin:auto " max-height="572" v-bind:span-method="cellMerge" v-bind:cell-style="yellowBg" v-bind:header-cell-style="{background:'#F0F8FF'}">
+            <el-table-column prop="SPC_OuterBoxBarcode" label="外箱号" width="250"></el-table-column>
+            <el-table-column prop="Material_Name" label="物料名称" width="190"></el-table-column>
+            <el-table-column prop="MaterialNumber" label="物料号" width="190"></el-table-column>
+            <el-table-column prop="Quantity" label="数量" width="180"></el-table-column>
+            <el-table-column prop="SPC_Material_Confim" label="备料确认" width="180"></el-table-column>
+            <el-table-column prop="IncludePic" label="是否有图片" width="139"></el-table-column>
+            <el-table-column prop="IncludeDraw" label="是否有图纸" width="139"></el-table-column>
+        </el-table>
+    </div>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            orderNum: '',//订单号选项的值
+            options: [],//订单号选项
+            tableData: [],//表格数据
+            //table1: true,//控制表一显示
+            material_Count: '0',//物料种类个数  默认值为0
+            outsideBox_Count: '0',//装箱个数   默认值为0
+            material_Confrim: '0',//备料确认个数  默认值为0
+            spanArr: [],   //存放第一列合并的数据
+            pos: '',       //spanArr数组的索引
+            materialPreparation: false,//备料权限
+            packingMaterial: false,//物料检验权限
+            printOutsibox: false,//打印外箱标签权限
+        },
+        //获取订单号方法
+        mounted() {
+            axios.post('/Packagings/GetOrdernum').then(res => {
+                console.log(res.data)
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '物料备料')) {
+                this.materialPreparation = true
+            } else {
+                this.materialPreparation = false
+            };
+            if (checkRoles(roles, '物料装箱')) {
+                this.packingMaterial = true
+            } else {
+                this.packingMaterial = false
+            };
+            if (checkRoles(roles, '打印外箱标签')) {
+                this.printOutsibox = true
+            } else {
+                this.printOutsibox = false
+            };
+        },
+        methods: {
+            //查询方法
+            selectInfor() {
+                if (this.orderNum != '') {//按订单号查询数据
+                    //改变表格显示状态
+                    this.table1 = true
+                    //this.table2 = false
+                    axios.post("/Packagings/SPC_QueryByOrderNumber", {
+                        ordernumber: this.orderNum
+                    }).then(res => {
+                        this.spanArr = [];
+                        this.pos = '';
+                        console.log(res.data)
+                        //将res.data.ArrayData数组的值赋给this.tableData
+                        this.tableData = res.data.ArrayData
+                        //将物料种类个数赋值给this.material_Count
+                        this.material_Count = res.data.Description.material_Count
+                        //将已装箱个数赋值给this.outsideBox_Count
+                        this.outsideBox_Count = res.data.Description.outsideBox_Count
+                        //将已备料数量赋值给this.material_Confrim
+                        this.material_Confrim = res.data.Description.material_Confrim
+                        //调用合并表格相同数据方法
+                        this.getSpanArr(this.tableData)
+                    }).catch(err => {
+                        this.$message({
+                            message: '请求出错！',
+                            type: 'error'
+                        });
+                    })
+                } else {//查询数据库表中所有数据
+                    this.$message({
+                        message: '请输入查询条件',
+                        type: 'warning'
+                    });
+                }
+            },
+            //合并相同数据的方法  合并第一个表格第一列相同的数据
+            getSpanArr(data) {
+                for (var i = 0; i < data.length; i++) {
+                    if (i === 0) {     //判断是否是第一条数据
+                        this.spanArr.push(1);
+                        this.pos = 0
+                    } else {
+                        //判断与上一元素是否相同
+                        if (data[i].SPC_OuterBoxBarcode === data[i - 1].SPC_OuterBoxBarcode) {
+                            //合并行数+1
+                            this.spanArr[this.pos] += 1;
+                            this.spanArr.push(0);
+                        } else {
+                            this.spanArr.push(1);
+                            this.pos = i;
+                        }
+                    }
+                };
+            },
+            cellMerge({ row, column, rowIndex, columnIndex }) {
+                if (columnIndex === 0) {
+                    const _row = this.spanArr[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };
+            },
+            yellowBg({ row, column, rowIndex, columnIndex }) {
+                if (row.SPC_Material_Confim == "已备料" && columnIndex == 4) {
+                    return {
+                        color: 'green',
+                    }
+                } else if (row.SPC_Material_Confim == "未备料" && columnIndex == 4) {
+                    return {
+                        color: 'red',
+                    }
+                }
+                else {
+                    return {
+                        color: '',
+                    }
+                };
+            }
+        }
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>
+
+

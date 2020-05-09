@@ -1,0 +1,453 @@
+﻿@model JianHeMES.Models.Warehouse_SparePartsAndComponents_Out
+
+@{
+    ViewBag.Title = "录入备品、配件包装信息";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+
+    .TunnelLabel {
+        margin: 0 auto;
+        border: 1px solid #100f0f;
+        width: 308px;
+        height: 240px;
+    }
+
+    .tophei {
+        height: 160px;
+    }
+
+        .tophei > div {
+            height: 80px;
+        }
+
+        .tophei .tophei_1 {
+            position: relative;
+        }
+
+        .tophei .tophei_2 {
+            border-top: 1px solid #100f0f;
+            border-bottom: 1px solid #100f0f;
+        }
+
+    .bottomhei {
+        display: inline-flex;
+        text-align: center;
+        height: 78px
+    }
+
+        .bottomhei .mcFrame_top_3:nth-child(1) {
+            border-right: 1px solid #100f0f;
+            width: 78px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .mcFrame_top_3:nth-child(2) {
+            border-right: 1px solid #100f0f;
+            width: 78px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .mcFrame_top_3:nth-child(3) {
+            border-right: 1px solid #100f0f;
+            width: 76px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .mcFrame_top_3:nth-child(4) {
+            width: 58px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    h2 {
+        margin: 0;
+        padding-top: 35px;
+        text-align: center;
+    }
+
+    .borderTop {
+        border-top: 1px solid #000;
+    }
+
+    .masterBarDiv {
+        width: 100%;
+        position: absolute;
+        top: -3px;
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    #imgcode {
+        width: 240px;
+    }
+
+    .tophei_2 {
+        position: relative;
+    }
+
+    .masterBarDiv {
+        width: 100%;
+        position: absolute;
+        top: -3px;
+    }
+
+    .imgicon {
+        position: absolute;
+        width: 110px;
+        top: 5px;
+        left: 5px;
+    }
+
+    .divframe {
+        width: 300px;
+        margin: 1px auto;
+        text-align: center;
+        border: 1px solid #ccc;
+        min-height: 300px;
+    }
+
+    .mcFrame_bottom_1 {
+        padding: 5px;
+        font-size: 16px;
+        text-align: left;
+        margin-left: 5px;
+    }
+
+    .boxspan {
+        display: inline-block;
+        padding: 2px 6px;
+        font-size: 16px;
+    }
+
+    @@media screen and (max-width:820px) {
+        .affirm {
+            margin-left: 250px;
+        }
+
+        .link {
+            display: inline-block;
+        }
+    }
+
+    @@media screen and (min-width:820px) {
+        .affirm {
+            margin-left: 370px;
+        }
+
+        .affirm1 {
+            margin-left: 350px;
+        }
+
+        .el-table th {
+            font-size: 13px;
+            padding: 5px 0;
+            color: #000;
+            text-align: center;
+        }
+
+        .el-table td {
+            font-size: 13px;
+            padding: 2px 0;
+            text-align: center;
+        }
+
+        .el-table .cell, .el-table--border td:first-child .cell {
+            padding: 0;
+        }
+
+        .el-table .warning-row {
+            background: #fcd2d2;
+        }
+
+        .el-table .success-row {
+            background: #f0f9eb;
+        }
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>@ViewBag.Title</h3>
+        <div class="link">
+            <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" type="primary" plain style="margin:2px">物料基本信息录入</el-button></a>
+            <a href="/Packagings/SPC_Display"><el-button size="small" type="primary" plain style="margin:2px">查询基本信息</el-button></a>
+            <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+            <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" type="primary" plain style="margin:2px">修改包装信息</el-button></a>
+        </div>
+    </div>
+    <el-main>
+        <el-col :md="12">
+            <div class="query">
+                订单号：
+                <el-select v-model="orderNum" placeholder="请选择订单号" size="medium" allow-create filterable clearable>
+                    <el-option v-for="item in options"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="query">
+                屏序：<el-input v-model.trim="screenNum" placeholder="请输入屏序" style="width:191px" size="medium" clearable></el-input>
+            </div>
+            <div class="query">
+                <span>选打印机：</span>
+                <el-select v-model="printProt" clearable placeholder="选择打印机" size="medium">
+                    <el-option v-for="item in printOptions"
+                               :key="item.value"
+                               :label="item.label"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="query">
+                物料号：<el-input v-model.trim="materialNumber" placeholder="请输物料条码" style="width:191px" size="medium" v-on:keyup.enter.native="wuliaoscan"></el-input>
+            </div>
+            <div class="query">
+                包装数量：<el-input v-model.trim="quantity" placeholder="请输入数量" style="width:191px" size="medium"></el-input>
+            </div>
+            <div class="query">
+                件号/数：<el-input v-model.trim="snt" placeholder="请输入数量" style="width:191px" size="medium"></el-input>
+            </div>
+
+            <el-button class="affirm" size="mini" type="primary" v-on:click="confirm">确认</el-button>
+            <div class="divframe">
+                <el-table v-bind:data="materialInfo"
+                          height="300"
+                          border>
+                    <el-table-column prop="materialNumber"
+                                     label="物料号"
+                                     width="100">
+                    </el-table-column>
+                    <el-table-column prop="quantity"
+                                     label="数量"
+                                     width="60">
+                    </el-table-column>
+                    <el-table-column prop="screenNum"
+                                     label="屏序">
+                    </el-table-column>
+                    <el-table-column prop="operate"
+                                     label=""
+                                     width="40">
+                        <template slot-scope="scope">
+                            <el-button v-on:click.native.prevent="deleteRow(scope.$index,scope.row ,materialInfo)"
+                                       type="text"
+                                       size="mini"
+                                       style="margin:0;padding:0;width:100%;">
+                                <i class="el-icon-error"></i>
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <span v-if="materialInfo.length!=0">条码数量：{{materialInfo.length}}</span>
+            </div>
+        </el-col>
+        <el-col :md="12">
+            <div class="TunnelLabel">
+                <div class="tophei">
+                    <div class="tophei_1">
+                        <img v-show="imgShow" class="imgicon" src="~/Images/LOGO.jpg" />
+                        <h2>{{orderNum}}</h2>
+                    </div>
+                    <div class="tophei_2">
+                        <div class="masterBarDiv textCenter">
+                            <svg id="imgcode"></svg>
+                        </div>
+                    </div>
+                </div>
+                <dvi class="bottomhei ">
+                    <div class="mcFrame_top_3"><span>物料描述(DESC)</span></div>
+                    <div class="mcFrame_top_3"><span>配件、备品</span></div>
+                    <div class="mcFrame_top_3"><span>件号/数<br />(SN/TN)</span></div>
+                    <div class="mcFrame_top_3"><span>{{snt}}</span></div>
+                </dvi>
+            </div>
+            <el-row style="margin-top:5px">
+                <el-button class="affirm1" size="mini" type="primary" v-on:click="printLabel">打印标签</el-button>
+            </el-row>
+        </el-col>
+    </el-main>
+    <div>
+        <img id="cc" />
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            orderNum: '',         //订单号
+            options: [],
+            materialNumber: '',    //物料编号
+            outMaterialCode: '',  //外箱条码
+            quantity: '',        //数量
+            screenNum: '',        //物料名
+            imgShow: true,
+            materialInfo: [],
+            printOptions: printIpAddress,
+            printProt: '',
+            snt: '',            //SNTN
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printPort = printIP;
+            };
+        },
+        methods: {
+            //获取条码信息
+            getOutBoxNum() {
+                axios.post("/Packagings/createOutBoxNum", { orderNumber: this.orderNum, screenNum: this.screenNum, quantity:this.quantity}).then(res => {
+                    if (res.data != null) {
+                        this.outMaterialCode = res.data.OuterBoxBarCodeNum;
+                    }
+                })
+            },
+            //使用后端返回的条码号生成条形码
+            setmasterBarDiv() {
+                JsBarcode("#imgcode", this.outMaterialCode, {
+                    height: 60,                    //条形码的高度
+                    format: "CODE128",            //选择要使用的条形码类型
+                    font: "monospace",           //设置文本字体
+                    textAlign: "center",        //设置文本的水平对齐方式
+                    textMargin: 0,             //设置条形码和文本之间的间距
+                    fontSize: 26,             //设置文本的大小
+                    lineColor: "#000",       //条形码颜色
+                    margin: 0,              //设置条形码周围的空白边距
+                    marginTop: 0
+                });
+            },
+            //确认录入
+            confirm() {
+                for (let item in this.materialInfo) {
+                    if (this.materialInfo[item].materialNumber == this.materialNumber) {
+                        this.$message({
+                            message: '已有重复物料号！',
+                            type: 'warning'
+                        });                       
+                        return;
+                    };
+                }
+                if (this.materialNumber != '' && this.quantity != '' && this.screenNum != '') {
+                    let arr = { materialNumber: this.materialNumber, quantity: this.quantity, screenNum: this.screenNum }
+                    this.materialInfo.push(arr)
+                    console.log(this.materialInfo)                 
+                }
+                else {
+                    this.$message({
+                        message: '请填写完再确认！',
+                        type: 'warning'
+                    });
+                }
+            },
+            //打印标签方法
+            printLabel() {
+                if (this.orderNum != '' && this.outMaterialCode != '' && this.materialInfo != "[]" && this.snt != '') {
+                    axios.post("/Packagings/SPC_OutsideBoxLablePrint", {
+                        orderNumber: this.orderNum,
+                        spc_OuterBoxBarcode: this.outMaterialCode,
+                        sntn: this.snt,
+                        spc_list: this.materialInfo,
+                        ip: this.printProt,
+                        logo: this.imgShow,
+                        prot: this.printPort
+                    },
+                        {
+                            responseType: "arraybuffer",
+                        }).then(function (response) {
+                            //console.log(response.data)
+                            //将从后台获取的图片流进行转换
+                            return 'data:image/png;base64,' + btoa(
+                                new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                            );
+                        }).then(function (data) {
+                            //接收转换后的Base64图片
+                            console.log(data);
+                            document.getElementById("cc").setAttribute("src", data)
+                        }).catch(err => {
+                            console.warn("打印出错")
+                        });
+                    //).then(res => {
+                    //    console.log(res.data)
+                    //    if (res.data == true) {
+
+                    //    } else if (res.data.error != {})
+                    //    {
+                    //        this.$message({
+                    //            message: res.data.error +'标签已打印！',
+                    //            type: 'warning'
+                    //        });
+                    //    }
+                    //})
+                }
+                else
+                {
+                    this.$message({
+                        showClose: true,
+                        message: '请填写完再确认！',
+                        type: 'warning'
+                    });
+                }
+
+            },
+            wuliaoscan() {
+                for (let item in this.materialInfo) {
+                    if (this.materialInfo[item].materialNumber == this.materialNumber) {
+                        this.$message({
+                            message: '已有重复物料号！',
+                            type: 'warning'
+                        });
+                        this.materialNumber = '';
+                        return;
+                    };
+                }
+            },
+            //删除小表中的行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+                console.log(this.materialInfo)
+            },
+        },
+        watch: {
+            orderNum() {
+                if (this.orderNum != '' && this.screenNum != '') {
+                    this.getOutBoxNum();
+                }
+            },
+            screenNum() {
+                if (this.orderNum != '' && this.screenNum != '') {
+                    this.getOutBoxNum();
+                } else {
+                    $("#imgcode").empty()
+                }
+            },
+            outMaterialCode() {
+                if (this.outMaterialCode != "") {
+                    app.setmasterBarDiv(this.outMaterialCode);
+                }
+            },
+        }
+    })
+</script>

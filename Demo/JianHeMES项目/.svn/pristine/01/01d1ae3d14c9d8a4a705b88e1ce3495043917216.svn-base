@@ -1,0 +1,260 @@
+﻿@{
+    ViewBag.Title = "订单生产进度查询";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    /*全局样式*/
+    *, body, .el-main, .el-header {
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-header {
+        height: auto !important;
+    }
+
+    .el-main {
+        min-height: 600px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .inputframe {
+        width: 320px;
+        text-align: left;
+        margin: 1px auto;
+        min-height: 25px;
+    }
+
+        .inputframe > span:first-child {
+            display: inline-block;
+            width: 116px;
+            text-align: right;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .el-input, .el-progress, .inputframe > div {
+            width: 200px;
+            display: inline-block;
+        }
+
+    .el-progress-bar {
+        margin-right: -60px;
+        width: 90%;
+    }
+
+    .rightDiv {
+        text-align: left;
+        font-weight: 500;
+        font-size: 15px;
+        padding-left: 10px;
+    }
+
+    .fordiv {
+        border: 1px solid #555;
+        width: 320px;
+    }
+
+        .fordiv span {
+            border-right: 1px solid #555;
+        }
+
+        .fordiv .inputframe {
+            border-bottom: 1px solid #555;
+        }
+
+    .ydspan {
+        width: 100%;
+        color: #888;
+        font-size: 12px;
+        text-align: left;
+    }
+
+    @@media screen and (min-width: 768px) {
+        .fordiv {
+            display: inline-block;
+            margin: 10px 5px;
+        }
+
+        .ydspan {
+            padding-right: 125px;
+        }
+    }
+
+    @@media screen and (min-width: 1250px) {
+        .container {
+            width: 1320px
+        }
+    }
+
+    @@media screen and (max-width: 768px) {
+        .fordiv {
+            margin: 15px auto 0;
+        }
+
+        .titleframe > div {
+            width: 320px;
+        }
+
+        .letfjuli {
+            padding-left: 60px;
+        }
+    }
+
+    .titleframe {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-content: center;
+        align-items: center;
+    }
+</style>
+@{
+    var Userid = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).ID.ToString();
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="titleframe">
+                    <div class="endtext">
+                        <span>订单号：</span>
+                        <el-input placeholder="请输入订单号"
+                                  v-model.trim="selectVal"
+                                  class="elinput"
+                                  v-on:input="selectVal = selectVal.toLocaleUpperCase()"
+                                  size="small"
+                                  v-on:keyup.enter.native="selectHandle(selectVal)"
+                                  minlength="9"
+                                  clearable>
+                        </el-input>
+                        <el-button @@click="selectHandle(selectVal)" type="primary" size="small" style="padding:9px 10px;">查询</el-button>
+                        <span v-show="screenSize<768" class="ydspan letfjuli">需要输入至少9位的订单前缀进行查询</span>
+                        <a href="/Users/Modifypwd/@Userid" class="letfjuli">
+                            <el-button size="mini" style="padding:7px;">修改密码</el-button>
+                        </a>
+                        <a href="/Users/Logoff">
+                            <el-button size="mini" style="padding:7px;">退出登陆</el-button>
+                        </a>
+                    </div>
+                    <div v-show="screenSize>=768">
+                        <span class="ydspan letfjuli">需要输入至少9位的订单前缀进行查询</span>
+                    </div>
+                </div>
+            </el-row>
+            <el-row v-if="tablelist!=''" v-loading="loading">
+                <div v-for="item in tablelist" class="fordiv">
+                    <div class="inputframe">
+                        <span>订单号：</span>
+                        <div class="rightDiv" style="font-weight:600;">{{item.ordernum}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.Estimated.name}}：</span>
+                        <div class="rightDiv">{{item.Estimated.value}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.CompleteTime.name}}：</span>
+                        <div class="rightDiv">{{item.CompleteTime.value}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.SMT.name}}：</span>
+                        <div class="rightDiv" :style="{color:bgcolor(item.SMT.valuename)}">{{divtext(item.SMT.valuename,item.SMT.value)}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.Model.name}}：</span>
+                        <div class="rightDiv" :style="{color:bgcolor(item.Model.valuename)}">{{divtext(item.Model.valuename,item.Model.value)}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.Burnin.name}}：</span>
+                        <div class="rightDiv" :style="{color:bgcolor(item.Burnin.valuename)}">{{divtext(item.Burnin.valuename,item.Burnin.value)}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.package.name}}：</span>
+                        <div class="rightDiv" :style="{color:bgcolor(item.package.valuename)}">{{divtext(item.package.valuename,item.package.value)}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.warehousejoin.name}}：</span>
+                        <div class="rightDiv" :style="{color:bgcolor(item.warehousejoin.valuename)}">{{divtext(item.warehousejoin.valuename,item.warehousejoin.value)}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.warehouseout.name}}：</span>
+                        <div class="rightDiv" :style="{color:bgcolor(item.warehouseout.valuename)}">{{divtext(item.warehouseout.valuename,item.warehouseout.value)}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.Transportation.name}}：</span>
+                        <div class="rightDiv">{{item.Transportation.value}}</div>
+                    </div>
+                    <div class="inputframe">
+                        <span>{{item.WarehouseOutDocuments.name}}：</span>
+                        <div class="rightDiv">{{item.WarehouseOutDocuments.value}}</div>
+                    </div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            selectVal: '',
+            tablelist: []
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        methods: {
+            selectHandle: function (v) {
+                if (v.length >= 9) {
+                    this.loading = true;
+                    //localStorage.setItem('Order', v);
+                    axios.post('/Query/SelectOrderInfoFromBusiness', { ordernum: v }).then(res => {
+                        //console.log(res.data);
+                        //console.log(JSON.parse(JSON.stringify(res.data)));
+                        res.data == '' && this.$message('找不到此订单生产记录！');
+                        this.tablelist = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                        this.loading = false;
+                    });
+                };
+            },
+            bgcolor(v) {
+                return v === '已完成' ? '#0a0' : v === '进行中' ? 'rgb(0, 125, 255)' : '';
+            },
+            divtext(vn, v) {
+                return `${vn}`;
+                //if (vn === '已完成') {
+                //    return `${vn} - ${v}`;
+                //} else {
+                //    return `${vn} - (${v})`;
+                //};
+            }
+        }
+    });
+</script>

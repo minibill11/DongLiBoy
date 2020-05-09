@@ -1,0 +1,344 @@
+﻿
+@{
+    ViewBag.Title = "查看物料基本信息";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是：查询物料基本信息；上传图片或者上传图纸；修改规格描述；放大查看图片及查看PDF源文件；删除图片或图纸
+    1.1.物料基本信息查询（可输入物料号、物品名称查询）
+    1.2.可以上传图片或者图纸（可单张上传，也可多张一起上传）
+    1.3.单击规格描述信息，弹出一个弹框，填写信息完成点击保存，即可修改规格描述信息
+    1.4.单击图片可以放大查看图片，点击pdg文字可通过插件查看pdf源文件
+    1.5.右击图片可以将图片删除
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;
+        padding: 8px;
+    }
+
+    .el-upload__input {
+        display: none !important;
+    }
+
+    .spcolor {
+        color: darkturquoise
+    }
+</style>
+<div id="app">
+    <el-header style="text-align: center;">
+        <h3>@ViewBag.Title</h3>
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px">备料确认</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+    </el-header>
+    <el-main>
+        <div style="width:1081px;margin: 0 auto;">
+            <div style="margin-bottom: 5px;text-align: center;">
+                <el-select v-model="materialCode" placeholder="请选择物料编号" size="medium" clearable allow-create filterable>
+                    <el-option v-for="item in options"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-input size="medium" style="width: 200px;" v-model="materialName" placeholder="请输入物料名" clearable></el-input>
+                <el-button size="medium" type="primary" v-on:click="selectInfor">查询</el-button>
+            </div>
+            <el-table border v-bind:data="tableData" max-height="550px" style="margin-bottom:10px">
+                <el-table-column prop="MaterialNumber" label="物料编码" width="120"></el-table-column>
+                <el-table-column prop="Specifications" label="规格描述" width="240">
+                    <template slot-scope="scope">
+                        <span class="spcolor" type="text" size="middle" v-on:click="process(scope.row)">{{scope.row.Specifications}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="picture" label="产品图片" width="480">
+                    <template slot-scope="scope" class="replaceBlack">
+                        <div style="display: inline;">
+                            <el-image v-for="url in scope.row.picture.picturejpg_list"
+                                      id="img-id"
+                                      :key="url"
+                                      :preview-src-list="scope.row.picture.picturejpg_list"
+                                      :src="url"
+                                      style="width:110px;height:90px;margin:2px"
+                                      @@contextmenu.prevent="show(url,scope.row,1)" lazy>
+                            </el-image>
+                            <div class="she" v-for="(url,index) in scope.row.picture.picturepdf_list">
+                                <a v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url}`" target="_blank" @@contextmenu.prevent="show(url,scope.row,1)">查看PDF_{{index+1}}</a>
+                            </div>
+                            <el-button size="mini" type="primary" style="margin-top: 2px;" v-on:click="shangchuang(1,scope.row)">上传照片</el-button>
+                        </div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="draw" label="图纸" width="240">
+                    <template slot-scope="scope">
+                        <div style="display: inline;">
+                            <image v-for="(url,index) in scope.row.draw.drawjpg_list"
+                                   :key="index"
+                                   :preview-src-list="scope.row.draw.drawjpg_list"
+                                   :src="url"
+                                   style="width:150px;height:110px;margin:2px"
+                                   @@contextmenu.prevent="show(url,scope.row,2)" lazy>
+                            </image>
+                            <div class="she" v-for="(url,index) in scope.row.draw.drawpdf_list">
+                                <a v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url}`" target="_blank" @@contextmenu.prevent="show(url,scope.row,2)">查看PDF_{{index+1}}</a>
+                            </div>
+                            <el-button size="mini" type="primary" style="margin-top: 2px;" v-on:click="shangchuang(2,scope.row)">上传图纸</el-button>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <span>备注：单击图片可放大查看，右击图片可删除图片。</span>
+        </div>
+    </el-main>
+    <!--上传照片-->
+    <el-dialog v-bind:visible.sync="dialogVisible" width="500px">
+        <el-form model="uploadForm" ref="numberValidateForm" label-width="100px" class="demo-ruleForm">
+            <el-form-item label="物料编码">
+                <el-input type="" v-model="mCode"></el-input>
+            </el-form-item>
+            <el-form-item label="上传照片">
+                <el-upload action="/Packagings/UploadFile_Ingredients"
+                           v-bind:on-change="selectFile"
+                           accept=".jpg,.pdf"
+                           v-bind:on-remove="handleRemove"
+                           v-bind:file-list="fileList" v-bind:auto-upload="false" multiple>
+                    <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                </el-upload>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="uploadFile">确定上传</el-button>
+        </span>
+    </el-dialog>
+    <el-dialog v-bind:visible.sync="dialogVisible1" width="600px">
+        <el-form model="uploadForm" ref="numberValidateForm" label-width="100px" class="demo-ruleForm">
+            <el-form-item label="规格描述">
+                <textarea v-model="ChangeSpecifications" style="width:600px;height:150px;max-width:400px;"></textarea>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible1 = false">取 消</el-button>
+            <el-button type="primary" v-on:click="saveSpecifications">保存</el-button>
+        </span>
+    </el-dialog>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            materialCode: '',       //物料号选项框的值
+            options: [],            //物料号选项框
+            materialName: '',      //物料名
+            mCode: '',             //弹框中的物料号
+            pType: '',             //照片类型
+            dialogVisible: false, //控制图片上传弹框
+            dialogVisible1: false,//控制图纸上传弹框
+            fileList: [],         //照片list
+            file1: [],           //存储选中的照片
+            filename: [],
+            tableData: [],           //表格数据
+            ChangeSpecifications: '',//弹框中的规格描述
+            materialNum: '',
+            id: '',
+
+        },
+        //页面加载完成执行   获取物料号
+        mounted() {
+            axios.post('/Packagings/GetMaterialNumber').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        //函数方法
+        methods: {
+            //删除图片方法  val参数是路径、row参数是当前行信息（包括：物料号、规格描述）、type参数是类型（类型有图片或者图纸两种）
+            show(val, row, type) {
+                var comfirm = confirm(`确认删除这张图片吗？`)
+                if (comfirm) {
+                    let tutype = "";
+                    //判断类型  1是图片
+                    if (type == 1) {
+                        tutype = 'Picture'
+                    } else {
+                        //图纸
+                        tutype = 'Draw'
+                    }
+                    axios.post("/Packagings/DeleteImg", {
+                        //路径
+                        path: val,
+                        //物料号
+                        MaterialNumber: row.MaterialNumber,
+                        //类型
+                        pictureType: tutype
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == '删除成功') {
+                            //删除成功的提示
+                            this.$message({
+                                message: '删除成功！',
+                                type: 'success'
+                            });
+                            this.tableData = [];
+                            //重新调用查询方法
+                            this.selectInfor()
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning'
+                            });
+                        }
+                    })
+                }
+            },
+            //修改描述信息
+            process(item) {
+                this.dialogVisible1 = true //显示弹框
+                this.ChangeSpecifications = item.Specifications;
+                this.materialNum = item.MaterialNumber;
+                this.id = item.Id
+            },
+            //保存修改描述信息
+            saveSpecifications() {
+                axios.post("/Packagings/SPC_Addbasic_information_Modify", {
+                    //规格描述
+                    Specifications: this.ChangeSpecifications,
+                    //物料号
+                    MaterialNumber: this.materialNum,
+                    Id: this.id
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == true) {
+                        //修改成功 隐藏弹框
+                        this.dialogVisible1 = false;
+                        //调用查询方法，刷新数据
+                        this.selectInfor()
+                        this.$message({
+                            message: '修改成功！',
+                            type: 'success'
+                        });
+                    } else {
+                        //修改失败，隐藏弹框 弹出修改失败的提示
+                        this.dialogVisible1 = false;
+                        this.$message({
+                            message: '修改失败！',
+                            type: 'warning'
+                        });
+                    }
+                })
+            },
+            //选择图片或者图纸方法   val参数：图片或者图纸类型   row参数：当前行信息（包括：物料编号、规格描述）
+            shangchuang(val, row) {
+                //判断类型  1是图片
+                if (val == 1) {
+                    this.pType = "Picture"
+                    //将物料转换成字符串类型
+                    let str = JSON.stringify(row.MaterialNumber)
+                    let str1 = str.replace("\"", "").replace("\"", "");
+                    this.mCode = str1
+                } else {
+                    //图纸
+                    this.pType = "Draw"
+                    let str = JSON.stringify(row.MaterialNumber)
+                    let str1 = str.replace("\"", "").replace("\"", "");
+                    this.mCode = str1
+                }
+                this.dialogVisible = true
+                this.file1 = fileList = [];
+                this.filename = [];
+                $('ul').empty();
+            },
+            //查询数据方法
+            selectInfor() {
+                //将当前表格置空
+                this.tableData = [];
+                if (this.materialCode != '' || this.materialName != '') {
+                    axios.post("/Packagings/SPC_Display", {
+                        materialNumber: this.materialCode,
+                        productName: this.materialName
+                    }).then(res => {
+                        console.log(res.data)
+                        //后端返回的数据赋值给表格
+                        this.tableData = res.data
+                    }).catch(err => {
+                        console.log("请求失败")
+                    })
+                } else {
+                    this.$message({
+                        message: '请输入查询条件',
+                        type: 'warning'
+                    });
+                }
+            },
+            //移除照片方法
+            handleRemove(file, fileList) {
+                for (let i in this.file1) {
+                    if (this.file1[i].uid == file.uid) {
+                        this.file1.splice(i, 1)
+                    }
+                }
+                for (let i in this.filename) {
+                    console.log()
+                    if (this.filename[i] == file.name) {
+                        this.filename.splice(i, 1)
+                        console.log(this.filename)
+                    }
+                }
+            },
+            //上传文件方法
+            uploadFile() {
+                let fd = new FormData();
+                fd.append('pictureType', this.pType)
+                fd.append('MaterialNumber', this.mCode)
+                this.filename.forEach(file => { fd.append("pictureFile", file); })
+                ii = 0;
+                this.file1.forEach(item => { fd.append("UploadFile_Ingredients" + ii, item); ii++; })
+                axios.post("/Packagings/UploadFile_Ingredients", fd).then(res => {
+                    if (res.data == 'True') {
+                        this.$message({
+                            message: '文件上传成功！',
+                            type: 'success'
+                        });
+                        this.selectInfor();
+                        this.dialogVisible = false
+                        this.file1 = fileList = filename = [];
+                    } else {
+                        this.$message({
+                            message: '文件上传失败',
+                            type: 'warning'
+                        });
+                        this.dialogVisible = false
+                    }
+                })
+            },
+            //选取文件方法
+            selectFile(file, fileList) {
+                this.file1.push(file.raw)
+                this.filename.push(file.name)
+            },
+        },
+        watch: {
+            //监听物料号
+            materialCode() {
+                if (this.materialCode == '') {
+                    this.tableData = []
+                }
+            },
+            //监听物料名
+            materialName() {
+                if (this.materialName == '' || this.materialName == null) {
+                    this.tableData = []
+                }
+            },
+        },
+    })
+</script>

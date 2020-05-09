@@ -1,0 +1,652 @@
+﻿@{
+    ViewBag.Title = "外箱出库确认";
+}
+
+@*  <summary>
+    1.选择订单号后会显示该订单入库完成率列表
+    2.扫码会检验条码是否可以出库，若条码合格则加入出库清单，若不合格则提示原因
+    3.填写物流方式，填写后显示填写物流号输入框
+    4.可以选择勾选挪用给客户订单直接出库开关，勾选后显示输入客户订单输入框
+    5.若出库订单有分屏信息，则需要选择屏序
+    6.信息填写正确则可以点击确认，完成出库，确认出库后会显示与出库订单相关的详细订单信息，和条码清单信息
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<link href="~/Content/styleFile/packaging/stockStyle.css" rel="stylesheet" />
+<style>
+    .el-table td, .el-table th {
+        padding: 0;
+    }
+
+    .el-dialog__header {
+        padding: 10px;
+    }
+
+    .el-dialog__footer {
+        padding: 0 10px 10px;
+    }
+
+    .el-dialog--center .el-dialog__body {
+        padding: 0 10px;
+    }
+
+    .el-dialog__headerbtn {
+        top: 10px;
+        right: 20px;
+    }
+
+    .dialogdiv {
+        border: 1px solid #d7dae2;
+        margin-bottom: 10px;
+        padding: 5px 10px;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+
+    .el-autocomplete ul li {
+        text-align: center;
+    }
+
+    .zhushi {
+        width: 100%;
+        color: #f4a763;
+        font-size: 12px;
+    }
+
+    .nuostyle .el-input__inner {
+        border: 1px solid #f06363;
+    }
+
+    .el-divider--vertical {
+        margin: 0 6px;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/Packagings/inStockConfirm"><el-button size="small">入库</el-button></a>
+                <a href="/Packagings/stockNumEdit"><el-button size="small">修改库位号</el-button></a>
+                <div class="adiv" href="/Packagings/outStockConfirm"><el-button size="small" type="primary" plain disabled style="cursor:default">出库</el-button></div>
+                <a href="/Packagings/lookTag"><el-button size="small">查看标签</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3 style="margin:10px 0 0;">@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/Packagings/inStockConfirm"><el-dropdown-item>入库</el-dropdown-item></a>
+                        <a href="/Packagings/stockNumEdit"><el-dropdown-item>修改库位号</el-dropdown-item></a>
+                        <div href="/Packagings/outStockConfirm"><el-dropdown-item disabled>出库</el-dropdown-item></div>
+                        <a href="/Packagings/lookTag"><el-dropdown-item>查看标签</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading" element-loading-text="loading...">
+            <el-row>
+                <div class="inputframe">
+                    <span>订单号：</span>
+                    <select-input v-model.trim="selectVal" v-bind:disabled="barcodeList.length>0" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium" @@select-val="selectHandle"></select-input>
+                </div>
+                <div class="inputframe">
+                    <span>条码号：</span>
+                    <el-input placeholder="输入条码后回车"
+                              v-model.trim="barcode"
+                              ref="inputRef"
+                              style="text-align:right;display:inline-block;"
+                              v-on:keyup.enter.native="barScan($event)"
+                              size="medium"
+                              autofocus
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <el-switch v-model="isWei"
+                               active-text="尾箱-内箱条码"
+                               :disabled="barcodeList.length!=0"
+                               inactive-text="外箱条码">
+                    </el-switch>
+                </div>
+                @* 物流 *@
+                <div class="inputframe">
+                    <span>物流方式：</span>
+                    <select-input v-model.trim="wuliu" :options="wuliuOptions" :isfocus="true" :ismultiple="false" size="medium"></select-input>
+                </div>
+                <div class="inputframe" v-show="wuliu!=''">
+                    <span>物流号：</span>
+                    <el-input placeholder="请输入物流号"
+                              v-model.trim="wuliuNum"
+                              style="text-align:right;display:inline-block;"
+                              size="medium"
+                              clearable>
+                    </el-input>
+                </div>
+                @* 出库给客户的出库订单 *@
+                <div class="inputframe" v-show="nuoShow">
+                    <span>出库订单：</span>
+                    <select-input v-model.trim="toOrderNum" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium" :class="nuomsg==''?'':'nuostyle'" @*@@select-val="selectOutOrderHandle"*@></select-input>
+                    <span v-show="toOrderNum.length>10" class="zhushi" style="color:#f06363">{{nuomsg}}</span>
+                </div>
+                <div class="inputframe" v-show="isBatch&&nuoShow">
+                    <span>批次：</span>
+                    <el-select v-model.trim="batchNum" placeholder="选择批次" filterable clearable size="medium">
+                        <el-option v-for="item in batchOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe" v-show="isScreen&&nuoShow">
+                    <span>屏序：</span>
+                    <el-select v-model.trim="screenNum" placeholder="选择屏序" filterable clearable size="medium">
+                        <el-option v-for="item in screenOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <p class="zhushi">* 不是挪用给客户订单直接出库，则不需要勾选挪用</p>
+                </div>
+                <div class="inputframe">
+                    <el-switch v-model="nuoShow"
+                               active-text="挪用给客户订单直接出库"
+                               inactive-text="">
+                    </el-switch>
+                    <el-button v-on:click="clearList" size="mini" round>重置</el-button>
+                    <el-switch v-model="printShow"
+                               v-show="nuoShow"
+                               active-text="打印"
+                               inactive-text="">
+                    </el-switch>
+                    <el-divider direction="vertical" v-if="nuoShow"></el-divider>
+                    <el-switch v-model="imgShow"
+                               v-show="nuoShow"
+                               active-text="使用logo"
+                               inactive-text="">
+                    </el-switch>
+                    <el-button @@click="confirmCheck" size="mini" round v-bind:disabled="isok">确认</el-button>
+                </div>
+
+                <div class="inputframe" v-show="printShow">
+                    <span>选打印机：</span>
+                    <el-select v-model="printSelect" clearable placeholder="选择打印机" size="medium">
+                        <el-option v-for="item in printOptions"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe" v-show="printShow && printSelect!='0' && printSelect!=''">
+                    <span>打印浓度：</span>
+                    <el-slider :max="30"
+                               :min="-30"
+                               v-model="nongDu"></el-slider>
+                </div>
+                <div class="inputframe" v-show="printShow && printSelect!='0' && printSelect!=''">
+                    <span>打印数量：</span>
+                    <el-input-number v-model.trim="pageCount"
+                                     size="medium"
+                                     :min="1"
+                                     :max="5"
+                                     style="width:220px"
+                                     clearable>
+                    </el-input-number>
+                </div>
+                <div class="inputframe">
+                    <el-table :data="completeInfo"
+                              max-height="280"
+                              border>
+                        <el-table-column prop="type"
+                                         label="类型"
+                                         width="63">
+                        </el-table-column>
+                        <el-table-column prop="batchNum"
+                                         label="批次"
+                                         width="50">
+                        </el-table-column>
+                        <el-table-column prop="screenNum"
+                                         label="屏序"
+                                         width="50">
+                        </el-table-column>
+                        <el-table-column prop="completeNum"
+                                         label="已完成"
+                                         width="60">
+                        </el-table-column>
+                        <el-table-column prop="complete"
+                                         label="完成率"
+                                         width="75">
+                        </el-table-column>
+                    </el-table>
+                </div>
+                <div class="inputframe">
+                    <el-table :data="barcodeList"
+                              max-height="280"
+                              border>
+                        <el-table-column prop="barcode"
+                                         label="条码清单"
+                                         width="160">
+                        </el-table-column>
+                        <el-table-column prop="warehouseNum"
+                                         label="库位号">
+                        </el-table-column>
+                        <el-table-column label=""
+                                         width="40">
+                            <template slot-scope="scope">
+                                <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,barcodeList)"
+                                           type="text"
+                                           size="mini"
+                                           style="margin:0;padding:0;width:100%;">
+                                    <i class="el-icon-error"></i>
+                                </el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <span v-if="barcodeList.length!=0">条码数量：{{barcodeList.length}}</span>
+                </div>
+            </el-row>
+            @* 模态框，显示出库后该订单状态详细信息 *@
+            <el-dialog title="出库完成！"
+                       :visible.sync="centerDialogVisible"
+                       width="300px"
+                       @@close="closeDialog"
+                       center>
+                <div style="width:280px;text-align:left;">
+                    <div v-for="item in message" class="dialogdiv">
+                        <div>订单号：<b>{{item.orderNum}}</b></div>
+                        <template v-if="item.message==''">
+                            <div>已出库数量：<b>{{item.warehousOutCount}}</b></div>
+                            <div>剩下未出库数量：<b>{{item.warehousCount}}</b></div>
+                            <div>未包装数量：<b>{{item.notPrintCount}}</b></div>
+                            <div>
+                                <div><b>此次出库条码：</b></div>
+                                <span v-for="i in item.barcode" class="listbarcode">
+                                    {{i}}
+                                </span>
+                            </div>
+                        </template>
+                        <div v-else>
+                            {{item.message}}
+                        </div>
+                    </div>
+                </div>
+                <span slot="footer" class="dialog-footer">
+                    <el-button type="primary" @@click="centerDialogVisible=false" size="small">确 定</el-button>
+                </span>
+            </el-dialog>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            screenSize: document.body.clientWidth,
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            completeInfo: [],
+            barcode: "",
+            barcodeList: [],
+            centerDialogVisible: false,
+            message: [],
+            toOrderNum: "",
+            nuoShow: false,
+            wuliu: "",
+            wuliuOptions: [
+                { value: "陆运" }, { value: "海运" }, { value: "空运" }],
+            wuliuNum: "",
+
+            nuomsg: '',
+            isScreen: false,
+            screenOptions: [],
+            screenNum: 1,
+            isBatch: false,
+            batchOptions: [],
+            batchNum: 1,
+            printShow: false,
+            printOptions: printIpAddress,
+            printSelect: '',
+            pageCount: 1,
+            nongDu: 30,
+            imgShow: true,
+            isWei: false
+        },
+        created: function () {
+            //获取订单号选择框下拉清单
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            //获取屏幕大小，并存储在app.screenSize上
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+                this.selectHandle(this.selectVal);
+            };
+            let locallogo = localStorage.getItem('logoimg');
+            if (locallogo != null) {
+                if (locallogo == "true") {
+                    this.imgShow = true;
+                } else {
+                    this.imgShow = false;
+                };
+            };
+            let localNuo = localStorage.getItem('outStockIsNuo');
+            if (localNuo != null) {
+                if (localNuo == "true") {
+                    this.nuoShow = true;
+                } else {
+                    this.nuoShow = false;
+                };
+            };
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printSelect = printIP;
+            };
+            let localnongdu = localStorage.getItem('printNongDuCount');
+            if (localnongdu != null) {
+                this.nongDu = +localnongdu;
+            };
+            let localpage = localStorage.getItem('printPageCount');
+            if (localpage != null) {
+                this.pageCount = localpage;
+            };
+        },
+        computed: {
+            isok() {
+                if (this.barcodeList.length == 0) {
+                    return true;
+                };
+                if (this.nuoShow) {
+                    if (this.toOrderNum == '' || this.nuomsg != '') {
+                        return true;
+                    };
+                    if (this.batchOptions != '' && this.batchNum == '') {
+                        return true;
+                    };
+                    if (this.screenOptions != '' && this.screenNum == '') {
+                        return true;
+                    };
+                };
+                return false;
+            }
+        },
+        methods: {
+            //确认
+            confirmCheck: function () {
+                let thisList = this.barcodeList, postList = [];
+                for (let i in thisList) {
+                    postList.push(thisList[i].barcode)
+                };
+
+                localStorage.setItem('printPageCount', this.pageCount);
+                localStorage.setItem('printNongDuCount', this.nongDu);
+
+                axios.post('/Packagings/WarehouseOut', {
+                    barcode: postList,
+                    warehousordernum: this.toOrderNum,
+                    isInside: this.isWei,
+                    isDelete: this.nuoShow,
+                    WarehouseOutDocuments: this.wuliuNum,
+                    Transportation: this.wuliu,
+                    screenNum: this.screenNum,
+                    batchNum: this.batchNum,
+                    isLogo: this.imgShow
+                }).then(respond => {
+                    //console.log(respond.data);
+                    //this.$alert(respond.data, '出库成功', {
+                    //    confirmButtonText: '确定',
+                    //    type: 'success',
+                    //    callback: () => {
+                    //        this.clearList();
+                    //    }
+                    //});
+                    this.message = respond.data.mes;
+                    let postList = respond.data.newOutherBarocode;
+                    if (postList.length > 0 && this.printShow) {
+                        this.loading = true;
+                        let imgNum = 0;
+                        for (let i in postList) {
+                            axios.post('/Packagings/OutsideBoxLablePrintAgain', {
+                                outsidebarcode: postList[i],
+                                pagecount: this.pageCount,
+                                concentration: this.nongDu,
+                                ip: this.printSelect,//ip地址
+                                port: 9101,//端口
+                            }).then(res => {
+                                if (res.data == '打印成功！') {
+                                    this.$message({
+                                        showClose: true,
+                                        message: res.data,
+                                        type: 'success'
+                                    });
+                                } else {
+                                    this.$message({
+                                        showClose: true,
+                                        message: res.data,
+                                        type: 'error'
+                                    });
+                                };
+                                imgNum++;
+                                if (imgNum == postList.length) {
+                                    this.loading = false;
+                                };
+                            }).catch(err => {
+                                this.$message({
+                                    showClose: true,
+                                    message: '打印出错！',
+                                    type: 'error'
+                                });
+                                imgNum++;
+                                if (imgNum == postList.length) {
+                                    this.loading = false;
+                                };
+                            });
+                        };
+                    };
+                    this.centerDialogVisible = true;
+                }).catch(err => {
+                    console.warn("post失败")
+                });
+            },
+            //扫码
+            barScan: function (event) {
+                this.loading = true;
+                let thisdata = event.target.value, listcheck = this.barcodeList;
+                if (thisdata != "") {
+                    //检查重复
+                    for (let i in listcheck) {
+                        if (listcheck[i].barcode == thisdata) {
+                            this.$message({
+                                showClose: true,
+                                message: '已有重复条码！',
+                                type: 'warning'
+                            });
+                            this.loading = false;
+                            return;
+                        };
+                    };
+
+                    axios.post('/Packagings/CheckOutsideBoxBadeCodeNumExist1', {
+                        ordernum: this.selectVal,
+                        outsidebarcode: thisdata,
+                        isInside: this.isWei
+                    }).then(res => {
+                        //console.log(res.data);
+                        if (res.data.message == "") {
+                            listcheck.push(res.data);
+                            this.loading = false;
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                message: res.data.message,
+                                type: 'warning'
+                            });
+                            this.loading = false;
+                        };
+                    }).catch(err => {
+                        console.warn("post失败");
+                        this.loading = false;
+                    });
+                } else {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "请输入条码！"
+                    });
+                    this.loading = false;
+                };
+                this.barcode = "";
+            },
+            //获取完成信息
+            getcompleteInfo: function () {
+                if (this.selectVal != "") {
+                    axios.post('/Packagings/GetcompleteInfo', {
+                        ordernum: this.selectVal
+                    }).then(res => {
+                        //console.log(res.data);
+                        this.completeInfo = res.data;
+                    }).catch(err => {
+                        console.warn("获取信息失败")
+                    });
+                } else {
+                    this.completeInfo = [];
+                };
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+            },
+            //重置
+            clearList: function () {
+                this.barcode = "";
+                this.barcodeList = [];
+                this.message = [];
+                this.toOrderNum = "";
+                this.wuliu = "";
+                this.wuliuNum = "";
+                this.screenNum = 1;
+                this.batchNum = 1;
+            },
+            closeDialog: function () {
+                this.clearList();
+            },
+            //是否挪用
+            isnuo: function () {
+                if (this.nuoShow == true) {
+                    this.toOrderNum = "";
+                } else {
+                    this.toOrderNum = this.selectVal;
+                };
+            },
+            selectHandle: function (v) {
+                this.getcompleteInfo();
+                if (v != "") {
+                    localStorage.setItem('Order', v);
+                    this.$refs.inputRef.focus();
+                    this.isnuo();
+                };
+            },
+            selectOutOrderHandle: function (v) {
+                axios.post('/Packagings/GetEmbezzleOrderNumBatch', { ordernum: v }).then(res => {
+                    console.log(res.data);
+                    if (res.data.haveBatch) {
+                        this.batchOptions = res.data.BatchList;
+                        this.batchNum = '';
+                        this.nuomsg = '';
+                        this.isBatch = true;
+                    } else {
+                        if (res.data.mes != '没有分批') {
+                            this.nuomsg = res.data.mes
+                        };
+                        this.isBatch = false;
+                        this.batchOptions = [];
+                    };
+                }).catch(err => {
+                    console.warn("post失败")
+                });
+            },
+            getScreen(v) {
+                axios.post('/Packagings/GetEmbezzleOrderNumScreen', { ordernum: this.toOrderNum, batchnum: v }).then(res => {
+                    console.log(res.data);
+                    if (res.data.haveScreen) {
+                        this.screenOptions = res.data.ScreenList;
+                        this.screenNum = '';
+                        this.nuomsg = '';
+                        this.isScreen = true;
+                    } else {
+                        if (res.data.mes != '没有分屏') {
+                            this.nuomsg = res.data.mes
+                        };
+                        this.isScreen = false;
+                        this.screenOptions = [];
+                        //this.$message({
+                        //    showClose: true,
+                        //    message: res.data.mes,
+                        //    type: 'warning'
+                        //});
+                    };
+                }).catch(err => {
+                    console.warn("post失败")
+                });
+            }
+        },
+        watch: {
+            selectVal(v) {
+                if (v == '') {
+                    this.getcompleteInfo();
+                }
+            },
+            nuoShow: function (v) {
+                localStorage.setItem('outStockIsNuo', v);
+                this.isnuo();
+            },
+            printSelect: (v) => {
+                localStorage.setItem('printIP', v);
+            },
+            toOrderNum: function (v) {
+                if (this.nuoShow) {
+                    if (v.length > 10) {
+                        this.selectOutOrderHandle(v);
+                    } else {
+                        this.nuomsg = '';
+                        this.isScreen = false;
+                        this.screenNum = 1;
+                        this.screenOptions = [];
+                        this.isBatch = false;
+                        this.batchNum = 1;
+                        this.batchOptions = [];
+                    };
+                };
+            },
+            batchNum: function (v) {
+                if (v != "") {
+                    this.getScreen(v);
+                } else {
+                    this.isScreen = false;
+                    this.screenNum = 1;
+                    this.screenOptions = [];
+                };
+            },
+            imgShow: function (v) {
+                localStorage.setItem('logoimg', v);
+            },
+        },
+    });
+</script>

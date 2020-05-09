@@ -1,0 +1,314 @@
+﻿@model IEnumerable<JianHeMES.Models.Customer_Complaints>
+
+@{
+    ViewBag.Title = "客诉订单查询";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+<style>
+    .selectContainer{
+        display:flex;
+        justify-content:center;
+    }
+    .selectContainer div{
+        margin-left:5px;
+    }
+    table tbody tr td:nth-child(6){
+        font-size:11px !important;
+    }
+    .el-table .cell{
+        display:flex;
+    }
+    .Customer_ComlaintsCreate{
+        text-align:center;
+    }
+</style>
+
+<h2 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">客诉订单查询</h2>
+
+<div id="app">
+    <p class="Customer_ComlaintsCreate">
+        <el-button size="mini" type="primary">
+            @Html.ActionLink("创建", "Create")
+        </el-button>
+    </p>
+    <div class="selectContainer">
+        <div>
+            <el-select v-model="orderNum" size="mini" clearable placeholder="请选择订单号">
+                <el-option v-for="item in orderList"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div>
+            <el-input placeholder="请输入客诉编号"
+                      v-model="complaintNumber"
+                      size="mini"
+                      clearable>
+            </el-input>
+        </div>
+        <div>
+            <el-input placeholder="请输入产品型号"
+                      v-model="productModel"
+                      size="mini"
+                      clearable>
+            </el-input>
+        </div>
+        <div>
+            <el-date-picker v-model="complaintsDate"
+                            type="date"
+                            placeholder="选择投诉日期"
+                            size="mini">
+            </el-date-picker>
+        </div>
+        <div>
+            <el-date-picker v-model="deliveryDate"
+                            type="date"
+                            size="mini"
+                            placeholder="选择发货日期">
+            </el-date-picker>
+        </div>
+    </div>
+    <div class="tableContainer">
+        <el-table v-bind:data="tableData"
+                  max-height="650"
+                  style="width: 100%">
+            <el-table-column prop="ComplaintNumber"
+                             label="客诉编号"
+                             sortable
+                             width="155">
+                <template slot-scope="scope">
+                    <span>{{scope.row.ComplaintNumber}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="CustomerName"
+                             label="客户名称"
+                             width="140">
+            </el-table-column>
+            <el-table-column prop="OrderNum"
+                             label="订单号"
+                             width="120">
+            </el-table-column>
+            <el-table-column prop="ComplaintsDate"
+                             v-bind:formatter="ComplaintsDateformatter"
+                             sortable
+                             label="投诉日期"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="ProductModel"
+                             label="产品型号"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="Complaint_Content"
+                             label="投诉内容"
+                             width="180">
+            </el-table-column>
+            @*<el-table-column prop="Abnormal_Describe"
+                             label="异常描述"
+                             width="180">
+            </el-table-column>*@
+            <el-table-column prop="DeliveryDate"
+                             sortable
+                             label="发货日期"
+                             v-bind:formatter="ComplaintsDateformatter"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="SettlementDate"
+                             sortable
+                             label="结案日期"
+                             v-bind:formatter="ComplaintsDateformatter2"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="Remark"
+                             label="备注"
+                             width="135">
+            </el-table-column>
+            <el-table-column prop="tag"
+                             label="操作"
+                             width="130">
+                <template slot-scope="scope">
+                    <a v-bind:href=`/Customer_Complaints/Details/?id=${scope.row.Id}`><el-button style="padding:2px;" size="mini" type="primary">详细</el-button></a>
+                    <span class="Customer_ComlaintsEdit">
+                        <a v-show="scope.row.canchange" v-bind:href=`/Customer_Complaints/Edit/?id=${scope.row.Id}`><el-button style="padding:2px;" size="mini" type="success">修改</el-button></a>
+                    </span>
+                    <el-button v-show="flag" @@click="remove(scope.row,scope.$index)" style="padding:2px;" size="mini" type="danger">移除</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+    
+</div>
+
+<script>
+    var roles = JSON.parse(localStorage.getItem("rigths"));
+    function checkRoles(list, roleName) {   //检测权限
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    return true;
+                };
+            };
+        };
+        return false;
+    }
+    const app = new Vue({
+        el: "#app",
+        data: {
+            tableData: [],
+            orderList: [],
+            orderNum: "",
+            complaintsDate: "",
+            complaintNumber: "",
+            productModel: "",
+            deliveryDate: "",
+            flag:false
+        },
+        created(){
+            this.getOrderList();
+            this.getData();
+        },
+        mounted() {
+            
+            // 客诉订单
+            //Customer_ComlaintsCreate
+            if (checkRoles(roles, '创建订单客诉表')) {
+                $('.Customer_ComlaintsCreate').show()
+            } else {
+                $('.Customer_ComlaintsCreate').hide()
+            }
+            this.flag = checkRoles(roles, '删除订单客诉表')
+        },
+        methods: {
+            // 获取表格数据
+            getData(orderNum, complaintsDate, complaintNumber, productModel, deliveryDate) {
+                axios.post("/Customer_Complaints/IndexCustomer", { orderNum, complaintsDate, complaintNumber, productModel, deliveryDate }).then(res=> {
+                    console.log(res.data);
+                    if (res.data.length > 0) {
+                        this.tableData = res.data;
+                        if (checkRoles(roles, '修改订单客诉表')) {
+                            $('.Customer_ComlaintsEdit').show();
+                            this.tableData.forEach(item=> {
+                                item.canchange = true;
+                            })
+                        } else {
+                            $('.Customer_ComlaintsEdit').hide()
+                            this.tableData.forEach(item=> {
+                                item.canchange = false;
+                            })
+                        };
+                    } else {
+                        this.tableData = [];
+                        this.$message({
+                            message: "无对应数据",
+                            type: "warning"
+                        });
+                    }
+
+                }).catch(err=> {
+                    this.$message({
+                        message: "网络错误",
+                        type: "warning"
+                    });
+                })
+            },
+            // 获取订单列表
+            getOrderList() {
+                axios.post("/Customer_Complaints/GetOrderNumList_Customer").then(res=> {
+                    //console.log(res.data)
+                    this.orderList = []
+                    res.data.forEach(item=> {
+                        let obj = { value: item, label: item }
+                        this.orderList.push(obj)
+                    })
+                }).catch(err=> {
+                    this.$message({
+                        message: "获取订单列表失败",
+                        type: "warning"
+                    });
+                })
+            },
+            // 投诉日期格式化
+            ComplaintsDateformatter(row, column) {
+                let dd = new Date(row.ComplaintsDate);
+                let yy = dd.getFullYear();
+                let mm = (dd.getMonth() + 1).toString().padStart(2, '0');
+                let dds = dd.getDate().toString().padStart(2, '0');
+                return `${yy}-${mm}-${dds}`
+            },
+            ComplaintsDateformatter2(row, column) {
+                if (row.ComplaintsDate == '' || row.ComplaintsDate == null) return '未结案'
+                let dd = new Date(row.ComplaintsDate);
+                let yy = dd.getFullYear();
+                let mm = (dd.getMonth() + 1).toString().padStart(2, '0');
+                let dds = dd.getDate().toString().padStart(2, '0');
+                return `${yy}-${mm}-${dds}`
+            },
+            // 删除
+            remove(item, index) {
+                console.log(item);
+                if (checkRoles(roles, '删除订单客诉表') == false)return ''
+                this.$confirm('此操作将永久删除该客诉订单, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    // 此处传id删除整个客诉订单
+                    axios.post("/Customer_Complaints/DeleteCustomer", { id: item.Id }).then(res=> {
+                        if (res.data == true) {
+                            this.tableData.splice(index, 1);
+                            this.$message({
+                                type: 'success',
+                                message: '操作成功!'
+                            });
+                        } else {
+                            this.$message({
+                                type: 'warning',
+                                message: '操作失败!'
+                            });
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            type: 'warning',
+                            message: '网络错误'
+                        });
+                    })
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+            }
+        },
+        watch: {
+            orderNum() {
+                this.getData(this.orderNum, this.complaintsDate, this.complaintNumber, this.productModel, this.deliveryDate)
+            },
+            complaintsDate() {
+                this.getData(this.orderNum, this.complaintsDate, this.complaintNumber, this.productModel, this.deliveryDate)
+            },
+            complaintNumber() {
+                this.getData(this.orderNum, this.complaintsDate, this.complaintNumber, this.productModel, this.deliveryDate)
+            },
+            productModel() {
+                this.getData(this.orderNum, this.complaintsDate, this.complaintNumber, this.productModel, this.deliveryDate)
+            },
+            deliveryDate() {
+                this.getData(this.orderNum, this.complaintsDate, this.complaintNumber, this.productModel, this.deliveryDate)
+            },
+
+        }
+    });
+    window.onload = function () {
+        
+    }
+</script>
+
+
+

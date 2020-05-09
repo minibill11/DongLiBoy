@@ -1,0 +1,157 @@
+﻿
+@{
+    ViewBag.Title = "SPC_StockConfirm";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+    #app {
+        height: 550px;
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>备料确认</h3>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" type="primary" plain style="margin:2px">物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_Display"><el-button size="small" type="primary" plain style="margin:2px">查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" type="primary" plain style="margin:2px">修改包装信息</el-button></a>
+    </div>
+    <el-main class="text-center">
+        <div class="query">
+            订单号：
+            <el-select v-model="orderNum" placeholder="请选择订单号" size="medium" allow-create filterable clearable>
+                <el-option v-for="item in options"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            物料号：
+            <el-input v-model.trim="materialNumber" placeholder="请输入物料号" style="width:191px" size="medium" clearable></el-input>
+        </div>
+        <div class="query">
+            包装数量：
+            <el-select v-model="quantity" clearable placeholder="请选择数量" size="medium" id="select-box">
+                <el-option v-for="item in quantityOptions"
+                           :key="item"
+                           :value="item">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            <el-button size="mini" type="primary" v-on:click="confirm" v-show="orderNum!=''&&materialNumber!=''&&quantity!=''">确认</el-button>
+        </div>
+    </el-main>
+</div>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            orderNum: '',
+            options: [],
+            quantity: '',
+            quantityOptions: [],
+            materialNumber: '',
+            username:"@UserName"
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        methods: {
+            confirm() {
+                if (this.orderNum != '' && this.materialNumber != '' && this.quantity != '') {
+                    axios.post("/Packagings/SPC_StockConfirm", {
+                        orderNum: this.orderNum,
+                        materialNum: this.materialNumber,
+                        quantity: this.quantity,
+                        material_Confirm:true,
+                        confirm_Operator: this.username,
+                    }).then(res => {
+                        if (res.data == "确认备料成功！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'success'
+                            });
+                            this.materialNumber = this.quantity = '';
+                            $("#select-box").css('border', '');
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning'
+                            });
+                        }
+                        })
+                } else {
+                    this.$message({
+                        message: '请填写完整在确认！',
+                        type: 'warning'
+                    });
+                }
+            }
+        },
+        watch: {
+            materialNumber() {
+                if (this.materialNumber != '' && this.materialNumber.length == 10) {
+                    this.quantityOptions = []
+                    axios.post("/Packagings/GetMaterialNumByQuantity", {
+                        ordernumber: this.orderNum,
+                        materialNumber: this.materialNumber,
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data.length < 0) {
+                            this.$message({
+                                showClose: true,
+                                message: '找不到物料号对应的数量',
+                                type: 'warning'
+                            });
+                        }
+                        else if (res.data == '此物料已备料！') {
+                            this.$message({
+                                showClose: true,
+                                message: res.data,
+                                type: 'warning'
+                            });
+                        }
+                        else {
+                            let arr = [];
+                            if (res.data.length == 1) {
+                                this.quantity = res.data[0]
+                                $("#select-box").css('border', '');
+                            } else {
+                                for (let item in res.data) {
+                                    arr.push(res.data[item])
+                                }
+                                this.quantityOptions = arr;
+                                $("#select-box").focus()
+                                $("#select-box").css({ 'border': '1px solid #FF0000', 'background': '#fff' })
+
+                            }
+                        }
+                    })
+                } else {
+                    this.quantity =''
+                }               
+            },
+        }
+    })
+</script>

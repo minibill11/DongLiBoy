@@ -1,0 +1,375 @@
+﻿
+@{
+    ViewBag.Title = "部门版本";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+<style>
+    .el-table thead tr th,.el-table tbody tr td{
+        padding:0;
+    }
+    .cell{
+        padding:2px;
+        text-align:center;
+    }
+    .dateContainer{
+        display:flex;
+        justify-content:center;
+        margin-bottom:8px;
+    }
+    .inputtext2{
+       display:flex;
+       justify-content:center;
+   }
+    textarea{
+        height:30px;
+        width:15%;
+    }
+</style>
+<h4 style="text-align:center; margin:10px auto;">部门版本</h4>
+
+<div id="app">
+    <div class="dateContainer">
+        <el-date-picker v-model="selectTime"
+                        type="date"
+                        size="small"
+                        placeholder="选择日期">
+        </el-date-picker>
+        <el-button type="primary" size="small" v-on:click="addRecords">批量添加</el-button>
+    </div>
+    <div style="width:79%;margin:0 auto;">
+        <el-table v-bind:data="tableData"
+                  max-height="550"
+                  border
+                  style="width: 100%">
+            <el-table-column prop="name"
+                             label="序号"
+                             type="index"
+                             sortable
+                             width="80">
+            </el-table-column>
+            <el-table-column prop="Department"
+                             label="部门"
+                             sortable
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="Principal"
+                             label="负责人"
+                             sortable
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="Aurhorized_personnel"
+                             label="编制人数"
+                             sortable
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="Need_personnel"
+                             label="刚需人数"
+                             sortable
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="ClerkName"
+                             label="文员"
+                             sortable
+                             width="80">
+            </el-table-column>
+            <el-table-column prop="ExecutionTime"
+                             sortable
+                             label="执行时间">
+                <template slot-scope="scope">
+                    <span>{{scope.row.ExecutionTime | YMD}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="tag"
+                             label="操作"
+                             width="100">
+                <template slot-scope="scope">
+                    <el-button type="primary" v-on:click="changeInfos(scope.row,scope.$index)" size="mini">修改</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+
+    @* 修改弹出框 *@
+    <el-dialog title="修改单行信息"
+               center
+               v-bind:visible.sync="showChangeDialog"
+               width="30%">
+        <div>
+            <el-form model="changeForm" status-icon rules="rules2" ref="changeForm" label-width="100px">
+                <el-form-item label="部门" prop="Department">
+                    <el-input v-model="changeForm.Department" disabled auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="负责人" prop="Principal">
+                    <el-input v-model="changeForm.Principal" disabled auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="编制人数" prop="Aurhorized_personnel">
+                    <el-input v-model.number="changeForm.Aurhorized_personnel" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="刚需人数" prop="Need_personnel">
+                    <el-input v-model.number="changeForm.Need_personnel" auto-complete="off"></el-input>
+                </el-form-item>
+                
+                <el-form-item label="执行时间" prop="ExecutionTime">
+                    <el-date-picker disabled v-model="changeForm.ExecutionTime"
+                                    type="date"
+                                    size="small"
+                                    placeholder="选择日期">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" v-on:click="submitForm('changeForm')">提交</el-button>
+                    @*<el-button v-on:click="resetForm('changeForm')">重置</el-button>*@
+                </el-form-item>
+            </el-form>
+        </div>
+    </el-dialog>
+
+    @* 批量添加弹出框 *@
+    <el-dialog title="批量添加"
+               center
+               v-bind:visible.sync="showaddRecords"
+               width="1050px">
+        <div>
+            <div class="inputtext2">
+                <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+            </div>
+            <el-table v-bind:data="tableDataAdd"
+                      max-height="550"
+                      border
+                      style="width: 100%">
+                <el-table-column label="序号"
+                                 type="index"
+                                 sortable
+                                 width="80">
+                </el-table-column>
+                <el-table-column prop="Department"
+                                 label="部门"
+                                 sortable
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="Principal"
+                                 label="负责人"
+                                 sortable
+                                 width="100">
+                </el-table-column>
+                <el-table-column prop="Aurhorized_personnel"
+                                 label="编制人数"
+                                 sortable
+                                 width="130">
+                </el-table-column>
+                <el-table-column prop="Need_personnel"
+                                 label="刚需人数"
+                                 sortable
+                                 width="130">
+                </el-table-column>
+                <el-table-column prop="ClerkName"
+                                 label="文员"
+                                 sortable
+                                 width="80">
+                </el-table-column>
+                <el-table-column prop="ExecutionTime"
+                                 sortable
+                                 label="执行时间">
+                    <template slot-scope="scope">
+                        <span>{{scope.row.ExecutionTime | YMD}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="tag"
+                                 label="操作"
+                                 width="100">
+                    <template slot-scope="scope">
+                        <el-button v-bind:type="scope.row.color==200?'danger':'primary'" v-on:click="removeTr(scope.row,scope.$index)" size="mini">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <div style="display:flex;justify-content:space-around">
+                <span v-show="flag">本次提交<strong style="color:red;">{{count}}</strong>条数据！</span>
+                <div>
+                    <el-button type="info" size="small" v-on:click="clearTavble">清空</el-button>
+                    <el-button type="primary" size="small" v-on:click="postRecords">提交</el-button>
+                </div>
+            </div>
+        </div>
+    </el-dialog>
+</div>
+
+<script>
+
+    const app = new Vue({
+        el: "#app",
+        data: {
+            selectTime:null,
+            tableData: [],
+            showChangeDialog: false,
+            showaddRecords:false,
+            changeForm: {
+                Aurhorized_personnel: "",
+                Need_personnel:""
+            },
+            rules2: {
+                Aurhorized_personnel: [
+                  { validator: this.chaeckAurhorized_personnel, trigger: 'blur' }
+                ],
+                Need_personnel: [
+                  { validator: this.checkNeed_personnel, trigger: 'blur' }
+                ]
+            },
+            tableDataAdd: [],
+            inputInfo: "",
+            flag: false,
+            count:0
+        },
+        methods: {
+            // 根据所选时间获取对应数据
+            getInfos(time) {
+                axios.post("/Personnel/Archit_depar", { date: this.selectTime }).then(res=> {
+                    console.log(res.data)
+                    this.tableData = res.data;
+                }).catch(err=> {
+                    this.$message({
+                        message: "连接失败",
+                        type: "warning"
+                    });
+                })
+            },
+            // 点击修改
+            changeInfos(row, index) {
+                console.log(row)
+                this.changeForm = row;
+                this.showChangeDialog = true;
+            },
+            // 验证编制人数
+            chaeckAurhorized_personnel(rule, value, callback) {
+                if (!value) {
+                    return callback(new Error('不能为空'));
+                } else {
+                    callback();
+                }
+            },
+            // 验证刚需人数
+            checkNeed_personnel(rule, value, callback) {
+                if (!value) {
+                    return callback(new Error('不能为空'));
+                } else {
+                    callback();
+                }
+            },
+            // 提交修改数据
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        axios.post("/Personnel/EditArchitecture", { architeList: this.changeForm }).then(res=> {
+                            //console.log(res.data)
+                            if (res.data.Archit == true) {
+                                this.$message({
+                                    message: "操作成功",
+                                    type: "success"
+                                });
+                                this.changeForm = {};
+                                this.showChangeDialog = false;
+                            } else {
+                                this.$message({
+                                    message: "操作失败",
+                                    type: "warning"
+                                })
+                            }
+                        }).catch(err=> {
+                            this.$message({
+                                message: "连接失败",
+                                type: "warning"
+                            })
+                        })
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    }
+                });
+            },
+            // 点击批量添加
+            addRecords() {
+                this.showaddRecords = true;
+            },
+            // 清空批量添加表格
+            clearTavble(){
+                this.tableDataAdd = [],
+                this.inputInfo = ""
+            },
+            // 确认批量提交
+            postRecords() {
+                if (this.tableDataAdd.length > 0) {
+                    axios.post("/Personnel/Createarchitecture", { inputList: this.tableDataAdd }).then(res=> {
+                        //console.log(res.data)
+                        if (res.data.repat == true) {
+                            this.$message({
+                                message: "操作成功",
+                                type: "success"
+                            });
+                            this.clearTavble();
+                            this.showaddRecords = false;
+                        } else {
+                            res.data.res.forEach(item=> {
+                                this.tableDataAdd.forEach(items=> {
+                                    if (item.Department == items.Department && item.Principal == items.Principal) {
+                                        items.color = 200;
+                                    }
+                                })
+                            });
+                            this.$message({
+                                message: "存在重复，请手动删除",
+                                type: "warning"
+                            });
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            message: "连接失败",
+                            type: "warning"
+                        });
+                    })
+                } else {
+                    this.$message({
+                        message: "请添加数据",
+                        type: "warning"
+                    });
+                }
+            },
+            // 移除重复项
+            removeTr(row, index) {
+                this.tableDataAdd.splice(index,1)
+            }
+        },
+        watch: {
+            selectTime() {
+                if (this.selectTime != null) {
+                    this.getInfos(this.selectTime);
+                    window.localStorage.setItem("Personnel_Archit_depar_queryTime", this.selectTime);
+                }
+            },
+            inputInfo(val) {
+                if (this.inputInfo == null) { this.flag = false } else { this.flag = true }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                initDatas.forEach(item=> {
+                    let obj = {
+                        color: 202, Department: item[0], Principal: item[1], Aurhorized_personnel: item[2], Need_personnel: item[3], ClerkName:item[4], ExecutionTime: item[5]
+                    };
+                    this.tableDataAdd.push(obj);
+                })
+                this.count = this.tableDataAdd.length;
+                //console.log(initDatas)
+            },
+        },
+        mounted() {
+            this.selectTime = new Date(window.localStorage.getItem("Personnel_Archit_depar_queryTime"));
+        }
+    })
+</script>

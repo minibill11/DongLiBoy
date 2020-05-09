@@ -1,0 +1,466 @@
+﻿@model IEnumerable<JianHeMES.Models.BarCodes>
+
+@{
+    ViewBag.Title = "条码管理和查询";
+}
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+
+<style>
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    .dropdown-menu > li > a {
+        padding: 3px 10px;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 150px;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .selectpicker {
+            font-size: 13px;
+        }
+    }
+
+    .tableBottom tbody tr td, .tabletop tr th {
+        display: inline-block;
+        text-align: center;
+    }
+
+        .tableBottom tbody tr td:nth-child(1), .tabletop tr th:nth-child(1) {
+            width: 150px;
+        }
+
+        .tableBottom tbody tr td:nth-child(2), .tabletop tr th:nth-child(2) {
+            width: 200px;
+        }
+
+        .tableBottom tbody tr td:nth-child(3), .tabletop tr th:nth-child(3) {
+            width: 180px;
+        }
+
+        .tableBottom tbody tr td:nth-child(4), .tabletop tr th:nth-child(4) {
+            width: 150px;
+        }
+
+        .tableBottom tbody tr td:nth-child(5), .tabletop tr th:nth-child(5) {
+            width: 230px;
+        }
+
+        .tableBottom tbody tr td:nth-child(6), .tabletop tr th:nth-child(6) {
+            width: 80px;
+        }
+
+        .tableBottom tbody tr td:nth-child(7), .tabletop tr th:nth-child(7) {
+            width: 80px;
+        }
+</style>
+<h2>@ViewBag.Title</h2>
+
+<div>
+    <span>
+        @Html.ActionLink("挪用条码查询", "DivertIndex")|
+    </span>
+    <span>
+        <a href="/Query/barcodeInfo">条码内容查询</a>|
+    </span>
+    <span class="createNew">
+        <a href="/BarCodes/SetJsonFile" target="_blank">录入模组编号</a>
+    </span>
+</div>
+@using (Html.BeginForm("Index", "BarCodes", FormMethod.Post, new { id = "searchForm" }))
+{
+    @Html.AntiForgeryToken()
+    <p class="text-center">
+        @*<span><a href="/BarCodes/DivertIndex" class="btn btn-default pull-left">挪用订单查询</a></span>*@
+        <span>
+            订单号: @Html.DropDownList("OrderNum",
+ViewBag.OrderNumList as IEnumerable<SelectListItem>, "全部", new { @class = "selectpicker", data_live_search = "true", data_style = "form-control" })
+        </span>
+        <br class="visible-xs" /><span>
+            类型: @Html.DropDownList("BarCodeType",
+ViewBag.BarCodeTypeList as IEnumerable<SelectListItem>, "全部", new { @class = "form-control", style = "display:inline; width: 80px" })
+        </span>
+        <br class="visible-xs" /><span>模组条码号：<input type="text" onKeyUp="value = value.replace(/(^\s*)|(\s*$)/g, '')" class="form-control" style="display:inline;width:150px;" name="BarCodeNum" /></span>
+        <input type="hidden" id="PageIndex" name="PageIndex" value="0" />
+        &nbsp; &nbsp; &nbsp;<input type="button" id="searchButton" class="btn btn-default" value="检索" />
+    </p>
+}
+
+
+<table class="tabletop">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.OrderNum)
+        </th>
+        <th class="barcfth">
+            @Html.DisplayNameFor(model => model.BarCodesNum)
+            <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('myTable', 1, 'up', 'strings')"></span>
+            <span id="deflultClick" class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('myTable', 1, 'down', 'strings')"></span>
+        </th>
+        <th class="boxcfth">
+            @Html.DisplayNameFor(model => model.ModuleGroupNum)
+            <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('myTable',2,'up','strings')"></span>
+            <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('myTable',2,'down','strings')"></span>
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.BarCodeType)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.CreateDate)
+            <span class="glyphicon glyphicon-chevron-up" role="button" onclick="sortTable('myTable',4,'up','times')"></span>
+            <span class="glyphicon glyphicon-chevron-down" role="button" onclick="sortTable('myTable', 4, 'down', 'times')"></span>
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Creator)
+        </th>
+        <th>操作</th>
+    </tr>
+</table>
+<div id="bottomTableDiv">
+    <div id="llll" style="height:640px;overflow-y:auto;">
+        <table id="myTable" class="tableBottom">
+            <tbody>
+                @if (Model != null)
+                {
+                    foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.OrderNum)
+                            </td>
+                            <td class="barcf">
+                                @Html.DisplayFor(modelItem => item.BarCodesNum)
+                            </td>
+                            <td class="boxcf">
+                                @Html.DisplayFor(modelItem => item.ModuleGroupNum)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.BarCodeType)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.CreateDate)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Creator)
+                            </td>
+                            <td>
+                                @*@Html.ActionLink("修改", "Edit", new { id = item.ID }) |*@
+                                @Html.ActionLink("详细", "Details", new { id = item.ID }) @*|
+                                    @Html.ActionLink("删除", "Delete", new { id = item.ID })*@
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+    </div>
+    <el-pagination background
+                   v-show="flags"
+                   v-on:current-change="handleCurrentChange"
+                   size="small"
+                   layout="prev, pager, next"
+                   v-bind:total="trList">
+    </el-pagination>
+</div>
+<script>
+    function sortTable(tableId, indexs, upOrDown, types) {//点击按钮实现表格排序的方法；目前支持纯字符串排序+整数排序+标准时间格式排序
+        let oTab = document.getElementById(tableId);
+        let arr = [];
+        if (upOrDown === "up") {
+            if (types === "init") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //整数排序
+                    var n1 = parseInt(tr1.cells[indexs].innerHTML);
+                    var n2 = parseInt(tr2.cells[indexs].innerHTML);
+                    return n2 - n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "times") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //标准时间格式排序排序
+                    var n1 = new Date((tr1.cells[indexs].innerHTML)).getTime();
+                    var n2 = new Date((tr2.cells[indexs].innerHTML)).getTime();
+                    return n2 - n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "strings") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //纯字符串排序
+                    var n1 = tr1.cells[indexs].innerHTML;
+                    var n2 = tr2.cells[indexs].innerHTML;
+                    return n2 > n1 ? 1 : -1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "checkbox") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //选择框排序
+                    var n1 = tr1.cells[indexs].children;
+                    var n2 = tr2.cells[indexs].children;
+                    if ($(n1).attr('checked')) {
+                        n1.value = 1
+                    } else {
+                        n1.value = 0
+                    }
+                    if ($(n2).attr('checked')) {
+                        n2.value = 1
+                    } else {
+                        n2.value = 0
+                    }
+                    return n2.value - n1.value
+
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "tt") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                arr.sort(function (tr1, tr2) {        //时分秒排序
+                    var n1 = timeToSec(tr1.cells[indexs].innerText);
+                    var n2 = timeToSec(tr2.cells[indexs].innerText);
+                    return n2 > n1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            }
+        } else if (upOrDown === "down") {
+            if (types === "init") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //整数排序
+                    var n1 = parseInt(tr1.cells[indexs].innerHTML);
+                    var n2 = parseInt(tr2.cells[indexs].innerHTML);
+                    return n1 - n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "times") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //标准时间格式排序排序
+                    var n1 = new Date((tr1.cells[indexs].innerHTML)).getTime();
+                    var n2 = new Date((tr2.cells[indexs].innerHTML)).getTime();
+                    return n1 - n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "strings") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //纯字符串排序
+                    var n1 = tr1.cells[indexs].innerHTML;
+                    var n2 = tr2.cells[indexs].innerHTML;
+                    return n1 > n2 ? 1 : -1;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "checkbox") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                //console.log(arr)
+                arr.sort(function (tr1, tr2) {       //选择框排序
+                    var n1 = tr1.cells[indexs].children;
+                    var n2 = tr2.cells[indexs].children;
+                    if ($(n1).attr('checked')) {
+                        n1.value = 1
+                    } else {
+                        n1.value = 0
+                    }
+                    if ($(n2).attr('checked')) {
+                        n2.value = 1
+                    } else {
+                        n2.value = 0
+                    }
+                    return n1.value - n2.value
+
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            } else if (types === "tt") {
+                for (var i = 0; i < oTab.tBodies[0].rows.length; i++) {
+                    arr[i] = oTab.tBodies[0].rows[i];
+                }
+                arr.sort(function (tr1, tr2) {        //时分秒排序
+                    var n1 = timeToSec(tr1.cells[indexs].innerText);
+                    var n2 = timeToSec(tr2.cells[indexs].innerText);
+                    return n1 > n2;
+                });
+                for (var i = 0; i < arr.length; i++) {
+                    oTab.tBodies[0].appendChild(arr[i]);
+                }
+            }
+        }
+    }
+
+    function timeToSec(time) {     //时分秒字符串格式转换为毫秒
+        if (time.indexOf("时") != -1 || time.indexOf("分") != -1 || time.indexOf("秒") != -1) {
+            var time = time.replace(/天/, ":");
+            var time = time.replace(/小时/, ":");
+            var time = time.replace(/分/, ":");
+            var time = time.replace(/秒/, ":");
+            var day = time.split(':')[0]
+            var hour = time.split(':')[1]
+            var min = time.split(':')[2]
+            var sec = time.split(':')[3]
+            var s = Number(day * 86400) + Number(hour * 3600) + Number(min * 60) + Number(sec)
+            return s * 1000
+        } else if (time.length >= 12) {
+            var targetNum = time.substring(10);
+            return Number(targetNum, 10);
+        } else {
+            var time = time.replace(/-/, "");
+            //console.log(time)
+            return time;
+        }
+    }
+
+
+    function chackboxVal(input) {    //checkbox状态转换为数值
+
+        if (input.checked == false) {
+            input = 1
+        } else {
+            input = 0
+        }
+        return input;
+    }
+
+    var vm = new Vue({
+        el: "#bottomTableDiv",
+        data: {
+            trList: 0,
+            flags: false
+        },
+        mounted() {
+            this.getTotalList();
+        },
+        methods: {
+            getTotalList() {
+                this.trList = $("#bottomTableDiv").find('tr').length / 30 * 10;
+                if (this.trList / 10 > 1) {
+                    this.flags = true;
+                } else {
+                    this.flags = false;
+                }
+            },
+            handleCurrentChange(val) {
+                //console.log(`当前页: ${val}`);
+                $("#llll").animate({ scrollTop: (val - 1) * 640 }, 300);   //利用animate解决分页突兀问题
+            }
+        },
+
+    })
+    $("#bottomTableDiv").scrollTop
+</script>
+<div id="pagebar">
+    @for (var i = 0; i < ViewBag.PageCount; i++)
+    {
+        if (i == ViewBag.PageIndex)
+        {
+            <span class="currentpagenumber">@(i + 1)</span>
+        }
+        else
+        {
+            <a class="pagenumber" href="javascript:;">@(i + 1)</a>
+        }
+    }
+</div>
+@section scripts {
+    <script>
+        function checkRoles(list, roleName) {   //检测权限
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        return true
+                    };
+                };
+            };
+            return false
+        };
+
+        $(function () {
+            var roles = JSON.parse(localStorage.getItem("rigths"));
+            if (checkRoles(roles, '创建订单')) {
+                $('.createNew').show()
+            } else {
+                $('.createNew').hide()
+            }
+        })
+        function submitForm(pagenumber) {
+            pagenumber = parseInt(pagenumber, 10);
+            $('#PageIndex').val(pagenumber - 1);
+            $('#searchForm').submit();
+        }
+
+        $(function () {
+
+            $('#searchButton').click(function () {
+                submitForm($('#pagebar .currentpagenumber').text());
+
+            });
+            $("#deflultClick").click();
+            $('#pagebar .pagenumber').click(function () {
+                submitForm($(this).text());
+            });
+
+
+            let barcf = $(".barcf"), boxcf = $(".boxcf");
+            for (let i in barcf) {
+                for (let j in barcf) {
+                    if (barcf[i].innerText != undefined && barcf[j].innerText != undefined && (barcf[i].innerText == barcf[j].innerText) && i != j) {
+                        $(barcf[i]).css('color', 'red');
+                        $(".barcfth").css('color', 'red');
+                        $(".barcfth").attr("title", "存在重复值！");
+                    };
+                };
+            };
+            for (let i in boxcf) {
+                for (let j in boxcf) {
+                    if (boxcf[i].innerText != undefined && boxcf[j].innerText != undefined && boxcf[i].innerText == boxcf[j].innerText && i != j) {
+                        $(boxcf[i]).css('color', 'red');
+                        $(".boxcfth").css('color', 'red');
+                        $(".boxcfth").attr("title", "存在重复值！");
+                    };
+                };
+            };
+        });
+    </script>
+}

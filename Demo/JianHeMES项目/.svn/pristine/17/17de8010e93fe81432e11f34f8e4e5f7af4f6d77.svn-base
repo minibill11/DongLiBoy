@@ -1,0 +1,203 @@
+﻿@{
+    ViewBag.Title = "条码管理和查询";
+}
+
+@*  <summary>
+    1.条码看板首页
+    2.重复值提示
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    /*.container, .body-content {
+        width: 96vw;
+    }*/
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center" style="height:auto;">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+            <div style="float:left;">
+                <span>
+                    <a href="/BarCodes/DivertIndex">挪用条码查询</a>|
+                </span>
+                <span>
+                    <a href="/Query/barcodeInfo">条码内容查询</a>|
+                </span>
+                <span class="createNew">
+                    <a href="/BarCodes/SetJsonFile" target="_blank">录入模组编号</a>
+                </span>
+            </div>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center">
+                <el-form :inline="true" :model="queryTable" size="small">
+                    <el-form-item label="选择订单">
+                        <select-input v-model.trim="queryTable.OrderNum" :disabled="false" @@watchval="watchOrdernum($event)" :appendbody="false" :options="options.OrderNum" :isfocus="true" @*:ismultiple="true"*@ size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                    <el-form-item label="类型">
+                        <el-select v-model="queryTable.BarCodeType" placeholder="请选择">
+                            <el-option v-for="item in options.BarCodeType"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="onQuerySubmit">查询</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="medium"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ID"
+                                     label="ID"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="OrderNum"
+                                     label="订单号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="BarCodesNum"
+                                     label="条码号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="ModuleGroupNum"
+                                     label="模组箱体号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="BarCodeType"
+                                     label="类型"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column label="操作"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <a :href=`/BarCodes/Details/${scope.row.ID}`>详细</a>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            filterResult: [],//存储筛选总数据后的结果
+            /** 选择框的值
+                queryTable.ordernum 筛选订单
+                */
+            queryTable: {
+                OrderNum: '',
+                BarCodeType: ''
+            },
+            /** 选择框的下拉列表
+                options.ordernum 筛选订单下拉列表
+                */
+            options: {
+                OrderNum: [],
+                BarCodeType: [{
+                    label: "全部",
+                    value: ""
+                }, {
+                    label: "模组",
+                    value: "模组"
+                }, {
+                    label: "模块",
+                    value: "模块"
+                }, {
+                    label: "电源",
+                    value: "电源"
+                }, {
+                    label: "转接卡",
+                    value: "转接卡"
+                },]
+            },
+        },
+        //页面打开时执行
+        created: function () {
+            //获取订单列表
+            this.getOrdernum();
+        },
+        //函数方法
+        methods: {
+            //总表条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/BarCodes/Index', {
+                    OrderNum: this.queryTable.OrderNum,
+                    BarCodeType: this.queryTable.BarCodeType
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    //this.filterResult = res.data;
+                    this.loading = false;
+                    this.$message.success('查询成功！');
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //获取订单号选择框下拉清单
+            getOrdernum() {
+                axios.post('/Packagings/GetOrderList').then(res => {
+                    this.options.OrderNum = res.data;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+            //监听订单选择，调用筛选方法，即时更新筛选后的表格
+            watchOrdernum(v) {
+                //this.onQuerySubmit();
+                //this.filterList();
+            },
+            //筛选方法，
+            filterList() {
+                let array = this.tableList,//所有数据
+                    arr1 = this.queryTable.OrderNum,//下拉列表选择的订单值
+                    thisArr1;
+                //过滤订单值，筛选出过滤后的列表 存为thisArr1
+                thisArr1 = array.filter(function (val) {
+                    if (arr1 == null || arr1 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr1) {
+                            if (val.platfrom.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                this.filterResult = thisArr1;//存储筛选后的数据
+            }
+        },
+        //页面加载完后执行
+        mounted: function () {
+
+        }
+    });
+</script>

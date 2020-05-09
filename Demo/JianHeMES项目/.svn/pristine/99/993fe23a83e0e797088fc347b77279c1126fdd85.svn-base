@@ -1,0 +1,90 @@
+﻿@{
+    ViewBag.Title = "订单生产信息概况报表";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 20px 0 0;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <span>订单号：</span>
+                <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium" style="width:220px;">
+                    <el-option v-for="item in selectOptions"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            screenSize: document.body.clientWidth,
+        },
+        methods: {
+
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+        },
+        watch: {
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+            },
+        },
+    });
+</script>

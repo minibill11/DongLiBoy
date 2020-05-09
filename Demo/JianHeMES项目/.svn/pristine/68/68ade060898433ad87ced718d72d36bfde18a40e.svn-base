@@ -1,0 +1,1385 @@
+﻿
+@{
+    ViewBag.Title = "设备点检保养记录表";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<style>
+    .topcontainer{
+        display:flex;
+        justify-content:space-around;
+    }
+    .topcontainer .el-date-editor{
+        width:170px;
+    }
+    .topinner{
+        /*width:25%;
+        display:flex;
+        justify-content:flex-start;*/
+        display:flex;
+    }
+    table tr th,table tr td{
+        text-align:center;
+    }
+    table {
+        margin:10px auto;
+    }
+    .bottomcontainer{
+        margin-left:-45px;
+    }
+    .testSelect{
+        border:none;
+        width:100%;
+        padding: 1px;
+        border:1px solid #dcd8d8;
+        -webkit-appearance:none;
+        -moz-appearance:none;
+        appearance:none; /*去掉下拉箭头*/
+        /*在选择框的最右侧中间显示小箭头图片*/
+        /*background: url("http://ourjs.github.io/static/2015/arrow.png") no-repeat scroll right center transparent;*/
+    }
+    .changeSize>td{
+        font-size:11px;
+        text-align:inherit;
+    }
+    .color{
+        color:red;
+    }
+    table tbody tr td{
+        height:23px;
+    }
+    .green{
+        color:blue;
+    }
+    .red{
+        color:red;
+    }
+    .el-upload__input {
+        display: none !important;
+    }
+
+    .upload-demo{
+        margin-left:15px;
+    }
+</style>
+
+
+
+<div id="app">
+    <h4 style="text-align:center;">设备点检保养记录表</h4>
+    @* 确认弹框 *@
+    <el-dialog title="提示"
+               v-bind:visible.sync="showComfirmDialog"
+               width="30%"
+               v-bind:before-close="handleClose">
+                <div>请确认！</div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="showComfirmDialog = false">取 消</el-button>
+            <el-button type="primary" v-on:click="comfirmChanged">确 认</el-button>
+        </span>
+    </el-dialog>
+    @* 周保养内容弹框 *@
+    <el-dialog title="提示"
+               v-bind:visible.sync="showWeekContent"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div>请确认！</div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="showWeekContent = false">取 消</el-button>
+            <el-button type="primary" v-on:click="addWeekContent">确 认</el-button>
+        </span>
+    </el-dialog>
+
+    @* 点检表 *@
+    <div class="topcontainer">
+        <div class="topinner">
+            <div class="name">设备名称:</div>
+            <div class="nameVal">{{Ename}}</div>
+        </div>
+
+        <div class="topinner">
+            <div class="name">部门:</div>
+            <div class="nameVal">{{UserDepartment}}</div>
+        </div>
+
+        <div class="topinner">
+            <div class="name">线别:</div>
+            <div class="nameVal">{{lineName}}</div>
+        </div>
+        <div class="topinner">
+            <div class="name">设备编号:</div>
+            <div class="nameVal">{{equipnumber}}</div>
+        </div>
+        <div class="topinner">
+            <div class="name">时间:</div>
+            <div v-show="true">
+                <el-date-picker v-model="selectTimes"
+                                size="mini"
+                                type="month"
+                                placeholder="选择年月">
+                </el-date-picker>
+            </div>
+        </div>
+        <div class="topinner gomonthplan" style="display:none;">
+            <a v-bind:href="'/Equipment/Equipment_MonthlyMaintenance_plan?dates=' + encodeURI(`${this.year}-${this.month}`) + '&depar=' + encodeURI(this.totalOnfos.UserDepartment)" target="_blank"><el-button size="mini" type="primary">查看对应月保养计划</el-button></a>
+        </div>
+    </div>
+    <div class="bottomcontainer">
+        <table style="width:1260px" border="1">
+            <thead>
+                <tr>
+                    <th style="width:28px" rowspan="2">
+                        周期
+                    </th>
+                    <th style="width:248px" rowspan="2">
+                        项目
+                    </th>
+                    <th style="width:300px" rowspan="2">
+                        操作方法
+                    </th>
+                    <th colspan="31">
+                        日期
+                    </th>
+                </tr>
+                <tr>
+                    <th v-on:click="checkAllDay(i)" v-for="i in 31" style="width:28px">{{i}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td v-bind:rowspan="dailyPlan.length + 3">日保养</td>
+                </tr>
+                <tr class="changeSize" v-for="(item,index) in dailyPlan">
+                    <td>{{item.Dproject}}</td>
+                    <td>{{item.DOpera}}</td>
+                    <td v-for="i in 31">
+                        <select v-model="item[`Day${i}`]" v-bind:disabled="totalOnfos[`Day_Mainte_${i}`]==''||totalOnfos[`Day_Mainte_${i}`]==null?false:true" v-bind:class="item[`Day${i}`]=='√'?'':''" class="testSelect">
+                            <option></option>
+                            <option>√</option>
+                            <option>×</option>
+                            <option>／</option>
+                        </select>
+                    </td>
+                </tr>
+
+                <tr class="changeSize">
+                    <td style="text-align:center;font-size:14px;" colspan="2">
+                        保养人
+                    </td>
+                    <td v-for="i in 31" v-on:click="dayCheck(i)" v-text="totalOnfos[`Day_Mainte_${i}`]!=''?totalOnfos[`Day_Mainte_${i}`]:'待审'" v-bind:class="totalOnfos[`Day_Mainte_${i}`]!=''?'green':'red'">
+
+                    </td>
+                </tr>
+                <tr class="changeSize">
+                    <td style="text-align:center;font-size:14px;" colspan="2">
+                        组长确认
+                    </td>
+                    <td v-for="i in 31" v-on:click="dayGroupComfirm(i)" v-text="totalOnfos[`Day_group_${i}`]!=''?totalOnfos[`Day_group_${i}`]:'待审'" v-bind:class="totalOnfos[`Day_group_${i}`]!=''?'green':'red'"></td>
+                </tr>
+
+
+                <tr>
+                    <td v-bind:rowspan="weekPlan.length + 3">周保养</td>
+                </tr>
+                <tr class="changeSize" v-for="(item,index) in weekPlan">
+                    <td colspan="1">{{item.weekObject}}</td>
+                    <td colspan="1">{{item.weekOpera}}</td>
+                    <td v-show="index==0?true:false" colspan="8" style="text-align:center;" v-on:click="weekContentOpera('weekone','weekProveOne')" v-bind:rowspan="weekPlan.length">{{item.weekProveOne}}</td>
+                    <td v-show="index==0?true:false" colspan="8" style="text-align:center;" v-on:click="weekContentOpera('weektwo','weekProveTwo')" v-bind:rowspan="weekPlan.length">{{item.weekProveTwo}}</td>
+                    <td v-show="index==0?true:false" colspan="8" style="text-align:center;" v-on:click="weekContentOpera('weekthree','weekProveThree')" v-bind:rowspan="weekPlan.length">{{item.weekProveThree}}</td>
+                    <td v-show="index==0?true:false" colspan="7" style="text-align:center;" v-on:click="weekContentOpera('weekfour','weekProveFour')" v-bind:rowspan="weekPlan.length">{{item.weekProveFour}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">保养人</td>
+                    <td colspan="8" v-on:click="weekComfirm('weekone')">{{totalOnfos.Week_Main_1}}</td>
+                    <td colspan="8" v-on:click="weekComfirm('weektwo')">{{totalOnfos.Week_Main_2}}</td>
+                    <td colspan="8" v-on:click="weekComfirm('weekthree')">{{totalOnfos.Week_Main_3}}</td>
+                    <td colspan="7" v-on:click="weekComfirm('weekfour')">{{totalOnfos.Week_Main_4}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">工程师确认</td>
+                    <td colspan="8" v-on:click="weekMEComfirm('weekone')">{{totalOnfos.Week_engineer_1}}</td>
+                    <td colspan="8" v-on:click="weekMEComfirm('weektwo')">{{totalOnfos.Week_engineer_2}}</td>
+                    <td colspan="8" v-on:click="weekMEComfirm('weekthree')">{{totalOnfos.Week_engineer_3}}</td>
+                    <td colspan="7" v-on:click="weekMEComfirm('weekfour')">{{totalOnfos.Week_engineer_4}}</td>
+                </tr>
+
+                <tr>
+                    <td v-bind:rowspan="monthPlan.length + 4">月保养</td>
+                </tr>
+                <tr class="changeSize" v-for="(item,index) in monthPlan">
+                    <td>{{item.monthObject}}</td>
+                    <td>{{item.monthOpera}}</td>
+                    <td v-on:click="monthContentOpera(item.monthObject,index,'dataNum')" style="text-align:center;font-size:14px;" colspan="31">{{item.dataNum}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">保养人</td>
+                    <td colspan="31" v-on:click="monthWorkerConfirm()">{{totalOnfos.Month_main_1}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">生产确认</td>
+                    <td colspan="31" v-on:click="monthGroupConfirm()">{{totalOnfos.Month_productin_2}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2">部长确认</td>
+                    <td colspan="31" v-on:click="monthDeparConfirm()">{{totalOnfos.Month_minister_3}}</td>
+                </tr>
+
+
+                <tr>
+                    <td rowspan="4">说明</td>
+                    <td style="text-align:left" colspan="33">1.完成情况标记符号：“√”正常已完成  “×”异常、待处理  “/”休息及计划停机中.以上保养项目必须切实执行并如实记录.</td>
+                </tr>
+                <tr>
+                    <td style="text-align:left" colspan="33">2.其中日保养由生产操作员执行,生产组长监督执行结果.周保养项目由设备技术员执行,设备工程师监督执行结果.月保养由设备工程师主导，设备技术员配合完成.</td>
+                </tr>
+                <tr>
+                    <td style="text-align:left" colspan="33">3.每天早上9点之前完成日保养，周六、日做周保养，月保养根据月保养计划表执行.</td>
+                </tr>
+                <tr>
+                    <td style="text-align:left" colspan="33">4.如有更换配件请注明配件名称和配件编号</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    @* 操作按钮 *@
+    <div style="margin-left:-45px;">
+        @*<el-button size="small" type="primary" style="margin-left:15px;" v-on:click="goback">返回</el-button>*@
+        <el-button v-show="addOpera" style="margin-left:15px;" size="small" type="success" v-on:click="addDailyPlan">增加日计划项目</el-button>
+        <el-button v-show="addOpera" style="margin-left:15px;" size="small" type="success" v-on:click="addWeekPlan">增加周计划项目</el-button>
+        <el-button v-show="addOpera" style="margin-left:15px;" size="small" type="success" v-on:click="addMonthPlan">增加月计划项目</el-button>
+        <el-button v-show="showSaveInfosBtn && addOpera" style="margin-left:15px;" size="small" type="success" v-on:click="addSave">保存</el-button>
+        <el-button v-show="showSaveInfosBtn && addOpera" style="margin-left:15px;" size="small" type="success" v-on:click="resetForm">重置</el-button>
+        @*<el-button v-show="addOpera" style="margin-left:15px;" size="small" type="success" v-on:click="postFiles">上传表格</el-button>*@
+       
+            <el-upload class="upload-demo"
+                       v-show="addOpera"
+                       v-bind:on-change="selectFiles"
+                       ref="upload"
+                       action="Create"
+                       accept=".xlsx,.xls"
+                       v-bind:on-preview="handlePreview"
+                       v-bind:on-remove="handleRemove"
+                       v-bind:file-list="fileList"
+                       v-bind:limit="1"
+                       v-bind:on-exceed="handleExceed"
+                       v-bind:auto-upload="false" style="float:left">
+                <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                <el-button v-show="showuploadBtn" class="elbt" size="small" type="success" v-on:click="submitUpload">上传</el-button>
+            </el-upload>
+       
+    </div>
+
+    @* 添加项目弹框 *@
+    <el-dialog v-bind:title="dialogVisibletitle"
+               v-bind:visible.sync="dialogVisible"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div>
+            <el-input size="small" placeholder="请输入内容" v-model="addDailyProject">
+                <template slot="prepend">
+                    &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;项目:
+                </template>
+            </el-input>
+            <hr />
+            <el-input size="small" placeholder="请输入内容" v-model="addDailyOpera">
+                <template slot="prepend">
+                    操作方法:
+                </template>
+            </el-input>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="addDaily">确 定</el-button>
+        </span>
+    </el-dialog>
+</div>
+
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+<script>
+    //检测权限
+    function checkRoles(list, roleName) {   
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+    // 解析地址栏获取参数
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r != null) return unescape(r[2]); return null;
+    }
+    // 过滤器
+    Vue.filter("selectFilter", function (val) {
+        if (val == '0') {
+            return '3'
+        } else if (val == '1') {
+            return '×'
+        } else {
+            return '/'
+        }
+    })
+
+    let app = new Vue({
+        el: "#app",
+        data: {
+            UserName:"@UserName",
+            fileList: [],
+            totalOnfos:'',
+            dailyPlan: [],
+            weekPlan: [],
+            monthPlan: [],
+            equipnumber:null,
+            year: null,
+            month: null,
+            Ename: null,
+            lineName: null,
+
+            dialogVisible: false,
+            addDailyProject: null,
+            addDailyOpera: null,
+            popoverFlag: null,
+
+            addOpera: false,
+            selectTimes: null,
+
+            showComfirmDialog: false,
+            showWeekContent:false,
+            // 审核批准操作的格子
+            kw:null,
+            UserDepartment: null,
+            showuploadBtn: false,
+            showSaveInfosBtn: false,
+            dialogVisibletitle:''
+        },
+        methods: {
+            // 弹框关闭提示
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => {});
+            },
+            // 重置按钮
+            resetForm(){
+                window.location.reload();
+            },
+            // 页面加载时获取点检表的数据
+            getDefultInfos(id,year,month) {
+                axios.post("/Equipment/Equipment_Query_Tally", { equipmentNumber: id, year, month }).then(res=> {
+                    console.log(res.data)
+                    if (JSON.stringify(res.data) != '{}') {
+                        $(".gomonthplan").show();
+                        this.dailyPlan = []
+                        this.weekPlan = []
+                        this.monthPlan = []
+                        this.totalOnfos = res.data
+                        this.UserDepartment = res.data["UserDepartment"]
+                        //this.Ename = res.data.EquipmentName
+                    //this.lineName = res.data.LineName
+
+                    // 获取每段数据的行数
+                    let dailyTrNums = this.reverseData(res.data, "Day_project"); // 返回正确的次数--以确定for的行数
+                    let weekTrNums = this.reverseData(res.data, "Week_Check");
+                    let monthTrNums = this.reverseData(res.data, "Month_Project");
+                    console.log(dailyTrNums + "---" + weekTrNums + '------' + monthTrNums)
+                    // 处理上数据
+                    this.makeDataCanUes(res.data, "Day_project", dailyTrNums, this.dailyPlan);
+                    this.changeSelectView(this.dailyPlan);
+                    // 处理中数据
+                    this.makeDataCanUes(res.data, "Week_Check", weekTrNums, this.weekPlan)
+                    // 处理下数据
+                    this.makeDataCanUes(res.data, "Month_Project", monthTrNums, this.monthPlan)
+                    console.log(this.dailyPlan);
+                    } else {
+                        $(".gomonthplan").hide();
+                        this.$message({
+                            message: "此时间段暂无点检记录",
+                            type: "warning"
+                        });
+                }
+                }).catch(err=> {
+                    this.$message({
+                        message: "获取点检表信息失败",
+                        type:"warning"
+                    })
+                })
+            },
+            // 添加日计划项目--弹出弹框
+            addDailyPlan() {
+                this.dialogVisible = true;
+                this.dialogVisibletitle = "添加日计划项目";
+                this.popoverFlag = "daily"
+            },
+            // 添加计划项目--提交添加--目前未提交，只是渲染到视图
+            addDaily(){
+                if (this.addDailyProject !== null && this.addDailyOpera!==null) {
+                    if (this.popoverFlag == "daily") {
+                        let obj = { Dproject: this.addDailyProject, DOpera: this.addDailyOpera };
+                        this.dailyPlan.push(obj)
+                        this.dialogVisible = false;
+                        this.addDailyProject = null
+                        this.addDailyOpera = null
+                    } else if (this.popoverFlag == "week") {
+                        let obj = { weekObject: this.addDailyProject, weekOpera: this.addDailyOpera };
+                        this.weekPlan.push(obj);
+                        this.dialogVisible = false;
+                        this.addDailyProject = null
+                        this.addDailyOpera = null
+                    } else {
+                        let obj = { monthObject: this.addDailyProject, monthOpera: this.addDailyOpera };
+                        this.monthPlan.push(obj);
+                        this.dialogVisible = false;
+                        this.addDailyProject = null
+                        this.addDailyOpera = null
+                    }
+                }
+            },
+            // 添加周计划项目--弹出弹框
+            addWeekPlan() {
+                this.dialogVisible = true;
+                this.dialogVisibletitle = "添加周计划项目";
+                this.popoverFlag = "week"
+            },
+            // 添加月计划项目--弹出弹框
+            addMonthPlan() {
+                this.dialogVisible = true;
+                this.dialogVisibletitle = "添加月计划项目";
+                this.popoverFlag = "month"
+            },
+            // 返回特定数据的行数
+            reverseData(dataObj,kw) {
+                let kwArr = [];
+                let count = 0;
+                for (let key in dataObj) {
+                    kwArr.push(key);
+                };
+                kwArr.forEach(item=> {
+                    if (item.indexOf(kw) != -1) {
+                        count++
+                    }
+                });
+                return count
+            },
+            // 重组数据--新增过滤空数据功能
+            makeDataCanUes(dataObj,kw,nums,containerArr) {
+                if (kw == "Day_project") {
+                    let arr = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H','I','J','K','L'];
+                    let arrs = []
+                    for (let i = 1; i <= nums; i++) {
+                        let keyleft = `Day_project${i}`
+                        let dailyOpera = `Day_opera${i}`
+                        let obj = { Dproject: dataObj[keyleft], DOpera: dataObj[dailyOpera] }
+                        let works =arr[i - 1]
+                        for (let j = 1; j < 32; j++) {
+                            let ketright = `Day_${works}_${j}`
+                            let Days = `Day${j}`;
+                            obj[Days] = dataObj[ketright];
+                        };
+                        if (dataObj[keyleft] == "" || dataObj[keyleft] == null) {
+                        } else {
+                            containerArr.push(obj);
+                        }
+                        
+                    };
+                    
+                } else if (kw == "Week_Check") {
+                    for (let i = 1; i <= nums; i++) {
+                        let keyLeft = `Week_Check${i}`;
+                        let ketLeftTwo = `Week_Inspe${i}`;
+                        let obj = {
+                            weekObject: dataObj[keyLeft],
+                            weekOpera: dataObj[ketLeftTwo],
+                            weekProveOne: dataObj.Week_1,
+                            weekProveTwo: dataObj.Week_2,
+                            weekProveThree: dataObj.Week_3,
+                            weekProveFour: dataObj.Week_4
+                        };
+                        if (dataObj[keyLeft] == "" || dataObj[keyLeft] == null) {
+                        } else {
+                            containerArr.push(obj);
+                        }
+                    };
+                }else{
+                    for (let i = 1; i <= nums; i++) {
+                        let keyLeft = `Month_Project${i}`;
+                        let keyLeftTwo = `Month_Approach${i}`;
+                        let dataKey = `Month_${i}`;
+                        let obj = { monthObject: dataObj[keyLeft], monthOpera: dataObj[keyLeftTwo], dataNum: dataObj[dataKey] }
+                        if (dataObj[keyLeft] == "" || dataObj[keyLeft] == null) {
+                        } else {
+                            containerArr.push(obj);
+                        }
+                    }
+                }
+            
+            },
+            // 转换选择框的显示
+            changeSelectView(dataobj) {
+                dataobj.forEach(item=> {
+                    for (let i = 1; i < 32; i++) {
+                        let kw = `Day${i}`
+                        if (item[kw] == "0") {
+                            item[kw] = ""
+                        } else if (item[kw] == "1") {
+                            item[kw] = "√"
+                        } else if (item[kw] == "2") {
+                            item[kw] = "×"
+                        } else if (item[kw] == "3") {
+                            item[kw] = "/"
+                        }
+                    }
+                })
+            },
+
+            // 保存新建或者修改的方法--- 此时需要反转重组数据
+            addSave() {
+                
+                let postObj = {};
+                // 还原上数据
+                let arr = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+                for (let i = 0; i < this.dailyPlan.length; i++) {
+                    let keyLeft = `Day_project${i + 1}`;
+                    let keyLeftTwo = `Day_opera${i + 1}`;
+                    postObj[keyLeft] = this.dailyPlan[i].Dproject;
+                    postObj[keyLeftTwo] = this.dailyPlan[i].DOpera;
+                    for (let j = 1; j < 32; j++) {
+                        let keyRight = `Day_${arr[i]}_${j}`
+                        let kw = `Day${j}`
+                        if (this.dailyPlan[i][kw] == '') {
+                            postObj[keyRight] = 0
+                        } else if (this.dailyPlan[i][kw] == "√") {
+                            postObj[keyRight] = 1
+                        } else if (this.dailyPlan[i][kw] == "×") {
+                            postObj[keyRight] = 2
+                        } else {
+                            postObj[keyRight] = 3
+                        }
+                        //postObj[keyRight] = this.dailyPlan[i][kw];
+                    }
+                };
+                for (let i = 1; i < 32; i++) {
+                    let kw = `Day_Mainte_${i}`
+                    let kw2 = `Day_group_${i}`
+                    postObj[kw] = this.totalOnfos[kw]
+                    postObj[kw2] = this.totalOnfos[kw2]
+                }
+                // 还原中数据
+                for (let i = 0; i < this.weekPlan.length; i++) {
+                    let keyLeft = `Week_Check${i + 1}`;
+                    let keyLeftTwo = `Week_Inspe${i + 1}`;
+                    postObj[keyLeft] = this.weekPlan[i].weekObject;
+                    postObj[keyLeftTwo] = this.weekPlan[i].weekOpera;
+                }
+                postObj['Week_1'] = this.weekPlan[0].weekProveOne
+                postObj['Week_2'] = this.weekPlan[0].weekProveTwo
+                postObj['Week_3'] = this.weekPlan[0].weekProveThree
+                postObj['Week_4'] = this.weekPlan[0].weekProveFour
+
+                postObj['Week_Main_1'] = this.totalOnfos.Week_Main_1
+                postObj['Week_Main_2'] = this.totalOnfos.Week_Main_2
+                postObj['Week_Main_3'] = this.totalOnfos.Week_Main_3
+                postObj['Week_Main_4'] = this.totalOnfos.Week_Main_4
+
+                postObj['Week_engineer_1'] = this.totalOnfos.Week_engineer_1
+                postObj['Week_engineer_2'] = this.totalOnfos.Week_engineer_2
+                postObj['Week_engineer_3'] = this.totalOnfos.Week_engineer_3
+                postObj['Week_engineer_4'] = this.totalOnfos.Week_engineer_4
+                
+                // 还原下数据
+                for (let i = 0; i < this.monthPlan.length; i++) {
+                    let keyLeft = `Month_Project${i + 1}`;
+                    let keyLeftTwo = `Month_Approach${i + 1}`;
+                    let keyLeftThree = `Month_${i + 1}`;
+                    postObj[keyLeft] = this.monthPlan[i].monthObject;
+                    postObj[keyLeftTwo] = this.monthPlan[i].monthOpera;
+                    postObj[keyLeftThree] = this.monthPlan[i].dataNum;
+                }
+                
+                postObj.Month_main_1 = this.totalOnfos.Month_main_1
+                postObj.Month_produTime_2 = this.totalOnfos.Month_produTime_2
+                postObj.Month_minister_3 = this.totalOnfos.Month_minister_3
+                postObj.EquipmentName = this.Ename
+                postObj.EquipmentNumber = this.equipnumber
+                postObj.lineName = this.lineName
+                console.log(postObj.Month_minister_3) // 正常输出目标数据格式--仅仅是点检表内部的数据，未包括对应设备信息跟时间以及ID
+
+                let url
+                if (this.addOpera) {
+                    postObj.UserDepartment = this.UserDepartment;
+                    url = "/Equipment/Equipment_Tally_maintenance_Add"   // 创建保存
+                    if (this.selectTimes==null) {
+                        this.$message({
+                            message: "请选择时间",
+                            type: "warning"
+                        });
+                        return false
+                    } else {
+                        let dd = new Date(this.selectTimes);
+                        let y = dd.getFullYear();
+                        let m = dd.getMonth() + 1
+                        postObj.Year = y
+                        postObj.Month = m
+                    }
+                    
+                    axios.post(url, { equipment_Tally_maintenance: postObj }).then(res=> {
+                        if (res.data == true) {
+                            this.$message({
+                                message: "新建成功",
+                                type: "success"
+                            });
+                            //window.location.reload();
+                            // /Equipment/Equipment_Tally_maintenance?num=AD040207&year=2019&month=10
+                            window.location.href = "/Equipment/Equipment_Tally_maintenance?num=" + this.equipnumber + "&year=" + postObj.Year + "&month=" + postObj.Month,
+                            this.dailyPlan = []
+                            this.weekPlan = []
+                            this.monthPlan = []
+                            fileList = []
+                        } else if (res.data == false) {
+                            this.$message({
+                                message: "新建失败",
+                                type: "warning"
+                            });
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: "warning"
+                            });
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            message: "修改点检记录时连接失败",
+                            type: "warning"
+                        });
+                    })
+                } else {
+                    postObj.UserDepartment = this.UserDepartment;
+                    url = "/Equipment/Equipment_Tally_maintenance_Edit"   // 保存修改Equipment_Tally_maintenance_Edit
+                    postObj.Id = this.totalOnfos.Id
+                    postObj.Year = this.year;
+                    postObj.Month = this.month;
+                    axios.post(url, { equipment_Tally_maintenance: postObj }).then(res=> {
+                        let data = res.data.equipment_Tally_maintenance
+                        console.log(res.data.tally);
+                        if (res.data.tally) {
+                            this.$message({
+                                message: "修改保存成功",
+                                type: "success"
+                            });
+                        } else {
+                            if (res.data.equipment_Tally_maintenance != null) {
+                                this.$message({
+                                    message: res.data.equipment_Tally_maintenance,
+                                    type: "warning"
+                                });
+                            } else {
+                                this.$message({
+                                    message: "修改保存失败",
+                                    type: "warning"
+                                });
+                            };
+
+                            setTimeout(function () { window.location.reload(); }, 2000);
+
+                            //window.location.reload();
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            message: "修改点检记录时连接失败",
+                            type: "warning"
+                        });
+                    })
+                }
+                
+
+            },
+            // 从index跳转过来时根据设备编号获取设备信息
+            getMachineInfos(enumbers) {
+                axios.post("/Equipment/Particulars", { equipmentNumber: enumbers }).then(res=> {
+                    console.log(res.data)
+                    this.Ename = res.data[0].EquipmentName;
+                    this.lineName = res.data[0].LineNum;
+                    this.UserDepartment = res.data[0].UserDepartment;
+                })
+            },
+
+
+            // 确认审核审批方法
+            comfirmChanged(){
+                this.totalOnfos[this.kw] = this.UserName;
+                this.addSave();
+                this.showComfirmDialog = false;
+            },
+            // 日计划保养人审批---需要判断
+            dayCheck(index) {
+                let day = `Day${index}`
+                let flag = true
+                //this.dailyPlan.forEach((item, indexs) => {
+                //    if (item[day] == "" || item[day] == null || item[day] == 'undefined') {
+                //        flag = false
+                //    }
+                //});
+                let dataindex = `Day_Mainte_${index}`
+                if (flag) {
+                    if (this.totalOnfos[dataindex] == '' || this.totalOnfos[dataindex] == null) {
+                        if (checkRoles(roles, '日保养人确认')) {
+                            this.showComfirmDialog = true;
+                            this.kw = dataindex
+                        } else {
+                            this.$notify({
+                                message: "无权限进行此操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "已审批，不可重复操作",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    this.$notify({
+                        message: "有未确认保养设备，不可审批",
+                        type:"warning"
+                    })
+                }
+                
+            },
+            // 日计划组长确认 
+            dayGroupComfirm(index) {
+                let repiamanComfirm = `Day_Mainte_${index}`
+                let groupComfirm = `Day_group_${index}`
+                //this.totalOnfos[repiamanComfirm] != '' &&
+                if ( this.totalOnfos[groupComfirm] == '') {
+                    if (checkRoles(roles, '日保养组长确认')) {
+                        this.kw = groupComfirm
+                        this.showComfirmDialog = true;
+                    } else {
+                        this.$notify({
+                            message: "无权限进行此操作",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    this.$notify({
+                        message: "保养人未确认或组长已审核,不可操作",
+                        type: "warning"
+                    })
+                }
+                //alert(`第${index}天组长确认`)
+            },
+            // 周保养计划内容
+            weekContentOpera(kw,datakw) {
+                if (kw == "weekone") {
+                    //this.totalOnfos.Day_group_8 != ""
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_1 == '' || this.totalOnfos.Week_Main_1 == null) {
+                            let val = prompt("请输入对应内容")
+                            if (val == null || val == "") {
+                                this.$notify({
+                                    message: "无对应内容，此次修改无效",
+                                    type: "warning"
+                                })
+                            } else {
+                                this.weekPlan[0][datakw] = val;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已审核，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "本周最后一天组长未确认，此处不可操作",
+                            type: "warning"
+                        })
+                    }
+                } else if (kw == "weektwo") {
+                    //this.totalOnfos.Day_group_16 != ""
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_2 == '' || this.totalOnfos.Week_Main_2 == null) {
+                            let val = prompt("请输入对应内容")
+                            if (val == null || val == "") {
+                                this.$notify({
+                                    message: "无对应内容，此次修改无效",
+                                    type: "warning"
+                                })
+                            } else {
+                                this.weekPlan[0][datakw] = val;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已审核，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "本周最后一天组长未确认，此处不可操作",
+                            type: "warning"
+                        })
+                    }
+                } else if (kw == "weekthree") {
+                    //this.totalOnfos.Day_group_24 != ""
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_3 == '' || this.totalOnfos.Week_Main_3 == null) {
+                            let val = prompt("请输入对应内容")
+                            if (val == null || val == "") {
+                                this.$notify({
+                                    message: "无对应内容，此次修改无效",
+                                    type: "warning"
+                                })
+                            } else {
+                                this.weekPlan[0][datakw] = val;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已审核，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "本周最后一天组长未确认，此处不可操作",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    //this.totalOnfos.Day_group_29 != ""
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_4 == '' || this.totalOnfos.Week_Main_4 == null) {
+                            let val = prompt("请输入对应内容")
+                            if (val == null || val == "") {
+                                this.$notify({
+                                    message: "无对应内容，此次修改无效",
+                                    type: "warning"
+                                })
+                            } else {
+                                this.weekPlan[0][datakw] = val;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已审核，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "本周最后一天组长未确认，此处不可操作",
+                            type: "warning"
+                        })
+                    }
+                }
+            },
+            // 添加周保养结果内容
+            addWeekContent(){
+
+            },
+            // 周保养人确认
+            weekComfirm(kw) {
+                if (kw == "weekone") {
+                    //this.weekPlan[0].weekProveOne != '' && this.weekPlan[0].weekProveOne != null
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_1 == '' || this.totalOnfos.Week_Main_1 ==null) {
+                            if (checkRoles(roles, '周保养人确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_Main_1 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有内容，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "请先完善前面的内容",
+                            type: "warning"
+                        })
+                    }
+                    
+                } else if (kw == "weektwo") {
+                    //this.weekPlan[0].weekProveTwo != '' && this.weekPlan[0].weekProveTwo != null
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_2 == '' || this.totalOnfos.Week_Main_2==null) {
+                            if (checkRoles(roles, '周保养人确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_Main_2 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有内容，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "请先完善前面的内容",
+                            type: "warning"
+                        })
+                    }
+                } else if (kw == "weekthree") {
+                    //this.weekPlan[0].weekProveThree != '' && this.weekPlan[0].weekProveThree != null
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_3 == '' || this.totalOnfos.Week_Main_3==null) {
+                            if (checkRoles(roles, '周保养人确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_Main_3 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有内容，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "请先完善前面的内容",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    //this.weekPlan[0].weekProveFour != '' && this.weekPlan[0].weekProveFour != null
+                    if (true) {
+                        if (this.totalOnfos.Week_Main_4 == '' || this.totalOnfos.Week_Main_4==null) {
+                            if (checkRoles(roles, '周保养人确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_Main_4 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有内容，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$notify({
+                            message: "请先完善前面的内容",
+                            type: "warning"
+                        })
+                    }
+                }
+            },
+            // 周保养工程师确认
+            weekMEComfirm(kw) {
+                if (kw == "weekone") {
+                    //this.totalOnfos.Week_Main_1 == '' || this.totalOnfos.Week_Main_1==null
+                    if (false) {
+                        this.$notify({
+                            message: "周保养人未确认",
+                            type: "warning"
+                        })
+                    } else {
+                        if (this.totalOnfos.Week_engineer_1 == '' || this.totalOnfos.Week_engineer_1==null) {
+                            if (checkRoles(roles, '周保养工程师确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_engineer_1 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有数据，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    }
+                } else if (kw == "weektwo") {
+                    //this.totalOnfos.Week_Main_2 == '' || this.totalOnfos.Week_Main_2 == null
+                    if (false) {
+                        this.$notify({
+                            message: "周保养人未确认",
+                            type: "warning"
+                        })
+                    } else {
+                        if (this.totalOnfos.Week_engineer_2 == '' || this.totalOnfos.Week_engineer_2 == null) {
+                            if (checkRoles(roles, '周保养工程师确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_engineer_2 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有数据，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    }
+                } else if (kw == "weekthree") {
+                    //this.totalOnfos.Week_Main_3 == '' || this.totalOnfos.Week_Main_3 == null
+                    if (false) {
+                        this.$notify({
+                            message: "周保养人未确认",
+                            type: "warning"
+                        })
+                    } else {
+                        if (this.totalOnfos.Week_engineer_3 == '' || this.totalOnfos.Week_engineer_3 == null) {
+                            if (checkRoles(roles, '周保养工程师确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_engineer_3 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有数据，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    }
+                } else {
+                    //this.totalOnfos.Week_Main_4 == '' || this.totalOnfos.Week_Main_4 == null
+                    if (false) {
+                        this.$notify({
+                            message: "周保养人未确认",
+                            type: "warning"
+                        })
+                    } else {
+                        if (this.totalOnfos.Week_engineer_4 == '' || this.totalOnfos.Week_engineer_4 == null) {
+                            if (checkRoles(roles, '周保养工程师确认')) {
+                                let comfirm = confirm("确认保养情况")
+                                if (comfirm) {
+                                    this.totalOnfos.Week_engineer_4 = this.UserName;
+                                    this.addSave();
+                                }
+                            } else {
+                                this.$notify({
+                                    message: "无操作权限",
+                                    type: "warning"
+                                })
+                            }
+                        } else {
+                            this.$notify({
+                                message: "已有数据，不可重复操作",
+                                type: "warning"
+                            })
+                        }
+                    }
+                }
+            },
+            // 月保养计划内容确认
+            monthContentOpera(item, index, kw) {
+                //this.totalOnfos.Week_engineer_4 != '' && this.totalOnfos.Week_engineer_4 != null
+                if (true) {
+                    if (this.monthPlan[index][kw] == null || this.monthPlan[index][kw] == '') {
+                        let val = prompt("请输入内容")
+                        this.monthPlan[index][kw] = val;
+                        this.addSave();
+                    } else {
+                        this.$notify({
+                            message: "已有数据，不可重复操作",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    this.$notify({
+                        message: "周项目确认未完善，不可操作",
+                        type: "warning"
+                    })
+                }
+            },
+            // 月保养人确认
+            monthWorkerConfirm() {
+                //this.monthPlan[this.monthPlan.length - 1].dataNum != '' && this.monthPlan[this.monthPlan.length - 1].dataNum != null
+                if (true) {
+                    if (this.totalOnfos.Month_main_1 != '' && this.totalOnfos.Month_main_1 != null) {
+                        this.$notify({
+                            message: "已确认，不可重复操作",
+                            type: "warning"
+                        })
+                    } else {
+                        if (checkRoles(roles, '月保养人确认')) {
+                            let comfirm = confirm("确认月保养项目情况");
+                            if (comfirm) {
+                                this.totalOnfos.Month_main_1 = this.UserName;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "无操作权限",
+                                type: "warning"
+                            })
+                        }
+                    }
+                } else {
+                    this.$notify({
+                        message: "月计划保养项目未填写完整,不可操作",
+                        type: "warning"
+                    })
+                }
+            },
+            // 月生产确认
+            monthGroupConfirm() {
+                //this.totalOnfos.Month_main_1 != '' && this.totalOnfos.Month_main_1 != null
+                if (true) {
+                    if (this.totalOnfos.Month_productin_2 != '' && this.totalOnfos.Month_productin_2 != null) {
+                        this.$notify({
+                            message: "不可重复操作",
+                            type: "warning"
+                        })
+                    } else {
+                        if (checkRoles(roles, '月保养生产确认')) {
+                            let comfirm = confirm("确认月保养项目情况");
+                            if (comfirm) {
+                                this.totalOnfos.Month_productin_2 = this.UserName;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "无操作权限",
+                                type: "warning"
+                            })
+                        }
+                    }
+                } else {
+                    this.$notify({
+                        message: "保养人未确认",
+                        type: "warning"
+                    })
+                }
+            },
+            // 月部长确认
+            monthDeparConfirm() {
+                //this.totalOnfos.Month_productin_2 != '' && this.totalOnfos.Month_productin_2 != null
+                if (true) {
+                    if (this.totalOnfos.Month_minister_3 != '' && this.totalOnfos.Month_minister_3 != null) {
+                        this.$notify({
+                            message: "不可重复操作",
+                            type: "warning"
+                        })
+                    } else {
+                        if (checkRoles(roles, '月保养部长确认')) {
+                            let comfirm = confirm("确认月保养项目情况");
+                            if (comfirm) {
+                                this.totalOnfos.Month_minister_3 = this.UserName;
+                                this.addSave();
+                            }
+                        } else {
+                            this.$notify({
+                                message: "无操作权限",
+                                type: "warning"
+                            })
+                        }
+                    }
+                } else {
+                    this.$notify({
+                        message: "生产未确认",
+                        type: "warning"
+                    })
+                }
+            },
+
+            // 选取上传表格
+            selectFiles(file, fileList) {
+                console.log(file)
+                console.log(fileList)
+                this.fileList = fileList
+                if (fileList.length > 0) {
+                    this.showuploadBtn = true
+                } else {
+                    this.showuploadBtn = false
+                }
+                //$("#uploadFile").click();
+            },
+            // 删除所选文件
+            handleRemove(file, fileList) {
+                console.log(file, fileList);
+                this.fileList = []
+            },
+            // 备用方法
+            handlePreview(file) {
+
+            },
+            // 超限提示
+            handleExceed(file, fileList) {
+                this.$message.warning(`当前限制选择1个文件,请删除从选`)
+            },
+            // 上传文件
+            submitUpload() {
+                if (this.fileList != null) {
+                    let form = new FormData()
+                    form.append("fileup", this.fileList[0].raw)
+                    axios.post("/Equipment/Upload_Equipment_Tally",form).then(res=> {
+                        console.log(JSON.parse(res.data.equipment_Tally_report))
+                        let data = JSON.parse(res.data.equipment_Tally_report)
+                        console.log(res.data.mes)
+                        if (res.data.mes) {
+                            // 获取每段数据的行数
+                            let dailyTrNums = this.reverseData(data, "Day_project"); // 返回正确的次数--以确定for的行数
+                            let weekTrNums = this.reverseData(data, "Week_Check");
+                            let monthTrNums = this.reverseData(data, "Month_Project");
+                            
+                            // 处理上数据
+                            this.makeDataCanUes(data, "Day_project", dailyTrNums, this.dailyPlan);
+                            this.changeSelectView(this.dailyPlan);
+                            console.log(this.dailyPlan)
+                            // 处理中数据
+                            this.makeDataCanUes(data, "Week_Check", weekTrNums, this.weekPlan)
+                            // 处理下数据
+                            this.makeDataCanUes(data, "Month_Project", monthTrNums, this.monthPlan)
+                        } else {
+                            this.$notify({
+                                title: "文件格式不正确",
+                                message: "文件格式不正确",
+                                type: "warning"
+                            })
+                        }
+                        this.fileList = [];
+                        this.showuploadBtn = false;
+                    }).catch(err=> {
+                        this.$notify({
+                            title: "上传文件时出错",
+                            message: "您输入的表格跟点检保养记录模板表格不一致，请使用标准模板表格。",
+                            type:"warning"
+                        })
+                    })
+                }
+            },
+            // 弹窗关闭提示
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            },
+
+            // 日保养确认
+            checkAllDay(index) {
+                console.log(index)
+                let dd = `Day${index}`
+                this.dailyPlan.forEach(item=> {
+                    if (item[dd] == "√") {
+                        item[dd] = " "
+                    } else if (item[dd] = " ") {
+                        item[dd] = "√"
+                    }
+                    
+                })
+
+            }
+        },
+        mounted() {
+            // 页面加载时进行权限限制并且获取地址栏参数，利用获取到的参数请求对应点检表的数据
+            var roles = JSON.parse(localStorage.getItem("rigths"));
+            let lastUrl = document.referrer;
+            if (lastUrl.toLowerCase().indexOf("index") != -1 && checkRoles(roles, '新建点检表')) {
+                this.addOpera = true;
+                //this.$notify({
+                //    message: "暂无新建点检表权限",
+                //    type: "info"
+                //});
+            }
+            let ids = getUrlParam("num");   // 设备编号
+            let year = getUrlParam("year");
+            let month = getUrlParam("month");
+            this.equipnumber = ids
+            this.year = year
+            this.month = month
+            if (this.addOpera) {
+                this.getMachineInfos(ids);
+            } else {
+                this.getMachineInfos(ids);
+                this.selectTimes = `${year}-${month}`
+            }
+            
+        },
+        watch: {
+            // 从产线进入点检页时显示时间选择框--用户通过选择时间来获取对应数据进行修改或者新建点检表-- tips:部长未确认才可修改
+            selectTimes() {
+                if (this.selectTimes != null) {
+                    if (!this.addOpera) {
+                        let dd = new Date(this.selectTimes);
+                        let year = dd.getFullYear();
+                        let mm = dd.getMonth() + 1;
+                        this.getDefultInfos(this.equipnumber, year, mm)
+                    }
+                }
+            },
+            // 监听部长确认栏
+            "totalOnfos.Month_minister_3": function () {
+                if (this.totalOnfos.Month_minister_3 == '') {
+
+                } else {
+                    this.addOpera = false;
+                }
+            },
+            // 监听日保养计划栏
+            dailyPlan() {
+                if (this.dailyPlan.length > 0) {
+                    this.showSaveInfosBtn = true
+                } else {
+                    this.showSaveInfosBtn = false
+                }
+            }
+        }
+
+    })
+</script>
+

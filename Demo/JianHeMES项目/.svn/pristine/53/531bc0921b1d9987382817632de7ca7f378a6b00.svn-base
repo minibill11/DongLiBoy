@@ -1,0 +1,218 @@
+﻿
+@{
+    ViewBag.Title = "SPC_QueryByOrderNumber";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;        
+    }
+    .et {
+        display: flex;
+        justify-content:flex-start;
+        align-items: flex-start;
+        margin-left:150px;
+        margin-top:5px;
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h2>备品配件查询</h2>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px">备料确认</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+    </div>
+    <el-main class="text-center">
+        <el-select v-model="orderNum" placeholder="请选择订单号" size="medium" clearable allow-create filterable>
+            <el-option v-for="item in options"
+                       :key="item"
+                       :value="item">
+            </el-option>
+        </el-select>
+        <el-button size="medium" type="primary" v-on:click="selectInfor">查询</el-button>
+        <br />
+        <span v-if="table1" class="et">订单物料种类：{{material_Count}}个，已装箱：{{outsideBox_Count}}个，已确认备料：{{material_Confrim}}个</span>
+        <div style="width:971px;margin-left:150px" v-if="table1">
+            <el-table v-bind:data="tableData" border style="margin-top:5px;"  max-height="572" v-bind:span-method="cellMerge">
+                <el-table-column prop="SPC_OuterBoxBarcode" label="外箱号" width="210"></el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料号" width="160"></el-table-column>
+                <el-table-column prop="Quantity" label="数量" width="150"></el-table-column>
+                <el-table-column prop="SPC_Material_Confim" label="备料确认" width="150"></el-table-column>
+                <el-table-column prop="IncludePic" label="是否有图片" width="150"></el-table-column>
+                <el-table-column prop="IncludeDraw" label="是否有图纸" width="150"></el-table-column>
+            </el-table>
+        </div>
+        <div style="width:1181px;margin-left:50px" v-if="table2">
+            <el-table v-bind:data="tableData" border style="margin-top:5px;" max-height="572" v-bind:span-method="cellMerge1">
+                <el-table-column prop="OrderNum" label="订单号" width="210"></el-table-column>
+                <el-table-column prop="SPC_OuterBoxBarcode" label="外箱号" width="210"></el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料号" width="160"></el-table-column>
+                <el-table-column prop="Quantity" label="数量" width="150"></el-table-column>
+                <el-table-column prop="SPC_Material_Confim" label="备料确认" width="150"></el-table-column>
+                <el-table-column prop="IncludePic" label="是否有图片" width="150"></el-table-column>
+                <el-table-column prop="IncludeDraw" label="是否有图纸" width="150"></el-table-column>
+            </el-table>
+        </div>
+    </el-main>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            orderNum: '',
+            options: [],
+            tableData: [],
+            table1: true,
+            table2: false,
+            material_Count: '0',
+            outsideBox_Count: '0',
+            material_Confrim: '0',
+            spanArr: [],   //存放第一列合并的数据
+            pos: '',       //spanArr数组的索引
+            spanArrs1: [],
+            pos1: '',
+            spanArrs2: [],
+            pos2: '',
+        },
+        mounted() {
+            axios.post('/Packagings/GetOrdernum').then(res => {
+                console.log(res.data)
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        methods: {
+            //查询方法
+            selectInfor() {
+                if (this.orderNum != '') {
+                    this.table1 = true
+                    this.table2 = false
+                    axios.post("/Packagings/SPC_QueryByOrderNumber", {
+                        ordernumber: this.orderNum
+                    }).then(res => {
+                        this.spanArr = [];
+                        this.pos = '';
+                        console.log(res.data)
+                        this.tableData = res.data.ArrayData
+                        this.material_Count = res.data.Description.material_Count
+                        this.outsideBox_Count = res.data.Description.outsideBox_Count
+                        this.material_Confrim = res.data.Description.material_Confrim
+                        this.getSpanArr(this.tableData)
+                    }).catch(err => {
+                        this.$message({
+                            message: '请求出错！',
+                            type: 'error'
+                        });
+                    })
+                } else {
+                    this.table1 = false
+                    this.table2 = true
+                    this.tableData = []
+                    this.spanArrs2 = []
+                    this.spanArrs1 = []
+                    this.pos1 = '';
+                    this.pos2 = '';
+                    axios.post("/Packagings/SPC_QueryByOrderNumber", {
+                        ordernumber: this.orderNum
+                    }).then(res => {
+                        console.log(res.data)
+                        this.tableData = res.data.ArrayData
+                        this.getSpanArr2(this.tableData)
+                    }).catch(err => {
+                        this.$message({
+                            message: '请求出错1！',
+                            type: 'error'
+                        });
+                    })
+                }                             
+            },
+            //合并相同数据的方法
+            getSpanArr(data) {
+                for (var i = 0; i < data.length; i++) {
+                    if (i === 0) {     //判断是否是第一条数据
+                        this.spanArr.push(1);
+                        this.pos = 0
+                    } else {
+                        //判断与上一元素是否相同
+                        if (data[i].SPC_OuterBoxBarcode === data[i - 1].SPC_OuterBoxBarcode) {
+                            //合并行数+1
+                            this.spanArr[this.pos] += 1;
+                            this.spanArr.push(0);
+                        } else {
+                            this.spanArr.push(1);
+                            this.pos = i;
+                        }
+                    }
+                };              
+            },
+            cellMerge({ row, column, rowIndex, columnIndex }) {
+                if (columnIndex === 0) {
+                    const _row = this.spanArr[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };                          
+            },
+            getSpanArr2(val) {
+                for (var i = 0; i < val.length; i++) {
+                    if (i === 0) { 
+                        this.spanArrs1.push(1);
+                        this.pos1 = 0
+                    } else {                      
+                        if (val[i].OrderNum === val[i - 1].OrderNum) {
+                            this.spanArrs1[this.pos1] += 1;
+                            this.spanArrs1.push(0);
+                        } else {
+                            this.spanArrs1.push(1);
+                            this.pos1 = i;
+                        }
+                    }                   
+                };
+                for (var i = 0; i < val.length; i++) {
+                    if (i === 0) {  
+                        this.spanArrs2.push(1);
+                        this.pos2 = 0
+                    } else {
+                        if (val[i].SPC_OuterBoxBarcode === val[i - 1].SPC_OuterBoxBarcode) {
+                            this.spanArrs2[this.pos2] += 1;
+                            this.spanArrs2.push(0);
+                        } else {
+                            this.spanArrs2.push(1);
+                            this.pos2 = i;
+                        }
+                    }
+                }
+            },
+            cellMerge1({ row, column, rowIndex, columnIndex }) {
+                if (columnIndex === 0) {
+                    const _row = this.spanArrs1[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };
+                if (columnIndex === 1) {
+                    const _row = this.spanArrs2[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };
+            },
+        }
+    })
+</script>
+
+

@@ -1,0 +1,1391 @@
+﻿
+<el-table :data="tableList"
+          max-height="600"
+          size="small "
+          align="center"
+          :row-style="rowStyle"
+          cell-class-name="cellParent"
+          @*highlight-current-row*@
+          border>
+    <div slot="empty">暂无数据</div>
+    <el-table-column type="index" @*prop="id"*@ label="序号" fixed width="50">
+    </el-table-column>
+    <el-table-column prop="Type" label="型号" fixed width="120">
+        <template slot="header" scope="scope">
+            平台
+            <br />型号
+        </template>
+        <template slot-scope="scope">
+            <div class="equalTd">
+                <input-edit :isedit="scope.row.TotalEdit"
+                            v-on:input="scope.row.Type = $event"
+                            :nametext="scope.row.Type"></input-edit>
+                <br />
+                <input-edit :isedit="scope.row.TotalEdit"
+                            v-on:input="scope.row.Platform = $event"
+                            :nametext="scope.row.Platform"></input-edit>
+            </div>
+        </template>
+    </el-table-column>
+    <el-table-column label="SMT">
+        <el-table-column prop="PCB" label="产品PCB编号" width="150">
+            <template slot-scope="scope">
+                <div class="equalTd">
+                    <input-edit :isedit="scope.row.TotalEdit"
+                                v-on:input="scope.row.PCB = $event"
+                                :nametext="scope.row.PCB"
+                                class="pcbInput"></input-edit>
+                    @*<div v-if="scope.row.PCB.split('(').length==2">
+                            {{scope.row.PCB.split('(')[0]}}<br />
+                            ({{scope.row.PCB.split('(')[1]}}
+                        </div>
+                        <div v-else>
+                            {{scope.row.PCB}}
+                        </div>*@
+                </div>
+            </template>
+        </el-table-column>
+
+        <el-table-column label="IC面-灯面">
+            <el-table-column label="模组需求数量" width="90">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="scope.row.SMTEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="scope.row.SMTEidt"
+                                                :index="scope.$index"
+                                                :itemdata="scope.row"
+                                                :itemid="scope.row.id"
+                                                section="贴装"
+                                                nametext="/"
+                                                :isnull="tableList"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="scope.row.SMTEidt"
+                                        v-on:input="scope.row.SMTmoduleneed = $event"
+                                        :nametext="scope.row.SMTmoduleneed"></input-edit>
+                        </div>
+                    </div>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="IC面贴装" class-name="cc">
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.icProductName"
+                                            :nametext="scope.row.icProductName"
+                                            section="SMT"></popover-upload>
+                        </hover-div>
+                        <jump-link :rowdata="scope.row"
+                                   section="SMT"
+                                   :ispower="limitsRole[3]"
+                                   :img="scope.row.SMTjpg"
+                                   :pdf="scope.row.SMTpdf"
+                                   :nametext="scope.row.icProductName"
+                                   :examinanstatu="scope.row.SMTExaminanMessage"></jump-link>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="线别" width="70">
+                <template slot-scope="scope" v-if="scope.row.SMTExaminanMessage=='审核通过'">
+                    <div class="equalTd">
+                        <div v-if="scope.row.icProductName=='/'" class="red">/</div>
+                        <div v-else>1~14线<br />最大产能</div>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="equalTd">
+                        <div v-if="scope.row.icProductName=='/'" class="red">/</div>
+                        <div v-else>1~14线<br />最小产能</div>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="标配人数" width="70">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <div v-if="scope.row.icProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.icMaxStandardTotal}}</div>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="equalTd">
+                        <div v-if="scope.row.icProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.icMinStandardTotal}}</div>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产能(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <div v-if="scope.row.icProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.icMaxStandardOutput}}</div>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="equalTd">
+                        <div v-if="scope.row.icProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.icMinStandardOutput}}</div>
+                    </div>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="灯面贴装">
+            <el-table-column prop="LightProductName" label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.LightProductName"
+                                            :nametext="scope.row.LightProductName"
+                                            section="SMT"></popover-upload>
+                        </hover-div>
+                        <jump-link :rowdata="scope.row"
+                                   section="SMT"
+                                   :ispower="limitsRole[3]"
+                                   :img="scope.row.SMTjpg"
+                                   :pdf="scope.row.SMTpdf"
+                                   :nametext="scope.row.LightProductName"
+                                   :examinanstatu="scope.row.SMTExaminanMessage"></jump-link>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="线别" width="70">
+                <template slot-scope="scope" v-if="scope.row.SMTExaminanMessage=='审核通过'">
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>1~14线<br />最大产能</div>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>1~14线<br />最小产能</div>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="标配人数" width="70">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.LightMaxStandardTotal}}</div>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.LightMinStandardTotal}}</div>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产能(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.LightMaxStandardOutput}}</div>
+                    </div>
+                    <el-divider></el-divider>
+                    <div class="equalTd">
+                        <div v-if="scope.row.LightProductName=='/'" class="red">/</div>
+                        <div v-else>{{scope.row.LightMinStandardOutput}}</div>
+                    </div>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="插件">
+            <el-table-column label="设备名称" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.PluginDevice==null">
+                        <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                            <input-edit-btn :rowdata="scope.row"
+                                            section="插件"
+                                            :isnull="scope.row.PluginDevice"></input-edit-btn>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.PluginDevice">
+                        <div class="equalTd">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.PluginEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="item.PluginEidt"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :itemid="item.PluginDeviceID"
+                                                section="插件"
+                                                :nametext="item.PluginDeviceName"
+                                                :isnull="scope.row.PluginDevice"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="item.PluginEidt"
+                                        v-on:input="item.PluginDeviceName = $event"
+                                        :nametext="item.PluginDeviceName"></input-edit>
+                        </div>
+                        <el-divider v-if="index<(scope.row.PluginDevice.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.PluginDevice">
+                        <div class="equalTd">
+                            <div v-if="item.PluginDeviceName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.PluginEidt"
+                                            v-on:input="item.PluginModuleNeed = $event"
+                                            :nametext="item.PluginModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.PluginDevice.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="机台固定标准单灯工时(秒/颗)" width="110">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.PluginDevice">
+                        <div class="equalTd">
+                            <div v-if="item.PluginDeviceName=='/'" class="red">/</div>
+                            <div v-else>{{item.SingleLampWorkingHours}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.PluginDevice.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="PCBA插件单灯数" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.PluginDevice">
+                        <div class="equalTd">
+                            <div v-if="item.PluginDeviceName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.PluginEidt"
+                                            v-on:input="item.PCBASingleLampNumber = $event"
+                                            :nametext="item.PCBASingleLampNumber"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.PluginDevice.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标配人数" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.PluginDevice">
+                        <div class="equalTd">
+                            <div v-if="item.PluginDeviceName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.PluginEidt"
+                                            v-on:input="item.PluginStandardNumber = $event"
+                                            :nametext="item.PluginStandardNumber"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.PluginDevice.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column prop="PluginStandardCapacity" label="标准产能(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.PluginDevice">
+                        <div class="equalTd">
+                            <div v-if="item.PluginDeviceName=='/'" class="red">/</div>
+                            <div v-else>{{item.PluginStandardCapacity}}</div>
+                            @*{{3600/(item.PCBASingleLampNumber*item.SingleLampWorkingHours)}}*@
+                        </div>
+                        <el-divider v-if="index<(scope.row.PluginDevice.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="后焊">
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.AfterWeld==null">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.AfterWeld"
+                                            section="后焊"></popover-upload>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.AfterWeld">
+                        <div class="equalTd">
+                            <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                                <popover-upload :rowdata="scope.row"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :nametext="item.AfterWeldProcessName"
+                                                :isnull="scope.row.AfterWeld"
+                                                section="后焊"></popover-upload>
+                            </hover-div>
+                            <jump-link :rowdata="scope.row"
+                                       section="后焊"
+                                       :ispower="limitsRole[3]"
+                                       :img="scope.row.AfterWeldImg"
+                                       :pdf="scope.row.AfterWeldPdf"
+                                       :nametext="item.AfterWeldProcessName"
+                                       :examinanstatu="item.AfterWeldExaminanMessage"></jump-link>
+                        </div>
+                        <el-divider v-if="index<(scope.row.AfterWeld.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="90">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.AfterWeld">
+                        <div class="equalTd">
+                            <div v-if="item.AfterWeldProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.AfterWeldEidt">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.AfterWeldEidt"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.AfterWeldID"
+                                                    section="后焊"
+                                                    :nametext="'/'"
+                                                    :isnull="scope.row.AfterWeld"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.AfterWeldEidt"
+                                            v-on:input="item.AfterModuleNeed = $event"
+                                            :nametext="item.AfterModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.AfterWeld.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.AfterWeld">
+                        <div class="equalTd">
+                            <div v-if="item.AfterWeldProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.AfterWeldStandardTotal}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.AfterWeld.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.AfterWeld">
+                        <div class="equalTd">
+                            <div v-if="item.AfterWeldProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.AfterWeldStandardOutput}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.AfterWeld.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准人均时产量(PCS/H/R)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.AfterWeld">
+                        <div class="equalTd">
+                            <div v-if="item.AfterWeldProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.AfterWeldStandardHourlyOutputPerCapita}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.AfterWeld.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+    </el-table-column>
+    <el-table-column label="模块">
+        <el-table-column label="三防">
+            <el-table-column label="工序描述" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.ThreeProf==null">
+                        <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                            <input-edit-btn :rowdata="scope.row"
+                                            section="三防"
+                                            :isnull="scope.row.ThreeProf"></input-edit-btn>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.ThreeProf">
+                        <div class="equalTd">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.ThreeProfEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="item.ThreeProfEidt"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :itemid="item.ThreeProfID"
+                                                section="三防"
+                                                :nametext="item.ThreeProfProcessName"
+                                                :isnull="scope.row.ThreeProf"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="item.ThreeProfEidt"
+                                        v-on:input="item.ThreeProfProcessName = $event"
+                                        :nametext="item.ThreeProfProcessName"></input-edit>
+                        </div>
+                        <el-divider v-if="index<(scope.row.ThreeProf.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.ThreeProf">
+                        <div class="equalTd">
+                            <div v-if="item.ThreeProfProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.ThreeProfEidt"
+                                            v-on:input="item.ThreeProfModuleNeed = $event"
+                                            :nametext="item.ThreeProfModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.ThreeProf.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.ThreeProf">
+                        <div class="equalTd">
+                            <div v-if="item.ThreeProfProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.ThreeProfEidt"
+                                            v-on:input="item.ThreeProfStandardTotal = $event"
+                                            :nametext="item.ThreeProfStandardTotal"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.ThreeProf.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column prop="ThreeProfStabdardOutput" label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.ThreeProf">
+                        <div class="equalTd">
+                            <div v-if="item.ThreeProfProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.ThreeProfEidt"
+                                            v-on:input="item.ThreeProfStabdardOutput = $event"
+                                            :nametext="item.ThreeProfStabdardOutput"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.ThreeProf.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="打底壳">
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.BottomCas==null">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.BottomCas"
+                                            section="打底壳"></popover-upload>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                                <popover-upload :rowdata="scope.row"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :nametext="item.BottomCasProcessName"
+                                                :isnull="scope.row.BottomCas"
+                                                section="打底壳"></popover-upload>
+                            </hover-div>
+                            <jump-link :rowdata="scope.row"
+                                       section="打底壳"
+                                       :ispower="limitsRole[3]"
+                                       :img="scope.row.BottomCasImg"
+                                       :pdf="scope.row.BottomCasPdf"
+                                       :nametext="item.BottomCasProcessName"
+                                       :examinanstatu="item.BottomCasExaminanMessage"></jump-link>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <div v-if="item.BottomCasProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.BottomCasStandardTotal}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="点胶机配置(台)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <div v-if="item.BottomCasProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.BottomCasEidt">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.BottomCasEidt"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.BottomCasID"
+                                                    section="打底壳"
+                                                    :nametext="item.BottomCasDispensMachineNum"
+                                                    :isnull="scope.row.BottomCas"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.BottomCasEidt"
+                                            v-on:input="item.BottomCasDispensMachineNum = $event"
+                                            :nametext="item.BottomCasDispensMachineNum"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="90">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <div v-if="item.BottomCasProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BottomCasEidt"
+                                            v-on:input="item.BottomCasModuleNeed = $event"
+                                            :nametext="item.BottomCasModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="螺丝机配置(台)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <div v-if="item.BottomCasProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BottomCasEidt"
+                                            v-on:input="item.BottomCasScrewMachineNum = $event"
+                                            :nametext="item.BottomCasScrewMachineNum"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <div v-if="item.BottomCasProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.BottomCasStandardOutput}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准人均时产量(PCS/H/R)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.BottomCas">
+                        <div class="equalTd">
+                            <div v-if="item.BottomCasProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.BottomCasStandardHourlyOutputPerCapita}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.BottomCas.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="装磁吸安装板">
+            <el-table-column label="工序描述" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Magnetic==null">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.Magnetic"
+                                            section="装磁吸安装板"></popover-upload>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Magnetic">
+                        <div class="equalTd">
+                            <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                                <popover-upload :rowdata="scope.row"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :nametext="item.MagneticProcessName"
+                                                :isnull="scope.row.Magnetic"
+                                                section="装磁吸安装板"></popover-upload>
+                            </hover-div>
+                            <jump-link :rowdata="scope.row"
+                                       section="装磁吸安装板"
+                                       :ispower="limitsRole[3]"
+                                       :img="scope.row.MagneticImg"
+                                       :pdf="scope.row.MagneticPdf"
+                                       :nametext="item.MagneticProcessName"
+                                       :examinanstatu="item.MagneticExaminanMessage"></jump-link>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                    </template>
+                    @*<template v-if="scope.row.Magnetic==null">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                                <input-edit-btn :rowdata="scope.row"
+                                                section="装磁吸安装板"
+                                                :isnull="scope.row.Magnetic"></input-edit-btn>
+                            </hover-div>
+                        </template>
+                        <template v-else v-for="(item,index) in scope.row.Magnetic">
+                            <div class="equalTd">
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.MagneticEidt">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.MagneticEidt"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.MagneticID"
+                                                    section="装磁吸安装板"
+                                                    :nametext="item.MagneticProcessName"
+                                                    :isnull="scope.row.Magnetic"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.MagneticEidt"
+                                            v-on:input="item.MagneticProcessName = $event"
+                                            :nametext="item.MagneticProcessName"></input-edit>
+                            </div>
+                            <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                        </template>*@
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="90">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Magnetic">
+                        <div class="equalTd">
+                            <div v-if="item.MagneticProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.MagneticEidt">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.MagneticEidt"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.MagneticID"
+                                                    section="装磁吸安装板"
+                                                    :nametext="'/'"
+                                                    :isnull="scope.row.Magnetic"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.MagneticEidt"
+                                            v-on:input="item.MagneticModuleNeed = $event"
+                                            :nametext="item.MagneticModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Magnetic">
+                        <div class="equalTd">
+                            <div v-if="item.MagneticProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.MagneticStandardTotal}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                    </template>
+                    @*<template v-for="(item,index) in scope.row.Magnetic">
+                            <div class="equalTd">
+                                <div v-if="item.MagneticProcessName=='/'" class="red">/</div>
+                                <div v-else>
+                                    <input-edit :isedit="item.MagneticEidt"
+                                                v-on:input="item.MagneticStandardTotal = $event"
+                                                :nametext="item.MagneticStandardTotal"></input-edit>
+                                </div>
+                            </div>
+                            <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                        </template>*@
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Magnetic">
+                        <div class="equalTd">
+                            <div v-if="item.MagneticProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.MagneticStabdardOutput}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                    </template>
+                    @*<template v-for="(item,index) in scope.row.Magnetic">
+                            <div class="equalTd">
+                                <div v-if="item.MagneticProcessName=='/'" class="red">/</div>
+                                <div v-else>
+                                    <input-edit :isedit="item.MagneticEidt"
+                                                v-on:input="item.MagneticStabdardOutput = $event"
+                                                :nametext="item.MagneticStabdardOutput"></input-edit>
+                                </div>
+                            </div>
+                            <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                        </template>*@
+                </template>
+            </el-table-column>
+            <el-table-column label="标准人均时产量(PCS/H/R)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Magnetic">
+                        <div class="equalTd">
+                            <div v-if="item.MagneticProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.MagneticStandardHourlyOutputPerCapita}}</div>
+                            @*{{item.MagneticStabdardOutput/item.MagneticStandardTotal}}*@
+                        </div>
+                        <el-divider v-if="index<(scope.row.Magnetic.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="喷墨">
+            <el-table-column label="工序描述" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Inkjet==null">
+                        <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                            <input-edit-btn :rowdata="scope.row"
+                                            section="喷墨"
+                                            :isnull="scope.row.Inkjet"></input-edit-btn>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Inkjet">
+                        <div class="equalTd">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.InkjetEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="item.InkjetEidt"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :itemid="item.InkjetID"
+                                                section="喷墨"
+                                                :nametext="item.InkjetProcessName"
+                                                :isnull="scope.row.Inkjet"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="item.InkjetEidt"
+                                        v-on:input="item.InkjetProcessName = $event"
+                                        :nametext="item.InkjetProcessName"></input-edit>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Inkjet.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Inkjet">
+                        <div class="equalTd">
+                            <div v-if="item.InkjetProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.InkjetEidt"
+                                            v-on:input="item.InkjetModuleNeed = $event"
+                                            :nametext="item.InkjetModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Inkjet.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="配置人数" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Inkjet">
+                        <div class="equalTd">
+                            <div v-if="item.InkjetProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.InkjetEidt"
+                                            v-on:input="item.InkjetSuctionStandardTotal = $event"
+                                            :nametext="item.InkjetSuctionStandardTotal"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Inkjet.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="每小时标准产能" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Inkjet">
+                        <div class="equalTd">
+                            <div v-if="item.InkjetProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.InkjetEidt"
+                                            v-on:input="item.InkjetStabdardOutputPerHour = $event"
+                                            :nametext="item.InkjetStabdardOutputPerHour"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Inkjet.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="灌胶">
+            <el-table-column label="工序描述" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Glue==null">
+                        <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                            <input-edit-btn :rowdata="scope.row"
+                                            section="灌胶"
+                                            :isnull="scope.row.Glue"></input-edit-btn>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Glue">
+                        <div class="equalTd">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.GlueEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="item.GlueEidt"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :itemid="item.GlueID"
+                                                section="灌胶"
+                                                :nametext="item.GlueProcessName"
+                                                :isnull="scope.row.Glue"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="item.GlueEidt"
+                                        v-on:input="item.GlueProcessName = $event"
+                                        :nametext="item.GlueProcessName"></input-edit>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Glue.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Glue">
+                        <div class="equalTd">
+                            <div v-if="item.GlueProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.GlueEidt"
+                                            v-on:input="item.GlueModuleNeed = $event"
+                                            :nametext="item.GlueModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Glue.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Glue">
+                        <div class="equalTd">
+                            <div v-if="item.GlueProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.GlueEidt"
+                                            v-on:input="item.GlueStandardTotal = $event"
+                                            :nametext="item.GlueStandardTotal"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Glue.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Glue">
+                        <div class="equalTd">
+                            <div v-if="item.GlueProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.GlueEidt"
+                                            v-on:input="item.GlueStabdardOutput = $event"
+                                            :nametext="item.GlueStabdardOutput"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Glue.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="气密">
+            <el-table-column label="工序描述" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Airtight==null">
+                        <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                            <input-edit-btn :rowdata="scope.row"
+                                            section="气密"
+                                            :isnull="scope.row.Airtight"></input-edit-btn>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Airtight">
+                        <div class="equalTd">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.AirtightEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="item.AirtightEidt"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :itemid="item.AirtightID"
+                                                section="气密"
+                                                :nametext="item.AirtightProcessName"
+                                                :isnull="scope.row.Airtight"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="item.AirtightEidt"
+                                        v-on:input="item.AirtightProcessName = $event"
+                                        :nametext="item.AirtightProcessName"></input-edit>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Airtight.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Airtight">
+                        <div class="equalTd">
+                            <div v-if="item.AirtightProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.AirtightEidt"
+                                            v-on:input="item.AirtightModuleNeed = $event"
+                                            :nametext="item.AirtightModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Airtight.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Airtight">
+                        <div class="equalTd">
+                            <div v-if="item.AirtightProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.AirtightEidt"
+                                            v-on:input="item.AirtightStandardTotal = $event"
+                                            :nametext="item.AirtightStandardTotal"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Airtight.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Airtight">
+                        <div class="equalTd">
+                            <div v-if="item.AirtightProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.AirtightEidt"
+                                            v-on:input="item.AirtightStabdardOutput = $event"
+                                            :nametext="item.AirtightStabdardOutput"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Airtight.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="锁面罩">
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.LockTheMask==null">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.LockTheMask"
+                                            section="锁面罩"></popover-upload>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.LockTheMask">
+                        <div class="equalTd">
+                            <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                                <popover-upload :rowdata="scope.row"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :nametext="item.LockTheMaskProcessName"
+                                                :isnull="scope.row.LockTheMask"
+                                                section="锁面罩"></popover-upload>
+                            </hover-div>
+                            <jump-link :rowdata="scope.row"
+                                       section="锁面罩"
+                                       :ispower="limitsRole[3]"
+                                       :img="scope.row.LockTheMaskImg"
+                                       :pdf="scope.row.LockTheMaskPdf"
+                                       :nametext="item.LockTheMaskProcessName"
+                                       :examinanstatu="item.LockTheMaskExaminanMessage"></jump-link>
+                        </div>
+                        <el-divider v-if="index<(scope.row.LockTheMask.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="螺丝机配置(台)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.LockTheMask">
+                        <div class="equalTd">
+                            <div v-if="item.LockTheMaskProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.LockTheMaskEdit">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.LockTheMaskEdit"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.LockTheMaskID"
+                                                    section="锁面罩"
+                                                    :nametext="item.LockTheMaskScrewMachineNum"
+                                                    :isnull="scope.row.LockTheMask"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.LockTheMaskEdit"
+                                            v-on:input="item.LockTheMaskScrewMachineNum = $event"
+                                            :nametext="item.LockTheMaskScrewMachineNum"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.LockTheMask.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.LockTheMask">
+                        <div class="equalTd">
+                            <div v-if="item.LockTheMaskProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.LockTheMaskEdit"
+                                            v-on:input="item.LockTheMaskModuleNeed = $event"
+                                            :nametext="item.LockTheMaskModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.LockTheMask.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.LockTheMask">
+                        <div class="equalTd">
+                            <div v-if="item.LockTheMaskProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.LockTheMaskStandardTotal}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.LockTheMask.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.LockTheMask">
+                        <div class="equalTd">
+                            <div v-if="item.LockTheMaskProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.LockTheMaskStandardOutput}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.LockTheMask.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准人均时产量(PCS/H/R)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.LockTheMask">
+                        <div class="equalTd">
+                            <div v-if="item.LockTheMaskProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.LockTheMaskStandardHourlyOutputPerCapita}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.LockTheMask.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+    </el-table-column>
+    <el-table-column label="组装">
+        <el-table-column label="模组装配">
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Module==null">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.Module"
+                                            section="模组装配"></popover-upload>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                                <popover-upload :rowdata="scope.row"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :nametext="item.ModuleProcessName"
+                                                :isnull="scope.row.Module"
+                                                section="模组装配"></popover-upload>
+                            </hover-div>
+                            <jump-link :rowdata="scope.row"
+                                       section="模组装配"
+                                       :ispower="limitsRole[3]"
+                                       :img="scope.row.ModuleImg"
+                                       :pdf="scope.row.ModulePdf"
+                                       :nametext="item.ModuleProcessName"
+                                       :examinanstatu="item.ModuleExaminanMessage"></jump-link>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="90">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <div v-if="item.ModuleProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.ModuleEidt">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.ModuleEidt"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.ModuleID"
+                                                    section="模组装配"
+                                                    :nametext="'/'"
+                                                    :isnull="scope.row.Module"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.ModuleEidt"
+                                            v-on:input="item.ModuleNeed = $event"
+                                            :nametext="item.ModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <div v-if="item.ModuleProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.ModuleStandardTotal}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="平衡率(%)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <div v-if="item.ModuleProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.ModuleBalanceRate}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="瓶颈(秒)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <div v-if="item.ModuleProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.ModuleBottleneck}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <div v-if="item.ModuleProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.ModuleStandardOutput}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准人均时产量(PCS/H/R)" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Module">
+                        <div class="equalTd">
+                            <div v-if="item.ModuleProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.ModuleStandardHourlyOutputPerCapita}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Module.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="老化">
+            <el-table-column label="工序描述" width="130">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Burin==null">
+                        <hover-div touchtype="edit" :ispower="limitsRole[2]">
+                            <input-edit-btn :rowdata="scope.row"
+                                            section="老化"
+                                            :isnull="scope.row.Burin"></input-edit-btn>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.BurinEidt">
+                                <input-edit-btn :rowdata="scope.row"
+                                                :isedit="item.BurinEidt"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :itemid="item.BurinID"
+                                                section="老化"
+                                                :nametext="item.BurinOneProcessName"
+                                                :isnull="scope.row.Burin"></input-edit-btn>
+                            </hover-div>
+                            <input-edit :isedit="item.BurinEidt"
+                                        v-on:input="item.BurinOneProcessName = $event"
+                                        :nametext="item.BurinOneProcessName"></input-edit>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标配人数" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <div v-if="item.BurinOneProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BurinEidt"
+                                            v-on:input="item.BurninOneSuctionStandardTotal = $event"
+                                            :nametext="item.BurninOneSuctionStandardTotal"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="每小时标准产能" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <div v-if="item.BurinOneProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BurinEidt"
+                                            v-on:input="item.BurinOneStabdardOutputPerHour = $event"
+                                            :nametext="item.BurinOneStabdardOutputPerHour"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <div v-if="item.BurinOneProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BurinEidt"
+                                            v-on:input="item.BurinTwoProcessName = $event"
+                                            :nametext="item.BurinTwoProcessName"
+                                            :itemid="item.BurinID"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标配人数" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <div v-if="item.BurinOneProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BurinEidt"
+                                            v-on:input="item.BurinTwoSuctionStandardTotal = $event"
+                                            :nametext="item.BurinTwoSuctionStandardTotal"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="每小时标准产能" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <div v-if="item.BurinOneProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BurinEidt"
+                                            v-on:input="item.BurinTwoStabdardOutputPerHour = $event"
+                                            :nametext="item.BurinTwoStabdardOutputPerHour"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="75">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Burin">
+                        <div class="equalTd">
+                            <div v-if="item.BurinOneProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <input-edit :isedit="item.BurinEidt"
+                                            v-on:input="item.BurinModuleNeed = $event"
+                                            :nametext="item.BurinModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Burin.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+        <el-table-column label="包装">
+            <el-table-column label="工序描述" width="100">
+                <template slot-scope="scope">
+                    <template v-if="scope.row.Packing==null">
+                        <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                            <popover-upload :rowdata="scope.row"
+                                            :isnull="scope.row.Packing"
+                                            section="包装"></popover-upload>
+                        </hover-div>
+                    </template>
+                    <template v-else v-for="(item,index) in scope.row.Packing">
+                        <div class="equalTd">
+                            <hover-div touchtype="popover" :ispower="limitsRole[2]">
+                                <popover-upload :rowdata="scope.row"
+                                                :index="index"
+                                                :itemdata="item"
+                                                :nametext="item.PackingProcessName"
+                                                :isnull="scope.row.Packing"
+                                                section="包装"></popover-upload>
+                            </hover-div>
+                            <jump-link :rowdata="scope.row"
+                                       section="包装"
+                                       :ispower="limitsRole[3]"
+                                       :img="scope.row.PackingImg"
+                                       :pdf="scope.row.PackingPdf"
+                                       :nametext="item.PackingProcessName"
+                                       :examinanstatu="item.PackingExaminanMessage"></jump-link>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Packing.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="模组需求数量" width="90">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Packing">
+                        <div class="equalTd">
+                            <div v-if="item.PackingProcessName=='/'" class="red">/</div>
+                            <div v-else>
+                                <hover-div touchtype="edit" :ispower="limitsRole[2]" :isfix="item.PackingEidt">
+                                    <input-edit-btn :rowdata="scope.row"
+                                                    :isedit="item.PackingEidt"
+                                                    :index="index"
+                                                    :itemdata="item"
+                                                    :itemid="item.PackingID"
+                                                    section="包装"
+                                                    :nametext="'/'"
+                                                    :isnull="scope.row.Packing"></input-edit-btn>
+                                </hover-div>
+                                <input-edit :isedit="item.PackingEidt"
+                                            v-on:input="item.PackingModuleNeed = $event"
+                                            :nametext="item.PackingModuleNeed"></input-edit>
+                            </div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Packing.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准总人数" width="85">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Packing">
+                        <div class="equalTd">
+                            <div v-if="item.PackingProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.PackingStandardTotal}}</div>
+
+                        </div>
+                        <el-divider v-if="index<(scope.row.Packing.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+            <el-table-column label="标准产量(PCS/H)" width="70">
+                <template slot-scope="scope">
+                    <template v-for="(item,index) in scope.row.Packing">
+                        <div class="equalTd">
+                            <div v-if="item.PackingProcessName=='/'" class="red">/</div>
+                            <div v-else>{{item.PackingStandardOutput}}</div>
+                        </div>
+                        <el-divider v-if="index<(scope.row.Packing.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table-column>
+    </el-table-column>
+
+    <el-table-column v-if="limitsRole[1]" label="操作" width="100" fixed="right">
+        <template slot-scope="scope">
+            <div class="equalTd">
+                <input-edit-btn :rowdata="scope.row"
+                                :isedit="scope.row.TotalEdit"
+                                :index="scope.$index"
+                                :itemdata="scope.row"
+                                :itemid="scope.row.id"
+                                :isnull="tableList"
+                                section="型号平台PCB"
+                                nametext="/"></input-edit-btn>
+            </div>
+            @*<el-button type="text" size="small" @@click="UpdateTotal(scope.row,scope.$index)">编辑</el-button>
+                <el-button type="text" size="small" @@click="DeleteTotal(scope.row.id,scope.$index)">删除</el-button>*@
+        </template>
+    </el-table-column>
+</el-table>

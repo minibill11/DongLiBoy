@@ -1,0 +1,469 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .el-upload__input {
+        display: none !important;
+    }
+
+    .searchContainer {
+        display: flex;
+        justify-content: space-around;
+    }
+
+    .uploadContainer {
+        margin-top: 24px;
+    }
+    .el-table thead tr th,.el-table tbody tr td{
+        padding:2px;
+    }
+    .el-table .cell{
+        padding:2px;
+        text-align:center;
+        font-size:13px;
+    }
+    .container{
+        width:1258px;
+    }
+</style>
+<h3 style="text-align:center;">SOP查询首页</h3>
+
+<div id="app">
+
+    <div class="searchContainer">
+        <el-select v-model="indexSelectplatform" size="small" clearable allow-create filterable placeholder="请选择平台">
+            <el-option v-for="item in options1"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select v-model="indexSelectFileName" size="small" clearable allow-create filterable placeholder="请选择文件名">
+            <el-option v-for="item in options2"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select v-model="indexSelectOrderNum" size="small" clearable filterable placeholder="请选择订单号">
+            <el-option v-for="item in options3"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select v-model="indexSelectstatss" size="small" clearable allow-create filterable placeholder="请选择工段名">
+            <el-option v-for="item in options4"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-button v-on:click="searchBtn" size="small" type="primary">查找</el-button>
+        <el-button v-on:click="showUpload(1)" size="small" type="primary">上传工艺流程图</el-button>
+        <el-button v-on:click="showUpload(2)" size="small" type="primary">上传作业指导书</el-button>
+    </div>
+    <div class="tableContainer">
+        <el-table v-bind:data="tableData"
+                  stripe
+                  max-height="650"
+                  border
+                  style="width: 100%">
+            <el-table-column prop="OrderNum"
+                             label="订单号"
+                             sortable
+                             width="128">
+            </el-table-column>
+            <el-table-column prop="PDFType"
+                             label="文件类型"
+                             sortable
+                             width="118">
+            </el-table-column>
+            <el-table-column prop="Platform"
+                             label="平台"
+                             sortable
+                             width="200">
+            </el-table-column>
+            <el-table-column prop="SectionName"
+                             width="198"
+                             sortable
+                             label="工段">
+            </el-table-column>
+            <el-table-column prop="Pilename"
+                             width="428"
+                             sortable
+                             label="文件名">
+            </el-table-column>
+            <el-table-column width="155" label="操作">
+                <template slot-scope="scope">
+                    @* Plat *@
+                    <a v-bind:href="`${scope.row.Plat}`" v-on:click="changedSelectColor(scope.$index)" target="_blank"><el-button v-bind:type="scope.row.color?'success':'primary'" size="mini">详细</el-button></a>
+                    <el-button size="mini" type="success" v-on:click="updateFile(scope.row,scope.$index)">更新</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+
+    @* 上传PDF对话框 *@
+    <el-dialog v-bind:title="dialogTitle"
+               v-bind:visible.sync="dialogVisible"
+               width="30%">
+        <div>
+            
+            <el-form model="uploadForm" ref="numberValidateForm" label-width="100px" class="demo-ruleForm">
+                <el-form-item label="平台"
+                              prop="platform">
+                    <el-input type="platform" v-model="uploadForm.platform" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="工段"
+                              prop="statss">
+                    <el-input type="statss" v-model="uploadForm.statss" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="订单号"
+                              prop="ordernumber">
+                    <el-select v-model="uploadForm.ordernumber" size="small" filterable placeholder="请选择">
+                        <el-option v-for="item in orderNumList"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="上传PDF"
+                              prop="age">
+                    <el-upload class="upload-demo"
+                               ref="upload"
+                               action=""
+                               accept="pdf"
+                               v-bind:on-preview="handlePreview"
+                               v-bind:on-remove="handleRemove"
+                               v-bind:file-list="fileList"
+                               v-bind:on-change="testChanged"
+                               v-bind:auto-upload="false">
+                        <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                    </el-upload>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="comfirmUpload">确定上传</el-button>
+        </span>
+    </el-dialog>
+
+    @* 更新PDF对话框 *@
+    <el-dialog v-bind:title="dialogTitle"
+               v-bind:visible.sync="updatePDF"
+               width="30%">
+        <div>
+            <el-form model="updatePdfData" ref="updatePdfData" label-width="100px" class="demo-ruleForm">
+                <el-form-item label="平台"
+                              prop="Platform">
+                    <el-input type="Platform" v-model="updatePdfData.Platform" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="工段"
+                              prop="SectionName">
+                    <el-input type="SectionName" v-model="updatePdfData.SectionName" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="文件名"
+                              prop="Pilename">
+                    <el-input type="Pilename" v-model="updatePdfData.Pilename" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item label="订单号"
+                              prop="OrderNum">
+                    <el-select v-model="updatePdfData.OrderNum" size="small" clearable filterable placeholder="请选择">
+                        <el-option v-for="item in orderNumList"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="上传最新PDF"
+                              prop="age">
+                    <el-upload class="upload-demo"
+                               ref="upload"
+                               action=""
+                               accept="pdf"
+                               v-bind:on-preview="handlePreview"
+                               v-bind:on-remove="handleRemove"
+                               v-bind:file-list="fileList"
+                               v-bind:on-change="testChanged"
+                               v-bind:auto-upload="false">
+                        <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                    </el-upload>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="updatePDF = false">取 消</el-button>
+            <el-button type="primary" v-on:click="comfirmUpdate">确定更新</el-button>
+        </span>
+    </el-dialog>
+</div>
+
+
+<script>
+
+    let app = new Vue({
+        el: "#app",
+        data: {
+            fileList: [],
+            orderNumList: [],
+            indexSelectOrderNum: null,
+            indexSelectplatform: null,
+            indexSelectplatform: null,
+            indexSelectFileName: null,
+            indexSelectstatss:null,
+            tableData: [],
+            options: [],
+            value8: null,
+            dialogVisible: false,
+            uploadForm: {
+                platform: null,
+                statss: null,
+                flowchart: null,
+                ordernumber: null,
+            },
+            dialogTitle: null,
+            selectFile: null,
+            selectFileName:null,
+            methodFlag:null,
+            options1: [],
+            options2: [],
+            options3: [],
+            options4: [],
+            updatePDF: false,
+            updatePdfData: {}
+        },
+        methods: {
+            getFile() {
+                axios.post("/SOP/index").then(res=> {
+                    console.log(res.data)
+                }).catch(err=> {
+
+                })
+            },
+            // 获取订单号
+            getOrderNum(){
+                axios.get("/SOP/GetOrderNumList_SOP/").then(res=> {
+                    //console.log(res.data)
+                    res.data.forEach(item=> {
+                        let obj = { label: item, value: item }
+                        this.orderNumList.push(obj);
+                    })
+                })
+            },
+            submitUpload() {
+                this.$refs.upload.submit();
+            },
+            handleRemove(file, fileList) {
+                console.log(file, fileList);
+            },
+            handlePreview(file) {
+                console.log(file);
+            },
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => {});
+            },
+            // 当upload文件发生变化时
+            testChanged(file, fileList) {
+                this.selectFile = file.raw;
+                this.uploadForm.flowchart = file.name;
+                this.selectFileName = file.name;
+                this.updatePdfData.Pilename = file.name;
+                this.uploadForm.platform = file.name.split(" ")[1]
+                this.updatePdfData.Platform = file.name.split(" ")[1]
+                this.updatePdfData.SectionName = file.name.split(" ")[4].replace(".pdf", "")
+                this.uploadForm.statss = file.name.split(" ")[4].replace(".pdf","")
+                console.log(file.name.split(" "))
+                //console.log(fileList)
+            },
+            // 点击上传PDF
+            showUpload(flagNum) {
+                this.methodFlag = flagNum
+                if (flagNum == 1) {
+                    this.dialogVisible = true;
+                    this.dialogTitle = "上传工艺流程图"
+                    this.$notify({
+                        message: "上传工艺流程图",
+                    })
+                } else {
+                    this.dialogVisible = true;
+                    this.dialogTitle = "上传作业指导书"
+                    this.$notify({
+                        message: "上传作业指导书",
+                    })
+                }
+            },
+            // 确定上传PDF
+            comfirmUpload() {
+                if (this.uploadForm.platform !== null && this.uploadForm.statss !== null && this.uploadForm.flowchart !== null && this.selectFile !== null) {
+                    let form = new FormData()
+                    //alert(this.uploadForm.platform)
+                    form.append("platform", this.uploadForm.platform)
+                    form.append("statss", this.uploadForm.statss)
+                    form.append("flowchart", this.uploadForm.flowchart)
+                    form.append("ordernumber", this.uploadForm.ordernumber)
+                    
+                    let url = ''
+                    if (this.methodFlag == 1) {
+                        url = "/SOP/UploadFile_SOP"
+                        form.append("UploadFile_SOP", this.selectFile)
+                    } else if (this.methodFlag == 2) {
+                        url = "/SOP/UploadFileSOP_B"
+                        form.append("UploadFileSOP_B", this.selectFile)
+                    } else {
+
+                    }
+                    axios.post(url, form).then(res=> {
+                        console.log(res.data)
+                        if (res.data == "True") {
+                            this.$message({
+                                message: "上传成功!",
+                                type: "success"
+                            });
+                            this.uploadForm.platform = null;
+                            this.uploadForm.statss = null;
+                            this.uploadForm.flowchart = null;
+                            this.uploadForm.ordernumber = null;
+                            this.selectFile = null;
+                            $(".el-icon-close").click();
+                            this.dialogVisible = false;
+                        } else {
+                            this.$message({
+                                message: "上传失败!",
+                                type: "warning"
+                            });
+                        }
+                    });
+
+                } else {
+                    this.$message({
+                        message: "请补全信息",
+                        type:"warning"
+                    })
+                }
+            },
+            // 跳转详细页
+            changedSelectColor(index) {
+                console.log(index)
+                this.tableData.forEach((item, indexs) => {
+                    if (indexs == index) {
+                        item.color = true;
+                    } else {
+                        item.color = false;
+                    }
+                })
+            },
+            // 首页查询
+            searchBtn() {
+                if (this.indexSelectplatform != null || this.indexSelectFileName != null || this.indexSelectOrderNum != null || this.indexSelectstatss != null) {
+                    let postobj = { platform: this.indexSelectplatform, flowchart: this.indexSelectFileName, ordernumber: this.indexSelectOrderNum, statss: this.indexSelectstatss }
+                    axios.post("/SOP/Previewpdf_SOP", postobj).then(res=> {
+                        console.log(res.data)
+                        if (res.data.length > 0) {
+                            this.tableData = res.data;
+                        } else {
+                            this.$notify({
+                                message: "暂无对应数据!",
+                                type: "warning"
+                            });
+                        }
+                    }).catch(err=>{
+                        this.$notify({
+                            message: "获取SOP文件列表时网络出错!",
+                            type: "warning"
+                        });
+                    })
+                } else {
+                    this.$notify({
+                        message: "请补全信息!",
+                        type:"warning"
+                    })
+                }
+            },
+            // 获取查询选择框的列表值
+            getSelectListCommon(url,arrContainer) {
+                axios.get(url).then(res=> {
+                    //console.log(res.data)
+                    res.data.forEach(item=>{
+                        let obj = { label: item, value: item }
+                        arrContainer.push(obj)
+                    })
+                    
+                }).catch(err=> {
+
+                })
+            },
+            // 更新文档
+            updateFile(row, index) {
+                console.log(row)
+                this.updatePdfData = row;
+                this.updatePDF = true;
+                
+            },
+            //确认更新
+            comfirmUpdate(){
+                if (this.updatePdfData.Platform != null && this.updatePdfData.SectionName != null && this.updatePdfData.Pilename != null && this.selectFile != null) {
+                    let form = new FormData()
+                    form.append("OrignFile", this.updatePdfData.Plat)
+                    form.append("folder", this.updatePdfData.PDFType)
+                    form.append("platform", this.updatePdfData.Platform)
+                    form.append("statss", this.updatePdfData.SectionName)
+                    form.append("flowchart", this.selectFileName)
+                    form.append("ordernumber", this.updatePdfData.OrderNum)
+                    form.append("id", this.updatePdfData.id)
+                    if (this.updatePdfData.PDFType == "B_作业指导书") {
+                        form.append("UploadFileSOP_B", this.selectFile)
+                    } else if (this.updatePdfData.PDFType == "A_工艺流程图") {
+                        form.append("UploadFile_SOP", this.selectFile)
+                    }
+                    axios.post("/SOP/UpdateSOP_document", form).then(res=> {
+                        //console.log(res.data)
+                        if (res.data == "False") {
+                            this.$message({
+                                message: "操作失败",
+                                type: "warning"
+                            })
+                        } else {
+                            this.$message({
+                                message: "操作成功",
+                                type: "success"
+                            });
+                            this.updatePdfData = {};
+                            this.updatePDF = false;
+                        }
+                    }).catch(err=> {
+
+                    })
+                } else {
+                    this.$message({
+                        message: "未补全信息或未选择PDF文件",
+                        type:"warning"
+                    })
+                }
+            }
+        },
+        mounted() {
+            let url1 = "/SOP/Getplatform_SOP"
+            let url2 = "/SOP/GetProcess_SOP"
+            let url3 = "/SOP/Getorder_SOP"
+            let url4 = "/SOP/GetSectionname_SOP"
+            this.getSelectListCommon(url1, this.options1)
+            this.getSelectListCommon(url2, this.options2)
+            this.getSelectListCommon(url3, this.options3)
+            this.getSelectListCommon(url4, this.options4)
+            this.getOrderNum();
+        }
+    })
+</script>

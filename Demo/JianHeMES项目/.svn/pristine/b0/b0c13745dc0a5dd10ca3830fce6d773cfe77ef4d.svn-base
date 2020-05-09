@@ -1,0 +1,243 @@
+﻿
+@{
+    ViewBag.Title = "SPC_StockConfirm";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是备料确认
+    1.1 选择订单号，输入对应的物料号，请求后端得到该物料号对应的数量，当后端返回两个数量或多个数量时，数量选项框会亮红提示用户选择数量，点击确认按钮即可完成备料。
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*引入 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*引入 elementui js文件*@
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+
+    #app {
+        height: 550px;
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>备料确认</h3>
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Display"><el-button size="small" type="primary" plain style="margin:2px">查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" type="primary" plain style="margin:2px">物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" type="primary" plain style="margin:2px">修改包装信息</el-button></a>
+    </div>
+    <el-main class="text-center">
+        <div class="query">
+            订单号：
+            <el-select v-model="orderNum" placeholder="请选择订单号" size="medium" allow-create filterable clearable>
+                <el-option v-for="item in options"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            物料号：
+            <el-input v-model.trim="materialNumber" placeholder="请输入物料号" style="width:191px" size="medium" clearable></el-input>
+        </div>
+        <div class="query">
+            包装数量：
+            <el-select v-model="quantity" clearable placeholder="请选择数量" size="medium" id="select-box">
+                <el-option v-for="item in quantityOptions"
+                           :key="item"
+                           :value="item">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            <el-button size="mini" type="primary" v-on:click="confirm" v-show="orderNum!=''&&materialNumber!=''&&quantity!=''">确认</el-button>
+        </div>
+    </el-main>
+</div>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            orderNum: '',//订单号选项框值
+            options: [],//订单号选项
+            quantity: '',//数量选项框值
+            quantityOptions: [],//数量选项
+            materialNumber: '',//物料号值
+            username:"@UserName"//当前登录用户
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        //函数方法
+        methods: {
+            //备料确认方法
+            confirm() {
+                if (this.orderNum != '' && this.materialNumber != '' && this.quantity != '' && this.username!='') {
+                    axios.post("/Packagings/SPC_StockConfirm", {
+                        orderNum: this.orderNum,//订单号
+                        materialNum: this.materialNumber,//物料号
+                        quantity: this.quantity,//数量
+                        material_Confirm:true,//备料状态
+                        confirm_Operator: this.username,//备料人
+                    }).then(res => {
+                        if (res.data == "确认备料成功！") {
+                            //备料成功输出的提示信息
+                            this.$message({
+                                message: res.data,
+                                type: 'success'
+                            });
+                            //备料成功 物料号与数量选项框值置空
+                            this.materialNumber = this.quantity = '';
+                            $("#select-box").css('border', '');
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning'
+                            });
+                            }
+                        }).catch(err => {
+                            console.warn("请求数据失败");
+                        })
+                } else {
+                    this.$message({
+                        message: '请填写完整在确认！',
+                        type: 'warning'
+                    });
+                }
+            }
+        },
+        //监听方法
+        watch: {
+            //监听物料号，获取物料号对应数量（用户先选择订单号，在输入物料号）
+            materialNumber() {
+                if (this.materialNumber != '' && this.materialNumber.length == 10 && this.orderNum!='') {
+                    this.quantityOptions = []
+                    axios.post("/Packagings/GetMaterialNumByQuantity", {
+                        //订单号
+                        ordernumber: this.orderNum,
+                        //物料号
+                        materialNumber: this.materialNumber,
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data.length < 0) {                          
+                            this.$message({
+                                showClose: true,
+                                message: '找不到物料号对应的数量',
+                                type: 'warning'
+                            });
+                        }
+                        else if (res.data == '此物料已备料！') {
+                            //物料号已备料
+                            this.$message({
+                                showClose: true,
+                                message: res.data,
+                                type: 'warning'
+                            });
+                        }
+                        else if (res.data == false) {
+                             //物料号与订单号不匹配
+                            this.$message({
+                                showClose: true,
+                                message: '物料号与订单号不匹配',
+                                type: 'warning'
+                            });
+                        }
+                        else {
+                            //一个物料号对应多个或者一个数量
+                            let arr = [];
+                            if (res.data.length == 1) {
+                                //返回的数据只有一个时，直接赋值给数量值，即：this.quantity
+                                this.quantity = res.data[0]
+                                $("#select-box").css('border', '');
+                            } else {
+                                //返回的数据有多个，将数据赋值给数量选择框，即：this.quantityOptions
+                                for (let item in res.data) {
+                                    arr.push(res.data[item])
+                                }
+                                this.quantityOptions = arr;
+                                $("#select-box").focus()
+                                 //数量选择框亮红提示用户选择数量
+                                $("#select-box").css({ 'border': '1px solid #FF0000', 'background': '#fff' })
+                            }
+                        }
+                    })
+                } else {
+                    this.quantity =''
+                }
+            },
+            //监听订单号，获取物料号对应数量（用户先输入物料号，在选择订单号）
+            orderNum() {
+                if (this.orderNum != '' && this.materialNumber != '' && this.materialNumber.length == 10) {
+                    this.quantityOptions = []
+                    axios.post("/Packagings/GetMaterialNumByQuantity", {
+                        //订单号
+                        ordernumber: this.orderNum,
+                        //物料号
+                        materialNumber: this.materialNumber,    
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data.length < 0) {
+                            this.$message({
+                                showClose: true,
+                                message: '找不到物料号对应的数量',
+                                type: 'warning'
+                            });
+                        }
+                        else if (res.data == '此物料已备料！') {
+                            //已备料
+                            this.$message({
+                                showClose: true,
+                                message: res.data,
+                                type: 'warning'
+                            });
+                        }
+                        else if (res.data == false) {
+                            //物料号与订单号不匹配
+                            this.$message({
+                                showClose: true,
+                                message: '物料号与订单号不匹配',
+                                type: 'warning'
+                            });
+                        }
+                        else {
+                            //一个物料号对应多个或者一个数量
+                            let arr = [];
+                            if (res.data.length == 1) {
+                                //返回的数据只有一个时，直接赋值给数量值，即：this.quantity
+                                this.quantity = res.data[0]
+                                $("#select-box").css('border', '');
+                            } else {
+                                //返回的数据有多个，将数据赋值给数量选择框，即：this.quantityOptions
+                                for (let item in res.data) {
+                                    arr.push(res.data[item])
+                                }
+                                this.quantityOptions = arr;
+                                $("#select-box").focus()
+                                //数量选择框亮红提示用户选择数量
+                                $("#select-box").css({ 'border': '1px solid #FF0000', 'background': '#fff' })
+                            }
+                        }
+                    })
+                } else {
+                    this.quantity = ''
+                }
+            }
+        }
+    })
+</script>

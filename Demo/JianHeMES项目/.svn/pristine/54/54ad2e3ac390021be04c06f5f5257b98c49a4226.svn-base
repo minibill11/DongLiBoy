@@ -1,0 +1,422 @@
+﻿@{
+    ViewBag.Title = "订单生产进度查询";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    /*全局样式*/
+    *, body, .el-main, .el-header, .el-table .cell {
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-header {
+        height: auto !important;
+    }
+
+    .el-main {
+        min-height: 600px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-progress-bar {
+        margin-right: -60px;
+        width: 88%;
+    }
+
+    .rightDiv {
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .el-table .cell, .el-table--border th:first-child .cell, .el-table--border td:first-child .cell, .el-table th > .cell {
+            padding: 0;
+        }
+
+        .rightDiv {
+            font-size: 11px;
+            line-height: 12px;
+        }
+
+        .letDiv {
+            font-size: 11px;
+            line-height: 12px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .leftspan {
+            display: inline-block;
+            text-align: right;
+            width: 45px;
+            margin: 0 0 0 10px;
+        }
+
+        .lianghangDiv {
+            font-size: 11px;
+            line-height: 12px;
+            height: 33px;
+        }
+
+        .el-table--mini th {
+            padding: 3px 0;
+        }
+
+        .el-table--mini td {
+            padding: 8px 0;
+        }
+
+        .el-divider--horizontal {
+            margin: 4px 0;
+        }
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <span>订单号：</span>
+                <el-input placeholder="请输入订单号"
+                          v-model.trim="selectVal"
+                          style="width:160px"
+                          size="small"
+                          v-on:keyup.enter.native="selectHandle(selectVal)"
+                          minlength="9"
+                          clearable>
+                </el-input>
+                <el-button @@click="selectHandle(selectVal)" type="primary" size="small" style="padding:9px 10px;">查询</el-button>
+                <div class="inputframe">
+                    <span style="width:100%;color:#888;font-size:12px;text-align:left;padding-right:70px;">需要输入至少9位的订单前缀进行查询</span>
+                </div>
+            </el-row>
+            <el-row v-show="screenSize>=768">
+                <el-table :data="tablelist"
+                          size="mini"
+                          style="margin:10px auto 0;"
+                          max-height="600"
+                          stripe
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     min-width="120"
+                                     sortable
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="SMT"
+                                     label="PCBA"
+                                     min-width="165"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="rightDiv" :style="{color:bgcolor(scope.row.SMT.valuename)}">{{divtext(scope.row.SMT.valuename,scope.row.SMT.value)}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Model"
+                                     label="模组"
+                                     min-width="165"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="rightDiv" :style="{color:bgcolor(scope.row.Model.valuename)}">{{divtext(scope.row.Model.valuename,scope.row.Model.value)}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burnin"
+                                     label="老化"
+                                     min-width="165"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="rightDiv" :style="{color:bgcolor(scope.row.Burnin.valuename)}">{{divtext(scope.row.Burnin.valuename,scope.row.Burnin.value)}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="package"
+                                     label="包装"
+                                     min-width="165"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="rightDiv" :style="{color:bgcolor(scope.row.package.valuename)}">{{divtext(scope.row.package.valuename,scope.row.package.value)}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="warehousejoin"
+                                     label="入库"
+                                     min-width="165"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="rightDiv" :style="{color:bgcolor(scope.row.warehousejoin.valuename)}">{{divtext(scope.row.warehousejoin.valuename,scope.row.warehousejoin.value)}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="warehouseout"
+                                     label="出库"
+                                     min-width="165"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="rightDiv" :style="{color:bgcolor(scope.row.warehouseout.valuename)}">{{divtext(scope.row.warehouseout.valuename,scope.row.warehouseout.value)}}</div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <el-row v-show="screenSize<768">
+                @*<el-table :data="tablelist"
+                              size="mini"
+                              style="margin:10px auto 0;width:96%;"
+                              max-height="450"
+                              border>
+                        <el-table-column type="index"
+                                         label="序号"
+                                         width="18"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="ordernum"
+                                         label="订单号"
+                                         width="40"
+                                         sortable
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="SMT"
+                                         label="PCBA"
+                                         width="49"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="rightDiv" :style="{color:bgcolor(scope.row.SMT.valuename)}">{{yidongtext(scope.row.SMT.valuename,scope.row.SMT.value)}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Model"
+                                         label="模组"
+                                         width="49"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="rightDiv" :style="{color:bgcolor(scope.row.Model.valuename)}">{{yidongtext(scope.row.Model.valuename,scope.row.Model.value)}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Burnin"
+                                         label="老化"
+                                         width="49"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="rightDiv" :style="{color:bgcolor(scope.row.Burnin.valuename)}">{{yidongtext(scope.row.Burnin.valuename,scope.row.Burnin.value)}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="package"
+                                         label="包装"
+                                         width="49"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="rightDiv" :style="{color:bgcolor(scope.row.package.valuename)}">{{yidongtext(scope.row.package.valuename,scope.row.package.value)}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="warehousejoin"
+                                         label="入库"
+                                         width="49"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="rightDiv" :style="{color:bgcolor(scope.row.warehousejoin.valuename)}">{{yidongtext(scope.row.warehousejoin.valuename,scope.row.warehousejoin.value)}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="warehouseout"
+                                         label="出库"
+                                         width="49"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="rightDiv" :style="{color:bgcolor(scope.row.warehouseout.valuename)}">{{yidongtext(scope.row.warehouseout.valuename,scope.row.warehouseout.value)}}</div>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <el-table :data="tablelist"
+                              size="mini"
+                              style="margin:10px auto 0;width:96%;"
+                              max-height="450"
+                              border>
+                        <el-table-column type="index"
+                                         label="序号"
+                                         width="28"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="ordernum"
+                                         label="订单号"
+                                         width="80"
+                                         sortable
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column label=""
+                                         width="80"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="lianghangDiv" :style="{color:bgcolor(scope.row.SMT.valuename)}">
+                                    <div>{{scope.row.SMT.name}}</div>
+                                    <div>{{scope.row.SMT.value.split(' ')[0]}}<br />{{scope.row.SMT.value.split(' ')[1]}}</div>
+                                </div>
+                                <el-divider></el-divider>
+                                <div class="lianghangDiv" :style="{color:bgcolor(scope.row.Model.valuename)}">
+                                    <div>{{scope.row.Model.name}}</div>
+                                    <div>{{scope.row.Model.value.split(' ')[0]}}<br />{{scope.row.Model.value.split(' ')[1]}}</div>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label=""
+                                         width="80"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="lianghangDiv" :style="{color:bgcolor(scope.row.Burnin.valuename)}">
+                                    <div>{{scope.row.Burnin.name}}</div>
+                                    <div>{{scope.row.Burnin.value.split(' ')[0]}}<br />{{scope.row.Burnin.value.split(' ')[1]}}</div>
+                                </div>
+                                <el-divider></el-divider>
+                                <div class="lianghangDiv" :style="{color:bgcolor(scope.row.package.valuename)}">
+                                    <div>{{scope.row.package.name}}</div>
+                                    <div>{{scope.row.package.value.split(' ')[0]}}<br />{{scope.row.package.value.split(' ')[1]}}</div>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label=""
+                                         width="80"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <div class="lianghangDiv" :style="{color:bgcolor(scope.row.warehousejoin.valuename)}">
+                                    <div>{{scope.row.warehousejoin.name}}</div>
+                                    <div>{{scope.row.warehousejoin.value.split(' ')[0]}}<br />{{scope.row.warehousejoin.value.split(' ')[1]}}</div>
+                                </div>
+                                <el-divider></el-divider>
+                                <div class="lianghangDiv" :style="{color:bgcolor(scope.row.warehouseout.valuename)}">
+                                    <div>{{scope.row.warehouseout.name}}</div>
+                                    <div>{{scope.row.warehouseout.value.split(' ')[0]}}<br />{{scope.row.warehouseout.value.split(' ')[1]}}</div>
+                                </div>
+                            </template>
+                        </el-table-column>
+                    </el-table>*@
+
+                <el-table :data="tablelist"
+                          size="mini"
+                          style="margin:10px auto 0;width:96%;"
+                          max-height="450"
+                          stripe
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     width="28"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     width="90"
+                                     sortable
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column label="信息"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="letDiv" :style="{color:bgcolor(scope.row.SMT.valuename)}">
+                                <span class="leftspan">{{scope.row.SMT.name}}：</span>
+                                <span>{{divtext(scope.row.SMT.valuename,scope.row.SMT.value)}}</span>
+                            </div>
+                            <el-divider></el-divider>
+                            <div class="letDiv" :style="{color:bgcolor(scope.row.Model.valuename)}">
+                                <span class="leftspan">{{scope.row.Model.name}}：</span>
+                                <span>{{divtext(scope.row.Model.valuename,scope.row.Model.value)}}</span>
+                            </div>
+                            <el-divider></el-divider>
+                            <div class="letDiv" :style="{color:bgcolor(scope.row.Burnin.valuename)}">
+                                <span class="leftspan">{{scope.row.Burnin.name}}：</span>
+                                <span>{{divtext(scope.row.Burnin.valuename,scope.row.Burnin.value)}}</span>
+                            </div>
+                            <el-divider></el-divider>
+                            <div class="letDiv" :style="{color:bgcolor(scope.row.package.valuename)}">
+                                <span class="leftspan">{{scope.row.package.name}}：</span>
+                                <span>{{divtext(scope.row.package.valuename,scope.row.package.value)}}</span>
+                            </div>
+                            <el-divider></el-divider>
+                            <div class="letDiv" :style="{color:bgcolor(scope.row.warehousejoin.valuename)}">
+                                <span class="leftspan">{{scope.row.warehousejoin.name}}：</span>
+                                <span>{{divtext(scope.row.warehousejoin.valuename,scope.row.warehousejoin.value)}}</span>
+                            </div>
+                            <el-divider></el-divider>
+                            <div class="letDiv" :style="{color:bgcolor(scope.row.warehouseout.valuename)}">
+                                <span class="leftspan">{{scope.row.warehouseout.name}}：</span>
+                                <span>{{divtext(scope.row.warehouseout.valuename,scope.row.warehouseout.value)}}</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            selectVal: '',
+            tablelist: []
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+        },
+        methods: {
+            selectHandle: function (v) {
+                if (v.length >= 9) {
+                    this.loading = true;
+                    //localStorage.setItem('Order', v);
+                    axios.post('/Query/SelectOrderInfoFromBusiness', { ordernum: v }).then(res => {
+                        //console.log(res.data);
+                        //console.log(JSON.parse(JSON.stringify(res.data)));
+                        res.data == '' && this.$message('找不到此订单生产记录！');
+                        this.tablelist = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                        this.loading = false;
+                    });
+                };
+            },
+            bgcolor(v) {
+                return v === '已完成' ? '#0a0' : v === '进行中' ? 'rgb(0, 125, 255)' : '';
+            },
+            divtext(vn, v) {
+                if (vn === '已完成') {
+                    return `${vn} - ${v}`;
+                } else {
+                    return `${vn} - (${v})`;
+                };
+            },
+            yidongtext(vn, v) {
+                if (vn === '已完成') {
+                    return `${v}`;
+                } else {
+                    return `${v}`;
+                };
+            }
+        },
+        watch: {
+            selectVal(v) {
+                this.tablelist = [];
+            }
+        }
+    });
+</script>

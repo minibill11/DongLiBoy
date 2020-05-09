@@ -1,0 +1,300 @@
+﻿@{
+    ViewBag.Title = "合约部";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    /*全局样式*/
+    *, body, .el-main, .el-header, .el-table .cell {
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-header {
+        height: auto !important;
+    }
+
+    .el-main {
+        min-height: 600px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .smtheader {
+        text-align: center;
+    }
+
+    .el-progress-bar {
+        margin-right: -60px;
+        width: 88%;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .el-table .cell, .el-table--border th:first-child .cell, .el-table--border td:first-child .cell, .el-table th > .cell {
+            padding: 0;
+        }
+
+        .divsize {
+            font-size: 11px;
+            line-height: 12px;
+        }
+        .el-table--mini td, .el-table--mini th {
+            padding:3px 0;
+        }
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <span>订单号：</span>
+                <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium" @@select-val="selectHandle"></select-input>
+                <br v-show="screenSize<768" />
+                <el-button v-if="selectVal!=''" @@click="getHistoryInfo(selectVal)" type="primary" size="medium">查询订单</el-button>
+                <el-button v-else @@click="getInfo('')" type="primary" size="medium">查询全部进行中订单</el-button>
+                <el-button @@click="getHistoryInfo('')" type="primary" size="medium">查询全部历史</el-button>
+            </el-row>
+            <el-row v-show="screenSize>=768">
+                <el-table :data="tablelist"
+                          size="mini"
+                          style="margin:10px auto 0;"
+                          max-height="600"
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     min-width="120"
+                                     sortable
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="SMT"
+                                     label="SMT"
+                                     min-width="160"
+                                     label-class-name="smtheader">
+                        <template slot-scope="scope">
+                            <template v-for="smtitem in scope.row.SMT">
+                                <span>{{smtitem.name}}：</span>
+                                <el-progress :percentage="smtitem.value" :stroke-width="20" :color="bgcolor(smtitem.value)"></el-progress>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="FinalQC_Finish_Rate"
+                                     label="模组"
+                                     min-width="160"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <el-progress :percentage="scope.row.FinalQC_Finish_Rate" :stroke-width="20" :color="bgcolor(scope.row.FinalQC_Finish_Rate)"></el-progress>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in_Finish_Rate"
+                                     label="老化调试"
+                                     min-width="160"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <el-progress :percentage="scope.row.Burn_in_Finish_Rate" :stroke-width="20" :color="bgcolor(scope.row.Burn_in_Finish_Rate)"></el-progress>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Package_Finish_Rate"
+                                     label="包装"
+                                     min-width="160"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <el-progress :percentage="scope.row.Package_Finish_Rate" :stroke-width="20" :color="bgcolor(scope.row.Package_Finish_Rate)"></el-progress>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Warehouse_Finish_Rate"
+                                     label="入库"
+                                     min-width="160"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <el-progress :percentage="scope.row.Warehouse_Finish_Rate" :stroke-width="20" :color="bgcolor(scope.row.Warehouse_Finish_Rate)"></el-progress>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="WarehouseOut_Finish_Rate"
+                                     label="出库"
+                                     min-width="160"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <el-progress :percentage="scope.row.WarehouseOut_Finish_Rate" :stroke-width="20" :color="bgcolor(scope.row.WarehouseOut_Finish_Rate)"></el-progress>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <el-row v-show="screenSize<768">
+                <el-table :data="tablelist"
+                          size="mini"
+                          style="margin:10px auto 0 5px;width:96%;"
+                          max-height="450"
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     width="28"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     sortable
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="SMT"
+                                     label="SMT"
+                                     width="45"
+                                     label-class-name="smtheader">
+                        <template slot-scope="scope">
+                            <template v-for="smtitem in scope.row.SMT">
+                                <div class="divsize">
+                                    {{smtitem.name}}：<div v-bind:style="{color : smtitem.value>0 ? (smtitem.value>=80?(smtitem.value==100?'#18c100':'#409EFF'):'#ffb630') :''}">{{smtitem.value}}%</div>
+                                </div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="FinalQC_Finish_Rate"
+                                     label="模组"
+                                     width="40"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="divsize">
+                                <span v-bind:style="{color : scope.row.FinalQC_Finish_Rate>0 ? (scope.row.FinalQC_Finish_Rate>=80?(scope.row.FinalQC_Finish_Rate==100?'#18c100':'#409EFF'):'#ffb630') :''}">{{scope.row.FinalQC_Finish_Rate}}%</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in_Finish_Rate"
+                                     label="老化调试"
+                                     width="40"
+                                     align="center">
+                        <template slot="header" slot-scope="scope">
+                            老化
+                            <br />调试
+                        </template>
+                        <template slot-scope="scope">
+                            <div class="divsize">
+                                <span v-bind:style="{color : scope.row.Burn_in_Finish_Rate>0 ? (scope.row.Burn_in_Finish_Rate>=80?(scope.row.Burn_in_Finish_Rate==100?'#18c100':'#409EFF'):'#ffb630') :''}">{{scope.row.Burn_in_Finish_Rate}}%</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Package_Finish_Rate"
+                                     label="包装"
+                                     width="40"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="divsize">
+                                <span v-bind:style="{color : scope.row.Package_Finish_Rate>0 ? (scope.row.Package_Finish_Rate>=80?(scope.row.Package_Finish_Rate==100?'#18c100':'#409EFF'):'#ffb630') :''}">{{scope.row.Package_Finish_Rate}}%</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Warehouse_Finish_Rate"
+                                     label="入库"
+                                     width="40"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="divsize">
+                                <span v-bind:style="{color : scope.row.Warehouse_Finish_Rate>0 ? (scope.row.Warehouse_Finish_Rate>=80?(scope.row.Warehouse_Finish_Rate==100?'#18c100':'#409EFF'):'#ffb630') :''}">{{scope.row.Warehouse_Finish_Rate}}%</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="WarehouseOut_Finish_Rate"
+                                     label="出库"
+                                     width="40"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <div class="divsize">
+                                <span v-bind:style="{color : scope.row.WarehouseOut_Finish_Rate>0 ? (scope.row.WarehouseOut_Finish_Rate>=80?(scope.row.WarehouseOut_Finish_Rate==100?'#18c100':'#409EFF'):'#ffb630') :''}">{{scope.row.WarehouseOut_Finish_Rate}}%</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            selectOptions: [],
+            selectVal: '',
+            tablelist: []
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        methods: {
+            selectHandle: function (v) {
+                if (v != "") {
+
+                };
+            },
+            getInfo(v) {
+                this.loading = true;
+                axios.post('/Query/SelectOrderInfoFromContract', { ordernum: v == '' ? null : v }).then(res => {
+                    //console.log(res.data);
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tablelist = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                    this.loading = false;
+                });
+            },
+            getHistoryInfo(v) {
+                this.loading = true;
+                axios.post('/Query/SelectOrderInfoFromContractHistory', { ordernum: v == '' ? null : v }).then(res => {
+                    //console.log(res.data);
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tablelist = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                    this.loading = false;
+                });
+            },
+            bgcolor(n) {
+                if (n > 0 && n < 80) {
+                    return '#ffb630';
+                } else if (n >= 80 && n < 100) {
+                    return '#409EFF';
+                } else if (n == 100) {
+                    return '#18c100'
+                } else {
+                    return '';
+                };
+            }
+        },
+        watch: {
+            selectVal(v) {
+                this.tablelist = [];
+            }
+        }
+    });
+</script>

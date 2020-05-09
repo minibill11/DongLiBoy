@@ -1,0 +1,130 @@
+﻿
+@{
+    ViewBag.Title = "物料基本信息录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    textarea {
+        height: 30px;
+        width: 150px;
+        margin-left: 55px;
+        margin-bottom: 5px;
+        margin-top: 45px;
+    }
+    .table .cell,
+    .el-table th,
+    .el-table td {
+        text-align: center;
+        padding: 8px;
+        font-size: 13px;
+    }
+</style>
+<div id="app">
+    <el-header style="text-align: center;height:0px">
+        <h3>@ViewBag.Title</h3>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint" style="margin-left:2px"><el-button size="small" type="primary" plain>打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+    </el-header>
+    <el-main>
+        <textarea v-model="importIfor" placeholder="表格粘贴处..."></textarea>
+        <el-aside width="1001px" style="margin: 0 auto;">
+            <el-table v-bind:data="tableData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="500px">
+                <el-table-column prop="ProductName" label="物品名称" width="160"></el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料编号" width="160"></el-table-column>
+                <el-table-column prop="Specifications" label="规格描述" width="550"></el-table-column>
+                <el-table-column prop="option" label="操作" width="130">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="danger" v-on:click="remove(scope.$index, scope.row)" style="padding:5px">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-aside>
+        <div style="text-align: left;margin-left:52px">
+            <p v-if="tableData.length>0?'visiUpload = true':''">本次共提交<span style="color:red">{{tableData.length}}</span>条数据！</p>
+            <el-button size="mini" type="primary" v-on:click="upload" v-if="tableData.length>0?'visiUpload = true':''">上传</el-button>
+            <el-button size="mini" type="primary" v-on:click="empty" v-if="tableData.length>0?'visiUpload = true':''">清空</el-button>
+        </div>
+    </el-main>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            importIfor: '',
+            tableData: [],
+            total: '',
+            visiUpload: false,
+        },
+        methods: {
+            upload() {
+                console.log(this.tableData)
+                if (this.tableData.length > 0) {
+                    axios.post("/Packagings/SPC_Addbasic_information1", {
+                        inputList: this.tableData
+                    }).then(res => {
+                        if (res.data.repat == false && res.data.res.length > 0) {
+                            this.$message({
+                                message: "上传失败！"+res.data.res+"已存在",
+                                type: 'warning',
+                            });
+                        } else if (res.data == false) {
+                            this.$message({
+                                message: "上传失败！",
+                                type: 'warning',
+                            });
+                        } else {
+                            this.$message({
+                                message: "数据上传成功",
+                                type: 'success',
+                            });
+                            this.tableData = [];
+                            this.visiUpload = false;
+                        }
+                        console.log(res.data)
+                    }).catch(err => {
+                        console.log("请求数据失败")
+                    })
+                }
+            },
+            empty() {
+                this.tableData = []
+            },
+            remove(index, row) {
+                for (let i = 0; i < this.tableData.length; i++) {
+                    if (this.tableData[i].MaterialNumber == row.MaterialNumber) {
+                        this.tableData.splice(i, 1)                       
+                    }
+                }
+            },
+        },
+        watch: {
+            importIfor(val) {
+                if (this.inputInfo == '') { } else {
+                    var valPaste = val.split("\n")
+                    valPaste.pop();
+                    var initData = [];
+                    valPaste.forEach((item, i) => {
+                        var items = item.split("\t");
+                        initData.push(items)
+                    })
+                    initData.forEach(item => {
+                        let obj = {
+                            ProductName: item[0],
+                            MaterialNumber: item[1],
+                            Specifications: item[2],
+                        }
+                        this.tableData.push(obj)
+                        this.importIfor = "";
+                    })
+                }
+            },
+        }
+    })
+</script>
+

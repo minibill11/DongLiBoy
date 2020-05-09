@@ -1,0 +1,397 @@
+﻿
+@{
+    ViewBag.Title = "SPC_MaterialLablePrint";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是查看物料标签与打印物料标签
+    1.1.物料标签打印（选择订单，显示该订单所有物料编号，通过勾选物料编号可打印内容，可单张打印也可多张打印）
+    1.2.选择订单，勾选对应的物料编号即可查看物料标签（可查看多张物料标签，也可查看单张物料标签）
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+</style>
+<div id="app">
+    <div style="text-align:center">
+        <h3>备品、配件物料标签打印</h3>
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px" v-show="materialPreparation">物料备料</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="packingMaterial">备品配件检验</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+        <a href="/Packagings/SPC_PrintOuterBoxLable" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="printOutsibox">打印外箱标签</el-button></a>
+    </div>
+    <el-main v-loading="loading">
+        <div class="query">
+            订单号：
+            <select-input v-model.trim="orderNum"                         
+                          :options="options"
+                          :isfocus="true"
+                          :ismultiple="false"
+                          size="medium"
+                          style="width:190px"
+                          allow-create filterable clearable>
+            </select-input>
+        </div>
+        <div class="query">
+            屏序：
+            <el-input size="medium" style="width: 190px;" v-model="ScreenNum" placeholder="请输入屏序" clearable></el-input>
+        </div>
+        <div class="query">
+            批次：
+            <el-input size="medium" style="width: 190px;" v-model="Batch" placeholder="请输入批次" clearable></el-input>
+        </div>
+        <div class="query">
+            物品类型：
+            <el-select v-model="materialType" placeholder="请选择物品类型" size="medium" allow-create filterable clearable style="width:190px">
+                <el-option v-for="item in materialTypeOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            <span>选打印机：</span>
+            <el-select v-model="printProt" clearable placeholder="选择打印机" size="medium" style="width:190px">
+                <el-option v-for="item in printOptions"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            <span>语言：</span>
+            <el-select v-model="Language" clearable placeholder="选择语言" size="medium" style="width:190px">
+                <el-option v-for="item in LanguageOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query" >
+            <el-button v-on:click="lookImage" size="mini" plain type="primary" style="margin-left:40px">查看勾选条码</el-button>
+            <el-button v-on:click="printMaterialBarcode" size="mini" plain type="primary" v-show="printvisi">打印选中的物料条码</el-button><br />
+            <el-checkbox @@change="CheckAll" size="mini" border style="padding:1px 3px;height:22px;margin:1px">全选</el-checkbox>
+            <span style="color:#409EFF">此订单已存在条码：</span>
+            <div style="max-height:150px;overflow:auto">
+                <template v-for="item in MaterialList">
+                    <el-checkbox v-model="item.state" size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item.value}}</el-checkbox>
+                </template>
+            </div>
+        </div>
+        <el-row class="text-center">
+            <div id="img"></div>
+        </el-row>
+    </el-main>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            orderNum: '', //订单号
+            options: [],  //订单号选项
+            printProt: '',//打印机
+            printOptions: printIpAddress, //打印机选项
+            materialName: '',
+            specifications: '',
+            visi: false,
+            MaterialList: [],//存储物料号
+            imgNumber: 0,  //用于控制加载
+            loading: false,//控制加载状态
+            materialTypeOptions: [{ label: '选项一', value: '备品' }, { label: '选项一', value: '配件' }],
+            materialType: '',//类型
+            ScreenNum: '1',//屏序
+            Batch: '1',//批次
+            LanguageOptions: [{ label: '选项一', value: '中文' }, { label: '选项一', value: '英文' }],
+            Language: '',
+            printvisi: false,//控制物料标签打印权限
+            materialPreparation: false,//备料权限
+            packingMaterial: false,//物料检验权限
+            printOutsibox: false,//打印外箱标签权限
+        },
+        mounted() {
+            //获取订单号
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            //获取浏览器中本地存储的打印机IP
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printProt = printIP;
+            };
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '打印物料标签')) {
+                this.printvisi = true
+            } else {
+                this.printvisi = false
+            };
+            if (checkRoles(roles, '物料备料')) {
+                this.materialPreparation = true
+            } else {
+                this.materialPreparation = false
+            };
+            if (checkRoles(roles, '物料装箱')) {
+                this.packingMaterial = true
+            } else {
+                this.packingMaterial = false
+            };
+            if (checkRoles(roles, '打印外箱标签')) {
+                this.printOutsibox = true
+            } else {
+                this.printOutsibox = false
+            };
+        },
+        methods: {
+            //查看选中的条码图片
+            lookImage: function () {
+                let arr = this.MaterialList, postList = [];  //勾选的数组
+                if (arr.length > 0) {
+                    for (let i in arr) {
+                        if (arr[i].state == true) {
+                            //将物料号push进postList数组
+                            postList.push({
+                                MaterialNum: arr[i].value,
+                                quantity: arr[i].quantity,
+                                id: arr[i].id
+                            });
+                        };
+                    };
+
+                    if (postList.length > 0) {
+                        $("#img>img").remove();
+                        //改变加载状态
+                        this.loading = true;
+                        this.imgNumber = 0;
+                        for (let i in postList) {
+                            this.getPicture(postList[i].MaterialNum, postList[i].quantity, postList[i].id, postList.length);
+                        };
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '没有勾选查询清单！',
+                            type: 'error'
+                        });
+                    };
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: '没有可查询的清单！',
+                        type: 'error'
+                    });
+                };
+            },
+            getPicture: function (materialNumber, quantity, Id, number) {
+                if (this.orderNum != '' && this.ScreenNum != '' && this.Batch != '' && this.Language != '') {
+                    axios.post('/Packagings/Outspc_MaterialLableToImg', {
+                        materialNumber: materialNumber,
+                        quantity: quantity,
+                        orderNum: this.orderNum,
+                        batch: this.Batch,
+                        screenNum: this.ScreenNum,
+                        Language: this.Language,
+                        id: Id,
+                        materialType: this.materialType
+                    }, {
+                            responseType: "arraybuffer",
+                        }).then(function (response) {
+                            return 'data:image/png;base64,' + btoa(
+                                new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                            );
+                        }).then(function (data) {
+                            let cc = new Image();
+                            cc.src = data;
+                            document.getElementById("img").appendChild(cc);
+                            app.imgNumber++;
+                            if (app.imgNumber == number) {
+                                app.loading = false;
+                            };
+                        }).catch(err => {
+                            app.imgNumber++;
+                            if (app.imgNumber == number) {
+                                app.loading = false;
+                            };
+                            console.warn("显示失败");
+                        });
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: "选项框不能为空！",
+                        type: 'error'
+                    });
+                    app.loading = false;
+                }                
+            },
+            //打印勾选中的物料号标签内容
+            printMaterialBarcode() {
+                let arr = this.MaterialList, postList1 = [];
+                if (arr.length > 0) {
+                    if (this.orderNum != '' && this.ScreenNum != '' && this.Batch != '' && this.Language != '') {
+                        for (let i in arr) {
+                            if (arr[i].state == true) {
+                                postList1.push({
+                                    MaterialNum: arr[i].value,
+                                    quantity: arr[i].quantity,
+                                    id: arr[i].id
+                                });
+                            };
+                        };
+                        if (postList1.length > 0) {
+                            if (this.materialType != '') {
+                                this.loading = true;
+                                this.imgNumber = 0;
+                                for (let i in postList1) {
+                                    axios.post('/Packagings/Outspc_MaterialLableAgain', {
+                                        materialNumber: postList1[i].MaterialNum,//物料号
+                                        quantity: postList1[i].quantity,//数量
+                                        orderNumber: this.orderNum,       //订单号
+                                        ip: this.printProt,            //ip地址
+                                        port: 9101,                   //端口
+                                        batch: this.Batch,  //批次
+                                        screenNum: this.ScreenNum,//屏序
+                                        Material_Type: this.materialType,
+                                        Language: this.Language,
+                                        id: postList1[i].id
+                                    }).then(res => {
+                                        if (res.data == '打印成功！') {
+                                            this.$message({
+                                                showClose: true,
+                                                message: res.data,
+                                                type: 'success'
+                                            });
+                                        } else {
+                                            this.$message({
+                                                showClose: true,
+                                                message: res.data,
+                                                type: 'error'
+                                            });
+                                        };
+                                        this.imgNumber++;
+                                        if (this.imgNumber == postList1.length) {
+                                            this.loading = false;
+                                        };
+                                    }).catch(err => {
+                                        this.$message({
+                                            showClose: true,
+                                            message: '打印出错！',
+                                            type: 'error'
+                                        });
+                                        this.imgNumber++;
+                                        if (this.imgNumber == postList1.length) {
+                                            this.loading = false;
+                                        };
+                                    });
+                                };
+                            } else {
+                                this.$message({
+                                    showClose: true,
+                                    message: '请选择物品类型！',
+                                    type: 'error'
+                                });
+                            }
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                message: '没有勾选条码！',
+                                type: 'error'
+                            });
+                        };
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: "选项框不能为空！",
+                            type: 'error'
+                        });
+                    }                    
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: '条码清单为空！',
+                        type: 'error'
+                    });
+                };
+            },
+            //物料号全选按钮
+            CheckAll: function (v) {
+                let checkList = this.MaterialList;
+                for (let i in checkList) {
+                    checkList[i].state = v;
+                };
+            },
+        },
+        watch: {
+            //监听物料号
+            materialNumber() {
+                if (this.materialNumber == '') {
+                    $("#imgcode").empty();
+                    this.materialName = ''
+                    this.specifications = ''
+                }
+            },                       
+            materialType() {
+                this.MaterialList =[]
+                if (this.orderNum != '' && this.ScreenNum != '' && this.Batch != '' && this.materialType!='') {
+                    axios.post("/Packagings/Get_SPC_MaterialInfo", {
+                        orderNumber: this.orderNum,
+                        ScreenNum: this.ScreenNum,
+                        Batch: this.Batch,
+                        MaterialType:this.materialType
+                    }).then(res => {
+                        if (res.data != []) {
+                            let arr = res.data;
+                            list = this.MaterialList
+                            for (let item in arr) {
+                                if (arr[item].MaterialNumber == null) {
+                                    //如果物料号为空 就把id
+                                    list.push({
+                                        value: arr[item].Material_Name,
+                                        quantity: arr[item].Quantity,
+                                        state: false,
+                                        id: arr[item].Id,
+                                    })
+                                } else {
+                                    list.push({
+                                        value: arr[item].MaterialNumber,
+                                        quantity: arr[item].Quantity,
+                                        state: false,
+                                        id: arr[item].Id,
+                                    })
+                                }
+                            }
+                        }
+                    }).catch(err => {
+                        console.warn("出错")
+                    })
+                } else {
+                    this.MaterialList = [];
+                }
+            }
+        },
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

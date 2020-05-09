@@ -1,0 +1,139 @@
+﻿@{
+    ViewBag.Title = "模组号信息查看";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    .cell {
+        padding: 0 !important;
+    }
+</style>
+
+<div id="app">
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-row class="text-center">
+            <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium"></select-input>
+            <el-button @@click="getTableData" size="medium">查询</el-button>
+            <el-table :data="tableList"
+                      size="mini"
+                      v-loading="loading"
+                      :max-height="screenSize<768?450:600"
+                      style="margin-top:10px;">
+                <el-table-column prop="barcode"
+                                 label="条码号"
+                                 :width="role=='系统管理员'?(screenSize<768?70:''):''"
+                                 align="center"
+                                 sortable>
+                </el-table-column>
+                <el-table-column label="模组号"
+                                 align="center">
+                    <el-table-column prop="barcodeModule"
+                                     label="条码"
+                                     :width="screenSize<768?60:''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                    <el-table-column prop="calibtationModule"
+                                     label="校正"
+                                     :width="screenSize<768?60:''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                    <el-table-column prop="appearanModule"
+                                     label="电检"
+                                     :width="screenSize<768?60:''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column v-if="role=='系统管理员'"
+                                 label="操作"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-button v-if="!scope.row.editShow" @@click="scope.row.editShow=true" type="text" size="mini">修改</el-button>
+                        <div v-else>
+                            <el-button @@click="scope.row.editShow=false" type="text" size="mini">取消</el-button>
+                            <el-button @@click="editModule(scope.row.barcode,scope.row.newData,scope.row)" type="text" size="mini">确认</el-button>
+                            <el-input v-model="scope.row.newData" size="mini"></el-input>
+                        </div>
+
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+@{
+    var role = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role;
+}
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectVal: '',
+            selectOptions: [],
+            tableList: [],
+            loading: false,
+            screenSize: document.body.clientWidth,
+            role:'@role'
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn('获取列表失败')
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        methods: {
+            getTableData() {
+                this.loading = true;
+                axios.post('/Appearances/DisplayTotalModule', {
+                    ordernum: this.selectVal
+                }).then(res => {
+                    if (res.data == '') {
+                        this.$message('此订单没有数据');
+                        this.tableList = [];
+                    } else {
+                        let addInput = res.data;
+                        for (let i of addInput) {
+                            i['newData'] = '';
+                            i['editShow'] = false;
+                        };
+                        this.tableList = addInput;
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    this.loading = false;
+                    console.warn('获取数据失败')
+                });
+            },
+            editModule(barcode, module, row) {
+                axios.post('/Appearances/UpdateTotalModule', {
+                    barcode: barcode,
+                    module: module
+                }).then(res => {
+                    if (res.data === 'True') {
+                        this.$message.success('修改成功');
+                        row.barcodeModule = module;
+                        row.calibtationModule = module;
+                        row.appearanModule = module;
+                        row.editShow = false;
+                        row.newData = '';
+                    } else {
+                        this.$message.error('修改失败');
+                    };
+                }).catch(err => {
+                    console.warn('修改数据失败')
+                });
+            }
+        }
+    })
+</script>

@@ -1,0 +1,233 @@
+﻿@{
+    ViewBag.Title = "订单模组概况";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-table th {
+        padding: 6px 0;
+        background-color: #f4df42;
+        color: #000;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+    }
+
+    .el-table th, .el-table td {
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .green {
+        color: #33CC33;
+    }
+
+    .green2 {
+        color: #66CC00;
+    }
+
+    .red {
+        color: #FF9999;
+    }
+
+    .blue {
+        color: #3399FF;
+    }
+
+    .blue2 {
+        color: #6699FF;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+            <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium"></select-input>
+            <el-button @@click="getTableData(selectVal)" size="medium">查询</el-button>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="statuinfo">
+                    <i :class="statuColor(1)"></i>正常完成&nbsp;
+                    <i :class="statuColor(2)"></i>已完成,存在异常&nbsp;
+                    <i :class="statuColor(4)"></i>正常进行中&nbsp;
+                    <i :class="statuColor(5)"></i>进行中,存在异常&nbsp;
+                    <i :class="statuColor(3)"></i>未开始
+                </div>
+                <el-table :data="infoList"
+                          border
+                          stripe
+                          :max-height="600">
+                    <el-table-column prop="barcode"
+                                     label="条码号"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <a :href="'/Query/barcodeInfo?1='+scope.row.barcode" target="_blank">
+                                {{scope.row.barcode}}
+                            </a>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Assemble"
+                                     label="PQC"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Assemble)">
+                                {{statuVal(scope.row.Assemble)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="FinalQC"
+                                     label="FQC"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.FinalQC)">
+                                {{statuVal(scope.row.FinalQC)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in_MosaicScreen"
+                                     label="拼屏"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Burn_in_MosaicScreen)">
+                                {{statuVal(scope.row.Burn_in_MosaicScreen)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in"
+                                     label="老化"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Burn_in)">
+                                {{statuVal(scope.row.Burn_in)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="CalibrationRecord"
+                                     label="校正"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.CalibrationRecord)">
+                                {{statuVal(scope.row.CalibrationRecord)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Appearance"
+                                     label="电检"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Appearance)">
+                                {{statuVal(scope.row.Appearance)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            infoList: []
+        },
+        created: function () {
+            axios.post("/Query/GetOrderList").then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            //let localOrder = localStorage.getItem('Order');
+            //if (localOrder != null) {
+            //    this.selectVal = localOrder;
+            //};
+            let stargetVal = location.search.slice(1).split("=");
+            if (stargetVal.length == 2) {
+                this.selectVal = stargetVal[1];
+            };
+        },
+        methods: {
+            //状态颜色
+            statuColor: function (v) {
+                switch (v) {
+                    case 1:
+                        return "green el-icon-success";
+                        break;
+                    case 2:
+                        return "green2 el-icon-circle-check";
+                        break;
+                    case 3:
+                        return "red el-icon-error";
+                        break;
+                    case 4:
+                        return "blue el-icon-remove";
+                        break;
+                    case 5:
+                        return "blue2 el-icon-remove-outline";
+                        break;
+                    default: return "";
+                };
+            },
+            //状态值
+            statuVal: function (v) {
+                switch (v) {
+                    case 1:
+                        return "已完成";
+                        break;
+                    case 2:
+                        return "已完成";
+                        break;
+                    case 3:
+                        return "未开始";
+                        break;
+                    case 4:
+                        return "进行中";
+                        break;
+                    case 5:
+                        return "进行中";
+                        break;
+                    default: return "";
+                };
+            },
+            getTableData: function (v) {
+                //localStorage.setItem('Order', v);
+                if (v != "") {
+                    this.loading = true;
+                    axios.post('/Query/DisplayBarcodeListFromOrdernum', {
+                        ordernum: v,
+                    }).then(res => {
+                        //console.log(res.data);
+                        this.infoList = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn(err);
+                        this.loading = false;
+                    });
+                }
+            }
+        }
+    });
+</script>

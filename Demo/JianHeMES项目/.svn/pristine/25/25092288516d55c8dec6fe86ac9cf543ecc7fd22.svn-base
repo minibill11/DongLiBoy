@@ -1,0 +1,2975 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class Process_CapacityController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        private CommonalityController comm = new CommonalityController();
+        private CommonController com = new CommonController();
+
+        #region 页面
+        //工序产能首页
+        public ActionResult Index()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "Index" });
+            }
+            return View();
+        }
+        //标准产能
+        public ActionResult StandardCapacity()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "StandardCapacity" });
+            }
+            return View();
+        }
+        //工序平衡卡
+        public ActionResult ProcessBalanceCard()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "ProcessBalanceCard" });
+            }
+            return View();
+        }
+        #endregion
+
+        #region 总表
+        //总表显示
+        //public ActionResult TotalProcess_Capacity()
+        //{
+
+        //    var type = db.Process_Capacity_Total.Select(c => c.Type).Distinct().ToList();
+        //    JArray totel = new JArray();
+        //    foreach (var item in type)
+        //    {
+        //        JObject result = new JObject();
+        //        var info = db.Process_Capacity_Total.Where(c => c.Type == item).ToList();//
+        //        result.Add("id", info.FirstOrDefault().Id);
+        //        result.Add("Type", item);
+        //        var platform = info.FirstOrDefault().Platform;
+        //        var PCB = info.FirstOrDefault().ProductPCBnumber;
+        //        result.Add("Platform", platform);
+        //        result.Add("PCB", PCB);
+        //        //ic面贴装 //灯面贴装
+        //        if (db.Pick_And_Place.Count(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform) == 0)//判断是否有对应的excel文件
+        //        {
+        //            result.Add("icProductName", null);
+        //            result.Add("icMaxStandardTotal", null);
+        //            result.Add("icMaxStandardOutput", null);
+        //            result.Add("icMinStandardTotal", null);
+        //            result.Add("icMinStandardOutput", null);
+
+        //            result.Add("LightProductName", null);
+        //            result.Add("LightMaxStandardTotal", null);
+        //            result.Add("LightMaxStandardOutput", null);
+        //            result.Add("LightMinStandardTotal", null);
+        //            result.Add("LightMinStandardOutput", null);
+        //        }
+        //        else
+        //        {
+        //            var icMaxStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Max(c => c.PersonNum);
+        //            var icMaxStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Max(c => c.CapacityPerHour);
+        //            var icMinStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Min(c => c.PersonNum);
+        //            var icMinStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Min(c => c.CapacityPerHour);
+        //            result.Add("icProductName", "IC面贴装");
+        //            result.Add("icMaxStandardTotal", icMaxStandardTotal);
+        //            result.Add("icMaxStandardOutput", icMaxStandardOutput);
+        //            result.Add("icMinStandardTotal", icMinStandardTotal);
+        //            result.Add("icMinStandardOutput", icMinStandardOutput); // result.Add("LimtProductName", true);
+        //            var LightMaxStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Max(c => c.PersonNum);
+        //            var LightMaxStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Max(c => c.CapacityPerHour);
+        //            var LightMinStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Min(c => c.PersonNum);
+        //            var LightMinStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Min(c => c.CapacityPerHour);
+        //            result.Add("LightProductName","灯面贴装");
+        //            result.Add("LightMaxStandardTotal", LightMaxStandardTotal);
+        //            result.Add("LightMaxStandardOutput", LightMaxStandardOutput);
+        //            result.Add("LightMinStandardTotal", LightMinStandardTotal);
+        //            result.Add("LightMinStandardOutput", LightMinStandardOutput);
+        //        }
+
+        //        //SMT是否有图片或PDF
+        //        List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + platform + "_" + type + "\\");
+        //        var jpginfo = filesInfo.Where(c => c.Name.StartsWith("SMT") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+        //        if (jpginfo.Count > 0)
+        //            result.Add("SMTjpg", true);
+        //        else
+        //            result.Add("SMTjpg", false);
+        //        var pdfinfo = filesInfo.Where(c => c.Name.StartsWith("SMT") && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+        //        if (pdfinfo.Count > 0)
+        //            result.Add("SMTpdf", true);
+        //        else
+        //            result.Add("SMTpdf", false);
+
+
+        //        //插件
+        //        var plugin = db.Process_Capacity_Plugin.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (plugin.Count == 0)
+        //        {
+        //            result.Add("PluginDevice", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var pluginitem in plugin)
+        //            {
+        //                JObject pluginjobject = new JObject();
+        //                pluginjobject.Add("PluginDeviceID", pluginitem.Id);
+        //                pluginjobject.Add("PluginDeviceName", pluginitem.Name); //插件工序名
+        //                pluginjobject.Add("SingleLampWorkingHours", pluginitem.SingleLampWorkingHours);//插件机台固定标准单灯工时
+        //                pluginjobject.Add("PCBASingleLampNumber", pluginitem.PCBASingleLampNumber);//插件PCBA单灯数
+        //                pluginjobject.Add("PluginStandardNumber", pluginitem.PluginStandardNumber);//插件标配人数
+        //                pluginjobject.Add("PluginStandardCapacity", pluginitem.PluginStandardCapacity);//插件产能标准
+        //                array.Add(pluginjobject);
+        //            }
+        //            result.Add("PluginDevice", array);
+        //        }
+        //        //后焊
+        //        var AfterWeldProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "后焊").ToList();
+        //        if (AfterWeldProcessName.Count == 0)
+        //        {
+        //            result.Add("AfterWeld", null);
+        //        }
+        //        else
+        //        {
+        //            var title = AfterWeldProcessName.Select(c => c.Title).ToList();
+        //            JArray AfterWeld = new JArray();
+        //            foreach (var ProcessName in title)
+        //            {
+        //                JObject jObject = new JObject();
+        //                var message = AfterWeldProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+        //                jObject.Add("AfterWeldProcessName", message.Title);
+        //                jObject.Add("AfterWeldStandardTotal", message.StandardTotal);
+        //                jObject.Add("AfterWeldStandardOutput", message.StandardOutput);
+        //                jObject.Add("AfterWeldStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+        //                AfterWeld.Add(jObject);
+        //            }
+        //            result.Add("AfterWeld", AfterWeld);
+        //        }
+        //        if (IsHavingPDF(item, platform, "后焊"))
+        //            result.Add("AfterWeldPdf", true);
+        //        else
+        //            result.Add("AfterWeldPdf", false);
+        //        if (IsHavingIMG(item, platform, "后焊"))
+        //            result.Add("AfterWeldImg", true);
+        //        else
+        //            result.Add("AfterWeldImg", false);
+
+        //        //三防
+        //        var threeprof = db.Process_Capacity_ThreeProf.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (threeprof.Count == 0)
+        //        {
+        //            result.Add("ThreeProf", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var threeprofitem in threeprof)
+        //            {
+        //                JObject jObject = new JObject();
+        //                jObject.Add("ThreeProfID", threeprofitem.Id);
+        //                jObject.Add("ThreeProfProcessName", threeprofitem.ThreeProfProcessName);//三防工序描述
+        //                jObject.Add("ThreeProfStandardTotal", threeprofitem.ThreeProfStandardTotal);//三防标准总人数
+        //                jObject.Add("ThreeProfStabdardOutput", threeprofitem.ThreeProfStabdardOutput);//三防标准产量
+        //                array.Add(jObject);
+        //            }
+        //            result.Add("ThreeProf", array);
+        //        }
+
+        //        //打底壳
+        //        var BottomCasProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "打底壳").ToList();
+        //        if (BottomCasProcessName.Count == 0)
+        //        {
+        //            result.Add("BottomCas", null);
+        //        }
+        //        else
+        //        {
+        //            var title = BottomCasProcessName.Select(c => c.Title).ToList();
+        //            JArray BottomCas = new JArray();
+        //            foreach (var ProcessName in title)
+        //            {
+        //                JObject jObject = new JObject();
+        //                var message = BottomCasProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+        //                jObject.Add("BottomCasProcessName", message.Title);
+        //                jObject.Add("BottomCasStandardTotal", message.StandardTotal);
+        //                jObject.Add("BottomCasStandardOutput", message.StandardOutput);
+        //                jObject.Add("BottomCasStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+        //                jObject.Add("BottomCasDispensMachineNum", message.DispensMachineNum);
+        //                jObject.Add("BottomCasScrewMachineNum", message.ScrewMachineNum);
+        //                BottomCas.Add(jObject);
+        //            }
+        //            result.Add("BottomCas", BottomCas);
+        //        }
+        //        if (IsHavingPDF(item, platform, "打底壳"))
+        //            result.Add("ABottomCasPdf", true);
+        //        else
+        //            result.Add("BottomCasPdf", false);
+        //        if (IsHavingIMG(item, platform, "打底壳"))
+        //            result.Add("BottomCasImg", true);
+        //        else
+        //            result.Add("BottomCasImg", false);
+
+        //        //装磁吸
+        //        var magnetic = db.Process_Capacity_Magnetic.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (magnetic.Count == 0)
+        //        {
+        //            result.Add("Magnetic", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var magneticitem in magnetic)
+        //            {
+        //                JObject jObject = new JObject();
+        //                jObject.Add("MagneticID", magneticitem.Id);
+        //                jObject.Add("MagneticProcessName", magneticitem.MagneticSuctionProcessName);//装磁吸工序描述
+        //                jObject.Add("MagneticSuctionStandardTotal", magneticitem.MagneticSuctionStandardTotal);//装磁吸标准总人数
+        //                jObject.Add("MagneticSuctionStabdardOutput", magneticitem.MagneticSuctionStabdardOutput);//装磁吸标准产量
+        //                jObject.Add("MagneticSuctionStandardHourlyOutputPerCapita", magneticitem.MagneticSuctionStabdardOutput);//装磁吸人均时产量
+        //                array.Add(jObject);
+        //            }
+        //            result.Add("Magnetic", array);
+        //        }
+
+
+        //        //喷墨
+        //        var inkjet = db.Process_Capacity_Inkjet.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (inkjet.Count == 0)
+        //        {
+        //            result.Add("Inkjet", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var inkjetitem in inkjet)
+        //            {
+        //                JObject jObject = new JObject();
+        //                jObject.Add("InkjetID", inkjetitem.Id);
+        //                jObject.Add("InkjetProcessName", inkjetitem.InkjetProcessName);//喷墨工序
+        //                jObject.Add("InkjetSuctionStandardTotal", inkjetitem.InkjetSuctionStandardTotal);//喷墨配置人数
+        //                jObject.Add("InkjetStabdardOutputPerHour", inkjetitem.InkjetStabdardOutputPerHour);//喷墨每小时产能
+        //                array.Add(jObject);
+        //            }
+        //            result.Add("Inkjet", array);
+        //        }
+
+        //        //灌胶
+        //        var glue = db.Process_Capacity_Glue.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (glue.Count == 0)
+        //        {
+        //            result.Add("Glue", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var glueitem in glue)
+        //            {
+        //                JObject jObject = new JObject();
+        //                jObject.Add("GlueID", glueitem.Id);
+        //                jObject.Add("GlueProcessName", glueitem.GlueProcessName);//灌胶工序描述
+        //                jObject.Add("GlueStandardTotal", glueitem.GlueStandardTotal);//灌胶标准总人数
+        //                jObject.Add("GlueStabdardOutput", glueitem.GlueStabdardOutput);//灌胶标准产量
+        //                array.Add(jObject);
+        //            }
+        //            result.Add("Glue", array);
+        //        }
+
+        //        //气密
+        //        var airtight = db.Process_Capacity_Airtight.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (airtight.Count == 0)
+        //        {
+        //            result.Add("Airtight", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var airtightitem in airtight)
+        //            {
+        //                JObject jObject = new JObject();
+        //                jObject.Add("AirtightID", airtightitem.Id);
+        //                jObject.Add("AirtightProcessName", airtightitem.AirtightProcessName);//气密工序描述
+        //                jObject.Add("AirtightStandardTotal", airtightitem.AirtightStandardTotal);//气密标准总人数
+        //                jObject.Add("AirtightStabdardOutput", airtightitem.AirtightStabdardOutput);//气密标准产量
+        //                array.Add(jObject);
+        //            }
+        //            result.Add("Airtight", array);
+        //        }
+
+
+        //        //锁面罩
+        //        var LockTheMaskProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "锁面罩").ToList();
+        //        if (LockTheMaskProcessName.Count() == 0)
+        //        {
+        //            result.Add("LockTheMask", null);
+        //        }
+        //        else
+        //        {
+        //            var title = LockTheMaskProcessName.Select(c => c.Title).ToList();
+        //            JArray LockTheMask = new JArray();
+        //            foreach (var ProcessName in title)
+        //            {
+        //                JObject jObject = new JObject();
+        //                var message = LockTheMaskProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+        //                jObject.Add("LockTheMaskProcessName", message.Title);
+        //                jObject.Add("LockTheMaskStandardTotal", message.StandardTotal);
+        //                jObject.Add("LockTheMaskStandardOutput", message.StandardOutput);
+        //                jObject.Add("LockTheMaskStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+        //                jObject.Add("LockTheMaskScrewMachineNum", message.ScrewMachineNum);
+        //                LockTheMask.Add(jObject);
+        //            }
+        //            result.Add("LockTheMask", LockTheMask);
+        //        }
+        //        if (IsHavingPDF(item, platform, "锁面罩"))
+        //            result.Add("LockTheMaskPdf", true);
+        //        else
+        //            result.Add("LockTheMaskPdf", false);
+        //        if (IsHavingIMG(item, platform, "锁面罩"))
+        //            result.Add("LockTheMaskImg", true);
+        //        else
+        //            result.Add("LockTheMaskImg", false);
+
+        //        //模组装配
+        //        var ModuleProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "模组装配").ToList();
+        //        if (ModuleProcessName.Count == 0)
+        //        {
+        //            result.Add("Module", null);
+        //        }
+        //        else
+        //        {
+
+        //            var title = ModuleProcessName.Select(c => c.Title).ToList();
+        //            JArray Module = new JArray();
+        //            foreach (var ProcessName in title)
+        //            {
+        //                JObject jObject = new JObject();
+        //                var message = ModuleProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+        //                jObject.Add("ModuleProcessName", message.Title);
+        //                result.Add("ModuleStandardTotal", message.StandardTotal);
+        //                result.Add("ModuleBalanceRate", message.BalanceRate + "%");
+        //                result.Add("ModuleBottleneck", message.Bottleneck);
+        //                result.Add("ModuleStandardOutput", message.StandardOutput);
+        //                result.Add("ModuleStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+        //                Module.Add(jObject);
+        //            }
+        //            result.Add("Module", Module);
+        //        }
+        //        if (IsHavingPDF(item, platform, "模组装配"))
+        //            result.Add("ModulePdf", true);
+        //        else
+        //            result.Add("ModulePdf", false);
+        //        if (IsHavingIMG(item, platform, "模组装配"))
+        //            result.Add("ModuleImg", true);
+        //        else
+        //            result.Add("ModuleImg", false);
+
+        //        //老化
+        //        var burnin = db.Process_Capacity_Burin.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+        //        if (burnin.Count == 0)
+        //        {
+        //            result.Add("Burin", null);
+
+        //        }
+        //        else
+        //        {
+        //            JArray array = new JArray();
+        //            foreach (var burninitem in burnin)
+        //            {
+        //                JObject jObject = new JObject();
+        //                jObject.Add("AirtightID", burninitem.Id);
+        //                jObject.Add("BurinOneProcessName", burninitem.BurinOneProcessName);//老化工序描述1
+        //                jObject.Add("BurninOneSuctionStandardTotal", burninitem.BurninOneSuctionStandardTotal);//老化1标配人数
+        //                jObject.Add("BurinOneStabdardOutputPerHour", burninitem.BurinOneStabdardOutputPerHour);//老化1每小时产能
+        //                jObject.Add("BurinTwoProcessName", burninitem.BurinTwoProcessName);//老化2工序描述
+        //                jObject.Add("BurinTwoSuctionStandardTotal", burninitem.BurinTwoSuctionStandardTotal);//老化2标配人数
+        //                jObject.Add("BurinTwoStabdardOutputPerHour", burninitem.BurinTwoStabdardOutputPerHour);//老化2每小时标准产能
+        //                array.Add(jObject);
+        //            }
+        //            result.Add("Burin", array);
+        //        }
+        //        //包装
+        //        var PackingProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "包装").ToList();
+        //        if (PackingProcessName.Count == 0)
+        //        {
+        //            result.Add("Packing", null);
+        //        }
+        //        else
+        //        {
+
+        //            var title = PackingProcessName.Select(c => c.Title).ToList();
+        //            JArray Packing = new JArray();
+        //            foreach (var ProcessName in title)
+        //            {
+        //                JObject jObject = new JObject();
+        //                var message = PackingProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+        //                jObject.Add("PackingProcessName", message.Title);
+        //                result.Add("PackingStandardTotal", message.StandardTotal);
+        //                result.Add("PackingStandardOutput", message.StandardOutput);
+        //                Packing.Add(jObject);
+        //            }
+        //            result.Add("Packing", Packing);
+        //        }
+        //        if (IsHavingPDF(item, platform, "包装"))
+        //            result.Add("PackingPdf", true);
+        //        else
+        //            result.Add("PackingPdf", false);
+        //        if (IsHavingIMG(item, platform, "包装"))
+        //            result.Add("PackingImg", true);
+        //        else
+        //            result.Add("PackingImg", false);
+        //        //--启用编辑的字段，方便前端使用--
+        //        result.Add("PluginEidt", false);
+        //        result.Add("ThreeProfEidt", false);
+        //        result.Add("BottomCasEidt", false);
+        //        result.Add("MagneticEidt", false);
+        //        result.Add("InkjetEidt", false);
+        //        result.Add("GlueEidt", false);
+        //        result.Add("AirtightEidt", false);
+        //        result.Add("LockTheMaskEdit", false);
+        //        result.Add("BurinEidt", false);
+        //        //--edit end
+        //        totel.Add(result);
+        //    }
+
+        //    return Content(JsonConvert.SerializeObject(totel));
+        //}
+
+        [HttpPost]
+        //总表查询
+        public ActionResult TotalProcess_Capacity(string protype, string proplatform)
+        {
+            var total = db.Process_Capacity_Total.ToList();
+            if (!string.IsNullOrEmpty(proplatform))
+            {
+                total = total.Where(c => c.Platform.Contains(proplatform)).ToList();
+            }
+            if (!string.IsNullOrEmpty(protype))
+            {
+                total = total.Where(c => c.Type.Contains(protype)).ToList();
+            }
+            var idtolist = total.OrderByDescending(c => c.Id).Select(c => c.Id).ToList();
+            JArray jarray = new JArray();
+            foreach (var id in idtolist)
+            {
+                JObject result = new JObject();
+                var info = db.Process_Capacity_Total.Find(id);
+                var item = info.Type;
+                result.Add("id", info.Id);
+                result.Add("Type", info.Type);
+                var platform = info.Platform;
+                var PCB = info.ProductPCBnumber;
+                result.Add("Platform", platform);
+                result.Add("PCB", PCB);
+                result.Add("TotalEdit", false);//前端用
+                result.Add("editNum", 0);//前端用
+                var ispass = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).FirstOrDefault();
+                //ic面贴装 //灯面贴装
+                if ((db.Pick_And_Place.Count(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform) == 0))//判断是否有对应的excel文件
+                {
+                    result.Add("SMTExaminanMessage", null);
+                    result.Add("icProductName", null);
+                    result.Add("icMaxStandardTotal", null);
+                    result.Add("icMaxStandardOutput", null);
+                    result.Add("icMinStandardTotal", null);
+                    result.Add("icMinStandardOutput", null);
+                    result.Add("LightProductName", null);
+                    result.Add("LightMaxStandardTotal", null);
+                    result.Add("LightMaxStandardOutput", null);
+                    result.Add("LightMinStandardTotal", null);
+                    result.Add("LightMinStandardOutput", null);
+                }
+                
+                else
+                {
+                    var iccount = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                    if (iccount.FirstOrDefault().Section == "/")
+                    {
+                        result.Add("SMTExaminanMessage", "审核通过");
+                        result.Add("icProductName", "/");
+                        result.Add("icMaxStandardTotal", null);
+                        result.Add("icMaxStandardOutput", null);
+                        result.Add("icMinStandardTotal", null);
+                        result.Add("icMinStandardOutput", null);
+                        result.Add("LightProductName", "/");
+                        result.Add("LightMaxStandardTotal", null);
+                        result.Add("LightMaxStandardOutput", null);
+                        result.Add("LightMinStandardTotal", null);
+                        result.Add("LightMinStandardOutput", null);
+                    }
+                    else
+                    {
+                        if (iccount.Where(c => c.ProcessDescription == "IC面贴装").Count() == 0)
+                        {
+                            result.Add("SMTExaminanMessage", "审核通过");
+                            result.Add("icProductName", "IC面贴装");
+                            result.Add("icMaxStandardTotal", null);
+                            result.Add("icMaxStandardOutput", null);
+                            result.Add("icMinStandardTotal", null);
+                            result.Add("icMinStandardOutput", null);
+                        }
+                        else
+                        {
+                            var icMaxStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Max(c => c.PersonNum);
+                            var icMaxStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Max(c => c.CapacityPerHour);
+                            var icMinStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Min(c => c.PersonNum);
+                            var icMinStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "IC面贴装").Min(c => c.CapacityPerHour);
+                            result.Add("SMTExaminanMessage", "审核通过");
+                            result.Add("icProductName", "IC面贴装");
+                            result.Add("icMaxStandardTotal", icMaxStandardTotal);
+                            result.Add("icMaxStandardOutput", icMaxStandardOutput);
+                            result.Add("icMinStandardTotal", icMinStandardTotal);
+                            result.Add("icMinStandardOutput", icMinStandardOutput);
+                        }// result.Add("LimtProductName", true);
+                        if (iccount.Where(c => c.ProcessDescription == "灯面贴装").Count() == 0)
+                        {
+                            result.Add("SMTExaminanMessage", "审核通过");
+                            result.Add("LightProductName", "灯面贴装");
+                            result.Add("LightMaxStandardTotal", null);
+                            result.Add("LightMaxStandardOutput", null);
+                            result.Add("LightMinStandardTotal", null);
+                            result.Add("LightMinStandardOutput", null);
+                        }
+                        else
+                        {
+                            var LightMaxStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Max(c => c.PersonNum);
+                            var LightMaxStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Max(c => c.CapacityPerHour);
+                            var LightMinStandardTotal = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Min(c => c.PersonNum);
+                            var LightMinStandardOutput = db.Pick_And_Place.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.ProcessDescription == "灯面贴装").Min(c => c.CapacityPerHour);
+                            result.Add("LightProductName", "灯面贴装");
+                            result.Add("LightMaxStandardTotal", LightMaxStandardTotal);
+                            result.Add("LightMaxStandardOutput", LightMaxStandardOutput);
+                            result.Add("LightMinStandardTotal", LightMinStandardTotal);
+                            result.Add("LightMinStandardOutput", LightMinStandardOutput);
+                        }
+                    }
+                }
+
+                //SMT是否有图片或PDF
+                if (IsHavingIMG(id, "SMT", "SMT"))
+                    result.Add("SMTjpg", true);
+                else
+                    result.Add("SMTjpg", false);
+
+                if (IsHavingPDF(id, "SMT", "SMT"))
+                    result.Add("SMTpdf", true);
+                else
+                    result.Add("SMTpdf", false);
+
+
+                //插件
+                var plugin = db.Process_Capacity_Plugin.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                if (plugin.Count == 0)
+                {
+                    result.Add("PluginDevice", null);
+
+                }
+                else
+                {
+                    JArray array = new JArray();
+                    foreach (var pluginitem in plugin)
+                    {
+                        JObject pluginjobject = new JObject();
+                        pluginjobject.Add("PluginEidt", false);//前端用
+                        pluginjobject.Add("PluginDeviceID", pluginitem.Id);
+                        pluginjobject.Add("PluginDeviceName", pluginitem.Name); //插件工序名
+                        pluginjobject.Add("SingleLampWorkingHours", pluginitem.SingleLampWorkingHours);//插件机台固定标准单灯工时
+                        pluginjobject.Add("PCBASingleLampNumber", pluginitem.PCBASingleLampNumber);//插件PCBA单灯数
+                        pluginjobject.Add("PluginStandardNumber", pluginitem.PluginStandardNumber);//插件标配人数
+                        pluginjobject.Add("PluginStandardCapacity", pluginitem.PluginStandardCapacity);//插件产能标准
+                        array.Add(pluginjobject);
+                    }
+                    result.Add("PluginDevice", array);
+                }
+                //后焊
+                var AfterWeldProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "后焊").ToList();
+                if (AfterWeldProcessName.Count == 0)
+                {
+                    result.Add("AfterWeld", null);
+                }
+                else
+                {
+                    var title = AfterWeldProcessName.Select(c => c.Title).Distinct().ToList();
+                    JArray AfterWeld = new JArray();
+                    foreach (var ProcessName in title)
+                    {
+                        JObject jObject = new JObject();
+                        var message = AfterWeldProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+                        if (string.IsNullOrEmpty(message.ExaminanPeople))
+                        {
+                            jObject.Add("AfterWeldExaminanMessage", "未审核");
+                            jObject.Add("AfterWeldID", message.Id);
+                            jObject.Add("AfterWeldProcessName", message.Title);
+                            jObject.Add("AfterWeldStandardTotal", null);
+                            jObject.Add("AfterWeldStandardOutput", null);
+                            jObject.Add("AfterWeldStandardHourlyOutputPerCapita", null);
+                            jObject.Add("AfterWeldPdf", false);
+                            jObject.Add("AfterWeldImg", false);
+                        }
+                        else if (message.IsPassExaminan == false)
+                        {
+                            jObject.Add("AfterWeldExaminanMessage", "审核未通过");
+                            jObject.Add("AfterWeldID", message.Id);
+                            jObject.Add("AfterWeldProcessName", message.Title);
+                            jObject.Add("AfterWeldStandardTotal", null);
+                            jObject.Add("AfterWeldStandardOutput", null);
+                            jObject.Add("AfterWeldStandardHourlyOutputPerCapita", null);
+                            jObject.Add("AfterWeldPdf", false);
+                            jObject.Add("AfterWeldImg", false);
+                        }
+                        else
+                        {
+                            jObject.Add("AfterWeldExaminanMessage", "审核通过");
+                            jObject.Add("AfterWeldID", message.Id);
+                            jObject.Add("AfterWeldProcessName", message.Title);
+                            jObject.Add("AfterWeldStandardTotal", message.StandardTotal);
+                            jObject.Add("AfterWeldStandardOutput", message.StandardOutput);
+                            jObject.Add("AfterWeldStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+                            if (IsHavingPDF(id, "后焊", ProcessName))
+                                jObject.Add("AfterWeldPdf", true);
+                            else
+                                jObject.Add("AfterWeldPdf", false);
+                            if (IsHavingIMG(id, "后焊", ProcessName))
+                                jObject.Add("AfterWeldImg", true);
+                            else
+                                jObject.Add("AfterWeldImg", false);
+                        }
+                        AfterWeld.Add(jObject);
+                    }
+                    result.Add("AfterWeld", AfterWeld);
+                }
+                //三防
+                var threeprof = db.Process_Capacity_ThreeProf.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                if (threeprof.Count == 0)
+                {
+                    result.Add("ThreeProf", null);
+
+                }
+                else
+                {
+                    JArray array = new JArray();
+                    foreach (var threeprofitem in threeprof)
+                    {
+                        JObject jObject = new JObject();
+                        jObject.Add("ThreeProfEidt", false);//前端用
+                        jObject.Add("ThreeProfID", threeprofitem.Id);
+                        jObject.Add("ThreeProfProcessName", threeprofitem.ThreeProfProcessName);//三防工序描述
+                        jObject.Add("ThreeProfStandardTotal", threeprofitem.ThreeProfStandardTotal);//三防标准总人数
+                        jObject.Add("ThreeProfStabdardOutput", threeprofitem.ThreeProfStabdardOutput);//三防标准产量
+                        array.Add(jObject);
+                    }
+                    result.Add("ThreeProf", array);
+                }
+
+                //打底壳
+                var BottomCasProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "打底壳").ToList();
+                if (BottomCasProcessName.Count == 0)
+                {
+                    result.Add("BottomCas", null);
+                }
+                else
+                {
+                    var title = BottomCasProcessName.Select(c => c.Title).Distinct().ToList();
+                    JArray BottomCas = new JArray();
+                    foreach (var ProcessName in title)
+                    {
+                        JObject jObject = new JObject();
+                        var message = BottomCasProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+                        if (string.IsNullOrEmpty(message.ExaminanPeople))
+                        {
+                            jObject.Add("BottomCasEidt", false);//前端用
+                            jObject.Add("BottomCasExaminanMessage", "未审核");
+                            jObject.Add("BottomCasID", message.Id);
+                            jObject.Add("BottomCasProcessName", message.Title);
+                            jObject.Add("BottomCasStandardTotal", null);
+                            jObject.Add("BottomCasStandardOutput", null);
+                            jObject.Add("BottomCasStandardHourlyOutputPerCapita", null);
+                            jObject.Add("BottomCasDispensMachineNum", null);
+                            jObject.Add("BottomCasScrewMachineNum", null);
+                            jObject.Add("BottomCasPdf", false);
+                            jObject.Add("BottomCasImg", false);
+                        }
+                        else if (message.IsPassExaminan == false)
+                        {
+                            jObject.Add("BottomCasEidt", false);//前端用
+                            jObject.Add("BottomCasExaminanMessage", "审核未通过");
+                            jObject.Add("BottomCasID", message.Id);
+                            jObject.Add("BottomCasProcessName", message.Title);
+                            jObject.Add("BottomCasStandardTotal", null);
+                            jObject.Add("BottomCasStandardOutput", null);
+                            jObject.Add("BottomCasStandardHourlyOutputPerCapita", null);
+                            jObject.Add("BottomCasDispensMachineNum", null);
+                            jObject.Add("BottomCasScrewMachineNum", null);
+                            jObject.Add("BottomCasPdf", false);
+                            jObject.Add("BottomCasImg", false);
+                        }
+                        else
+                        {
+                            jObject.Add("BottomCasEidt", false);//前端用
+                            jObject.Add("BottomCasID", message.Id);
+                            jObject.Add("BottomCasExaminanMessage", "审核通过");
+                            jObject.Add("BottomCasProcessName", message.Title);
+                            jObject.Add("BottomCasStandardTotal", message.StandardTotal);
+                            jObject.Add("BottomCasStandardOutput", message.StandardOutput);
+                            jObject.Add("BottomCasStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+                            jObject.Add("BottomCasDispensMachineNum", message.DispensMachineNum);
+                            jObject.Add("BottomCasScrewMachineNum", message.ScrewMachineNum);
+                            if (IsHavingPDF(id, "打底壳", ProcessName))
+                                jObject.Add("BottomCasPdf", true);
+                            else
+                                jObject.Add("BottomCasPdf", false);
+                            if (IsHavingIMG(id, "打底壳", ProcessName))
+                                jObject.Add("BottomCasImg", true);
+                            else
+                                jObject.Add("BottomCasImg", false);
+                        }
+                        BottomCas.Add(jObject);
+                    }
+                    result.Add("BottomCas", BottomCas);
+                }
+
+
+                //装磁吸
+                var magnetic = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "装磁吸安装板").ToList();
+                if (magnetic.Count == 0)
+                {
+                    result.Add("Magnetic", null);
+
+                }
+                else
+                {
+                    var title = magnetic.Select(c => c.Title).Distinct().ToList();
+                    JArray magneticJarry = new JArray();
+                    foreach (var ProcessName in title)
+                    {
+                        JObject jObject = new JObject();
+                        var message = magnetic.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+                        if (string.IsNullOrEmpty(message.ExaminanPeople))
+                        {
+                            jObject.Add("MagneticEidt", false);//前端用
+                            jObject.Add("MagneticExaminanMessage", "未审核");
+                            jObject.Add("MagneticID", message.Id);
+                            jObject.Add("MagneticProcessName", message.Title);
+                            jObject.Add("MagneticStandardTotal", null);
+                            jObject.Add("MagneticStabdardOutput", null);
+                            jObject.Add("MagneticStandardHourlyOutputPerCapita", null);
+                        }
+                        else if (message.IsPassExaminan == false)
+                        {
+                            jObject.Add("MagneticEidt", false);//前端用
+                            jObject.Add("MagneticExaminanMessage", "未审核");
+                            jObject.Add("MagneticID", message.Id);
+                            jObject.Add("MagneticProcessName", message.Title);
+                            jObject.Add("MagneticStandardTotal", null);
+                            jObject.Add("MagneticStabdardOutput", null);
+                            jObject.Add("MagneticStandardHourlyOutputPerCapita", null);
+                        }
+                        else
+                        {
+                            jObject.Add("MagneticEidt", false);//前端用
+                            jObject.Add("MagneticID", message.Id);
+                            jObject.Add("MagneticExaminanMessage", "审核通过");
+                            jObject.Add("MagneticProcessName", message.Title);
+                            jObject.Add("MagneticStandardTotal", message.StandardTotal);
+                            jObject.Add("MagneticStabdardOutput", message.StandardOutput);
+                            jObject.Add("MagneticStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+                            if (IsHavingPDF(id, "装磁吸安装板", ProcessName))
+                                jObject.Add("MagneticPdf", true);
+                            else
+                                jObject.Add("MagneticPdf", false);
+                            if (IsHavingIMG(id, "装磁吸安装板", ProcessName))
+                                jObject.Add("MagneticImg", true);
+                            else
+                                jObject.Add("MagneticImg", false);
+                        }
+                        magneticJarry.Add(jObject);
+
+                    }
+                    result.Add("Magnetic", magneticJarry);
+                }
+
+
+                //喷墨
+                var inkjet = db.Process_Capacity_Inkjet.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                if (inkjet.Count == 0)
+                {
+                    result.Add("Inkjet", null);
+
+                }
+                else
+                {
+                    JArray array = new JArray();
+                    foreach (var inkjetitem in inkjet)
+                    {
+                        JObject jObject = new JObject();
+                        jObject.Add("InkjetEidt", false);//前端用
+                        jObject.Add("InkjetID", inkjetitem.Id);
+                        jObject.Add("InkjetProcessName", inkjetitem.InkjetProcessName);//喷墨工序
+                        jObject.Add("InkjetSuctionStandardTotal", inkjetitem.InkjetSuctionStandardTotal);//喷墨配置人数
+                        jObject.Add("InkjetStabdardOutputPerHour", inkjetitem.InkjetStabdardOutputPerHour);//喷墨每小时产能
+                        array.Add(jObject);
+                    }
+                    result.Add("Inkjet", array);
+                }
+
+                //灌胶
+                var glue = db.Process_Capacity_Glue.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                if (glue.Count == 0)
+                {
+                    result.Add("Glue", null);
+
+                }
+                else
+                {
+                    JArray array = new JArray();
+                    foreach (var glueitem in glue)
+                    {
+                        JObject jObject = new JObject();
+                        jObject.Add("GlueEidt", false);//前端用
+                        jObject.Add("GlueID", glueitem.Id);
+                        jObject.Add("GlueProcessName", glueitem.GlueProcessName);//灌胶工序描述
+                        jObject.Add("GlueStandardTotal", glueitem.GlueStandardTotal);//灌胶标准总人数
+                        jObject.Add("GlueStabdardOutput", glueitem.GlueStabdardOutput);//灌胶标准产量
+                        array.Add(jObject);
+                    }
+                    result.Add("Glue", array);
+                }
+
+                //气密
+                var airtight = db.Process_Capacity_Airtight.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                if (airtight.Count == 0)
+                {
+                    result.Add("Airtight", null);
+
+                }
+                else
+                {
+                    JArray array = new JArray();
+                    foreach (var airtightitem in airtight)
+                    {
+                        JObject jObject = new JObject();
+                        jObject.Add("AirtightEidt", false);//前端用
+                        jObject.Add("AirtightID", airtightitem.Id);
+                        jObject.Add("AirtightProcessName", airtightitem.AirtightProcessName);//气密工序描述
+                        jObject.Add("AirtightStandardTotal", airtightitem.AirtightStandardTotal);//气密标准总人数
+                        jObject.Add("AirtightStabdardOutput", airtightitem.AirtightStabdardOutput);//气密标准产量
+                        array.Add(jObject);
+                    }
+                    result.Add("Airtight", array);
+                }
+
+
+                //锁面罩
+                var LockTheMaskProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "锁面罩").ToList();
+                if (LockTheMaskProcessName.Count() == 0)
+                {
+                    result.Add("LockTheMask", null);
+                }
+                else
+                {
+                    var title = LockTheMaskProcessName.Select(c => c.Title).Distinct().ToList();
+                    JArray LockTheMask = new JArray();
+                    foreach (var ProcessName in title)
+                    {
+                        JObject jObject = new JObject();
+                        var message = LockTheMaskProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+                        if (string.IsNullOrEmpty(message.ExaminanPeople))
+                        {
+                            jObject.Add("LockTheMaskEdit", false);//前端用
+                            jObject.Add("LockTheMaskExaminanMessage", "未审核");
+                            jObject.Add("LockTheMaskID", message.Id);
+                            jObject.Add("LockTheMaskProcessName", message.Title);
+                            jObject.Add("LockTheMaskStandardTotal", null);
+                            jObject.Add("LockTheMaskStandardOutput", null);
+                            jObject.Add("LockTheMaskStandardHourlyOutputPerCapita", null);
+                            jObject.Add("LockTheMaskScrewMachineNum", message.ScrewMachineNum);
+                            jObject.Add("LockTheMaskPdf", false);
+                            jObject.Add("LockTheMaskImg", false);
+                        }
+                        else if (message.IsPassExaminan == false)
+                        {
+                            jObject.Add("LockTheMaskEdit", false);//前端用
+                            jObject.Add("LockTheMaskExaminanMessage", "审核未通过");
+                            jObject.Add("LockTheMaskID", message.Id);
+                            jObject.Add("LockTheMaskProcessName", message.Title);
+                            jObject.Add("LockTheMaskStandardTotal", null);
+                            jObject.Add("LockTheMaskStandardOutput", null);
+                            jObject.Add("LockTheMaskStandardHourlyOutputPerCapita", null);
+                            jObject.Add("LockTheMaskScrewMachineNum", message.ScrewMachineNum);
+                            jObject.Add("LockTheMaskPdf", false);
+                            jObject.Add("LockTheMaskImg", false);
+                        }
+                        else
+                        {
+                            jObject.Add("LockTheMaskEdit", false);//前端用
+                            jObject.Add("LockTheMaskID", message.Id);
+                            jObject.Add("LockTheMaskExaminanMessage", "审核通过");
+                            jObject.Add("LockTheMaskProcessName", message.Title);
+                            jObject.Add("LockTheMaskStandardTotal", message.StandardTotal);
+                            jObject.Add("LockTheMaskStandardOutput", message.StandardOutput);
+                            jObject.Add("LockTheMaskStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+                            jObject.Add("LockTheMaskScrewMachineNum", message.ScrewMachineNum);
+                            if (IsHavingPDF(id, "锁面罩", ProcessName))
+                                jObject.Add("LockTheMaskPdf", true);
+                            else
+                                jObject.Add("LockTheMaskPdf", false);
+                            if (IsHavingIMG(id, "锁面罩", ProcessName))
+                                jObject.Add("LockTheMaskImg", true);
+                            else
+                                jObject.Add("LockTheMaskImg", false);
+                        }
+                        LockTheMask.Add(jObject);
+                    }
+                    result.Add("LockTheMask", LockTheMask);
+                }
+
+
+                //模组装配
+                var ModuleProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "模组装配").ToList();
+                if (ModuleProcessName.Count == 0)
+                {
+                    result.Add("Module", null);
+                }
+                else
+                {
+
+                    var title = ModuleProcessName.Select(c => c.Title).Distinct().ToList();
+                    JArray Module = new JArray();
+                    foreach (var ProcessName in title)
+                    {
+                        JObject jObject = new JObject();
+                        var message = ModuleProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+                        if (string.IsNullOrEmpty(message.ExaminanPeople))
+                        {
+                            jObject.Add("ModuleID", message.Id);
+                            jObject.Add("ModuleExaminanMessage", "未审核");
+                            jObject.Add("ModuleProcessName", message.Title);
+                            jObject.Add("ModuleStandardTotal", null);
+                            jObject.Add("ModuleBalanceRate", null);
+                            jObject.Add("ModuleBottleneck", null);
+                            jObject.Add("ModuleStandardOutput", null);
+                            jObject.Add("ModuleStandardHourlyOutputPerCapita", null);
+                            jObject.Add("ModulePdf", false);
+                            jObject.Add("ModuleImg", false);
+                        }
+                        else if (message.IsPassExaminan == false)
+                        {
+                            jObject.Add("ModuleID", message.Id);
+                            jObject.Add("ModuleExaminanMessage", "审核未通过");
+                            jObject.Add("ModuleProcessName", message.Title);
+                            jObject.Add("ModuleStandardTotal", null);
+                            jObject.Add("ModuleBalanceRate", null);
+                            jObject.Add("ModuleBottleneck", null);
+                            jObject.Add("ModuleStandardOutput", null);
+                            jObject.Add("ModuleStandardHourlyOutputPerCapita", null);
+                            jObject.Add("ModulePdf", false);
+                            jObject.Add("ModuleImg", false);
+                        }
+                        else
+                        {
+                            jObject.Add("ModuleID", message.Id);
+                            jObject.Add("ModuleExaminanMessage", "审核通过");
+                            jObject.Add("ModuleProcessName", message.Title);
+                            jObject.Add("ModuleStandardTotal", message.StandardTotal);
+                            jObject.Add("ModuleBalanceRate", message.BalanceRate + "%");
+                            jObject.Add("ModuleBottleneck", message.Bottleneck);
+                            jObject.Add("ModuleStandardOutput", message.StandardOutput);
+                            jObject.Add("ModuleStandardHourlyOutputPerCapita", message.StandardHourlyOutputPerCapita);
+                            if (IsHavingPDF(id, "模组装配", ProcessName))
+                                jObject.Add("ModulePdf", true);
+                            else
+                                jObject.Add("ModulePdf", false);
+                            if (IsHavingIMG(id, "模组装配", ProcessName))
+                                jObject.Add("ModuleImg", true);
+                            else
+                                jObject.Add("ModuleImg", false);
+                        }
+                        Module.Add(jObject);
+                    }
+                    result.Add("Module", Module);
+                }
+
+
+                //老化
+                var burnin = db.Process_Capacity_Burin.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform).ToList();
+                if (burnin.Count == 0)
+                {
+                    result.Add("Burin", null);
+
+                }
+                else
+                {
+                    JArray array = new JArray();
+                    foreach (var burninitem in burnin)
+                    {
+                        JObject jObject = new JObject();
+                        jObject.Add("BurinEidt", false);//前端用
+                        jObject.Add("BurinID", burninitem.Id);
+                        jObject.Add("BurinOneProcessName", burninitem.BurinOneProcessName);//老化工序描述1
+                        jObject.Add("BurninOneSuctionStandardTotal", burninitem.BurninOneSuctionStandardTotal);//老化1标配人数
+                        jObject.Add("BurinOneStabdardOutputPerHour", burninitem.BurinOneStabdardOutputPerHour);//老化1每小时产能
+                        jObject.Add("BurinTwoProcessName", burninitem.BurinTwoProcessName);//老化2工序描述
+                        jObject.Add("BurinTwoSuctionStandardTotal", burninitem.BurinTwoSuctionStandardTotal);//老化2标配人数
+                        jObject.Add("BurinTwoStabdardOutputPerHour", burninitem.BurinTwoStabdardOutputPerHour);//老化2每小时标准产能
+                        array.Add(jObject);
+                    }
+                    result.Add("Burin", array);
+                }
+                //包装
+                var PackingProcessName = db.ProcessBalance.Where(c => c.Type == item && c.ProductPCBnumber == PCB && c.Platform == platform && c.Section == "包装").ToList();
+                if (PackingProcessName.Count == 0)
+                {
+                    result.Add("Packing", null);
+                }
+                else
+                {
+
+                    var title = PackingProcessName.Select(c => c.Title).Distinct().ToList();
+                    JArray Packing = new JArray();
+                    foreach (var ProcessName in title)
+                    {
+                        JObject jObject = new JObject();
+                        var message = PackingProcessName.OrderByDescending(c => c.SerialNumber).Where(c => c.Title == ProcessName).FirstOrDefault();
+                        if (string.IsNullOrEmpty(message.ExaminanPeople))
+                        {
+                            jObject.Add("PackingID", message.Id);
+                            jObject.Add("PackingExaminanMessage", "未审核");
+                            jObject.Add("PackingProcessName", message.Title);
+                            jObject.Add("PackingStandardTotal", null);
+                            jObject.Add("PackingStandardOutput", null);
+                            jObject.Add("PackingPdf", false);
+                            jObject.Add("PackingImg", false);
+                        }
+                        else if (message.IsPassExaminan == false)
+                        {
+                            jObject.Add("PackingID", message.Id);
+                            jObject.Add("PackingExaminanMessage", "审核未通过");
+                            jObject.Add("PackingProcessName", message.Title);
+                            jObject.Add("PackingStandardTotal", null);
+                            jObject.Add("PackingStandardOutput", null);
+                            jObject.Add("PackingPdf", false);
+                            jObject.Add("PackingImg", false);
+                        }
+                        else
+                        {
+                            jObject.Add("PackingID", message.Id);
+                            jObject.Add("PackingExaminanMessage", "审核通过");
+                            jObject.Add("PackingProcessName", message.Title);
+                            jObject.Add("PackingStandardTotal", message.StandardTotal);
+                            jObject.Add("PackingStandardOutput", message.StandardOutput);
+                            if (IsHavingPDF(id, "包装", ProcessName))
+                                jObject.Add("PackingPdf", true);
+                            else
+                                jObject.Add("PackingPdf", false);
+                            if (IsHavingIMG(id, "包装", ProcessName))
+                                jObject.Add("PackingImg", true);
+                            else
+                                jObject.Add("PackingImg", false);
+                        }
+                        Packing.Add(jObject);
+                    }
+                    result.Add("Packing", Packing);
+                }
+                jarray.Add(result);
+            }
+            return Content(JsonConvert.SerializeObject(jarray));
+        }
+        //平台下拉列表(待定不要)
+        public ActionResult PlatfromList()
+        {
+            var orders = db.Process_Capacity_Total.Select(m => m.Platform).Distinct().ToList();    //获取平台清单
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        //型号下拉列表
+        public ActionResult TypeList()
+        {
+            var orders = db.Process_Capacity_Total.Select(m => m.Type).Distinct().ToList();    //获取型号清单
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //总表输入平台显示型号列表(待定不要)
+        public ActionResult DisplayTypeFromPlatfrom(string platfrom)
+        {
+            var typeList = new List<string>();
+            if (string.IsNullOrEmpty(platfrom))
+            {
+                typeList = db.Process_Capacity_Total.Select(m => m.Type).Distinct().ToList();
+            }
+            else
+            {
+                typeList = db.Process_Capacity_Total.Where(c => c.Platform == platfrom).Select(c => c.Type).Distinct().ToList();
+            }
+            JArray result = new JArray();
+            foreach (var item in typeList)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //总表输入型号显示平台列表
+        public ActionResult DisplayPlatfromFromType(string type)
+        {
+            var platfromList = new List<string>();
+            if (string.IsNullOrEmpty(type))
+            {
+                platfromList = db.Process_Capacity_Total.Select(m => m.Platform).Distinct().ToList();
+
+            }
+            else
+            {
+                platfromList = db.Process_Capacity_Total.Where(c => c.Type.Contains(type)).Select(c => c.Platform).Distinct().ToList();
+            }
+            JArray result = new JArray();
+            foreach (var item in platfromList)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //审核未审核列表
+        public ActionResult DisplayStatuMessage(string statu)
+        {
+            JArray result = new JArray();
+            #region 查找最后一个版本的集合
+            List<Pick_And_Place> pcik = com.GetNewNumberPickInfo();
+            List<ProcessBalance> balances = com.GetNewNumberBalanceInfo();
+            #endregion
+            switch (statu)
+            {
+                case "未审核":
+                    var pickNotExaminan = pcik.Where(c => c.ExaminanTime == null && string.IsNullOrEmpty(c.ExaminanPeople)).ToList();
+                    var blanceNotExaminan = balances.Where(c => c.ExaminanTime == null && string.IsNullOrEmpty(c.ExaminanPeople)).ToList();
+                    result = DisplayStatuMessageResult(pickNotExaminan, blanceNotExaminan);
+                    break;
+                case "审核未通过":
+                    var pickExaminanNotPass = pcik.Where(c => c.ExaminanTime != null && c.IsPassExaminan == false).ToList();
+                    var blanceExaminanNotPass = balances.Where(c => c.ExaminanTime != null && c.IsPassExaminan == false).ToList();
+                    result = DisplayStatuMessageResult(pickExaminanNotPass, blanceExaminanNotPass);
+                    break;
+                case "审核通过":
+                    var pickExaminanPass = pcik.Where(c => c.ExaminanTime != null && c.IsPassExaminan == true).ToList();
+                    var blanceExaminanPass = balances.Where(c => c.ExaminanTime != null && c.IsPassExaminan == true).ToList();
+                    result = DisplayStatuMessageResult(pickExaminanPass, blanceExaminanPass);
+                    break;
+                case "未批准":
+                    var pickNotApprover = pcik.Where(c => c.ApproverTime == null && string.IsNullOrEmpty(c.ApproverPeople)).ToList();
+                    var blanceNotApprover = db.ProcessBalance.Where(c => c.ApproverTime == null && string.IsNullOrEmpty(c.ApproverPeople)).ToList();
+                    result = DisplayStatuMessageResult(pickNotApprover, blanceNotApprover);
+                    break;
+                case "批准未通过":
+                    var pickApproverNotPass = pcik.Where(c => c.ApproverTime != null && c.IsPassApprover == false).ToList();
+                    var blanceApproverNotPass = balances.Where(c => c.ApproverTime != null && c.IsPassApprover == false).ToList();
+                    result = DisplayStatuMessageResult(pickApproverNotPass, blanceApproverNotPass);
+                    break;
+                case "批准通过":
+                    var pickApproverPass = pcik.Where(c => c.ApproverTime != null && c.IsPassApprover == true).ToList();
+                    var blanceApproverPass = balances.Where(c => c.ApproverTime != null && c.IsPassApprover == true).ToList();
+                    result = DisplayStatuMessageResult(pickApproverPass, blanceApproverPass);
+                    break;
+
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        public JArray DisplayStatuMessageResult(List<Pick_And_Place> pickanplan, List<ProcessBalance> processes)
+        {
+            JArray result = new JArray();
+            var groupby = pickanplan.GroupBy(c => new { c.Type, c.Platform, c.ProductPCBnumber }).ToList();
+            var grouby2 = processes.GroupBy(c => new { c.Type, c.Platform, c.ProductPCBnumber }).ToList();
+            foreach (var item in groupby)
+            {
+                JObject info = new JObject();
+                var id = db.Process_Capacity_Total.Where(c => c.Type == item.Key.Type && c.Platform == item.Key.Platform && c.ProductPCBnumber == item.Key.ProductPCBnumber).Select(c => c.Id).FirstOrDefault();
+                info.Add("id", id);
+                info.Add("Type", item.Key.Type);
+                info.Add("Platform", item.Key.Platform);
+                info.Add("ProductPCBnumber", item.Key.ProductPCBnumber);
+                info.Add("Section", "SMT");
+                info.Add("Title", "贴装产能一览表");
+                result.Add(info);
+            }
+            foreach (var item in grouby2)
+            {
+                var message = processes.Where(c => c.Type == item.Key.Type && c.ProductPCBnumber == item.Key.ProductPCBnumber && c.Platform == item.Key.Platform).ToList();
+                var groubymessage = message.GroupBy(c => new { c.Section, c.Title }).ToList();
+
+                foreach (var section in groubymessage)
+                {
+                    JObject info = new JObject();
+                    var id = db.Process_Capacity_Total.Where(c => c.Type == item.Key.Type && c.Platform == item.Key.Platform && c.ProductPCBnumber == item.Key.ProductPCBnumber).Select(c => c.Id).FirstOrDefault();
+                    info.Add("id", id);
+                    info.Add("Type", item.Key.Type);
+                    info.Add("Platform", item.Key.Platform);
+                    info.Add("ProductPCBnumber", item.Key.ProductPCBnumber);
+                    info.Add("Section", section.Key.Section);
+                    info.Add("Title", section.Key.Title);
+                    result.Add(info);
+                }
+            }
+            return result;
+        }
+        #region 添加，修改，删除
+        //添加总表
+        public ActionResult AddTotalProcess_Capacity(string type, string pcbnumber, string platform)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            JObject value = new JObject();
+            var count = db.Process_Capacity_Total.Count(c => c.Type == type && c.ProductPCBnumber == pcbnumber && c.Platform == platform);
+            if (count != 0)
+            {
+                value.Add("message", "已有相同的型号平台和pcb编号");
+                value.Add("content", null);
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            Process_Capacity_Total total = new Process_Capacity_Total() { Type = type, ProductPCBnumber = pcbnumber, Platform = platform };
+            total.Operator = ((Users)Session["User"]).UserName;
+            total.OperateDT = DateTime.Now;
+            db.Process_Capacity_Total.Add(total);
+            db.SaveChanges();
+
+            value.Add("message", "添加成功");
+            #region 返回新建总表jobject
+            JObject result = new JObject();
+            var info = db.Process_Capacity_Total.Where(c => c.Type == type && c.ProductPCBnumber == pcbnumber && c.Platform == platform).FirstOrDefault();
+            result.Add("id", info.Id);
+            result.Add("Type", type);
+            result.Add("Platform", platform);
+            result.Add("PCB", pcbnumber);
+            //ic面贴装 //灯面贴装
+            result.Add("icProductName", null);
+            result.Add("icMaxStandardTotal", null);
+            result.Add("icMaxStandardOutput", null);
+            result.Add("icMinStandardTotal", null);
+            result.Add("icMinStandardOutput", null);
+            result.Add("LightProductName", null);
+            result.Add("LightMaxStandardTotal", null);
+            result.Add("LightMaxStandardOutput", null);
+            result.Add("LightMinStandardTotal", null);
+            result.Add("LightMinStandardOutput", null);
+            result.Add("SMTjpg", false);
+            result.Add("SMTpdf", false);
+            //插件
+            result.Add("PluginDevice", null);
+
+            //后焊
+            result.Add("AfterWeld", null);
+
+            //三防
+            result.Add("ThreeProf", null);
+
+            //打底壳
+            result.Add("BottomCas", null);
+
+            //装磁吸
+            result.Add("Magnetic", null);
+
+            //喷墨
+            result.Add("Inkjet", null);
+
+            //灌胶
+            result.Add("Glue", null);
+
+            //气密
+            result.Add("Airtight", null);
+
+            //锁面罩
+            result.Add("LockTheMask", null);
+
+            //模组装配
+            result.Add("Module", null);
+
+            //老化
+            result.Add("Burin", null);
+
+            //包装
+            result.Add("Packing", null);
+            #endregion
+            value.Add("content", result);
+            return Content(JsonConvert.SerializeObject(value));
+        }
+
+        //总表删除
+        public ActionResult DeleteTotalProcess_Capacity(int id )
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            var process=db.Process_Capacity_Total.Find(id);
+            var type = process.Type;
+            var platform = process.Platform;
+            var PCBnumber = process.ProductPCBnumber;
+
+            //删除平衡卡
+            var deleteblance = db.ProcessBalance.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.ProcessBalance.RemoveRange(deleteblance);
+            //删除贴片
+            var pick = db.Pick_And_Place.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.Pick_And_Place.RemoveRange(pick);
+            //删除插件
+            var plug=db.Process_Capacity_Plugin.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.Process_Capacity_Plugin.RemoveRange(plug);
+            //删除三防
+            var three = db.Process_Capacity_ThreeProf.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.Process_Capacity_ThreeProf.RemoveRange(three);
+            //删除喷墨
+            var inkjets = db.Process_Capacity_Inkjet.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.Process_Capacity_Inkjet.RemoveRange(inkjets);
+            //删除灌胶
+            var glue = db.Process_Capacity_Glue.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.Process_Capacity_Glue.RemoveRange(glue);
+            //删除气密
+            var airtights = db.Process_Capacity_Airtight.Where(c => c.Type == type && c.Platform == platform && c.ProductPCBnumber == PCBnumber).ToList();
+            db.Process_Capacity_Airtight.RemoveRange(airtights);
+            //删除总表
+            db.Process_Capacity_Total.Remove(process);
+
+            UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能平台为" + platform + "型号为" + type + "PCB板号为" + PCBnumber };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+            JObject value = new JObject();
+            value.Add("message", true);
+            value.Add("content", "删除成功");
+            return Content(JsonConvert.SerializeObject(value));
+        }
+
+        //总表修改
+        public ActionResult UpdateTotalProcess_Capacity(int id,string type,string pcb,string platfrom)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            //修改总表
+            var totals = db.Process_Capacity_Total.Where(c => c.Id==id).FirstOrDefault();
+            var oldtype = totals.Type;
+            var oldplatform = totals.Platform;
+            var oldPCBnumber = totals.ProductPCBnumber;
+
+            totals.Type = type;
+            totals.Platform = platfrom;
+            totals.ProductPCBnumber = pcb;
+
+            //修改平衡卡
+            var deleteblance = db.ProcessBalance.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            deleteblance.ForEach(c=>c.Type = type);
+            deleteblance.ForEach(c=>c.Platform = platfrom);
+            deleteblance.ForEach(c=>c.ProductPCBnumber = pcb);
+            //修改贴片
+            var pick = db.Pick_And_Place.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            pick.ForEach(c => c.Type = type);
+            pick.ForEach(c => c.Platform = platfrom);
+            pick.ForEach(c => c.ProductPCBnumber = pcb);
+            //修改插件
+            var plug = db.Process_Capacity_Plugin.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            plug.ForEach(c => c.Type = type);
+            plug.ForEach(c => c.Platform = platfrom);
+            plug.ForEach(c => c.ProductPCBnumber = pcb);
+            //修改三防
+            var three = db.Process_Capacity_ThreeProf.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            three.ForEach(c => c.Type = type);
+            three.ForEach(c => c.Platform = platfrom);
+            three.ForEach(c => c.ProductPCBnumber = pcb);
+            //修改喷墨
+            var inkjets = db.Process_Capacity_Inkjet.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            inkjets.ForEach(c => c.Type = type);
+            inkjets.ForEach(c => c.Platform = platfrom);
+            inkjets.ForEach(c => c.ProductPCBnumber = pcb);
+            //修改灌胶
+            var glue = db.Process_Capacity_Glue.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            glue.ForEach(c => c.Type = type);
+            glue.ForEach(c => c.Platform = platfrom);
+            glue.ForEach(c => c.ProductPCBnumber = pcb);
+            //修改气密
+            var airtights = db.Process_Capacity_Airtight.Where(c => c.Type == oldtype && c.Platform == oldplatform && c.ProductPCBnumber == oldPCBnumber).ToList();
+            airtights.ForEach(c => c.Type = type);
+            airtights.ForEach(c => c.Platform = platfrom);
+            airtights.ForEach(c => c.ProductPCBnumber = pcb);
+
+
+            UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能平台为" + oldplatform + "型号为" + oldtype + "PCB板号为" + oldPCBnumber+"修改为平台" + platfrom + "型号为" + type + "PCB板号为" + pcb };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+            JObject value = new JObject();
+            value.Add("message", true);
+            value.Add("content", "修改成功");
+            return Content(JsonConvert.SerializeObject(value));
+        }
+
+        // 插件输入
+        public ActionResult Add_Plug_In(Process_Capacity_Plugin newData, string statu)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            JObject value = new JObject();
+            if (!ModelState.IsValid)
+            {
+                value.Add("message", false);
+                value.Add("content", "格式错误");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            if (statu == "添加")
+            {
+                newData.SingleLampWorkingHours = 0.222;
+                newData.PluginStandardCapacity = newData.PCBASingleLampNumber == 0 ? 0 : (decimal)(3600 / newData.PCBASingleLampNumber * 0.222);
+                newData.Operator = ((Users)Session["User"]).UserName;
+                newData.OperateDT = DateTime.Now;
+                db.Process_Capacity_Plugin.Add(newData);
+                db.SaveChanges();
+
+                value.Add("message", true);
+                var pluginitem = db.Process_Capacity_Plugin.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+                JObject pluginjobject = new JObject();
+                pluginjobject.Add("PluginEidt", false);//前端用
+                pluginjobject.Add("PluginDeviceID", pluginitem.Id);
+                pluginjobject.Add("PluginDeviceName", pluginitem.Name); //插件工序名
+                pluginjobject.Add("SingleLampWorkingHours", pluginitem.SingleLampWorkingHours);//插件机台固定标准单灯工时
+                pluginjobject.Add("PCBASingleLampNumber", pluginitem.PCBASingleLampNumber);//插件PCBA单灯数
+                pluginjobject.Add("PluginStandardNumber", pluginitem.PluginStandardNumber);//插件标配人数
+                pluginjobject.Add("PluginStandardCapacity", pluginitem.PluginStandardCapacity);//插件产能标准
+                value.Add("content", pluginjobject);
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "修改")
+            {
+                var old = db.Process_Capacity_Plugin.Where(c => c.Id == newData.Id).FirstOrDefault();
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段插件，原数据,描述，单灯数，人数为" + old.Name + "，" + old.PCBASingleLampNumber + "，" + old.PluginStandardNumber + "修改为" + newData.Name + "，" + newData.PCBASingleLampNumber + "，" + newData.PluginStandardNumber };
+                // RemoveHoldingEntityInContext(newData);
+                // db.Process_Capacity_Plugin.Attach(newData);
+
+                db.UserOperateLog.Add(log);
+                old.SingleLampWorkingHours = 0.222;
+                old.PluginStandardCapacity = newData.PCBASingleLampNumber == 0 ? 0 : (decimal)(3600 / newData.PCBASingleLampNumber * 0.222);
+                old.Name = newData.Name;
+                old.PCBASingleLampNumber = newData.PCBASingleLampNumber;
+                old.PluginStandardNumber = newData.PluginStandardNumber;
+                db.SaveChanges();
+                
+                value.Add("message", true);
+                value.Add("content", "修改成功");
+                return Content(JsonConvert.SerializeObject(value));
+
+            }
+            else if (statu == "删除")
+            {
+                var old = db.Process_Capacity_Plugin.Find(newData.Id);
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段插件，原数据,描述，单灯数，人数为" + old.Name + "，" + old.PCBASingleLampNumber + "，" + old.PluginStandardNumber };
+                db.UserOperateLog.Add(log);
+                db.SaveChanges();
+                var delete = db.Process_Capacity_Plugin.Find(newData.Id);
+                db.Process_Capacity_Plugin.Remove(delete);
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "删除成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+
+            return Content("true");
+        }
+
+        //三防输入
+        public ActionResult Add_ThreeProf(Process_Capacity_ThreeProf newData, string statu)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+
+            JObject value = new JObject();
+            if (!ModelState.IsValid)
+            {
+                value.Add("message", false);
+                value.Add("content", "格式错误");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            if (statu == "添加")
+            {
+                newData.Operator = ((Users)Session["User"]).UserName;
+                newData.OperateDT = DateTime.Now;
+                db.Process_Capacity_ThreeProf.Add(newData);
+                db.SaveChanges();
+                value.Add("message", true);
+                var threeprofitem = db.Process_Capacity_ThreeProf.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+                JObject jObject = new JObject();
+                jObject.Add("ThreeProfEidt", false);//前端用
+                jObject.Add("ThreeProfID", threeprofitem.Id);
+                jObject.Add("ThreeProfProcessName", threeprofitem.ThreeProfProcessName);//三防工序描述
+                jObject.Add("ThreeProfStandardTotal", threeprofitem.ThreeProfStandardTotal);//三防标准总人数
+                jObject.Add("ThreeProfStabdardOutput", threeprofitem.ThreeProfStabdardOutput);//三防标准产量
+                value.Add("content", jObject);
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "修改")
+            {
+                var old = db.Process_Capacity_ThreeProf.Where(c => c.Id == newData.Id).FirstOrDefault();
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段三防，原数据,描述，总人数，标准产量为" + old.ThreeProfProcessName + "，" + old.ThreeProfStandardTotal + "，" + old.ThreeProfStabdardOutput + "修改为" + newData.ThreeProfProcessName + "，" + newData.ThreeProfStandardTotal + "，" + newData.ThreeProfStabdardOutput };
+
+                db.UserOperateLog.Add(log);
+                old.ThreeProfProcessName = newData.ThreeProfProcessName;
+                old.ThreeProfStandardTotal = newData.ThreeProfStandardTotal;
+                old.ThreeProfStabdardOutput = newData.ThreeProfStabdardOutput;
+
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "修改成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "删除")
+            {
+                var delete = db.Process_Capacity_ThreeProf.Find(newData.Id);
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段三防，原数据,描述，总人数，标准产量为" + delete.ThreeProfProcessName + "，" + delete.ThreeProfStandardTotal + "，" + delete.ThreeProfStabdardOutput };
+                db.UserOperateLog.Add(log);
+                db.SaveChanges();
+                db.Process_Capacity_ThreeProf.Remove(delete);
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "删除成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+
+            return Content("true");
+        }
+        //喷墨输入
+        public ActionResult Add_Inkjet(Process_Capacity_Inkjet newData, string statu)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+
+            JObject value = new JObject();
+            if (!ModelState.IsValid)
+            {
+                value.Add("message", false);
+                value.Add("content", "格式错误");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            if (statu == "添加")
+            {
+                newData.Operator = ((Users)Session["User"]).UserName;
+                newData.OperateDT = DateTime.Now;
+                db.Process_Capacity_Inkjet.Add(newData);
+                db.SaveChanges();
+
+                value.Add("message", true);
+                var inkjetitem = db.Process_Capacity_Inkjet.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+                JObject jObject = new JObject();
+                jObject.Add("InkjetEidt", false);//前端用
+                jObject.Add("InkjetID", inkjetitem.Id);
+                jObject.Add("InkjetProcessName", inkjetitem.InkjetProcessName);//喷墨工序
+                jObject.Add("InkjetSuctionStandardTotal", inkjetitem.InkjetSuctionStandardTotal);//喷墨配置人数
+                jObject.Add("InkjetStabdardOutputPerHour", inkjetitem.InkjetStabdardOutputPerHour);//喷墨每小时产能
+                value.Add("content", jObject);
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "修改")
+            {
+                var old = db.Process_Capacity_Inkjet.Where(c => c.Id == newData.Id).FirstOrDefault();
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段喷墨，原数据,描述，总人数，标准产量为" + old.InkjetProcessName + "，" + old.InkjetSuctionStandardTotal + "，" + old.InkjetStabdardOutputPerHour + "修改为" + newData.InkjetProcessName + "，" + newData.InkjetSuctionStandardTotal + "，" + newData.InkjetStabdardOutputPerHour };
+
+                db.UserOperateLog.Add(log);
+                old.InkjetProcessName = newData.InkjetProcessName;
+                old.InkjetSuctionStandardTotal = newData.InkjetSuctionStandardTotal;
+                old.InkjetStabdardOutputPerHour = newData.InkjetStabdardOutputPerHour;
+
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "修改成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "删除")
+            {
+                var delete = db.Process_Capacity_Inkjet.Find(newData.Id);
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段喷墨，原数据,描述，总人数，标准产量为" + delete.InkjetProcessName + "，" + delete.InkjetSuctionStandardTotal + "，" + delete.InkjetStabdardOutputPerHour };
+                db.UserOperateLog.Add(log);
+                db.Process_Capacity_Inkjet.Remove(delete);
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "删除成功");
+                return Content(JsonConvert.SerializeObject(value));
+
+            }
+
+            return Content("true");
+        }
+
+        //灌胶输入
+        public ActionResult Add_Glue(Process_Capacity_Glue newData, string statu)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+
+            JObject value = new JObject();
+            if (!ModelState.IsValid)
+            {
+                value.Add("message", false);
+                value.Add("content", "格式错误");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            if (statu == "添加")
+            {
+                newData.Operator = ((Users)Session["User"]).UserName;
+                newData.OperateDT = DateTime.Now;
+                db.Process_Capacity_Glue.Add(newData);
+                db.SaveChanges();
+                value.Add("message", true);
+                var glueitem = db.Process_Capacity_Glue.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+                JObject jObject = new JObject();
+                jObject.Add("GlueEidt", false);//前端用
+                jObject.Add("GlueID", glueitem.Id);
+                jObject.Add("GlueProcessName", glueitem.GlueProcessName);//灌胶工序描述
+                jObject.Add("GlueStandardTotal", glueitem.GlueStandardTotal);//灌胶标准总人数
+                jObject.Add("GlueStabdardOutput", glueitem.GlueStabdardOutput);//灌胶标准产量
+                value.Add("content", jObject);
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "修改")
+            {
+                var old = db.Process_Capacity_Glue.Where(c => c.Id == newData.Id).FirstOrDefault();
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段灌胶，原数据,描述，总人数，标准产量为" + old.GlueProcessName + "，" + old.GlueStandardTotal + "，" + old.GlueStabdardOutput + "修改为" + newData.GlueProcessName + "，" + newData.GlueStandardTotal + "，" + newData.GlueStabdardOutput };
+
+                db.UserOperateLog.Add(log);
+                old.GlueProcessName = newData.GlueProcessName;
+                old.GlueStandardTotal = newData.GlueStandardTotal;
+                old.GlueStabdardOutput = newData.GlueStabdardOutput;
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "修改成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "删除")
+            {
+                var delete = db.Process_Capacity_Glue.Find(newData.Id);
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段灌胶，原数据,描述，总人数，标准产量为" + delete.GlueProcessName + "，" + delete.GlueStandardTotal + "，" + delete.GlueStabdardOutput };
+                db.UserOperateLog.Add(log);
+                db.Process_Capacity_Glue.Remove(delete);
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "删除成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            return Content("true");
+        }
+        //气密输入
+        public ActionResult Add_Airtight(Process_Capacity_Airtight newData, string statu)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            JObject value = new JObject();
+            if (!ModelState.IsValid)
+            {
+                value.Add("message", false);
+                value.Add("content", "格式错误");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            if (statu == "添加")
+            {
+                newData.Operator = ((Users)Session["User"]).UserName;
+                newData.OperateDT = DateTime.Now;
+                db.Process_Capacity_Airtight.Add(newData);
+                db.SaveChanges();
+                value.Add("message", true);
+                var airtightitem = db.Process_Capacity_Airtight.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+                JObject jObject = new JObject();
+                jObject.Add("AirtightEidt", false);//前端用
+                jObject.Add("AirtightID", airtightitem.Id);
+                jObject.Add("AirtightProcessName", airtightitem.AirtightProcessName);//气密工序描述
+                jObject.Add("AirtightStandardTotal", airtightitem.AirtightStandardTotal);//气密标准总人数
+                jObject.Add("AirtightStabdardOutput", airtightitem.AirtightStabdardOutput);//气密标准产量
+                value.Add("content", jObject);
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "修改")
+            {
+                var old = db.Process_Capacity_Airtight.Where(c => c.Id == newData.Id).FirstOrDefault();
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段气密，原数据,描述，总人数，标准产量为" + old.AirtightProcessName + "，" + old.AirtightStandardTotal + "，" + old.AirtightStabdardOutput + "修改为" + newData.AirtightProcessName + "，" + newData.AirtightStandardTotal + "，" + newData.AirtightStabdardOutput };
+                db.UserOperateLog.Add(log);
+                old.AirtightProcessName = newData.AirtightProcessName;
+                old.AirtightStandardTotal = newData.AirtightStandardTotal;
+                old.AirtightStabdardOutput = newData.AirtightStabdardOutput;
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "修改成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "删除")
+            {
+                var delete = db.Process_Capacity_Airtight.Find(newData.Id);
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段气密，原数据,描述，总人数，标准产量为" + delete.AirtightProcessName + "，" + delete.AirtightStandardTotal + "，" + delete.AirtightStabdardOutput };
+                db.UserOperateLog.Add(log);
+                db.Process_Capacity_Airtight.Remove(delete);
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "删除成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            return Content("true");
+        }
+
+        ////装磁吸安装板输入
+        //public ActionResult Add_MagneticSuction(Process_Capacity_Magnetic newData, string statu)
+        //{
+        //    if (Session["User"] == null)
+        //    {
+        //        return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+        //    }
+        //    JObject value = new JObject();
+        //    if (!ModelState.IsValid)
+        //    {
+        //        value.Add("message", false);
+        //        value.Add("content", "格式错误");
+        //        return Content(JsonConvert.SerializeObject(value));
+        //    }
+        //    if (statu == "添加")
+        //    {
+        //        newData.MagneticSuctionStandardHourlyOutputPerCapita = newData.MagneticSuctionStandardTotal == 0 ? 0 : newData.MagneticSuctionStabdardOutput / newData.MagneticSuctionStandardTotal;
+        //        newData.Operator = ((Users)Session["User"]).UserName;
+        //        newData.OperateDT = DateTime.Now;
+        //        db.Process_Capacity_Magnetic.Add(newData);
+        //        db.SaveChanges();
+        //        value.Add("message", true);
+        //        var magneticitem = db.Process_Capacity_Magnetic.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+        //        JObject jObject = new JObject();
+        //        jObject.Add("MagneticEidt", false);//前端用
+        //        jObject.Add("MagneticID", magneticitem.Id);
+        //        jObject.Add("MagneticProcessName", magneticitem.MagneticSuctionProcessName);//装磁吸工序描述
+        //        jObject.Add("MagneticSuctionStandardTotal", magneticitem.MagneticSuctionStandardTotal);//装磁吸标准总人数
+        //        jObject.Add("MagneticSuctionStabdardOutput", magneticitem.MagneticSuctionStabdardOutput);//装磁吸标准产量
+        //        jObject.Add("MagneticSuctionStandardHourlyOutputPerCapita", magneticitem.MagneticSuctionStandardHourlyOutputPerCapita);//装磁吸人均时产量
+        //        value.Add("content", jObject);
+        //        return Content(JsonConvert.SerializeObject(value));
+
+        //    }
+        //    else if (statu == "修改")
+        //    {
+        //        var old = db.Process_Capacity_Magnetic.Where(c => c.Id == newData.Id).FirstOrDefault();
+        //        UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段装磁吸，原数据,描述，总人数，标准产量为" + old.MagneticProcessName + "，" + old.MagneticSuctionStandardTotal + "，" + old.MagneticSuctionStabdardOutput + "修改为" + newData.MagneticSuctionProcessName + "，" + newData.MagneticSuctionStandardTotal + "，" + newData.MagneticSuctionStabdardOutput };
+
+        //        db.UserOperateLog.Add(log);
+        //        old.MagneticSuctionStandardHourlyOutputPerCapita = newData.MagneticSuctionStandardTotal == 0 ? 0 : newData.MagneticSuctionStabdardOutput / newData.MagneticSuctionStandardTotal;
+        //        old.MagneticProcessName = newData.MagneticProcessName;
+        //        old.MagneticSuctionStandardTotal = newData.MagneticSuctionStandardTotal;
+        //        old.MagneticSuctionStabdardOutput = newData.MagneticSuctionStabdardOutput;
+        //        db.SaveChanges();
+        //        value.Add("message", true);
+        //        value.Add("content", "修改成功");
+        //        return Content(JsonConvert.SerializeObject(value));
+
+        //    }
+        //    else if (statu == "删除")
+        //    {
+        //        var delete = db.Process_Capacity_Magnetic.Find(newData.Id);
+        //        UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段装磁吸，原数据,描述，总人数，标准产量为" + delete.MagneticProcessName + "，" + delete.MagneticSuctionStandardTotal + "，" + delete.MagneticSuctionStabdardOutput };
+        //        db.UserOperateLog.Add(log);
+        //        db.Process_Capacity_Magnetic.Remove(delete);
+        //        db.SaveChanges();
+        //        value.Add("message", true);
+        //        value.Add("content", "删除成功");
+        //        return Content(JsonConvert.SerializeObject(value));
+        //    }
+        //    return Content("true");
+        //}
+        //老化输入
+        public ActionResult Add_Burin(Process_Capacity_Burin newData, string statu)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            JObject value = new JObject();
+            if (!ModelState.IsValid)
+            {
+                value.Add("message", false);
+                value.Add("content", "格式错误");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            if (statu == "添加")
+            {
+                newData.Operator = ((Users)Session["User"]).UserName;
+                newData.OperateDT = DateTime.Now;
+                db.Process_Capacity_Burin.Add(newData);
+                db.SaveChanges();
+                value.Add("message", true);
+                var burninitem = db.Process_Capacity_Burin.OrderByDescending(c => c.Id).Where(c => c.Type == newData.Type && c.ProductPCBnumber == newData.ProductPCBnumber && c.Platform == newData.Platform).FirstOrDefault();
+                JObject jObject = new JObject();
+                jObject.Add("BurinEidt", false);//前端用
+                jObject.Add("BurinID", burninitem.Id);
+                jObject.Add("BurinOneProcessName", burninitem.BurinOneProcessName);//老化工序描述1
+                jObject.Add("BurninOneSuctionStandardTotal", burninitem.BurninOneSuctionStandardTotal);//老化1标配人数
+                jObject.Add("BurinOneStabdardOutputPerHour", burninitem.BurinOneStabdardOutputPerHour);//老化1每小时产能
+                jObject.Add("BurinTwoProcessName", burninitem.BurinTwoProcessName);//老化2工序描述
+                jObject.Add("BurinTwoSuctionStandardTotal", burninitem.BurinTwoSuctionStandardTotal);//老化2标配人数
+                jObject.Add("BurinTwoStabdardOutputPerHour", burninitem.BurinTwoStabdardOutputPerHour);//老化2每小时标准产能
+                value.Add("content", jObject);
+                return Content(JsonConvert.SerializeObject(value));
+
+            }
+            else if (statu == "修改")
+            {
+                var old = db.Process_Capacity_Burin.Where(c => c.Id == newData.Id).FirstOrDefault();
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段老化，原数据,老化1描述，总人数，标准产量，老化2描述，总人数，标准产量为" + old.BurinOneProcessName + "，" + old.BurninOneSuctionStandardTotal + "，" + old.BurinOneStabdardOutputPerHour + "，" + old.BurinTwoProcessName + "，" + old.BurinTwoSuctionStandardTotal + "，" + old.BurinTwoStabdardOutputPerHour + "修改为" + newData.BurinOneProcessName + "，" + newData.BurninOneSuctionStandardTotal + "，" + newData.BurinOneStabdardOutputPerHour + newData.BurinTwoProcessName + "，" + newData.BurinTwoSuctionStandardTotal + "，" + newData.BurinTwoStabdardOutputPerHour };
+
+                db.UserOperateLog.Add(log);
+                old.BurinOneProcessName = newData.BurinOneProcessName;
+                old.BurninOneSuctionStandardTotal = newData.BurninOneSuctionStandardTotal;
+                old.BurinOneStabdardOutputPerHour = newData.BurinOneStabdardOutputPerHour;
+                old.BurinTwoProcessName = newData.BurinTwoProcessName;
+                old.BurinTwoSuctionStandardTotal = newData.BurinTwoSuctionStandardTotal;
+                old.BurinTwoStabdardOutputPerHour = newData.BurinTwoStabdardOutputPerHour;
+
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "修改成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            else if (statu == "删除")
+            {
+                var delete = db.Process_Capacity_Burin.Find(newData.Id);
+                UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段老化，原数据,老化1描述，总人数，标准产量，老化2描述，总人数，标准产量为" + delete.BurinOneProcessName + "，" + delete.BurninOneSuctionStandardTotal + "，" + delete.BurinOneStabdardOutputPerHour + "，" + delete.BurinTwoProcessName + "，" + delete.BurinTwoSuctionStandardTotal + "，" + delete.BurinTwoStabdardOutputPerHour };
+                db.UserOperateLog.Add(log);
+                db.Process_Capacity_Burin.Remove(delete);
+                db.SaveChanges();
+                value.Add("message", true);
+                value.Add("content", "删除成功");
+                return Content(JsonConvert.SerializeObject(value));
+            }
+            return Content("true");
+        }
+
+
+        //打底壳和锁面罩输入和修改
+        public ActionResult Add_MachineNum(int id, int ScrewMachineNum, int DispensMachineNum)
+        {
+            var oldinfo = db.ProcessBalance.Find(id);
+            UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "修改工序产能数据，工段" + oldinfo.Section + "，描述" + oldinfo.Title + "原数据螺丝机" + oldinfo.ScrewMachineNum + ",点胶机数量" + oldinfo.DispensMachineNum +"修改为"+ ScrewMachineNum +","+ DispensMachineNum };
+            db.UserOperateLog.Add(log);
+            JObject value = new JObject();
+            oldinfo.DispensMachineNum = DispensMachineNum;
+            oldinfo.ScrewMachineNum = ScrewMachineNum;
+            db.SaveChanges();
+            value.Add("message", true);
+            value.Add("content", "修改成功");
+            return Content(JsonConvert.SerializeObject(value));
+        }
+
+        #endregion
+
+        #endregion
+
+
+        #region 贴片表操作
+
+        /// <summary>
+        /// 上传贴片表
+        /// </summary>
+        /// <param name="type"> 型号</param>
+        /// <param name="PCBNumber"> PCB版号</param>
+        /// <returns></returns>
+        public ActionResult Upload_Pick_And_Place(string type, string PCBNumber, string platform)
+        {
+            JObject total = new JObject();
+            try
+            {
+                JObject result = new JObject();
+                HttpPostedFileBase uploadfile = Request.Files["fileup"];
+                if (uploadfile == null)
+                {
+                    Pick_And_Place pick_ = new Pick_And_Place();
+                    pick_.Type = type;
+                    pick_.ProductPCBnumber = PCBNumber;
+                    pick_.Platform = platform;
+                    pick_.Section = "/";
+                    db.Pick_And_Place.Add(pick_);
+                    db.SaveChanges();
+
+                    result.Add("SMTExaminanMessage", "未审核");
+                    result.Add("icProductName", "/");
+                    result.Add("icMaxStandardTotal", null);
+                    result.Add("icMaxStandardOutput", null);
+                    result.Add("icMinStandardTotal", null);
+                    result.Add("icMinStandardOutput", null);
+                    result.Add("LightProductName", "/");
+                    result.Add("LightMaxStandardTotal", null);
+                    result.Add("LightMaxStandardOutput", null);
+                    result.Add("LightMinStandardTotal", null);
+                    result.Add("LightMinStandardOutput", null);
+
+                    total.Add("result", true);
+                    total.Add("content", result);
+
+                    return Content(JsonConvert.SerializeObject(total));
+                }
+                if (uploadfile.FileName == "")
+                {
+                    total.Add("result", false);
+                    total.Add("content", "请选择文件");
+                    return Content(JsonConvert.SerializeObject(total));
+                }
+
+                string fileExt = Path.GetExtension(uploadfile.FileName);
+                StringBuilder sbtime = new StringBuilder();
+                sbtime.Append(DateTime.Now.Year).Append(DateTime.Now.Month).Append(DateTime.Now.Day).Append(DateTime.Now.Hour).Append(DateTime.Now.Minute).Append(DateTime.Now.Second);
+                string dir = "/UploadFile/" + sbtime.ToString() + fileExt;
+                string realfilepath = Request.MapPath(dir);
+                string readDir = Path.GetDirectoryName(realfilepath);
+                if (!Directory.Exists(readDir))
+                    Directory.CreateDirectory(readDir);
+                uploadfile.SaveAs(realfilepath);
+                // 提取数据
+                var dt = ExcelTool.ExcelToDataTable(true, realfilepath);
+                var totalCount = dt.Rows.Count;
+                int j = 16;
+                while (dt.Rows[j][0].ToString() != "修订")
+                {
+                    j++;
+                }
+                var content = "";
+                int k = j;
+                while (k + 1 < totalCount && dt.Rows[k + 1][1].ToString() != "")
+                {
+                    content = content + dt.Rows[k + 1][1].ToString() + "&&";
+                    k++;
+                }
+                var number = dt.Rows[1][1].ToString();
+                var serialNumberList = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform && c.SerialNumber == number).ToList();
+                if (serialNumberList.Count != 0)
+                {
+                    total.Add("result", false);
+                    total.Add("content", "已有此版本，请修改版本");
+                    return Content(JsonConvert.SerializeObject(total));
+                }
+                List<Pick_And_Place> picklist = new List<Pick_And_Place>();
+                for (int i = 2; i < 16; i++)
+                {
+                    Pick_And_Place pick = new Pick_And_Place();
+                    pick.Type = type;
+                    pick.ProductPCBnumber = PCBNumber;
+                    pick.Platform = platform;
+                    pick.SerialNumber = dt.Rows[1][1].ToString();//编号
+                    pick.Section = dt.Rows[1][3].ToString();//工段
+                    pick.FileName = dt.Rows[1][6].ToString();//文件名称
+                    pick.Line = i - 1;//线别
+                    pick.MachineConfiguration = dt.Rows[i + 1][1].ToString();//机台配置
+                    pick.ProductType = dt.Rows[i + 1][2].ToString();//产品型号
+                    pick.PCBNumber = dt.Rows[i + 1][3].ToString();//pcb版号
+                    pick.ProcessDescription = dt.Rows[i + 1][4].ToString();//工序描述
+                    pick.Print = DataTypeChange.IsNumberic(dt.Rows[i + 1][5].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][5]), 2);//印刷
+                    pick.SolderPasteInspection = DataTypeChange.IsNumberic(dt.Rows[i + 1][6].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][6]), 2);//锡膏检测
+                    pick.PressedPatchNut = DataTypeChange.IsNumberic(dt.Rows[i + 1][7].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][7]), 2);//压贴片螺母
+                    pick.SMTMachineNetWork = DataTypeChange.IsNumberic(dt.Rows[i + 1][8].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][8]), 2);//贴片机净作业
+                    pick.PersonNum = DataTypeChange.IsNumberic(dt.Rows[i + 1][9].ToString()) == false ? 0 : Convert.ToInt32(dt.Rows[i + 1][9]);//人数
+                    pick.Bottleneck = DataTypeChange.IsNumberic(dt.Rows[i + 1][10].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][10]), 2);//瓶颈  
+                    pick.CapacityPerHour = DataTypeChange.IsNumberic(dt.Rows[i + 1][11].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][11]), 2);//每小时标准产能
+                    pick.PerCapitaCapacity = DataTypeChange.IsNumberic(dt.Rows[i + 1][12].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][12]), 2);//每小时人均产能
+                    pick.LatestUnitPrice = DataTypeChange.IsNumberic(dt.Rows[i + 1][13].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[i + 1][13]), 2);//产品最新单价
+                    pick.Remark = dt.Rows[i + 1][14].ToString();//备注
+
+
+                    pick.MakingPeople = dt.Rows[j + 1][5].ToString();//制定人
+                    if (dt.Rows[j + 2][5].ToString() == "")
+                    {
+                        pick.MakingTime = null;
+                    }
+                    else
+                    {
+                        var value = dt.Rows[j + 2][5].ToString();
+                        pick.MakingTime = TimeChange(value);
+                    }
+
+                    pick.ExaminanPeople = dt.Rows[j + 1][8].ToString();//审批
+                    if (dt.Rows[j + 2][8].ToString() == "")
+                    {
+                        pick.ExaminanTime = null;
+                    }
+                    else
+                    {
+                        var value = dt.Rows[j + 2][8].ToString();
+                        pick.ExaminanTime = TimeChange(value);
+                    }
+
+                    pick.ApproverPeople = dt.Rows[j + 1][11].ToString();//批准
+                    if (dt.Rows[j + 2][11].ToString() == "")
+                    {
+                        pick.ApproverTime = null;
+                    }
+                    else
+                    {
+                        var time3 = dt.Rows[j + 2][11].ToString().Split('/');
+                        var year = "20" + time3[2];
+                        pick.ApproverTime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(time3[0]), Convert.ToInt32(time3[1]));
+                    }
+
+                    pick.ControlledPeople = dt.Rows[j + 1][14].ToString();//受控
+                    if (dt.Rows[j + 2][14].ToString() == "")
+                    {
+                        pick.ControlledTime = null;
+                    }
+                    else
+                    {
+                        var time4 = dt.Rows[j + 2][14].ToString().Split('/');
+                        var year = "20" + time4[2];
+                        pick.ControlledTime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(time4[0]), Convert.ToInt32(time4[1]));
+                    }
+                    if (content != null)
+                    {
+                        pick.RevisionContent = content.Substring(0, content.Length - 2);
+                    }
+
+                    picklist.Add(pick);
+                }
+                db.Pick_And_Place.AddRange(picklist);
+                db.SaveChanges();
+                var iccount = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform).ToList();
+                if (iccount.Where(c => c.ProcessDescription == "IC面贴装").Count() == 0)
+                {
+                    result.Add("SMTExaminanMessage", "审核通过");
+                    result.Add("icProductName", "IC面贴装");
+                    result.Add("icMaxStandardTotal", null);
+                    result.Add("icMaxStandardOutput", null);
+                    result.Add("icMinStandardTotal", null);
+                    result.Add("icMinStandardOutput", null);
+                }
+                else
+                {
+                    var icMaxStandardTotal = iccount.Where(c => c.ProcessDescription == "IC面贴装").Max(c => c.PersonNum);
+                    var icMaxStandardOutput = iccount.Where(c => c.ProcessDescription == "IC面贴装").Max(c => c.CapacityPerHour);
+                    var icMinStandardTotal = iccount.Where(c => c.ProcessDescription == "IC面贴装").Min(c => c.PersonNum);
+                    var icMinStandardOutput = iccount.Where(c => c.ProcessDescription == "IC面贴装").Min(c => c.CapacityPerHour);
+                    result.Add("SMTExaminanMessage", "审核通过");
+                    result.Add("icProductName", "IC面贴装");
+                    result.Add("icMaxStandardTotal", icMaxStandardTotal);
+                    result.Add("icMaxStandardOutput", icMaxStandardOutput);
+                    result.Add("icMinStandardTotal", icMinStandardTotal);
+                    result.Add("icMinStandardOutput", icMinStandardOutput);
+                }// result.Add("LimtProductName", true);
+                if (iccount.Where(c => c.ProcessDescription == "灯面贴装").Count() == 0)
+                {
+                    result.Add("SMTExaminanMessage", "审核通过");
+                    result.Add("icProductName", "灯面贴装");
+                    result.Add("icMaxStandardTotal", null);
+                    result.Add("icMaxStandardOutput", null);
+                    result.Add("icMinStandardTotal", null);
+                    result.Add("icMinStandardOutput", null);
+                }
+                else
+                {
+                    var LightMaxStandardTotal = iccount.Where(c => c.ProcessDescription == "灯面贴装").Max(c => c.PersonNum);
+                    var LightMaxStandardOutput = iccount.Where(c => c.ProcessDescription == "灯面贴装").Max(c => c.CapacityPerHour);
+                    var LightMinStandardTotal = iccount.Where(c => c.ProcessDescription == "灯面贴装").Min(c => c.PersonNum);
+                    var LightMinStandardOutput = iccount.Where(c => c.ProcessDescription == "灯面贴装").Min(c => c.CapacityPerHour);
+                    result.Add("LightProductName", "灯面贴装");
+                    result.Add("LightMaxStandardTotal", LightMaxStandardTotal);
+                    result.Add("LightMaxStandardOutput", LightMaxStandardOutput);
+                    result.Add("LightMinStandardTotal", LightMinStandardTotal);
+                    result.Add("LightMinStandardOutput", LightMinStandardOutput);
+                }
+                total.Add("result", true);
+                total.Add("content", result);
+                return Content(JsonConvert.SerializeObject(total));
+            }
+            catch (Exception ex)
+            {
+                total.Add("result", false);
+                total.Add("content", ex.Message);
+                return Content(JsonConvert.SerializeObject(total));
+            }
+        }
+
+        /// <summary>
+        /// 显示全部版本贴片表
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版号</param>
+        /// <param name="platform">平台</param>
+        /// <returns></returns>
+        public ActionResult DisplayALL_Pick_And_Place(string type, string PCBNumber, string platform)
+        {
+            var infoList = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform).Select(c => c.SerialNumber).Distinct().ToList();
+            JArray result = new JArray();
+            foreach (var item in infoList)
+            {
+                var info = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform && c.SerialNumber == item).ToList();
+                var message = info.FirstOrDefault();
+                JObject number = new JObject();
+                number.Add("number", item);
+                number.Add("Section", message.Section);//工段
+                number.Add("FileName", message.FileName);//标题
+                JArray line = new JArray();
+                foreach (var infoitem in info)
+                {
+                    JObject itemjobject = new JObject();
+                    itemjobject.Add("Line", infoitem.Line);//线别
+                    itemjobject.Add("MachineConfiguration", infoitem.MachineConfiguration); //机台配置
+                    itemjobject.Add("ProductType", infoitem.ProductType);//产品型号
+                    itemjobject.Add("PCBNumber", infoitem.PCBNumber);//PCB版号
+                    itemjobject.Add("ProcessDescription", infoitem.ProcessDescription);//工序描述
+                    itemjobject.Add("Print", infoitem.Print);//印刷
+                    itemjobject.Add("SolderPasteInspection", infoitem.SolderPasteInspection);//锡膏检测
+                    itemjobject.Add("PressedPatchNut", infoitem.PressedPatchNut);//压贴片螺母
+                    itemjobject.Add("SMTMachineNetWork", infoitem.SMTMachineNetWork);//贴片机净作业
+                    itemjobject.Add("PersonNum", infoitem.PersonNum);//人数
+                    itemjobject.Add("Bottleneck", infoitem.Bottleneck);//瓶颈
+                    itemjobject.Add("CapacityPerHour", infoitem.CapacityPerHour);//每小时标准产能
+                    itemjobject.Add("PerCapitaCapacity", infoitem.PerCapitaCapacity);//每小时人均产能
+                    itemjobject.Add("LatestUnitPrice", infoitem.LatestUnitPrice);//产品最新单价
+                    itemjobject.Add("Remark", infoitem.Remark);//备注
+                    line.Add(itemjobject);
+                }
+
+                number.Add("Line", line);
+                number.Add("RevisionContent", message.RevisionContent);//修订内容
+                number.Add("MakingPeople", message.MakingPeople);//制定人
+                number.Add("MakingTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", message.MakingTime));//制定时间
+                number.Add("IsPassExaminan", message.IsPassExaminan);//审核是否通过
+                number.Add("ExaminanPeople", message.ExaminanPeople);//审核人
+                number.Add("ExaminanTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", message.ExaminanTime));//审核日期
+                number.Add("IsPassApprover", message.IsPassApprover);//批准是否通过
+                number.Add("ApproverPeople", message.ApproverPeople);//批准人
+                number.Add("ApproverTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", message.ApproverTime));//批准日趋
+                number.Add("IsPassControlled", message.IsPassControlled);//受控是否通过
+                number.Add("ControlledPeople", message.ControlledPeople);//受控人
+                number.Add("ControlledTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", message.ControlledTime));//受控日期
+
+                result.Add(number);
+            }
+
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        /// <summary>
+        /// 删除贴片表
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版号</param>
+        /// <param name="platform">平台</param>
+        /// <returns></returns>
+        public ActionResult Delete_Pick_And_Place(string type, string PCBNumber, string platform)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            var item = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform).Max(c => c.SerialNumber);
+            var info = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform && c.SerialNumber == item).ToList();
+            var message = info.FirstOrDefault();
+
+            UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段SMT，型号，PCB编号,平台为" + type + "，" + PCBNumber + "，" + platform  };
+            db.UserOperateLog.Add(log);
+
+            JObject number = new JObject();
+            if (message.ExaminanPeople != "" && message.ExaminanTime != null)
+            {
+                if (((Users)Session["User"]).UserName == message.ExaminanPeople)
+                {
+                    db.Pick_And_Place.RemoveRange(info);
+                    db.SaveChanges();
+                    number.Add("message", true);
+                    number.Add("content", "删除成功");
+                }
+                else
+                {
+                    number.Add("message", false);
+                    number.Add("content", "删除失败，此表已审核，需审核人员删除");
+                }
+            }
+            else
+            {
+                db.Pick_And_Place.RemoveRange(info);
+                db.SaveChanges();
+                number.Add("message", true);
+                number.Add("content", "删除成功");
+            }
+            return Content(JsonConvert.SerializeObject(number));
+        }
+
+        /// <summary>
+        /// 审核人签名或批准人签名
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版本号</param>
+        /// <param name="Section">工段</param>
+        /// <param name="number">编号</param>
+        /// <param name="status">审核或批准</param>
+        public bool Autograph_Pick_And_Place(string type, string PCBNumber, string Section, string number, string status, bool isPass)
+        {
+            if (Session["User"] == null)
+            {
+                return false;
+            }
+            var info = db.Pick_And_Place.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Section == Section && c.SerialNumber == number).ToList();
+            if (status == "审核")
+            {
+                info.ForEach(c => { c.ExaminanPeople = ((Users)Session["User"]).UserName; c.ExaminanTime = DateTime.Now; c.IsPassExaminan = isPass; });
+                db.SaveChanges();
+                return true;
+            }
+            if (status == "批准")
+            {
+                info.ForEach(c => { c.ApproverPeople = ((Users)Session["User"]).UserName; c.ApproverTime = DateTime.Now; c.IsPassApprover = isPass; });
+                db.SaveChanges();
+                return true;
+            }
+            if (status == "受控")
+            {
+                info.ForEach(c => { c.ControlledPeople = ((Users)Session["User"]).UserName; c.ControlledTime = DateTime.Now; c.IsPassControlled = isPass; });
+                db.SaveChanges();
+                return true;
+            }
+            return false;
+        }
+
+        #endregion
+
+
+        #region 工序平衡卡表
+
+        /// <summary>
+        /// 上传工序平衡表
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版号</param>
+        /// <returns></returns>
+        public ActionResult Upload_ProcessBalance(string type, string PCBNumber, string platform, string seaction)
+        {
+            JObject total = new JObject();
+            try
+            {
+                JObject jObject = new JObject();
+                HttpPostedFileBase uploadfile = Request.Files["fileup"];
+                if (uploadfile == null)
+                {
+                    ProcessBalance processBalance1 = new ProcessBalance();
+                    processBalance1.Platform = platform;
+                    processBalance1.Type = type;
+                    processBalance1.ProductPCBnumber = PCBNumber;
+                    processBalance1.Section = seaction;
+                    processBalance1.Title = "/";
+                    db.ProcessBalance.Add(processBalance1);
+                    db.SaveChanges();
+                    total.Add("result", true);
+                    var message1 = db.ProcessBalance.OrderByDescending(c => c.Id).Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform && c.Section == seaction && c.Title == "/").FirstOrDefault();
+
+                    switch (seaction)
+                    {
+                        case "后焊":
+                            jObject.Add("AfterWeldExaminanMessage", "未审核");
+                            jObject.Add("AfterWeldID", message1.Id);
+                            jObject.Add("AfterWeldProcessName", "/");
+                            jObject.Add("AfterWeldStandardTotal", null);
+                            jObject.Add("AfterWeldStandardOutput", null);
+                            jObject.Add("AfterWeldStandardHourlyOutputPerCapita", null);
+                            jObject.Add("AfterWeldPdf", false);
+                            jObject.Add("AfterWeldImg", false);
+                            break;
+                        case "打底壳":
+                            jObject.Add("BottomCasEidt", false);//前端用
+                            jObject.Add("BottomCasExaminanMessage", "未审核");
+                            jObject.Add("BottomCasID", message1.Id);
+                            jObject.Add("BottomCasProcessName", "/");
+                            jObject.Add("BottomCasStandardTotal", null);
+                            jObject.Add("BottomCasStandardOutput", null);
+                            jObject.Add("BottomCasStandardHourlyOutputPerCapita", null);
+                            jObject.Add("BottomCasDispensMachineNum", null);
+                            jObject.Add("BottomCasScrewMachineNum", null);
+                            jObject.Add("BottomCasPdf", false);
+                            jObject.Add("BottomCasImg", false);
+                            break;
+                        case "锁面罩":
+                            jObject.Add("LockTheMaskEdit", false);//前端用
+                            jObject.Add("LockTheMaskExaminanMessage", "未审核");
+                            jObject.Add("LockTheMaskID", message1.Id);
+                            jObject.Add("LockTheMaskProcessName", "/");
+                            jObject.Add("LockTheMaskStandardTotal", null);
+                            jObject.Add("LockTheMaskStandardOutput", null);
+                            jObject.Add("LockTheMaskStandardHourlyOutputPerCapita", null);
+                            jObject.Add("LockTheMaskScrewMachineNum", null);
+                            jObject.Add("LockTheMaskPdf", false);
+                            jObject.Add("LockTheMaskImg", false);
+                            break;
+                        case "模组装配":
+                            jObject.Add("ModuleID", message1.Id);
+                            jObject.Add("ModuleExaminanMessage", "未审核");
+                            jObject.Add("ModuleProcessName", "/");
+                            jObject.Add("ModuleStandardTotal", null);
+                            jObject.Add("ModuleBalanceRate", null);
+                            jObject.Add("ModuleBottleneck", null);
+                            jObject.Add("ModuleStandardOutput", null);
+                            jObject.Add("ModuleStandardHourlyOutputPerCapita", null);
+                            jObject.Add("ModulePdf", false);
+                            jObject.Add("ModuleImg", false);
+                            break;
+                        case "包装":
+                            jObject.Add("PackingID", message1.Id);
+                            jObject.Add("PackingExaminanMessage", "未审核");
+                            jObject.Add("PackingProcessName", "/");
+                            jObject.Add("PackingStandardTotal", null);
+                            jObject.Add("PackingStandardOutput", null);
+                            jObject.Add("PackingPdf", false);
+                            jObject.Add("PackingImg", false);
+                            break;
+                        case "装磁吸安装板":
+                            jObject.Add("MagneticExaminanMessage", "未审核");
+                            jObject.Add("MagneticID", message1.Id);
+                            jObject.Add("MagneticProcessName", "/");
+                            jObject.Add("MagneticStandardTotal", null);
+                            jObject.Add("MagneticStabdardOutput", null);
+                            jObject.Add("MagneticStandardHourlyOutputPerCapita", null);
+                            jObject.Add("MagneticPdf", false);
+                            jObject.Add("MagneticImg", false);
+                            break;
+                    }
+                    total.Add("content", jObject);
+                    return Content(JsonConvert.SerializeObject(total));
+                }
+                if (uploadfile.FileName == "")
+                {
+                    total.Add("result", false);
+                    total.Add("content", "请选择文件");
+                    return Content(JsonConvert.SerializeObject(total));
+                }
+
+                string fileExt = Path.GetExtension(uploadfile.FileName);
+                StringBuilder sbtime = new StringBuilder();
+                sbtime.Append(DateTime.Now.Year).Append(DateTime.Now.Month).Append(DateTime.Now.Day).Append(DateTime.Now.Hour).Append(DateTime.Now.Minute).Append(DateTime.Now.Second);
+                string dir = "/UploadFile/" + sbtime.ToString() + fileExt;
+                string realfilepath = Request.MapPath(dir);
+                string readDir = Path.GetDirectoryName(realfilepath);
+                if (!Directory.Exists(readDir))
+                    Directory.CreateDirectory(readDir);
+                uploadfile.SaveAs(realfilepath);
+                //提取数据
+                var dt = ExcelTool.ExcelToDataTable(true, realfilepath);
+                var totalcount = dt.Rows.Count;
+                int j = 16;
+                while (dt.Rows[j][0].ToString() != "修订")
+                {
+                    j++;
+                }
+                var content = "";
+                int k = j;
+                while (k + 1 < totalcount && dt.Rows[k + 1][1].ToString() != "")
+                {
+                    content = content + dt.Rows[k + 1][1].ToString() + "☆";
+                    k++;
+                }
+                var number = dt.Rows[1][1].ToString();
+                var title = dt.Rows[2][1].ToString();
+                var isExit = db.ProcessBalance.Where(c => c.Platform == platform && c.Type == type && c.ProductPCBnumber == PCBNumber && c.SerialNumber == number && c.Section == seaction).ToList();
+                if (isExit.Count != 0)
+                {
+                    total.Add("result", false);
+                    total.Add("content", "已有此版本，请修改版本");
+                    return Content(JsonConvert.SerializeObject(total));
+                }
+                ProcessBalance processBalance = new ProcessBalance();
+                processBalance.Platform = platform;
+                processBalance.Type = type;
+                processBalance.ProductPCBnumber = PCBNumber;
+                processBalance.SerialNumber = dt.Rows[1][1].ToString();//编号
+                processBalance.Section = seaction;//工段
+                processBalance.Title = dt.Rows[2][1].ToString();//标题
+                processBalance.StandardTotal = DataTypeChange.IsNumberic(dt.Rows[2][6].ToString()) == false ? 0 : Convert.ToInt32(dt.Rows[2][5]);//标准总人数
+                processBalance.BalanceRate = DataTypeChange.IsNumberic(dt.Rows[2][6].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[2][6]) * 100, 2);//平衡率
+                processBalance.Bottleneck = DataTypeChange.IsNumberic(dt.Rows[2][7].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[2][7]), 2);//瓶颈
+                processBalance.StandardOutput = DataTypeChange.IsNumberic(dt.Rows[2][8].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[2][8]), 2);//标准产量
+                processBalance.StandardHourlyOutputPerCapita = DataTypeChange.IsNumberic(dt.Rows[2][10].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[2][10]), 2);//标准人均时产量
+                processBalance.ProductWorkingHours = DataTypeChange.IsNumberic(dt.Rows[2][12].ToString()) == false ? 0 : Math.Round(Convert.ToDecimal(dt.Rows[2][12]), 2);//产品工时
+
+                string ProcessName = "";
+                int pro = 4;
+                while (dt.Rows[pro][1].ToString() != "")
+                {
+                    ProcessName = ProcessName + dt.Rows[pro][1].ToString() + "☆";
+                    pro++;
+                }
+                processBalance.ProcessName = ProcessName.Substring(0, ProcessName.Length - 1);//工序名称
+
+                string StandarPersondNumber = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    StandarPersondNumber = StandarPersondNumber + dt.Rows[i][5].ToString() + "☆";
+                }
+
+                processBalance.StandarPersondNumber = StandarPersondNumber.Substring(0, StandarPersondNumber.Length - 1);//标准人数
+
+                string StandardNumber = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    StandardNumber = StandardNumber + dt.Rows[i][6].ToString() + "☆";
+                }
+
+                processBalance.StandardNumber = StandardNumber.Substring(0, StandardNumber.Length - 1);//标准工时
+
+                string UnioTime = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    UnioTime = UnioTime + dt.Rows[i][7].ToString() + "☆";
+                }
+
+                processBalance.UnioTime = UnioTime.Substring(0, UnioTime.Length - 1);//单位工时
+
+                string JigName = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    JigName = JigName + dt.Rows[i][8].ToString() + "☆";
+                }
+
+                processBalance.JigName = JigName.Substring(0, JigName.Length - 1);//夹具名称
+
+                string MachineTime = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    MachineTime = MachineTime + dt.Rows[i][10].ToString() + "☆";
+                }
+
+                processBalance.MachineTime = MachineTime.Substring(0, MachineTime.Length - 1);//机器时间
+
+                string MachineNumber = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    MachineNumber = MachineNumber + dt.Rows[i][11].ToString() + "☆";
+                }
+
+                processBalance.MachineNumber = MachineNumber.Substring(0, MachineNumber.Length - 1);//机器数量
+
+                string JigNum = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    JigNum = JigNum + dt.Rows[i][12].ToString() + "☆";
+                }
+
+                processBalance.JigNum = JigNum.Substring(0, JigNum.Length - 1);//夹具数量
+
+                string Remark = "";
+                for (int i = 4; i <= pro; i++)
+                {
+                    Remark = Remark + dt.Rows[i][13].ToString() + "☆";
+                }
+
+                processBalance.Remark = Remark.Substring(0, Remark.Length - 1);//备注
+
+                processBalance.MakingPeople = dt.Rows[j + 1][7].ToString();//制定人
+                if (dt.Rows[j + 2][7].ToString() == "")
+                {
+                    processBalance.MakingTime = null;
+                }
+                else
+                {
+                    var value = dt.Rows[j + 2][7].ToString();
+                    processBalance.MakingTime = TimeChange(value);
+                }
+
+                processBalance.ExaminanPeople = dt.Rows[j + 1][9].ToString();//审批
+                if (dt.Rows[j + 2][9].ToString() == "")
+                {
+                    processBalance.ExaminanTime = null;
+                }
+                else
+                {
+                    var time2 = dt.Rows[j + 2][9].ToString().Split('/');
+                    var year = "20" + time2[2];
+                    processBalance.ExaminanTime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(time2[0]), Convert.ToInt32(time2[1]));
+                }
+
+                processBalance.ApproverPeople = dt.Rows[j + 1][11].ToString();//批准
+                if (dt.Rows[j + 2][11].ToString() == "")
+                {
+                    processBalance.ApproverTime = null;
+                }
+                else
+                {
+                    var time3 = dt.Rows[j + 2][11].ToString().Split('/');
+                    var year = "20" + time3[2];
+                    processBalance.ApproverTime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(time3[0]), Convert.ToInt32(time3[1]));
+                }
+
+                processBalance.ControlledPeople = dt.Rows[j + 1][13].ToString();//受控
+                if (dt.Rows[j + 2][13].ToString() == "")
+                {
+                    processBalance.ControlledTime = null;
+                }
+                else
+                {
+                    var time4 = dt.Rows[j + 2][13].ToString().Split('/');
+                    var year = "20" + time4[2];
+                    processBalance.ControlledTime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(time4[0]), Convert.ToInt32(time4[1]));
+                }
+                if (content != "")
+                {
+                    processBalance.RevisionContent = content.Substring(0, content.Length - 1);
+                }
+                db.ProcessBalance.Add(processBalance);
+                db.SaveChanges();
+                var message = db.ProcessBalance.OrderByDescending(c => c.Id).Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Platform == platform && c.Section == seaction && c.Title == title).FirstOrDefault();
+                switch (seaction)
+                {
+                    case "后焊":
+                        jObject.Add("AfterWeldExaminanMessage", "未审核");
+                        jObject.Add("AfterWeldID", message.Id);
+                        jObject.Add("AfterWeldProcessName", message.Title);
+                        jObject.Add("AfterWeldStandardTotal", null);
+                        jObject.Add("AfterWeldStandardOutput", null);
+                        jObject.Add("AfterWeldStandardHourlyOutputPerCapita", null);
+                        jObject.Add("AfterWeldPdf", false);
+                        jObject.Add("AfterWeldImg", false);
+                        break;
+                    case "打底壳":
+                        jObject.Add("BottomCasEidt", false);//前端用
+                        jObject.Add("BottomCasExaminanMessage", "未审核");
+                        jObject.Add("BottomCasID", message.Id);
+                        jObject.Add("BottomCasProcessName", message.Title);
+                        jObject.Add("BottomCasStandardTotal", null);
+                        jObject.Add("BottomCasStandardOutput", null);
+                        jObject.Add("BottomCasStandardHourlyOutputPerCapita", null);
+                        jObject.Add("BottomCasDispensMachineNum", null);
+                        jObject.Add("BottomCasScrewMachineNum", null);
+                        jObject.Add("BottomCasPdf", false);
+                        jObject.Add("BottomCasImg", false);
+                        break;
+                    case "锁面罩":
+                        jObject.Add("LockTheMaskEdit", false);//前端用
+                        jObject.Add("LockTheMaskExaminanMessage", "未审核");
+                        jObject.Add("LockTheMaskID", message.Id);
+                        jObject.Add("LockTheMaskProcessName", message.Title);
+                        jObject.Add("LockTheMaskStandardTotal", null);
+                        jObject.Add("LockTheMaskStandardOutput", null);
+                        jObject.Add("LockTheMaskStandardHourlyOutputPerCapita", null);
+                        jObject.Add("LockTheMaskScrewMachineNum", message.ScrewMachineNum);
+                        jObject.Add("LockTheMaskPdf", false);
+                        jObject.Add("LockTheMaskImg", false);
+                        break;
+                    case "模组装配":
+                        jObject.Add("ModuleID", message.Id);
+                        jObject.Add("ModuleExaminanMessage", "未审核");
+                        jObject.Add("ModuleProcessName", message.Title);
+                        jObject.Add("ModuleStandardTotal", null);
+                        jObject.Add("ModuleBalanceRate", null);
+                        jObject.Add("ModuleBottleneck", null);
+                        jObject.Add("ModuleStandardOutput", null);
+                        jObject.Add("ModuleStandardHourlyOutputPerCapita", null);
+                        jObject.Add("ModulePdf", false);
+                        jObject.Add("ModuleImg", false);
+                        break;
+                    case "包装":
+                        jObject.Add("PackingID", message.Id);
+                        jObject.Add("PackingExaminanMessage", "未审核");
+                        jObject.Add("PackingProcessName", message.Title);
+                        jObject.Add("PackingStandardTotal", null);
+                        jObject.Add("PackingStandardOutput", null);
+                        jObject.Add("PackingPdf", false);
+                        jObject.Add("PackingImg", false);
+                        break;
+                    case "装磁吸安装板":
+                        jObject.Add("MagneticExaminanMessage", "未审核");
+                        jObject.Add("MagneticID", message.Id);
+                        jObject.Add("MagneticProcessName", message.Title);
+                        jObject.Add("MagneticStandardTotal", null);
+                        jObject.Add("MagneticStabdardOutput", null);
+                        jObject.Add("MagneticStandardHourlyOutputPerCapita", null);
+                        jObject.Add("MagneticPdf", false);
+                        jObject.Add("MagneticImg", false);
+                        break;
+                }
+                total.Add("result", true);
+                total.Add("content", jObject);
+                return Content(JsonConvert.SerializeObject(total));
+            }
+            catch (Exception ex)
+            {
+                total.Add("result", false);
+                total.Add("content", ex.Message);
+                return Content(JsonConvert.SerializeObject(total));
+            }
+        }
+
+        /// <summary>
+        /// 显示全部版本工序平衡表
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版号</param>
+        /// <param name="Section">工段</param>
+        /// <param name="platform">平台</param>
+        /// <param name="title">标题</param>
+        /// <returns></returns>
+        public ActionResult DisplayALL_ProcessBalance(string type, string PCBNumber, string Section, string platform, string title)
+        {
+            var infoList = db.ProcessBalance.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Section == Section && c.Platform == platform && c.Title == title).Select(c => c.SerialNumber).Distinct().ToList();
+            JArray result = new JArray();
+            foreach (var item in infoList)
+            {
+                var info = db.ProcessBalance.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Section == Section && c.Platform == platform && c.Title == title && c.SerialNumber == item).FirstOrDefault();
+
+                JObject number = new JObject();
+                number.Add("number", item);
+                number.Add("Section", info.Section);//工段
+                number.Add("StandardTotal", info.StandardTotal);//标准总人数
+                number.Add("BalanceRate", info.BalanceRate);//平衡率
+                number.Add("Bottleneck", info.Bottleneck);//瓶颈
+                number.Add("StandardOutput", info.StandardOutput);//标准产量l
+                number.Add("StandardHourlyOutputPerCapita", info.StandardHourlyOutputPerCapita);//标准人均时产量
+                number.Add("ProductWorkingHours", info.ProductWorkingHours);//产品工时
+                number.Add("Title", info.Title);//标题
+                JArray line = new JArray();
+                string[] name = info.ProcessName.Split('☆');
+                string[] person = info.StandarPersondNumber.Split('☆');
+                string[] workingTime = info.StandardNumber.Split('☆');
+                string[] itemWarkTime = info.UnioTime.Split('☆');
+                string[] jiaName = info.JigName.Split('☆');
+                string[] machineTime = info.MachineTime.Split('☆');
+                string[] machineNum = info.MachineNumber.Split('☆');
+                string[] jiaNum = info.JigNum.Split('☆');
+                string[] remark = info.Remark.Split('☆');
+                for (int i = 0; i < name.Count(); i++)
+                {
+                    JObject itemjobject = new JObject();
+                    itemjobject.Add("ProcessName", name[i]); //工序名称
+                    itemjobject.Add("StandarPersondNumber", person[i] == "" ? null : person[i]);//标注人数
+                    itemjobject.Add("StandardNumber", workingTime[i] == "" ? null : workingTime[i]);//标准工时
+                    itemjobject.Add("UnioTime", itemWarkTime[i] == "" ? null : itemWarkTime[i]);//单位工时
+                    itemjobject.Add("JigName", jiaName[i] == "" ? null : jiaName[i]);//夹具名称
+                    itemjobject.Add("MachineTime", machineTime[i] == "" ? null : machineTime[i]);//机器时间
+                    itemjobject.Add("MachineNumber", machineNum[i] == "" ? null : machineNum[i]);//机器数量
+                    itemjobject.Add("JigNum", jiaNum[i] == "" ? null : jiaNum[i]);//夹具个数
+                    itemjobject.Add("Remark", remark[i] == "" ? null : remark[i]);//备注
+                    line.Add(itemjobject);
+                }
+
+                number.Add("List", line);
+                number.Add("RevisionContent", info.RevisionContent);//修订内容
+                number.Add("MakingPeople", info.MakingPeople);//制定人
+                number.Add("MakingTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", info.MakingTime));//制定时间
+                number.Add("IsPassExaminan", info.IsPassExaminan);//审核是否通过
+                number.Add("ExaminanPeople", info.ExaminanPeople);//审核人
+                number.Add("ExaminanTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", info.ExaminanTime));//审核日期
+                number.Add("IsPassApprover", info.IsPassApprover);//批准是否通过
+                number.Add("ApproverPeople", info.ApproverPeople);//批准人
+                number.Add("ApproverTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", info.ApproverTime));//批准日趋
+                number.Add("IsPassControlled", info.IsPassControlled);//受控是否通过
+                number.Add("ControlledPeople", info.ControlledPeople);//受控人
+                number.Add("ControlledTime", string.Format("{0:yyyy-MM-dd HH:mm:ss}", info.ControlledTime));//受控日期
+
+                result.Add(number);
+            }
+
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        /// <summary>
+        /// 删除工序平衡表
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版号</param>
+        /// <param name="Section">工段</param>
+        /// <param name="platform">平台</param>
+        /// <param name="title">标题</param>
+        /// <returns></returns>
+        public ActionResult Delete_ProcessBalance(string type, string PCBNumber, string Section, string platform, string title)
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Process_Capacity", act = "TotalProcess_Capacity" });
+            }
+            var item = db.ProcessBalance.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Section == Section && c.Platform == platform && c.Title == title).Max(c => c.SerialNumber);
+
+            var info = db.ProcessBalance.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Section == Section && c.Platform == platform && c.Title == title && c.SerialNumber == item).FirstOrDefault();
+
+            UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "删除工序产能数据，工段"+ Section + "，型号，PCB编号,平台,标题为" + type + "，" + PCBNumber + "，" + platform+","+title };
+            db.UserOperateLog.Add(log);
+
+            JObject number = new JObject();
+            if (info.ExaminanPeople != "" && info.ExaminanTime != null)
+            {
+                if (((Users)Session["User"]).UserName == info.ExaminanPeople)
+                {
+                    db.ProcessBalance.Remove(info);
+                    db.SaveChanges();
+                    number.Add("message", true);
+                    number.Add("content", "删除成功");
+                }
+                else
+                {
+                    number.Add("message", false);
+                    number.Add("content", "删除失败，此表已审核，需审核人员删除");
+                }
+            }
+            else
+            {
+                db.ProcessBalance.Remove(info);
+                db.SaveChanges();
+                number.Add("message", true);
+                number.Add("content", "删除成功");
+            }
+
+            return Content(JsonConvert.SerializeObject(number));
+        }
+
+        /// <summary>
+        /// 审核人签名或批准人签名
+        /// </summary>
+        /// <param name="type">型号</param>
+        /// <param name="PCBNumber">PCB版本号</param>
+        /// <param name="Section">工段</param>
+        /// <param name="number">编号</param>
+        /// <param name="status">审核或批准</param>
+        public bool Autograph_ProcessBalance(string type, string PCBNumber, string Section, string number, string status, bool isPass)
+        {
+            if (Session["User"] == null)
+            {
+                return false;
+            }
+            var info = db.ProcessBalance.Where(c => c.Type == type && c.ProductPCBnumber == PCBNumber && c.Section == Section && c.SerialNumber == number).ToList();
+            if (status == "审核")
+            {
+                info.ForEach(c => { c.ExaminanPeople = ((Users)Session["User"]).UserName; c.ExaminanTime = DateTime.Now; c.IsPassExaminan = isPass; });
+                db.SaveChanges();
+                return true;
+            }
+            if (status == "批准")
+            {
+                info.ForEach(c => { c.ApproverPeople = ((Users)Session["User"]).UserName; c.ApproverTime = DateTime.Now; c.IsPassApprover = isPass; });
+                db.SaveChanges();
+                return true;
+            }
+            if (status == "受控")
+            {
+                info.ForEach(c => { c.ControlledPeople = ((Users)Session["User"]).UserName; c.ControlledTime = DateTime.Now; c.IsPassControlled = isPass; });
+                db.SaveChanges();
+                return true;
+            }
+            return false;
+        }
+
+        #endregion
+
+        //上传图片或PDF
+        public bool UploadProcess_Capacity(int id, string seaction, string processName)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["uploadProcess_Capacity"];
+                var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
+                //创建总目录
+                if (Directory.Exists(@"D:\MES_Data\Process_Capacity\" + id.ToString()) == false)
+                {
+                    var info = db.Process_Capacity_Total.Find(id);
+                    if (Directory.Exists(@"D:\MES_Data\Process_Capacity\") == false)//如果不存在就创建订单文件夹
+                    {
+                        Directory.CreateDirectory(@"D:\MES_Data\Process_Capacity\");
+                    }
+                    System.IO.File.AppendAllText(@"D:\MES_Data\Process_Capacity\directory.txt", "\n id:" + id + "对应的是--------型号:" + info.Type + ",平台:" + info.Platform + ",Pcb编号:" + info.ProductPCBnumber + "\n");
+                }
+                if (Directory.Exists(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\") == false)//如果不存在就创建订单文件夹
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\");
+                }
+                processName = processName.Replace("*", "X");
+                if (fileType == ".pdf")
+                {
+                    file.SaveAs(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\" + processName + ".pdf");
+                }
+                else
+                {
+                    List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\");
+                    int jpg_count = fileInfos.Where(c => c.Name.StartsWith(processName) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+                    file.SaveAs(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\" + processName + (jpg_count + 1) + fileType);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        //删除图片或者PDF
+        public ActionResult DeleteProcess_Capacity(int id, string seaction, string processName)
+        {
+
+            //if (Directory.Exists(@"D:\MES_Data\Process_Capacity\" + platform + "_" + type + "\\") == false)//如果不存在就创建订单文件夹
+            //{
+            //    Directory.CreateDirectory(@"D:\MES_Data\Process_Capacity\" + platform + "_" + type + "\\");
+            //}
+            //List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + platform + "_" + type + "\\");
+
+            //int jpg_count = fileInfos.Where(c => c.Name.StartsWith(seaction) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+            //file.SaveAs(@"D:\MES_Data\AssembleAbnormalOrder_Files\" + platform + "_" + type + "_" + seaction + (jpg_count + 1) + fileType);
+
+            return View();
+        }
+        //查看图片 
+        public ActionResult DisplayImg(int id, string seaction, string processName)
+        {
+            processName = processName.Replace("*", "X");
+            List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(processName) && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JArray json = new JArray();
+            JObject result = new JObject();
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    string path = @"/MES_Data/Process_Capacity/" + id.ToString() + "/" + seaction + "/" + item.Name;
+                    json.Add(path);
+                }
+                result.Add("have", true);
+                result.Add("path", json);
+                return Content(JsonConvert.SerializeObject(result));
+            }
+            else
+            {
+                result.Add("have", false);
+                result.Add("path", null);
+                return Content(JsonConvert.SerializeObject(result));
+            }
+        }
+
+        //查看PDF
+        public ActionResult DisplayPdf(int id, string seaction, string processName)
+        {
+            processName = processName.Replace("*", "X");
+            List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(processName) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+            JArray json = new JArray();
+            JObject result = new JObject();
+            if (filesInfo.Count() > 0)
+            {
+                string path = @"/MES_Data/Process_Capacity/" + id.ToString() + "/" + seaction + "/" + processName + ".pdf";
+                result.Add("have", true);
+                result.Add("path", path);
+                return Content(JsonConvert.SerializeObject(result));
+            }
+            else
+            {
+                result.Add("have", false);
+                result.Add("path", null);
+                return Content(JsonConvert.SerializeObject(result));
+            }
+        }
+
+        //是否有pdf文件
+        public bool IsHavingPDF(int id, string seaction, string processName)
+        {
+            processName = processName.Replace("*", "X");
+            List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(processName) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+            if (filesInfo.Count > 0)
+                return true;
+            else
+                return false;
+        }
+
+        //是否有img文件
+        public bool IsHavingIMG(int id, string seaction, string processName)
+        {
+            processName = processName.Replace("*", "X");
+            List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\Process_Capacity\" + id.ToString() + "\\" + seaction + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(processName) && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            if (filesInfo.Count > 0)
+                return true;
+            else
+                return false;
+        }
+
+        //日期转换
+        private DateTime TimeChange(string value)
+        {
+            if (value.Contains("/"))
+            {
+                var time = value.Split('/');
+                if (time[0].Length == 4)
+                {
+                    return new DateTime(Convert.ToInt32(time[0]), Convert.ToInt32(time[1]), Convert.ToInt32(time[2]));
+                }
+                else
+                {
+                    var year = "";
+                    if (time[2].Length <= 2)
+                    {
+                        year = "20" + time[2];
+                    }
+                    else
+                    {
+                        year = time[2];
+                    }
+                    return new DateTime(Convert.ToInt32(year), Convert.ToInt32(time[0]), Convert.ToInt32(time[1]));
+                }
+            }
+            else if (value.Contains("-") && !value.Contains("月"))
+            {
+                var time = value.Split('-');
+                if (time[0].Length == 4)
+                {
+                    return new DateTime(Convert.ToInt32(time[0]), Convert.ToInt32(time[1]), Convert.ToInt32(time[2]));
+                }
+                var year = "";
+                if (time[2].Length <= 2)
+                {
+                    year = "20" + time[2];
+                }
+                else
+                {
+                    year = time[2];
+                }
+                return new DateTime(Convert.ToInt32(year), Convert.ToInt32(time[0]), Convert.ToInt32(time[1]));
+            }
+            else if (value.Contains("-") && value.Contains("月"))
+            {
+                var time = value.Split('-');
+                return new DateTime(Convert.ToInt32(time[2]), DataTypeChange.ChineseMonthChangeInt(time[1]), Convert.ToInt32(time[0]));
+            }
+            else
+            {
+                DateTime startTime = new DateTime(1900, 1, 1);
+                return startTime.AddDays(Convert.ToInt32(value) - 2);
+            }
+        }
+    }
+}

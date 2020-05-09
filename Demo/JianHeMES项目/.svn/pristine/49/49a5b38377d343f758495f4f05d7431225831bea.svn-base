@@ -1,0 +1,303 @@
+﻿@{
+    ViewBag.Title = "SMT产线信息录入";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    .cell {
+        padding: 0 1px !important;
+    }
+
+    .el-input__inner {
+        padding: 0 1px 0 10px;
+    }
+
+    .infosize {
+        font-size: 12px;
+        line-height: 16px;
+        text-align: left;
+        padding-left: 5px;
+    }
+
+    .dateStyle {
+        width: 278px !important;
+        padding: 3px 2px 3px 8px !important;
+    }
+
+    .el-date-editor .el-range-separator {
+        width: 22px;
+        padding: 0;
+    }
+
+    .el-date-editor .el-range-input {
+        width: 41%;
+    }
+</style>
+<div id="app">
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-row class="text-center">
+            <div>
+                <el-button @@click="addrow" type="primary" size="small">增加行</el-button>
+                <el-button @@click="getTableData" type="success" size="small">提交信息</el-button>
+            </div>
+            <el-table :data="tableList"
+                      style="margin-top:10px;"
+                      v-loading="loading"
+                      size="medium"
+                      border>
+                <el-table-column prop="LineNum"
+                                 label="产线号"
+                                 width="60"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.LineNum" type="number" size="small"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="OrderNum"
+                                 label="订单号"
+                                 width="150"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <select-input v-model.trim="scope.row.OrderNum" @@watchval="watchHandle($event,scope.row)" :appendbody="true" :options="selectOptions" :ismultiple="false" :isfocus="true" size="small" @@select-val="selectHandle($event,scope.row)"></select-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="JobContent"
+                                 label="工作内容"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.JobContent" size="small"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="NormalCount"
+                                 label="良品数量"
+                                 width="80"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.NormalCount" type="number" size="small"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="AbnormalCount"
+                                 label="不良品数量"
+                                 width="80"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.AbnormalCount" type="number" size="small"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="VeneerPoints"
+                                 label="单板点数"
+                                 width="80"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.VeneerPoints" type="number" size="small"></el-input>
+                    </template>
+                </el-table-column>
+                @*<el-table-column prop="BadPoints"
+                                     label="不良点数"
+                                     width="80"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <el-input v-model.trim="scope.row.BadPoints" type="number" size="small"></el-input>
+                        </template>
+                    </el-table-column>*@
+                <el-table-column prop="PlanTime"
+                                 label="开始-结束时间"
+                                 width="280"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-date-picker v-model="scope.row.PlanTime"
+                                        :default-time="defaulttime"
+                                        :editable="false"
+                                        :picker-options="pickerOptions"
+                                        value-format="yyyy-MM-dd HH:mm:ss"
+                                        format="yyyy-MM-dd HH:mm"
+                                        start-placeholder="开始日期"
+                                        end-placeholder="结束日期"
+                                        range-separator="至"
+                                        type="datetimerange"
+                                        class="dateStyle"
+                                        align="right"
+                                        size="small">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="info"
+                                 label="订单已有数量"
+                                 width="120"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <div class="infosize" v-for="i in scope.row.info">{{i}}</div>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作"
+                                 width="50"
+                                 align="center">
+                    <template slot-scope="scope">
+                        <el-button @@click="removetr(scope.$index)" type="text">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+    </el-container>
+</div>
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script type="text/javascript">
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            tableList: [],
+            pickerOptions: {
+                shortcuts: [{
+                    text: '最近一小时',
+                    onClick(picker) {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setTime(start.getTime() - 3600 * 1000);
+                        picker.$emit('pick', [start, end]);
+                    }
+                }, {
+                    text: '未来一小时',
+                    onClick(picker) {
+                        const end = new Date();
+                        const start = new Date();
+                        end.setTime(start.getTime() + 3600 * 1000);
+                        picker.$emit('pick', [start, end]);
+                    }
+                }, {
+                    text: '最近一天',
+                    onClick(picker) {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setTime(start.getTime() - 3600 * 1000 * 24);
+                        picker.$emit('pick', [start, end]);
+                    }
+                }]
+            },
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn('获取列表失败')
+            });
+        },
+        mounted: function () {
+            for (let i = 0; i < 8; i++) {
+                this.tableList.push({
+                    LineNum: '',
+                    OrderNum: '',
+                    JobContent: '',
+                    NormalCount: '',
+                    AbnormalCount: '',
+                    VeneerPoints: '',
+                    //BadPoints: '',
+                    PlanTime: [],
+                    info: [],
+                });
+            };
+        },
+        computed: {
+            defaulttime() {
+                let now = new Date(), h = now.getHours(), m = now.getMinutes()>=30?'30':'00';
+                return [`${h}:${m}:00`, `${h + 1}:${m}:00`];
+            }
+        },
+        methods: {
+            getTableData() {
+                this.loading = true;
+                let postList = [];
+                for (let item of this.tableList) {
+                    if (item.OrderNum != '') {
+                        postList.push({
+                            LineNum: item.LineNum,
+                            OrderNum: item.OrderNum,
+                            JobContent: item.JobContent,
+                            NormalCount: item.NormalCount,
+                            AbnormalCount: item.AbnormalCount,
+                            VeneerPoints: item.VeneerPoints,
+                            //BadPoints: item.BadPoints,
+                            BeginTime: item.PlanTime[0],
+                            EndTime: item.PlanTime[1],
+                            Operator: '@UserName',
+                            ProductionDate: '@DateTime.Now',
+                        });
+                    };
+                };
+                axios.post('/SMT/SMT_Operator', {
+                    SMT_ProductionDataList: postList
+                }).then(res => {
+                    if (res.data == '保存成功') {
+                        this.$alert(res.data);
+                        location.reload();
+                    } else {
+                        this.$message.error(res.data);
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    this.loading = false;
+                    console.warn('获取数据失败')
+                });
+            },
+            getOrderQuantityCount(order, thistr) {
+                axios.post("/SMT/GetOrderQuantityCount", {
+                    ordernum: order
+                }).then(response => {
+                    //console.log(response.data);
+                    if (response.data == "") { return false; };
+                    let infomessage = [];
+                    if (response.data.result == "此订单无生产记录") {
+                        infomessage.push(response.data.result);
+                    } else {
+                        for (let i in response.data) {
+                            infomessage.push(`${i}${response.data[i]}`);
+                        };
+                    };
+                    thistr.info = infomessage
+                }).catch(error => {
+                    console.log(error);
+                });
+            },
+            selectHandle(v, row) {
+                if (v != '') {
+                    this.getOrderQuantityCount(v, row)
+                };
+            },
+            watchHandle(v, row) {
+                row.info = [];
+            },
+            addrow() {
+                this.$prompt('请输入需要添加行数', '添加行', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputPattern: /^[1-9]\d*$/,
+                    inputErrorMessage: '只能输入数字'
+                }).then(({ value }) => {
+                    for (let i = 0; i < value; i++) {
+                        this.tableList.push({
+                            LineNum: '',
+                            OrderNum: '',
+                            JobContent: '',
+                            NormalCount: '',
+                            AbnormalCount: '',
+                            VeneerPoints: '',
+                            //BadPoints: '',
+                            PlanTime: [],
+                            info: []
+                        });
+                    };
+                }).catch(() => {
+                    console.log("取消添加");
+                });
+            },
+            removetr(index) {
+                this.tableList.splice(index, 1);
+            }
+        }
+    });
+</script>

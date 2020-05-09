@@ -1,0 +1,811 @@
+﻿@model JianHeMES.Models.Appearance
+@{
+    ViewBag.Title = "外观电检工作";
+}
+
+@*  <summary>
+    1.开始外观电检页面
+    2.页面主要功能是为条码记录电检开始时间
+    3.选择订单后可查看该订单所有条码的状态，包括 未开始/未完成/已完成 三种状态
+    4.挪用库存功能，可选择挪用订单号和条码号
+    5.扫码或输入条码回车后，会展现此条码模组号，和此条码各工段通过情况，同时验证此条码能否进行开始电检
+    6.若条码合格且处于未开始/未完成状态，则可以开始电检
+    7.若条码合格但条码处于已完成状态，则出现打印条码相应的功能按钮，（可选打印机，调打印浓度，设置打印数量）
+    </summary>*@
+
+<link href="~/Scripts/Bootstraps/bootstrap-select.min.css" rel="stylesheet" />
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+@*<h2 class="hidden-xs">外观电检工作</h2>*@
+@* 样式 *@
+<style>
+    #BarCodesNum {
+        display: inline-block;
+        /* background-color: aqua; */
+    }
+
+    .RepertoryStyle {
+        color: #555;
+        padding: 0 6px;
+    }
+
+    input, textarea, select {
+        max-width: 215px;
+    }
+
+    .barcodeFrame {
+        width: 200px;
+        height: 200px;
+        border: 1px solid #555;
+        overflow: auto;
+        padding: 5px;
+    }
+
+        .barcodeFrame ul {
+            list-style: none;
+            padding: 0;
+        }
+
+    .frameW p {
+        margin: 10px 0;
+    }
+
+    .selectpicker, .bootstrap-select > .btn {
+        border: 1px solid #ccc;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 215px;
+    }
+    /*select    宽度*/
+    .bootstrap-select > .btn, .bootstrap-select.form-control:not([class*="col-"]) {
+        max-width: 215px;
+    }
+
+    @@media screen and (min-width:992px) {
+        .leftform {
+            border-right: 1px solid #555;
+            padding: 40px 40px 0 0;
+            min-height: 500px;
+        }
+
+        .barcodeFrame {
+            height: 400px;
+        }
+    }
+
+    @@media screen and (min-width:768px) {
+        .frameW {
+            text-align: center;
+            padding-right: 0;
+        }
+
+        .barcodeFrame {
+            margin: 0 auto;
+        }
+    }
+
+    .table {
+        margin-bottom: 0;
+        max-width: 215px;
+    }
+
+        .table > tbody > tr > td, .table > tbody > tr > th {
+            padding: 1px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 13px;
+            height: 22px;
+        }
+
+    .table-bordered > tbody > tr > th, .table-bordered > tbody > tr > td {
+        border: 1px solid #000;
+    }
+
+    .green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }
+
+    @@media screen and (max-width:768px) {
+        .el-message, .el-notification, .el-message-box {
+            min-width: 90%;
+            max-width: 90%;
+        }
+
+        .form-group, .control-label {
+            margin-bottom: 0px;
+        }
+
+        h5 {
+            margin-top: 5px;
+            margin-bottom: 0px;
+        }
+
+        .frameW p {
+            margin: 5px 0 0;
+        }
+
+        .barcodeFrame {
+            height: 150px;
+        }
+
+        #isorder {
+            margin-bottom: 10px;
+        }
+    }
+
+    .form-group {
+        margin-bottom: 8px;
+    }
+
+    #innerCarton {
+        margin: 15px auto 10px;
+        padding: 20px 0 10px;
+        max-width: 400px
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    .mozhu {
+        font-size: 60px;
+        line-height: 30px;
+    }
+    /*内箱条码样式*/
+    #innerBarcode {
+        width: 200px;
+        height: 75px;
+    }
+
+    .red {
+        color: #ff110c;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+</style>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal" v-cloak>
+        <h4 class="hidden-xs">@ViewBag.Title</h4>
+        <h5 class="visible-xs text-center">@ViewBag.Title</h5>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+        <div class="col-md-4 leftform">
+            <div class="form-group">
+                <div class="col-md-8  col-md-offset-4">
+                    <div class="btn btn-sm" v-on:click="divert=!divert" v-bind:class="{'btn-success': divert,'btn-primary': !divert }">挪用库存</div>
+                    <input class="checkbox-inline" type="checkbox" name="isnuo" v-model="divert" value="true" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="control-label col-md-4">班组</label>
+                <div class="col-md-8">
+                    <group-select></group-select>
+                </div>
+            </div>
+
+            @*挪用订单部分*@
+            <div class="form-group" v-show="divert">
+                <label for="nuoOrder" class="control-label col-md-4">被挪用订单号</label>
+                <div class="col-md-8">
+                    @Html.DropDownList("nuoOrder", (List<SelectListItem>)ViewBag.OrderList, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                </div>
+
+                <label for="nuoBarCode" class="control-label col-md-4">被挪用条码号</label>
+                <div class="col-md-8">
+                    @*@Html.DropDownList("nuoBarCode", (List<SelectListItem>)ViewBag.nuoOrderList, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })*@
+                    <input autocomplete="off" autofocus="autofocus" id="nuoBarCode" name="nuoBarCode" v-model="nuoBarCode" maxlength="15" onkeyup="this.value=this.value.toUpperCase().replace(/\s+/g,'')" type="text" class="form-control text-box single-line">
+                    <div v-show="isnuonum" class="text-danger">{{checkmes}}</div>
+                </div>
+            </div>
+            @* 订单号 *@
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                    @*@Html.DropDownList("OrderNum", (List<SelectListItem>)ViewBag.OrderList, new { @class = "form-control" })*@
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            @* 条码框 *@
+            <div class="form-group">
+                @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <input autocomplete="off" autofocus="autofocus" v-model.trim="innerVal" v-on:keyup.enter.prevent.stop="getmozu" placeholder="请输入条码号" id="BarCodesNum" maxlength="15" name="BarCodesNum" onkeyup="this.value=this.value.toUpperCase().replace(/\s+/g,'')" type="text" class="form-control text-box single-line">
+                    @*@Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus", autocomplete = "off", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')", maxlength = "15" } })*@
+                    @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+                    @*<p v-show="checkMozu[0]!=''" v-bind:style="(checkMozu[0]=='YES')?'color:green':'color:red'" style="margin:0;max-width:215px;">{{checkMozu[1]}}</p>*@
+                    <div>{{checkMozu[1]}}</div>
+                    @*<div class="red">{{warntext}}</div>*@
+                </div>
+            </div>
+
+
+
+            <div class="form-group">
+                <div class="col-md-8 col-md-offset-4">
+                    <span class="RepertoryStyle">是否有客户条码号：<input id="IsRepertory" type="checkbox"></span>
+                </div>
+            </div>
+            @* 客户条码 *@
+            <div id="isorder" class="form-group">
+                @Html.LabelFor(model => model.CustomerBarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.CustomerBarCodesNum, new { htmlAttributes = new { @class = "form-control", autocomplete = "off" } })
+                    @Html.ValidationMessageFor(model => model.CustomerBarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            @* 显示条码各工段通过情况 *@
+            <div class="form-group" v-show="commonalitylist!=''">
+                <label class="control-label col-md-4">各工段情况</label>
+                <div class="col-md-8">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>PQC</th>
+                            <th>FQC</th>
+                            <th>拼屏</th>
+                            <th>老化</th>
+                            <th>校正</th>
+                            <th>包装</th>
+                        </tr>
+                        <tr v-for="item in commonalitylist">
+                            <td><span v-bind:class="item.Accemble_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.FQC_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.MosaiScreen_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Burn_in_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Calibration_Record==true?trueclass:falseclass"></span></td>
+                            <td><span v-bind:class="item.Appearance_Record==true?trueclass:falseclass"></span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input id="subm" type="submit" value="开始外观包装" class="btn btn-default" v-bind:disabled="checknuo" />
+                    <div class="btn btn-default" v-on:click="qingdan()">条码列表</div>
+                    @* 打印功能 *@
+                    <div v-show="innerVal.length==15&&printShow" @*&&printMozhu!=''*@>
+                        <el-button type="primary" v-on:click.prevent.stop="innerPrint" :loading="loading" size="small" @*v-show="innerVal.length==15&&printMozhu!=''"*@>打印模组内箱条码</el-button>
+                        <div>
+                            选打印机：
+                            <el-select v-model="printSelect" clearable placeholder="选择打印机" size="small" style="width:120px">
+                                <el-option v-for="item in printOptions"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </div>
+                        <div v-show="printSelect!='0'&&printSelect!=''">
+                            打印浓度：
+                            <el-slider :max="30"
+                                       :min="-30"
+                                       v-model="nongDu"></el-slider>
+                        </div>
+                        <div v-show="printSelect!='0'&&printSelect!=''">
+                            打印数量：
+                            <el-input-number v-model.trim="pageCount"
+                                             size="small"
+                                             :min="1"
+                                             :max="5"
+                                             style="width:120px;"
+                                             clearable>
+                            </el-input-number>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @*<div class="form-group">
+                    <div id="innerCarton">
+                        <div class="textCenter">
+                            <b class="mozhu">{{printMozhu}}</b>
+                            <div class="innerBarDiv">
+                                <svg id="innerBarcode"></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>*@
+        </div>
+        @* 条码完成情况列表 *@
+        <div v-show="qingdanshow" class="col-md-8 " style="padding:0">
+            <div class="col-md-4 col-sm-4 frameW text-danger">
+                <p>未开始 {{NotDoList.length}} 个<span v-show="divert">（点击可输入）</span></p>
+                <div class="barcodeFrame" style="border-color:indianred">
+                    <ul>
+                        <li v-for="item in NotDoList"
+                            v-on:click="nuoClickBar(item)"
+                            v-bind:style="{cursor:divert?'pointer':''}">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-info">
+                <p>未完成 {{NeverFinish.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:cornflowerblue">
+                    <ul>
+                        <li v-for="item in NeverFinish">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-success">
+                <p>已完成 {{FinishList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:forestgreen">
+                    <ul>
+                        <li v-for="item in FinishList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="clearfix"></div>
+<div class="row col-md-12">
+    @Html.ActionLink("返回", "Index")
+</div>
+<script src="~/Scripts/Bootstraps/bootstrap-select.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+@*<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>*@
+<script src="~/Scripts/axios.min.js"></script>
+@*  引入组件：
+    1/_groupSelect，下拉选择框组件
+*@
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            NotDoList: [],//未开始列表
+            NeverFinish: [],//未完成列表
+            FinishList: [],//完成列表
+            commonalitylist: [],//各工段通过情况数据
+            //绿色√的样式
+            trueclass: {
+                'glyphicon': true,
+                'glyphicon-ok': true,
+                'green': true
+            },
+            //红色×的样式
+            falseclass: {
+                'glyphicon': true,
+                'glyphicon-remove': true,
+                'red': true
+            },
+            divert: false,//挪用开关
+            isnuonum: false,//是否挪用
+            nuoBarCode: "",//挪用的条码
+            checkmes: "",//是否可挪用的显示消息
+            qingdanshow: false,//显示清单开关
+            checkMozu: ["", ""],//检查条码返回的信息
+            innerVal: "",//条码值
+            loading: false,//loading开关
+            printMozhu: "",//打印时条码对应的模组
+            //warntext: "",
+            printShow: false,//打印功能显示开关
+            pageCount: 1,//打印页数
+            printOptions: printIpAddress,//打印机下拉列表
+            printSelect: '',//选择的打印机值
+            nongDu: 30//浓度，默认30
+        },
+        computed: {
+            //控制‘开始电检’按钮是否可按
+            checknuo: function () {
+                if (this.checkMozu[0] != 'YES') {
+                    return true;
+                } else if (this.divert == true) {
+                    if (this.nuoBarCode.length == 15 && this.isnuonum == false) {
+                        return false;
+                    } else {
+                        return true;
+                    };
+                } else {
+                    return false;
+                };
+            }
+        },
+        methods: {
+            //获取订单的条码状态清单
+            getInfo: (oNum) => {
+                axios.post('/Appearances/AppearanceChecklist', { orderNum: oNum }).then(res => {
+                    //console.log(res.data)
+                    let allJson = res.data;
+                    for (let i in allJson) {
+                        let iJson = JSON.parse(allJson[i]);
+                        if (i == "NotDoList") {
+                            app.NotDoList = [];
+                            for (let j in iJson) {
+                                app.NotDoList.push(iJson[j]);
+                            }
+                        };
+                        if (i == "NeverFinish") {
+                            app.NeverFinish = [];
+                            for (let j in iJson) {
+                                app.NeverFinish.push(iJson[j]);
+                            }
+                        };
+                        if (i == "FinishList") {
+                            app.FinishList = [];
+                            for (let j in iJson) {
+                                app.FinishList.push(iJson[j]);
+                            }
+                        };
+                    };
+                }).catch(err => {
+                    alert("获取订单信息失败")
+                });
+            },
+            //当挪用开关切换时，控制表单挪用条码属性
+            isnuo: (nuoVal) => {
+                if (nuoVal == true) {
+                    $("#nuoBarCode").attr("name", "nuoBarCode")
+                } else {
+                    $("#nuoBarCode").removeAttr("name")
+                };
+            },
+            //检查条码是否合格
+            postX: () => {
+                app.commonalitylist = [];
+                app.checkMozu = ["", ""];
+                axios.post('/Appearances/DisplayBarcode', { barcode: app.innerVal }).then(res => {
+                    let thisdata = res.data.split(",");
+                    app.checkMozu = thisdata;
+                }).catch(err => {
+                    console.log("连接失败！")
+                });
+                axios.post('/Commonality/GetBarcode_Each_Section_Prompt', { barcode: app.innerVal }).then(res => {
+                    app.commonalitylist = [];
+                    app.commonalitylist.push(res.data);
+                    if (res.data.Appearance_Record == true) {
+                        app.printShow = true;
+                    };
+                }).catch(err => {
+                    //alert("连接失败！")
+                });
+            },
+            //检查挪用条码是否可以挪用
+            checkorderbar: (v) => {
+                axios.post('/Commonality/CheckBarCodeNumIsRepertory', {
+                    ordernum: $("#nuoOrder").val(),
+                    barcodenum: v,
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == true) {
+                        app.checkmes = "";
+                        app.isnuonum = false;
+                    } else {
+                        app.checkmes = res.data;
+                        app.isnuonum = true;
+                    };
+                }).catch(err => {
+                    console.log("检查失败")
+                });
+            },
+            //显示条码列表
+            qingdan: () => {
+                app.getInfo($("#OrderNum").val());
+                app.qingdanshow = true;
+            },
+            //setinnerBarDiv: (v) => {
+            //    JsBarcode("#innerBarcode", v.toUpperCase(), {
+            //        height: 60, //条形码的高度
+            //        fontOptions: "bold",//使文字加粗体或变斜体
+            //        format: "CODE128",
+            //        font: "monospace",
+            //        textAlign: "center",
+            //        textMargin: 0,//设置条形码和文本之间的间距
+            //        fontSize: 42,//设置文本的大小
+            //        lineColor: "#000",//条形码颜色
+            //        margin: 0,//设置条形码周围的空白边距
+            //        marginTop: 0
+            //    });
+            //},
+
+            //获取输入的条码对应的模组号
+            getmozu: function () {
+                //e.preventDefault();
+                let inner = this.innerVal;
+                if (inner != "" && inner.length == 15) {
+                    if ($("#IsRepertory").is(":checked") == true) {
+                        $("#CustomerBarCodesNum").focus(); // 设置焦点
+                    };
+                    this.postX();
+                    axios.post('/Packagings/GetModulbarCode',
+                        { barcode: inner }
+                    ).then(res => {
+                        //console.log(res)
+                        if (res.data.module != "") {
+                            this.printMozhu = res.data.module;
+                            //this.mozuwarntext = ""
+                        } else {
+                            this.printMozhu = "";
+                            //alert('此条码箱体号为空');
+                        };
+                    }).catch(err => {
+                        console.warn("获取模组号失败")
+                    });
+                } else {
+                    this.commonalitylist = [];
+                };
+
+
+
+                //if (this.innerVal.length == 15) {
+                //    this.loading = true;
+                //    //let jis = 0;
+                //    //获取箱体号
+                //    axios.post('/Packagings/GetModulbarCode',
+                //        { barcode: this.innerVal }
+                //    ).then(res => {
+                //        //console.log(res)
+                //        if (res.data != "") {
+                //            this.printMozhu = res.data;
+                //            //this.mozuwarntext = ""
+                //        } else {
+                //            this.printMozhu = "";
+                //            alert('此条码箱体号为空');
+                //            //this.$message({
+                //            //    showClose: true,
+                //            //    duration: 5000,
+                //            //    message: '此条码箱体号为空',
+                //            //    type: 'warning'
+                //            //});
+                //            //this.mozuwarntext = "此条码箱体号为空"
+                //        };
+                //        //if (jis == 0) {
+                //        //    jis++;
+                //        //} else {
+                //        //    this.loading = false;
+                //        //};
+                //        this.loading = false;
+                //    }).catch(err => {
+                //        console.warn("获取模组号失败")
+                //    });
+                //    //验证条码号和所选订单是否匹配
+                //    //axios.post('/Packagings/IsCheckBarcode',
+                //    //    {
+                //    //        ordernum: $("#OrderNum").val(),
+                //    //        barcode: this.innerVal
+                //    //    }
+                //    //).then(res => {
+                //    //    //console.log(res)
+                //    //    if (res.data == true) {
+                //    //        this.warntext = "";
+                //    //    } else {
+                //    //        this.warntext = res.data;
+                //    //    };
+                //    //    if (jis == 0) {
+                //    //        jis++;
+                //    //    } else {
+                //    //        this.loading = false;
+                //    //    };
+                //    //}).catch(err => {
+                //    //    console.warn("验证失败")
+                //    //});
+                //};
+            },
+            //打印条码方法
+            innerPrint: () => {
+                ////e.preventDefault();
+                ////判断iframe是否存在，不存在则创建iframe
+                //var iframe = document.getElementById("innerprint-iframe");
+                //if (!iframe) {
+                //    var el = document.getElementById("innerCarton");
+                //    iframe = document.createElement('IFRAME');
+                //    var doc = null;
+                //    iframe.setAttribute("id", "innerprint-iframe");
+                //    iframe.setAttribute('style', 'position:absolute;width:240px;height:120px;left:-1000px;top:-500px;');
+                //    document.body.appendChild(iframe);
+                //    doc = iframe.contentWindow.document;
+                //    //这里可以自定义样式
+                //    doc.write("<link href='/Content/styleFile/printStyle.css' rel='stylesheet' />");
+                //    doc.write('<div>' + el.innerHTML + '</div>');
+                //    doc.close();
+                //    iframe.contentWindow.focus();
+                //};
+                //iframe.onload = function () {
+                //    iframe.contentWindow.print();
+                //    document.body.removeChild(iframe);
+                //};
+                let pageNum = app.pageCount;
+                let nongDu = app.nongDu;
+                if (pageNum < 0 || pageNum > 5 || pageNum == undefined) {
+                    alert("打印的数量要在0~5之间！");
+                    return;
+                };
+                localStorage.setItem('printPageCount', pageNum);
+                localStorage.setItem('printNongDuCount', nongDu);
+                app.loading = true;
+                axios.post('/Appearances/InsideBoxLablePrint', {
+                    barcode: app.innerVal,
+                    modulenum: app.printMozhu,
+                    pagecount: pageNum,
+                    concentration: nongDu,
+                    ip: app.printSelect,//ip地址
+                    port: 9101,//端口
+                }).then(res => {
+                    console.log(res)
+                    if (res.data == '打印成功！') {
+                        app.$message({
+                            showClose: true,
+                            message: data.data,
+                            type: 'success'
+                        });
+                        $("#BarCodesNum").select();
+                    } else {
+                        let r = confirm(`${res.data}`);
+                        $("#BarCodesNum").select();
+                    };
+                    app.loading = false;
+                    $("#BarCodesNum").select();
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                    app.loading = false;
+                });
+            },
+            nuoClickBar(v) {
+                if (this.divert == true) {
+                    this.innerVal = v;
+                    this.$nextTick(function () {
+                        $("#nuoBarCode").select();
+                    });
+                };
+            }
+        },
+        watch: {
+            //监听挪用开关
+            divert: (v) => {//挪用
+                localStorage.setItem('Divert', v);
+                app.isnuo(v);
+                if (v == true) {
+                    app.qingdan();
+                    app.$nextTick(function () {
+                        $("#nuoBarCode").select();
+                    });
+                } else {
+                    $("#BarCodesNum").select();
+                };
+            },
+            //监听挪用条码
+            nuoBarCode: (v) => {
+                if (v.length == 15) {
+                    app.checkorderbar(v);
+                } else {
+                    app.isnuonum = false;
+                }
+            },
+            //监听条码
+            innerVal: (val) => {
+                app.printShow = false;
+                //if (val != "" && val.length == 15) {
+                //    app.setinnerBarDiv(val);
+                //} else {
+                //    $(".innerBarDiv").html('<svg id="innerBarcode"></svg>');
+                //};
+                ////app.mozuwarntext = "";
+                //app.printMozhu = "";
+                ////app.warntext = "";
+            },
+            //监听选择的打印机
+            printSelect: (v) => {
+                localStorage.setItem('printIP', v);
+            }
+        },
+        mounted: function () {
+            //获取浏览器本地存储的打印机ip
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printSelect = printIP;
+            };
+            //获取浏览器本地存储的订单号
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                $("#OrderNum").val(localOrder);
+                //this.getInfo(localOrder);
+            };
+            //设置 若订单改变，清空页面其它数据
+            $("#OrderNum").change(function (val) {
+                localStorage.setItem('Order', val.target.value);
+                //app.getInfo(val.target.value);
+                app.NotDoList = [];
+                app.NeverFinish = [];
+                app.FinishList = [];
+                app.qingdanshow = false;
+                app.commonalitylist = [];
+                app.checkMozu = ["", ""];
+                app.printShow = false;
+                $("#BarCodesNum").select();
+            });
+            //获取浏览器本地存储的打印页数
+            let localpage = localStorage.getItem('printPageCount');
+            if (localpage != null) {
+                this.pageCount = localpage;
+            };
+            //获取浏览器本地存储的打印浓度
+            let localnongdu = localStorage.getItem('printNongDuCount');
+            if (localnongdu != null) {
+                this.nongDu = +localnongdu;
+            };
+            //获取浏览器本地存储的挪用状态
+            let localDivert = localStorage.getItem('Divert');
+            if (localDivert != null) {
+                let localNuo = localDivert == 'true' ? true : false;
+                this.divert = localNuo;
+                this.isnuo(localNuo);
+            };
+            //获取浏览器本地存储的挪用订单号
+            let localNuoOrder = localStorage.getItem('nuoOrder');
+            if (localNuoOrder != null) {
+                $("#nuoOrder").val(localNuoOrder);
+            };
+            //设置 若挪用订单改变，存储挪用订单号到浏览器本地存储
+            $("#nuoOrder").change(function (val) {
+                localStorage.setItem('nuoOrder', val.target.value);
+                if (app.nuoBarCode.length == 15) {
+                    app.checkorderbar(app.nuoBarCode);
+                } else {
+                    app.isnuonum = false;
+                };
+                $("#nuoBarCode").select();
+            });
+
+
+            //获取浏览器本地存储的是否库存信息
+            let localRepertory = localStorage.getItem('isRepertory');
+            if (localRepertory == "false" || localRepertory == null) {
+                $("#isorder").hide();
+                $("#CustomerBarCodesNum").removeAttr("name");
+            } else if (localRepertory == "true") {
+                $("#IsRepertory").prop('checked', true);
+            };
+            //设置 若是否库存信息改变，设置表单内值的属性
+            $("#IsRepertory").change(function () {
+                localStorage.setItem('isRepertory', $(this).is(':checked'));
+                if ($(this).is(':checked') == true) {
+                    $("#isorder").show();
+                    $("#CustomerBarCodesNum").attr("name", "CustomerBarCodesNum");
+                    $("#CustomerBarCodesNum").select();
+                } else {
+                    $("#isorder").hide();
+                    $("#CustomerBarCodesNum").removeAttr("name");
+                    $("#BarCodesNum").select();
+                }
+            });
+            $("#BarCodesNum").select();
+
+            //设置挪用条码框回车后的焦点跳转
+            $("#nuoBarCode").keypress(function (e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    $("#BarCodesNum").select();
+                    //if ($("#IsRepertory").is(":checked") == true) {
+                    //    $("#CustomerBarCodesNum").focus(); // 设置焦点
+                    //};
+                };
+            });
+
+            //取消客户号码框回车功能
+            $("#CustomerBarCodesNum").keypress(function (e) {
+                if (e.which == 13) {
+                    return false;
+                }
+            });
+
+            //取消条码框回车功能
+            $("#BarCodesNum").keypress(function (e) {
+                if (e.which == 13) {
+                    return false;
+                }
+            });
+
+            $("#BarCodesNum").select();
+        }
+    })
+</script>

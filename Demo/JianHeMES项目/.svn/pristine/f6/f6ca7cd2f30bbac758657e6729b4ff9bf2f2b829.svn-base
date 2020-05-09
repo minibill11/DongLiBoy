@@ -1,0 +1,352 @@
+﻿
+@{
+    ViewBag.Title = "用户清单";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+<style>
+    h2 {
+        text-align: center;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        font-size: 21px;
+    }
+
+    #app {
+        width: 45%;
+        margin: 15px auto;
+    }
+
+    .cell {
+        padding: 0 !important;
+    }
+
+    .el-table td, .el-table th {
+        padding: 5px;
+        text-align: center;
+    }
+    .selectContainer{
+        display:flex;
+        justify-content:center;
+    }
+</style>
+
+<h2>用户清单</h2>
+
+<div id="app">
+    <div class="selectContainer">
+        <el-select style="width:130px;" v-model="selectDepar" size="mini" clearable filterable placeholder="请选择部门">
+            <el-option v-for="item in selectDeparList"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select style="width:130px;margin-left:15px;" v-model="selectName" size="mini" clearable filterable placeholder="请选择姓名">
+            <el-option v-for="item in selectNameList"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-button style="margin-left:15px;" type="primary" size="mini" v-popover:popover1>导出表格</el-button>
+        <el-popover ref="popover1"
+                    trigger="click"
+                    height="350"
+                    content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+            <el-select size="mini" v-model="selectFlag">
+                <el-option v-for="item in selectFlagList"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-button style="margin-left:5px;" type="success" size="mini" @@click="getExcel">确认导出</el-button>
+        </el-popover>
+    </div>
+    <form style="display:none;" action="~/Users/UserqueryListToExcel" method="post">
+        <input type="text" name="flag" v-model="selectFlag" />
+        <button type="submit" id="submits"></button>
+    </form>
+    <el-table v-bind:data="tableData"
+              max-height="650"
+              style="width: 100%">
+        <el-table-column prop="Department"
+                         sortable
+                         label="部门"
+                         width="180">
+        </el-table-column>
+        <el-table-column prop="UserNum"
+                         label="工号"
+                         sortable
+                         width="100">
+        </el-table-column>
+        <el-table-column prop="UserName"
+                         sortable
+                         label="姓名">
+        </el-table-column>
+        <el-table-column label="操作">
+            <template slot-scope="scope">
+                <el-button v-show="canremove" size="mini" type="danger" v-popover:popover5 @@click="remove(scope.row,scope.$index)">移除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+</div>
+
+<script>
+
+    const app = new Vue({
+        el: "#app",
+        data: {
+            localListFlag: false,
+            centerListFlag: false,
+            canremove:false,
+            tableData:[],
+            localTbleData: [],
+            centerTableData:[],
+            visible2:false,
+            selectDepar: null,
+            selectDeparList: [],
+            selectNum: null,
+            selectNumList: [],
+            selectName: null,
+            selectNameList: [],
+            flagss: true,
+            origindata:[],
+            selectFlag: "",
+            selectFlagList: [],
+            originNameList:[]
+        },
+        mounted() {
+            if (checkRoles(roles, '查看工厂用户清单')) {
+                this.localListFlag = true;
+            } else {
+                this.localListFlag = false;
+            }
+            if (checkRoles(roles, '查看总部用户清单')) {
+                this.centerListFlag = true;
+            } else {
+                this.centerListFlag = false;
+            };
+            if (checkRoles(roles, '删除用户名')) {
+                this.canremove = true;
+            } else {
+                this.canremove = false;
+            };
+            this.getAllUser();
+            this.flagss = true
+        },
+        methods: {
+            // 获取全部用户数据
+            getAllUser() {
+                if (this.localListFlag || this.centerListFlag) {
+                    axios.post("/Users/UserqueryList").then(res=> {
+                        console.log(res.data)
+                        let localArr = [];
+                        res.data.huizhou.forEach(item=> {
+                            if (item.Userlist.length > 0) {
+                                item.Userlist.forEach(items=> {
+                                    localArr.push(items);
+                                })
+                            }
+
+                        })
+                        this.localTbleData = localArr;
+                        let arr = res.data.shenzhen;
+                        res.data.huizhou.forEach(item=> {
+                            if (item.DeaprList == "财务部") {
+                                arr.push(item);
+                                return false;
+                            }
+                        });
+                        let tearr = []
+                        arr.forEach(item=> {
+                            if (item.Userlist.length>0) {
+                                item.Userlist.forEach(items=> {
+                                    tearr.push(items);
+                                })
+                            }
+                        });
+                        this.centerTableData = tearr
+
+                        if (this.localListFlag == true && this.centerListFlag == true) {
+                            let allarr = this.localTbleData.concat(this.centerTableData);
+
+                            this.tableData = allarr;
+                            let obj = [{ value: "工厂", label: "工厂" },
+                                        { value: "总部", label: "总部" },
+                                        { value: "全部", label: "全部" }
+                            ]
+                            this.selectFlagList = obj;
+                        } else if (this.centerListFlag == true) {
+                            let obj = [{ value: "总部", label: "总部" }
+                            ]
+                            this.selectFlagList = obj;
+                            this.tableData = this.centerTableData;
+                        } else if (this.localListFlag == true) {
+                            let obj = [{ value: "工厂", label: "工厂" }]
+                            this.selectFlagList = obj;
+                            this.tableData = this.localTbleData;
+                        }
+
+                        // 获取各个选择框的值
+                        let de = []
+                        let nu = []
+                        let na = []
+                        this.tableData.forEach(item=> {
+                            de.push(item.Department)
+                            nu.push(item.UserNum)
+                            na.push(item.UserName)
+                        });
+                        let de2 = unique(de)
+                        let nu2 = unique(nu)
+                        let na2 = unique(na)
+                        console.log(de2)
+                        console.log(nu2)
+                        console.log(na2)
+                        de2.forEach(item=> {
+                            let obj = { value: item, label: item }
+                            this.selectDeparList.push(obj)
+                        })
+                        nu2.forEach(item=> {
+                            let obj = { value: item, label: item }
+                            this.selectNumList.push(obj)
+                        })
+                        na2.forEach(item=> {
+                            let obj = { value: item, label: item }
+                            this.selectNameList.push(obj)
+                        })
+                        this.originNameList = this.selectNameList
+                        this.$notify({
+                            message: "数据加载成功!",
+                            type: "success"
+                        });
+                        this.origindata = this.tableData;
+                    }).catch(err=> {
+                        this.$notify({
+                            message: "网络错误!",
+                            type: "warning"
+                        })
+                    })
+                } else {
+                    this.$message({
+                        message: "暂无权限查看",
+                        type:"warning"
+                    })
+                }
+            },
+            // 移除用户
+            remove(item, index) {
+                if (this.canremove == true) {
+                    this.$confirm(`此操作将永久删除用户:${item.UserName}, 是否继续?`, {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        center: true
+                    }).then(() => {
+                        axios.post("/Users/DeleteUser", { id: item.ID }).then(res=> {
+                            if (res.data) {
+                                this.$message({
+                                    type: 'success',
+                                    message: '删除成功!'
+                                });
+                                this.tableData.splice(index, 1);
+                            } else {
+                                this.$message({
+                                    type: 'warning',
+                                    message: '删除失败!'
+                                });
+                            }
+                        }).catch(err=> {
+                            this.$message({
+                                type: 'warning',
+                                message: '网络错误!'
+                            });
+                        })
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });
+                    });
+                } else {
+                    this.$notify({
+                        type: 'warning',
+                        message: '暂无权限!'
+                    });
+                }
+            },
+            // 搜索
+            search(depar) {
+                let resualtArr = []
+                if (this.selectDepar != null && this.selectDepar != '') {
+                    this.tableData.forEach(item=> {
+                        if (item.Department.indexOf(this.selectDepar) != -1) {
+                            resualtArr.push(item)
+                        }
+                    })
+                } else {
+                    resualtArr = this.tableData
+                }
+                return resualtArr
+            },
+            // 导出表格
+            getExcel() {
+                if (this.selectFlag != '') {
+                    $("#submits").click();                    
+                } else {
+                    this.$notify({
+                        message: "请选择需要导出的数据",
+                        type: "warning"
+                    });
+                }
+            }
+        },
+        watch: {
+            selectDepar() {
+                if (this.selectDepar != null && this.selectDepar != '') {
+                    let arr = []
+                    this.origindata.forEach(item=> {
+                        if (item.Department == this.selectDepar) {
+                            arr.push(item)
+                        }
+                    });
+                    this.selectName = null
+                    this.selectNameList = []
+                    this.tableData = arr;
+                    arr.forEach(item=> {
+                        let obj = { value: item.UserName, label: item.UserName };
+                        this.selectNameList.push(obj)
+                    });
+                } else {
+                    this.tableData = this.origindata;
+                    this.selectNameList = this.originNameList
+                }
+            },
+            selectName() {
+                if (this.selectName != null && this.selectName != '') {
+                    let arr = []
+                    this.origindata.forEach(item=> {
+                        if (item.UserName == this.selectName) {
+                            arr.push(item)
+                        }
+                    });
+                    this.tableData = arr;
+                } else if (this.selectName == "" && (this.selectDepar == "" || this.selectDepar == null)) {
+                    this.tableData = this.origindata;
+                } else if (this.selectName == "" && this.selectDepar != "") {
+
+                }
+            }
+        }
+    })
+    function unique(arr) {
+        //Set数据结构，它类似于数组，其成员的值都是唯一的
+        return Array.from(new Set(arr)); // 利用Array.from将Set结构转换成数组
+    }
+</script>

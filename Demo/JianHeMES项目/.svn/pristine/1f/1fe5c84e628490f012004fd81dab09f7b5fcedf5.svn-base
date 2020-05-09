@@ -1,0 +1,993 @@
+﻿
+@{
+    ViewBag.Title = "仪器设备保修单";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<style>
+    .addINNER{
+        display:flex;
+        justify-content:center;
+    }
+    .el-form{
+        width:520px;
+    }
+
+    .macineDetials{
+        display:flex;
+        justify-content:space-around;
+    }
+    .macineDetialsInner{
+        display:flex;
+    }
+    .repiarManContainerInner{
+        /*width:33%;*/
+    }
+    .repairComfirmContainer{
+        display:flex;
+        justify-content:space-between;
+    }
+    .detialandDesc,.faultDesc,.repiarManContainer,.repiarManContainer,.repiarManContainer,.repairFactory,.repairComfirmContainer{
+        border:1px solid black;
+        border-top:none;
+    }
+    .detialandDesc{
+        border:1px solid black;
+
+    }
+    .macineDetialsInner{
+        width:25%;
+
+    }
+    .lineone{
+        border-right:1px solid black;width:50%;text-align:center;
+    }
+    .container{
+        min-width:1140px;
+    }
+    .faultDesc{
+        height:80px;
+        display:flex;
+        justify-content:space-between;
+    }
+    .repiarManContainer{
+        height:28px;
+    }
+    .repiarManContainer{
+        display:flex;
+        justify-content:space-between;
+    }
+    .repiarManContainerInner{
+        width:33.33%;
+        display:flex;
+        justify-content:flex-start;
+    }
+    .repairFactory{
+        display:flex;
+        justify-content:space-between;
+    }
+    .repairFactoryInner{
+       
+    }
+    .repairFactoryInner{
+        display:flex;
+        justify-content:flex-start;
+    }
+    .finalConfirmInner{
+        display:flex;
+        justify-content:space-between;
+    }
+
+    .bgc{
+        background-color:#ccc
+    }
+</style>
+@*<h4 style="text-align:center;">仪器设备保修单</h4>*@
+<div id="app">
+    @*{{mainInfos.Needto}}*@
+    @* 当用户从index2跳转过来时 *@
+    <div v-if="isIndex" class="addContainer">
+        <h4 style="text-align:center;width:88%;">新建报修单</h4>
+        <div class="addINNER">
+            <el-form ref="form" model="form" label-width="80px">
+                <el-form-item label="设备名称">
+                    <el-input v-model="form.ename"></el-input>
+                </el-form-item>
+                <el-form-item label="设备编号">
+                    <el-input v-model="form.enums"></el-input>
+                </el-form-item>
+                <el-form-item label="紧急状态">
+                    <el-input v-model="form.status"></el-input>
+                </el-form-item>
+                <el-form-item label="故障时间">
+                    <el-col span="11">
+                        <el-date-picker type="datetime" placeholder="选择日期" v-model="form.dates" style="width: 100%;"></el-date-picker>
+                    </el-col>
+                </el-form-item>
+                <el-form-item label="故障描述">
+                    <el-input type="textarea" v-model="form.desc"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button size="small" type="primary" v-on:click="addNewForm">立即创建</el-button>
+                    @*<el-button size="small">取消</el-button>
+                    <el-button size="small" v-on:click="gobackToIndex2">返回</el-button>*@
+                </el-form-item>
+            </el-form>
+        </div>
+    </div>
+    
+    @* 当用户从查询页过来时 *@
+    <div v-else>
+        <div>
+            <h4 style="text-align:center;">报修单详细</h4>
+            <hr />
+            @* 设备详细信息 *@
+            <div class="detialandDesc">
+                <div class="macineDetials">
+                    <div class="macineDetialsInner">
+                        <div class="lineone">设备名称：</div>
+                        <div class="lineone">{{mainInfos.EquipmentName}}</div>
+                    </div>
+                    <div class="macineDetialsInner">
+                        <div class="lineone">设备编号：</div>
+                        <div class="lineone">{{mainInfos.EquipmentNumber}}</div>
+                    </div>
+                    <div class="macineDetialsInner">
+                        <div class="lineone">故障时间：</div>
+                        <div class="lineone">{{mainInfos.FaultTime | repairTimeFilter}}</div>
+                    </div>
+                    <div class="macineDetialsInner">
+                        <div class="lineone">紧急状态：</div>
+                        <div class="lineone" v-on:click="changeEmergency('紧急状态',mainInfos.Emergency,'故障简述','Emergency')">{{mainInfos.Emergency==null?'未填写':mainInfos.Emergency}}</div>
+                    </div>
+                </div>
+            </div>
+            @* 故障描述 *@
+            <div class="faultDesc" v-bind:class="mainInfos.FauDescription!=null?'bgc':''">
+                <div style="width:10%;border-right:1px solid black;width:12.5%;text-align:center;padding:25px;">故障描述：</div>
+                <p style="width:86%" v-on:click="changeFauDescription('紧急状态',mainInfos.FauDescription,'故障简述','FauDescription')">
+                    {{mainInfos.FauDescription==null?'未填写':mainInfos.FauDescription}}
+                </p>
+            </div>
+            @* 维修人员/日期 *@
+            <div class="repiarManContainer" v-bind:class="mainInfos.CenterApprove!=null?'bgc':''">
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">报修人员/日期：</div>
+                    <div style="width:18%;text-align:center;">{{mainInfos.RepairName==null?'未填写':mainInfos.RepairName}}</div>
+                    <div style="border-right:1px solid black;width:43.5%;">&nbsp;&nbsp;{{mainInfos.RepairDate | TimeFormat}}</div>
+                </div>
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">部门审核：</div>
+                    <div style="width:21%;text-align:center;" v-on:click="changeDeparAssessor('主管经理审核',mainInfos.DeparAssessor,'故障审核','DeparAssessor')">{{mainInfos.DeparAssessor==null?'未审核':mainInfos.DeparAssessor}}</div>
+                    <div style="border-right:1px solid black;width:40.5%;">&nbsp;&nbsp;{{mainInfos.DeparAssessedDate| TimeFormat}}</div>
+                </div>
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">中心总监批准：</div>
+                    <div style="width:21%;text-align:center;" v-on:click="changeCenterApprove('中心总监批准',mainInfos.CenterApprove,'故障批准','CenterApprove')">{{mainInfos.CenterApprove==null?'未批准':mainInfos.CenterApprove}}</div>
+                    <div style="border-right:1px solid black;width:41.5%;">&nbsp;&nbsp;{{mainInfos.CenterApprovedDate| TimeFormat}}</div>
+                </div>
+            </div>
+            @* 技术部意见 *@
+            <div class="faultDesc" v-bind:class="mainInfos.TecDepar_opinion!=null?'bgc':''">
+                <div style="width:10%;border-right:1px solid black;width:12.5%;text-align:center;padding:25px;">技术部意见：</div>
+                <p style="width:86%" v-on:click="changeTecDepar_opinion('技术部意见',mainInfos.TecDepar_opinion,'技术部意见','TecDepar_opinion')">
+                    {{mainInfos.TecDepar_opinion==null?'未填写':mainInfos.TecDepar_opinion}}
+                </p>
+            </div>
+            @* ME工程师/日期 *@
+            <div class="repiarManContainer" v-bind:class="mainInfos.CeApprove!=null?'bgc':''">
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">ME工程师/日期：</div>
+                    <div style="width:18%;text-align:center;">{{mainInfos.MEName==null?'未填写':mainInfos.MEName}}</div>
+                    <div style="border-right:1px solid black;width:43.5%;">&nbsp;&nbsp;{{mainInfos.MEDate| TimeFormat}}</div>
+                </div>
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">部门审核：</div>
+                    <div style="width:21%;text-align:center;" v-on:click="changeTecDeparAssessor('主管经理审核',mainInfos.TecDeparAssessor,'技术部意见审核','TecDeparAssessor')">{{mainInfos.TecDeparAssessor==null?'未审核':mainInfos.TecDeparAssessor}}</div>
+                    <div style="border-right:1px solid black;width:40.5%;">&nbsp;&nbsp;{{mainInfos.TecDeparAssessedDate| TimeFormat}}</div>
+                </div>
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">中心总监批准：</div>
+                    <div style="width:21%;text-align:center;" v-on:click="changeCeApprove('中心总监批准',mainInfos.CeApprove,'技术部意见批准','CeApprove')">{{mainInfos.CeApprove==null?'未批准':mainInfos.CeApprove}}</div>
+                    <div style="border-right:1px solid black;width:41.5%;">&nbsp;&nbsp;{{mainInfos.CeApprovedDate| TimeFormat}}</div>
+                </div>
+            </div>
+            @* 联建采购意见 *@
+            <div class="faultDesc" v-bind:class="mainInfos.Purchasing_opinion!=null||mainInfos.Needto==false?'bgc':''">
+                <div style="width:10%;border-right:1px solid black;width:12.5%;text-align:center;padding:25px;font-size:13px;">联建采购意见：</div>
+                <p style="width:86%" v-on:click="changePurchasing_opinion('联建采购意见',mainInfos.Purchasing_opinion,'联建采购意见','Purchasing_opinion')">
+                   {{mainInfos.Purchasing_opinion==null?'未填写':mainInfos.Purchasing_opinion}}
+                </p>
+            </div>
+            @*<hr />*@
+            @* 意见人/日期 *@
+            <div class="repiarManContainer" v-bind:class="mainInfos.OpinApprove!=null||mainInfos.Needto==false?'bgc':''">
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">意见人/日期：</div>
+                    <div style="width:18%;text-align:center;">{{mainInfos.OpinionName==null?'未填写':mainInfos.OpinionName}}</div>
+                    <div style="border-right:1px solid black;width:43.5%;">&nbsp;&nbsp;{{mainInfos.OpinionDate| TimeFormat}}</div>
+                </div>
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">审核人：</div>
+                    <div style="width:21%;text-align:center;" v-on:click="changeOpinAssessor('联建采购意见审核人',mainInfos.OpinAssessor,'采购意见审核','OpinAssessor')">{{mainInfos.OpinAssessor==null?'未审核':mainInfos.OpinAssessor}}</div>
+                    <div style="border-right:1px solid black;width:40.5%;">&nbsp;&nbsp;{{mainInfos.OpinAssessedDate| TimeFormat}}</div>
+                </div>
+                <div class="repiarManContainerInner">
+                    <div style="width:37.55%;border-right:1px solid black;text-align:center;">批准人：</div>
+                    <div style="width:21%;text-align:center;" v-on:click="changeOpinApprove('联建采购意见批准人',mainInfos.OpinApprove,'采购意见批准','OpinApprove')">{{mainInfos.OpinApprove==null?'未批准':mainInfos.OpinApprove}}</div>
+                    <div style="border-right:1px solid black;width:41.5%;">&nbsp;&nbsp;{{mainInfos.OpinApprovedDate| TimeFormat}}</div>
+                </div>
+            </div>
+            @* 维修时间/厂家 *@
+            <div class="repairFactory"  v-bind:class="mainInfos.MainName!=null||mainInfos.Needto==false?'bgc':''">
+                <div style="width:45.9%;border-right:1px solid black;" class="repairFactoryInner">
+                    <div style="width:27.3%;border-right:1px solid black;text-align:center;">维修时间：</div>
+                    <div style="text-align:center;width:44%" v-on:click="changeMaintenanceDate('维修时间',mainInfos.MaintenanceDate,'维修人/厂家','MaintenanceDate')">{{mainInfos.MaintenanceDate | repairTimeFilter}}</div>
+                </div>
+                <div style="width:54.2%" class="repairFactoryInner">
+                    <div style="width:37.8%;border-right:1px solid black;text-align:center;">维修人/厂家：</div>
+                    <div style="width:62%;text-align:center;" v-on:click="changeMainName('维修人/厂家',mainInfos.MainName,'维修人/厂家','MainName')">{{mainInfos.MainName==null?'未填写':mainInfos.MainName}}</div>
+                </div>
+            </div>
+            @* 维修后确认 *@
+            <div class="repairComfirmContainer" v-bind:class="mainInfos.RepairProblem!='0'?'bgc':''">
+                <div style="width:45.9%;border-right:1px solid black;">
+                    <div>维修后效果确认（维修需求部门）</div>
+                    <div style="height:75px;border-bottom:1px solid black;border-top:1px solid black" v-on:click="changeAfterMain('维修后效果确认（维修需求部门）',mainInfos.AfterMain,'维修部门确认','AfterMain')">{{mainInfos.AfterMain==null?'未填写':mainInfos.AfterMain}}</div>
+                    <div style="border-bottom:1px solid black" v-on:click="changeRepairProblem('保修问题是否解决','请选择','维修部门确认','RepairProblem')"><span>保修问题是否解决：</span>{{mainInfos.RepairProblem | CheckFilter}}</div>
+                    <div class="finalConfirmInner">
+                        <div style="width:50%; border-right:1px solid black;text-align:center;">确认人/日期</div>
+                        <div style="width:50%; border-right:1px solid black;text-align:center;">{{mainInfos.ConfirmName==null?'未填写':mainInfos.ConfirmName}} {{mainInfos.ConfirmDate | TimeFormat}}</div>
+                    </div>
+                </div>
+                <div style="width:54%">
+                    <div>维修后效果确认（技术部）</div>
+                    <div style="height:75px;border-bottom:1px solid black;border-top:1px solid black" v-on:click="changeTcAfterMin('维修后效果确认（技术部）',mainInfos.TcAfterMin,'维修后技术部确认','TcAfterMin')">{{mainInfos.TcAfterMin==null?'未填写':mainInfos.TcAfterMin}}</div>
+                    <div style="border-bottom:1px solid black" v-on:click="changeTcRepairProblem('保修问题是否解决（技术部）','请选择','维修后技术部确认','TcRepairProblem')"><span>保修问题是否解决：</span>{{mainInfos.TcRepairProblem | CheckFilter}}</div>
+                    <div class="finalConfirmInner">
+                        <div style="width:50%; border-right:1px solid black;text-align:center;">确认人/日期</div>
+                        <div style="width:50%; border-right:1px solid black;text-align:center;">{{mainInfos.TcConfirmName==null?'未填写':mainInfos.TcConfirmName}} {{mainInfos.TcConfirmDate |TimeFormat}}</div>
+                    </div>
+                </div>
+            </div>
+            @*<el-button size="small" v-on:click="gobackToQuery">返回</el-button>*@
+        </div>
+    </div>
+
+    @* 用户修改点检表信息弹出框---文本 *@
+    <el-dialog v-bind:title="changeTextData.title"
+               v-bind:visible.sync="showTextDialog"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div>
+            <div><span>原值：</span>{{changeTextData.textVal}}</div>
+            <hr />
+            <span>修改为：</span>
+            <div v-if="text"><el-input v-model="changeTextData.changedVal" size="small" clearable></el-input></div>
+            <div v-if="datetime">
+                <el-date-picker v-model="changeTextData.changedVal"
+                                type="date"
+                                placeholder="选择日期">
+                </el-date-picker>
+            </div>
+            <div v-if="textear"><el-input size="small" v-model="changeTextData.changedVal" type="textarea" clearable></el-input></div>
+            <div v-if="showiscaigou">
+                <el-select v-model="mainInfos.Needto" size="small" clearable placeholder="是否采购">
+                    <el-option v-for="item in options2"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div v-if="others">
+                <el-select v-model="changeTextData.changedVal" size="small" clearable placeholder="请选择批准结果">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="showTextDialog = false">取 消</el-button>
+            <el-button type="primary" v-on:click="saveChanged">保存修改</el-button>
+        </span>
+    </el-dialog>
+
+
+    @{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+</div>
+<script>
+    // 格式化时间
+    function timeFormat(val) {
+        if (val == null || val == '') return ''
+        let dd = new Date(val);
+        let year = dd.getFullYear();
+        let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+        let days = dd.getDate().toString().padStart(2, 0);
+        let hours = dd.getHours().toString().padStart(2, 0);
+        let minius = dd.getMinutes().toString().padStart(2, 0);
+        let seconds = dd.getSeconds().toString().padStart(2, 0);
+        return `${year}-${month}-${days}`
+    }
+
+    Vue.filter('TimeFormat', function (val) {
+        if (val == null) return ''
+        let dd = new Date(val);
+        let year = dd.getFullYear();
+        let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+        let days = dd.getDate().toString().padStart(2, 0);
+        let hours = dd.getHours().toString().padStart(2, 0);
+        let minius = dd.getMinutes().toString().padStart(2, 0);
+        let seconds = dd.getSeconds().toString().padStart(2, 0);
+        return `${year}-${month}-${days} ${hours}:${minius}`
+    })
+    Vue.filter('repairTimeFilter', function (val) {
+        if (val == null || val == '') return '未填写';
+        let dd = new Date(val);
+        let year = dd.getFullYear();
+        let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+        let days = dd.getDate().toString().padStart(2, 0);
+        let hours = dd.getHours().toString().padStart(2, 0);
+        let minius = dd.getMinutes().toString().padStart(2, 0);
+        let seconds = dd.getSeconds().toString().padStart(2, 0);
+        return `${year}-${month}-${days}`
+    })
+
+    // 定义全局过滤器-- 处理报修问题确认效果
+    Vue.filter('CheckFilter', function (val) {
+        if (val == 0) {
+            return '未确认'
+        } else if (val == 1) {
+            return '已解决'
+        } else if (val == 2) {
+            return '未解决'
+        }
+    });
+
+    var roles = JSON.parse(localStorage.getItem("rigths"));
+    let app = new Vue({
+        el: "#app",
+        data: {
+            userName: "@UserName",
+            isIndex: false,
+            form: {
+                ename: null,
+                enums: null,
+                status: null,
+                dates: null,
+                desc: null,
+            },
+            EquipmenNums: null,
+            faultTime: null,
+            equiDetails: {
+                AssetNumber: null,
+                EquipmentName: null,
+                EquipmentNumber: null,
+                Id: null,
+                LineNum: null,
+                UserDepartment: null,
+                StationNum: null,
+                Status: null
+            },
+            mainInfos: {},
+            showTextDialog: false,
+            changeTextData: {
+                title: null,
+                textVal: null,
+                changedVal: null
+            },
+            text: false,
+            textear: false,
+            others: false,
+            datetime:false,
+            postKw: null,
+            showiscaigou:false,
+            options: [{
+                value: '通过',
+                label: '通过'
+            }, {
+                value: '驳回',
+                label: '驳回'
+            }],
+            options2: [
+                {
+                    value: true,
+                    label: "采购"
+                }, {
+                    value: false,
+                    label: '非采购'
+                }
+            ],
+            iscaigou:null
+        },
+        mounted() {
+            // 获取上一连接地址--用来判断是从哪个页面跳转过来的
+            let lastUrl = document.referrer;
+            if (lastUrl.indexOf("Index") != -1) {
+                this.EquipmenNums = getUrlParam('num');  // 设备编号
+                this.getMachineDetialsInfos(this.EquipmenNums);
+                this.isIndex = true;
+            } else {
+                this.EquipmenNums = getUrlParam('num');  // 设备编号
+                this.faultTime = getUrlParam('time') == 'null' ? '' : getUrlParam('time');  // 故障时间
+                //console.log(this.EquipmenNums)
+                //console.log(this.faultTime)
+                this.getMachineDetialsInfos(this.EquipmenNums);
+                this.getDefaultInfos(this.EquipmenNums, this.form.ename, this.faultTime);
+                this.isIndex = false;
+            };
+            
+        },
+        methods: {
+            // 新建报修单提交数据的方法
+            addNewForm() {
+                if (this.form.dates == null || this.form.dates == '') {
+                    this.$message({
+                        message: "请选择故障日期时间",
+                        type: "warning"
+
+                    });
+                    return false
+
+                }
+                let postData = {
+                    EquipmentNumber: this.form.enums,
+                    EquipmentName: this.form.ename, FaultTime: this.form.dates,
+                    Emergency: this.form.status, FauDescription: this.form.desc,
+                    UserDepartment: this.equiDetails.UserDepartment
+                }
+                axios.post("/Equipment/Repairbill_maintenance", { equipmentRepairbill: postData }).then(res=> {
+                    console.log(res.data)
+                    if (res.data.addEquipment == true) {
+                        this.$message({
+                            message: res.data.equipmentRepairbill,
+                            type: "success"
+
+                           
+
+                        });
+                        this.isIndex = false;
+
+                        this.getDefaultInfos(this.EquipmenNums, this.form.ename, this.dates);
+
+                        console.log(this.isIndex)
+                        this.form.enums = null;
+                        this.form.ename = null;
+                        this.form.dates = null;
+                        this.form.status = null;
+                        this.form.desc = null;
+                    } else {
+                        this.$message({
+                            message: res.data.equipmentRepairbill,
+                            type: "warning"
+                        });
+                    }
+                    
+                }).catch(err=> {
+                    this.$message({
+                        message: "新建报修单时连接失败",
+                        type: "warning"
+                    })
+                })
+                console.log(this.form.dates)
+            },
+            // 返回产线页
+            gobackToIndex2() {
+                window.location.href = "/Equipment/Index2"
+            },
+            // 返回查询首页
+            gobackToQuery() {
+                window.location.href = "/Equipment/EquipmentRepairbill_Query"
+            },
+            // 通过设备编号获取设备详细
+            getMachineDetialsInfos(Enumbers) {
+                if (Enumbers == null) return ''
+                axios.post("/Equipment/Particulars", { equipmentNumber: Enumbers }).then(res=> {
+                    //alert("ser")
+                    console.log(res.data)
+                    this.equiDetails.AssetNumber = res.data[0].AssetNumber;
+                    this.equiDetails.EquipmentName = res.data[0].EquipmentName;
+                    this.equiDetails.EquipmentNumber = res.data[0].EquipmentNumber;
+                    this.equiDetails.Id = res.data[0].Id;
+                    this.equiDetails.LineNum = res.data[0].LineNum;
+                    this.equiDetails.UserDepartment = res.data[0].UserDepartment;
+                    this.equiDetails.StationNum = res.data[0].StationNum;
+                    this.equiDetails.Status = res.data[0].Status;
+                    // 给表单赋值
+                    this.form.ename = this.equiDetails.EquipmentName;
+                    this.form.enums = this.equiDetails.EquipmentNumber;
+
+                }).catch(err=> {
+                    this.$message({
+                        message: "根据设备编号获取设备详细信息时连接失败",
+                        type: "warning"
+                    })
+                })
+            },
+
+            // 通过设备编号获取点检表信息
+            getDefaultInfos(Enumbers, Ename, datetime) {
+                axios.post("/Equipment/EquipmentRepairbill_Query", { equnumber: Enumbers, equipname: Ename, date: datetime }).then(res=> {
+                    console.log(res.data[0])
+                    if (res.data.length > 0) {
+                        let obj = res.data[0]
+                        obj.MaintenanceDate = timeFormat(obj.MaintenanceDate)
+                        this.mainInfos = obj;
+                        this.$message({
+                            message: "获取数据成功",
+                            type: "success"
+                        })
+                    } else {
+                        this.$message({
+                            message: "无对应数据",
+                            type: "warning"
+                        })
+                    }
+                }).catch(err=> {
+                    this.$message({
+                        message: "根据设备编号获取点检表详细信息时连接失败",
+                        type: "warning"
+                    })
+                })
+            },
+
+            // 关闭弹窗提示方法
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            },
+
+            // 保存修改
+            saveChanged() {
+                this.mainInfos[this.postKw] = this.changeTextData.changedVal
+                if (this.postKw == 'DeparAssessor') {  // 故障审核
+                    this.mainInfos[this.postKw] = this.userName + '/' + this.changeTextData.changedVal;
+                    this.mainInfos.DeparAssessedDate = new Date();
+                } else if (this.postKw == 'CenterApprove') {  // 故障审批
+                    this.mainInfos[this.postKw] = this.userName + '/' + this.changeTextData.changedVal;
+                    this.mainInfos.CenterApprovedDate = new Date();
+                } else if (this.postKw == 'TecDepar_opinion') {
+                    this.mainInfos[this.postKw] = this.changeTextData.changedVal;
+                    this.mainInfos.MEDate = new Date();
+                    this.mainInfos.MEName = this.userName
+                } else if (this.postKw == 'TecDeparAssessor') {
+                    this.mainInfos[this.postKw] = this.userName + '/' + this.changeTextData.changedVal;
+                    this.mainInfos.TecDeparAssessedDate = new Date();
+                } else if (this.postKw == 'CeApprove') {
+                    this.mainInfos[this.postKw] = this.userName + '/' + this.changeTextData.changedVal;
+                    this.mainInfos.CeApprovedDate = new Date();
+                    ////this.mainInfos.
+                } else if (this.postKw == 'Purchasing_opinion') {
+                    this.mainInfos[this.postKw] = this.changeTextData.changedVal;
+                    this.mainInfos.OpinionDate = new Date();
+                    this.mainInfos.OpinionName = this.userName
+                } else if (this.postKw == 'OpinAssessor') {
+                    this.mainInfos[this.postKw] = this.userName + '/' + this.changeTextData.changedVal;
+                    this.mainInfos.OpinAssessedDate = new Date();
+                } else if (this.postKw == 'OpinApprove') {
+                    this.mainInfos[this.postKw] = this.userName + '/' + this.changeTextData.changedVal;
+                    this.mainInfos.OpinApprovedDate = new Date();
+                } else if (this.postKw == 'RepairProblem') {
+                    if (this.changeTextData.changedVal == "请选择") {
+                        this.changeTextData.changedVal = 0
+                    } else if (this.changeTextData.changedVal == "通过") {
+                        this.changeTextData.changedVal = 1
+                    } else {
+                        this.changeTextData.changedVal = 2
+                    }
+                    this.mainInfos[this.postKw] = this.changeTextData.changedVal
+                    this.mainInfos.ConfirmDate = new Date();
+                    this.mainInfos.ConfirmName = this.userName
+                } else if (this.postKw == 'TcRepairProblem') {
+                    if (this.changeTextData.changedVal == "请选择") {
+                        this.changeTextData.changedVal = 0
+                    } else if (this.changeTextData.changedVal == "通过") {
+                        this.changeTextData.changedVal = 1
+                    } else {
+                        this.changeTextData.changedVal = 2
+                    }
+                    this.mainInfos[this.postKw] = this.changeTextData.changedVal
+                    this.mainInfos.TcConfirmDate = new Date();
+                    this.mainInfos.TcConfirmName = this.userName
+                }
+                this.commomSave()
+                this.showTextDialog = false;
+            },
+            // 公用保存方法-- 公共部分
+            commomSave() {  // 根据type判断是否需要获取当前时间传给后台，并且dateKw为后台接收时间的键
+                    
+                    axios.post("/Equipment/Modify_repairs", this.mainInfos).then(res=> {
+                        if (res.data.repairbill == '修改成功！') {
+                            this.mainInfos = JSON.parse(res.data.equipmentRepairbill);
+                            this.$message({
+                                message: res.data.repairbill,
+                                type: "success"
+                            });
+                            this.showTextDialog = false;
+                            this.text = false;
+                            this.textear = false;
+                            this.others = false;
+                            this.datetime = false;
+                        } else {
+                            this.$message({
+                                message: "修改失败",
+                                type: "warning"
+                            });
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            message: "修改报修单信息时连接出错",
+                            type: "warning"
+                        });
+                    })
+            },
+            // 由于这些修改功能共性不多，单独编写方法逻辑反而更清晰
+            // 紧急状态
+            changeEmergency(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.DeparAssessor == null) {  // 有权限并且未审核
+                    this.postKw = postKw   // 开始点击修改之后就已经决定了传给后台的键
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = true;
+                    this.textear = false;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            // 故障描述
+            changeFauDescription(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.DeparAssessor == null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.textear = true;
+                    this.others = false
+                    this.text = false;
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            //主管经理审核--故障
+            changeDeparAssessor(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.RepairName != null && this.mainInfos.FauDescription != null && this.mainInfos.DeparAssessor == null && this.mainInfos.CenterApprove == null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            //中心总监批准--故障
+            changeCenterApprove(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.DeparAssessor != null && this.mainInfos.CenterApprove == null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            // 技术部意见
+            changeTecDepar_opinion(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CenterApprove != null && this.mainInfos.CeApprove ==null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = true;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            //ME工程师/日期
+            changeTecMEName(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CenterApprove != null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = true;
+                    this.textear = false;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            // 技术部主管经理审核
+            changeTecDeparAssessor(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.MEName != null && this.mainInfos.TecDeparAssessor == null && this.mainInfos.CeApprove == null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            // 技术部中心总监批准
+            changeCeApprove(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.TecDeparAssessor != null && this.mainInfos.CeApprove == null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = true;
+                } else {
+                    
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    })
+                }
+            },
+            //联建采购意见
+            changePurchasing_opinion(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CeApprove != null && this.mainInfos.OpinApprove == null && this.mainInfos.Needto) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = true;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            // 采购意见审核
+            changeOpinAssessor(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.OpinionName != null && this.mainInfos.OpinAssessor==null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            // 采购意见批准
+            changeOpinApprove(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.OpinAssessor != null && this.mainInfos.OpinApprove==null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            //维修时间
+            changeMaintenanceDate(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CeApprove != null && this.mainInfos.MaintenanceDate == null && this.mainInfos.Needto) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.datetime = true;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = false
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            //维修人/厂家
+            changeMainName(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CeApprove != null && this.mainInfos.MainName == null && this.mainInfos.Needto) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = true;
+                    this.textear = false;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            //维修后效果确认（维修需求部门）
+            changeAfterMain(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CeApprove != null && this.mainInfos.TcAfterMin != null && this.mainInfos.AfterMain == null && this.mainInfos.TcRepairProblem !='0') {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = true;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            //需求部门-保修问题是否解决
+            changeRepairProblem(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CeApprove != null && this.mainInfos.AfterMain != null && this.mainInfos.RepairProblem == '0') {
+                    this.postKw = postKw;
+                    this.changeTextData.title = `修改 ${kw}`;
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true;
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false;
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            //维修后效果确认（技术部）
+            changeTcAfterMin(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.CeApprove != null && this.mainInfos.TcAfterMin == null) {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = true;
+                    this.others = false
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "此处不可修改或暂无权限修改",
+                        type: "warning"
+                    });
+                }
+            },
+            //保修问题是否解决
+            changeTcRepairProblem(kw, val, roleKw, postKw) {
+                if (checkRoles(roles, roleKw) && this.mainInfos.TcAfterMin != null && this.mainInfos.TcRepairProblem == '0') {
+                    this.postKw = postKw
+                    this.changeTextData.title = `修改 ${kw}`
+                    this.changeTextData.textVal = val;
+                    this.changeTextData.changedVal = val;
+                    this.text = false;
+                    this.textear = false;
+                    this.others = true
+                    this.datetime = false;
+                    this.showTextDialog = true;
+                    this.showiscaigou = false
+                } else {
+                    this.$message({
+                        message: "ceshi",
+                        type: "warning"
+                    });
+                }
+            }
+        }
+    });
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r != null) return unescape(r[2]); return null;
+    }
+    function checkRoles(roleList, roleName) {   //检测权限
+        var flag = false
+        if (roleList && roleName) {
+            for (let item in roleList) {
+                if (roleList[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>
+

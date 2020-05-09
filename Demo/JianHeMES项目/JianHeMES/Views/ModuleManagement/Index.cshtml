@@ -1,0 +1,226 @@
+﻿@{
+    ViewBag.Title = "模块看板首页";
+}
+
+@*  <summary>
+    1.模块看板首页
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center">
+                <el-form :inline="true" :model="queryTable" size="small">
+                    <el-form-item label="选择订单">
+                        <select-input v-model.trim="queryTable.ordernum" :disabled="false" @@watchval="watchOrdernum($event)" :appendbody="false" :options="options.ordernum" :isfocus="true" :ismultiple="true" size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="onQuerySubmit">查询</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="medium"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="type"
+                                     label="平台型号"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="processingRequire"
+                                     label="制程要求"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="standardRequire"
+                                     label="标准要求"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="moduleNum"
+                                     label="模块数"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="aiCount"
+                                     label="AI机台完成数量"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="afterWeldingPass"
+                                     label="后焊完成率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="samplingCount"
+                                     label="后焊抽检率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="afterLine"
+                                     label="后焊产线完成情况"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="gulePass"
+                                     label="灌胶电测完成率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="gulePassThrough"
+                                     label="灌胶电测直通率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="maskPass"
+                                     label="面罩电测完成率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="maskPassThrough"
+                                     label="面罩电测直通率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="electricalSamplingCount"
+                                     label="电测后抽检率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="electricalSamplingPass"
+                                     label="电测后抽检合格率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="burnPass"
+                                     label="老化完成率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="burnPassThrough"
+                                     label="老化直通率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="appearancePass"
+                                     label="外观完成率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="appearancePassThrough"
+                                     label="外观直通率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="innerPackCount"
+                                     label="内箱包装数量"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="outsidepackCount"
+                                     label="外箱包装数量"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="warehousr"
+                                     label="出入库情况"
+                                     align="center">
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            filterResult: [],//存储筛选总数据后的结果
+            /** 选择框的值
+                queryTable.ordernum 筛选订单
+                */
+            queryTable: {
+                ordernum: [],
+            },
+            /** 选择框的下拉列表
+                options.ordernum 筛选订单下拉列表
+                */
+            options: {
+                ordernum: [],
+            },
+        },
+        //页面打开时执行
+        created: function () {
+            //获取订单列表
+            this.getOrdernum();
+        },
+        //函数方法
+        methods: {
+            //总表条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/ModuleManagement/Index', {
+                    orderunm: this.queryTable.ordernum
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    //this.filterResult = res.data;
+                    this.loading = false;
+                    this.$message.success('查询成功！');
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //获取订单号选择框下拉清单
+            getOrdernum() {
+                axios.post('/ModuleManagement/GetOrderNumList').then(res => {
+                    this.options.ordernum = res.data;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+            //监听订单选择，调用筛选方法，即时更新筛选后的表格
+            watchOrdernum(v) {
+                //this.onQuerySubmit();
+                //this.filterList();
+            },
+            //筛选方法，
+            filterList() {
+                let array = this.tableList,//所有数据
+                    arr1 = this.queryTable.ordernum,//下拉列表选择的订单值
+                    thisArr1;
+                //过滤订单值，筛选出过滤后的列表 存为thisArr1
+                thisArr1 = array.filter(function (val) {
+                    if (arr1 == null || arr1 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr1) {
+                            if (val.platfrom.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                this.filterResult = thisArr1;//存储筛选后的数据
+            }
+        },
+        //页面加载完后执行
+        mounted: function () {
+
+        }
+    });
+</script>

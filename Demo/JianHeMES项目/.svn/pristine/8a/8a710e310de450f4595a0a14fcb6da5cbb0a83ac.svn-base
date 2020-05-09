@@ -1,0 +1,475 @@
+﻿@{
+    ViewBag.Title = "SMT看板历史";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+    <script src="~/Content/styleFile/packaging/index.js"></script>
+    <script src="~/Scripts/axios.min.js"></script>
+    <link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+    <link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+    <script src="~/Content/styleFile/packaging/index.js"></script>
+    <meta name="viewport" content="width=device-width" />
+    <title>smt-history</title>
+    <style>
+        .select-container {
+            text-align: center;
+            margin: 15px auto;
+        }
+
+        .el-input {
+            width: 165px;
+        }
+        table thead tr th,table>tbody>tr>td{
+            text-align:center;
+        }
+        .container{
+        width:1300px;
+    }
+        .el-table .cell{
+        padding:4px;
+    }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h4 style="text-align: center;">SMT看板历史</h4>
+        <div class="select-container">
+            <el-select size="small" v-model="barnum" clearable placeholder="请选择条码">
+                <el-option v-for="item in barnumdata"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select size="small" v-model="times" clearable placeholder="请选择批次">
+                <el-option v-for="item in timesdata"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select size="small" v-model="supplier" clearable placeholder="请选择供应商">
+                <el-option v-for="item in supplierdata"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select size="small" v-model="types" clearable placeholder="请选择物料型号">
+                <el-option v-for="item in typesdata"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select size="small" v-model="order" clearable placeholder="请选择订单号">
+                <el-option v-for="item in orderData"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-button id="searchinfos" type="success" size="small" v-on:click="getInfos">查找</el-button>
+            <el-button id="goback" type="primary" size="small" v-on:click="goback">返回</el-button>
+        </div>
+        <el-table v-bind:data="tableDatas"
+                  v-bind:span-method="objectSpanMethod"
+                  max-height="650">
+            <el-table-column prop="barcode"
+                             label="条码号"
+                             width="153">
+            </el-table-column>
+            <el-table-column prop="freezetime"
+                             label="入SMT时间"
+                             width="185">
+            </el-table-column>
+            <el-table-column prop="warmtime"
+                             label="开始回温时间"
+                             width="185">
+            </el-table-column>
+            <el-table-column prop="stirtime"
+                             label="开始搅拌时间"
+                             width="175">
+            </el-table-column>
+            <el-table-column label="使用记录">
+                <el-table-column prop="ordernum"
+                                 label="订单号"
+                                 width="130">
+                </el-table-column>
+                <el-table-column prop="linnum"
+                                 label="产线"
+                                 width="60">
+                </el-table-column>
+                <el-table-column prop="employtime"
+                                 label="时间段"
+                                 width="215">
+                </el-table-column>
+            </el-table-column>
+            <el-table-column prop="recycletime"
+                             label="回收时间"
+                             width="195">
+            </el-table-column>
+        </el-table>
+
+    </div>
+
+    <script>
+        function getSpan(arrs) {
+            let contactDot = 0;
+            arrs.forEach((item, index) => {
+                if (index === 0) {
+                    app.spanArr.push(1)
+                } else {
+                    if (item.ordernum.trim() === arrs[index - 1].ordernum.trim()) {
+                        app.spanArr[contactDot] += 1;
+                        app.spanArr.push(0)
+                    } else {
+                        contactDot = index
+                        app.spanArr.push(1)
+                    }
+                }
+            });
+
+            let contactDot1 = 0;
+            arrs.forEach((item, index) => {
+                if (index === 0) {
+                    app.spanArr1.push(1)
+                } else {
+                    if (item.freezetime.trim() === arrs[index - 1].freezetime.trim()) {
+                        app.spanArr1[contactDot1] += 1;
+                        app.spanArr1.push(0)
+                    } else {
+                        contactDot1 = index
+                        app.spanArr1.push(1)
+                    }
+                }
+            });
+            let contactDot2 = 0;
+            arrs.forEach((item, index) => {
+                if (index === 0) {
+                    app.spanArr2.push(1)
+                } else {
+                    if (item.warmtime.trim() === arrs[index - 1].warmtime.trim()) {
+                        app.spanArr2[contactDot2] += 1;
+                        app.spanArr2.push(0)
+                    } else {
+                        contactDot2 = index
+                        app.spanArr2.push(1)
+                    }
+                }
+            });
+            let contactDot3 = 0;
+            arrs.forEach((item, index) => {
+                if (index === 0) {
+                    app.spanArr3.push(1)
+                } else {
+                    if (item.barcode.trim() === arrs[index - 1].barcode.trim()) {
+                        app.spanArr3[contactDot3] += 1;
+                        app.spanArr3.push(0)
+                    } else {
+                        contactDot3 = index
+                        app.spanArr3.push(1)
+                    }
+                }
+            });
+
+        }
+        document.onkeydown = function (event) {
+            var e = event || window.event;    // 兼容IE
+            if (e && e.keyCode == 13) { //回车键的键值为13
+                $("#searchinfos").click();
+            }
+        };
+        var app = new Vue({
+            el: "#app",
+            data: {
+                loading: false,
+                screenSize: document.body.clientWidth,
+                tableDatas: [],
+                barnum: null,
+                barnumdata: [],
+                times: null,
+                timesdata: [],
+                supplier: null,
+                supplierdata: [],
+                types: null,
+                typesdata: [],
+                order: null,
+                orderData: [],
+                spanArr: [],
+                spanArr1:[],
+                spanArr2:[],
+                spanArr3:[]
+            },
+            created: function () {
+                window.onresize = function () {
+                    app.screenSize = document.body.clientWidth;
+                };
+            },
+            mounted: function () {
+                this.getdefultinfos();
+
+                this.getbarnums();
+                this.gettimesdata();
+                this.getsupplier();
+                this.gettypes();
+                this.getorder();
+            },
+            methods: {
+                // 获取条码号
+                getbarnums() {
+                    axios.get("/SMT_Sulderpaster/GetBoardBarcodeList").then(res => {
+                        //console.log(res.data)
+                        //console.log("获取条码号")
+                        this.barnumdata = res.data
+                    }).catch(err => {
+                        this.$message({
+                            message: '获取条码号失败！',
+                            type: 'warning'
+                        });
+                    })
+                },
+                goback(){
+                    window.history.back();
+                },
+                // 获取批次
+                gettimesdata() {
+                    axios.get("/SMT_Sulderpaster/GetBoardBatchList").then(res => {
+                        //console.log(res.data)
+                        //console.log("获取批次")
+                        this.timesdata = res.data
+                    }).catch(err => {
+                        this.$message({
+                            message: '获取批次失败！',
+                            type: 'warning'
+                        })
+                    })
+                },
+                // 获取供应商
+                getsupplier() {
+                    axios.get("/SMT_Sulderpaster/GetBoardSupplierList").then(res => {
+                        //console.log(res.data)
+                        //console.log("获取供应商")
+                        this.supplierdata = res.data
+                    }).catch(err => {
+                        this.$message({
+                            message: '获取供应商失败！',
+                            type: 'warning'
+                        })
+                    })
+                },
+                // 获取物料型号
+                gettypes() {
+                    axios.get("/SMT_Sulderpaster/GetBoardMaterialNumberList").then(res => {
+                        //console.log(res.data)
+                        //console.log("获取物料型号")
+                        this.typesdata = res.data
+                    }).catch(err => {
+                        this.$message({
+                            message: '获取物料型号失败！',
+                            type: 'warning'
+                        })
+                    })
+                },
+                // 获取订单号
+                getorder() {
+                    axios.get("/SMT_Sulderpaster/GetBoardOrdernumList").then(res => {
+                        //console.log(res.data)
+                        //console.log("获取订单号")
+                        this.orderData = res.data
+                    }).catch(err => {
+                        this.$message({
+                            message: '获取订单号失败！',
+                            type: 'warning'
+                        })
+                    })
+                },
+                getInfos() {
+                    if (this.barnum != null || this.times != null || this.supplier != null || this.types != null || this.order != null) {
+                        //this.tableDatas = [];
+                        axios.post("/SMT_Sulderpaster/HistoryBoadr", { barcode: this.barnum, bitch: this.times, materialNumber: this.types, Supplier: this.supplier, ordernum: this.order }).then(res => {
+                            //console.log(res.data)
+                            let arrs = []   // 获取每行完整数据
+                            for (let item in res.data) {
+                                for (let items in res.data[item]) {
+                                    arrs.push(res.data[item][items])
+                                }
+                            }
+                        
+
+                            let testArr2 = []
+                            arrs.forEach(item => {
+                                //item.freezetime = GMTToStr(item.freezetime);
+                                //item.stirtime = GMTToStr(item.stirtime);
+                                //item.warmtime = GMTToStr(item.warmtime);
+                                //item.recycletime = GMTToStr(item.recycletime);
+                                //item.freezetime = GMTToStr(item.freezetime)
+                                if(item.employ.length>0){
+                                    for(let i=0;i<item.employ.length;i++){
+                                        let obj = {
+                                            barcode:item.barcode,freezetime:item.freezetime,warmtime:item.warmtime,stirtime:item.stirtime,ordernum:item.employ[i].ordernum,
+                                            linnum:item.employ[i].linnum,employtime:item.employ[i].employtime,recycletime:item.recycletime
+                                        }
+                                        testArr2.push(obj)
+                                    }
+                                }else{
+                                    let obj = {
+                                        barcode:item.barcode,freezetime:item.freezetime,warmtime:item.warmtime,stirtime:item.stirtime,ordernum:"--",
+                                        linnum:"--",employtime:"--",recycletime:item.recycletime
+                                    }
+                                    testArr2.push(obj)
+                                }
+                            })
+                            console.log(testArr2)
+                            this.tableDatas = testArr2;
+
+                        }).catch(err => {
+                            this.$message({
+                                message: '连接服务器失败！',
+                                type: 'warning'
+                            })
+                        })
+                    } else {
+                        
+                        this.getdefultinfos();
+                        this.$message({
+                            message: '请选择查找信息！',
+                            type: 'warning'
+                        })
+
+                    }
+                },
+                getdefultinfos() {
+                    axios.post("/SMT_Sulderpaster/HistoryBoard").then(res => {
+                        this.tableDatas = [];
+                        console.log(res.data)
+                        let arrs = []   // 获取每行完整数据
+                        for (let item in res.data) {
+                            for (let items in res.data[item]) {
+                                arrs.push(res.data[item][items])
+                            }
+                        }
+                    
+                        let testArr2 = []
+                        arrs.forEach(item => {
+                            // item.freezetime = GMTToStr(item.freezetime);
+                            //item.stirtime = GMTToStr(item.stirtime);
+                            //item.warmtime = GMTToStr(item.warmtime);
+                            //item.recycletime = GMTToStr(item.recycletime);
+                            //item.freezetime = GMTToStr(item.freezetime)
+                            if(item.employ.length>0){
+                                for(let i=0;i<item.employ.length;i++){
+                                    let obj = {
+                                        barcode:item.barcode,freezetime:item.freezetime,warmtime:item.warmtime,stirtime:item.stirtime,ordernum:item.employ[i].ordernum,
+                                        linnum:item.employ[i].linnum,employtime:item.employ[i].employtime,recycletime:item.recycletime
+                                    }
+                                    testArr2.push(obj)
+                                }
+                            }else{
+                                let obj = {
+                                    barcode:item.barcode,freezetime:item.freezetime,warmtime:item.warmtime,stirtime:item.stirtime,ordernum:"--",
+                                    linnum:"--",employtime:"--",recycletime:item.recycletime
+                                }
+                                testArr2.push(obj)
+                            }
+                        })
+                        console.log(testArr2)
+                        this.tableDatas = testArr2;
+                    }).catch(err => {
+
+                    })
+                },
+                objectSpanMethod({ row, column, rowIndex, columnIndex }) {
+                    //console.log(this.spanArr)
+            if (columnIndex === 4) {
+                if (app.spanArr[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                    return {
+                        rowspan: app.spanArr[rowIndex],
+                        colspan: 1
+                    }
+                } else {
+                    return {
+                        rowspan: 0,
+                        colspan: 0
+                    }
+                }
+            }
+            //if (columnIndex === 1) {
+            //    if (app.spanArr1[rowIndex]) { // [3,0,0,2,0,3,0,0]
+            //        return {
+            //            rowspan: app.spanArr1[rowIndex],
+            //            colspan: 1
+            //        }
+            //    } else {
+            //        return {
+            //            rowspan: 0,
+            //            colspan: 0
+            //        }
+            //    }
+            //}
+            //if (columnIndex === 2) {
+            //    if (app.spanArr2[rowIndex]) { // [3,0,0,2,0,3,0,0]
+            //        return {
+            //            rowspan: app.spanArr2[rowIndex],
+            //            colspan: 1
+            //        }
+            //    } else {
+            //        return {
+            //            rowspan: 0,
+            //            colspan: 0
+            //        }
+            //    }
+            //}
+            //if (columnIndex === 3) {
+            //    if (app.spanArr3[rowIndex]) { // [3,0,0,2,0,3,0,0]
+            //        return {
+            //            rowspan: app.spanArr3[rowIndex],
+            //            colspan: 1
+            //        }
+            //    } else {
+            //        return {
+            //            rowspan: 0,
+            //            colspan: 0
+            //        }
+            //    }
+            //}
+        },
+        },
+        watch: {
+            tableDatas() {
+
+                if (this.tableDatas.length > 0) {
+                    this.spanArr = [];
+                    this.spanArr1=[],
+                    this.spanArr2=[],
+                    this.spanArr3=[]
+                    getSpan(this.tableDatas)
+                }
+            }
+        },
+        });
+
+        function GMTToStr(time) {
+            if (time == '--') {
+                return time
+            } else {
+                let date = new Date(time)
+                //console.log(date);
+                let Str = date.getFullYear() + '-' +
+                    (date.getMonth() + 1) + '-' +
+                    date.getDate() + ' ' +
+                    date.getHours() + ':' +
+                    date.getMinutes() + ':' +
+                    date.getSeconds()
+                return Str
+            }
+        }
+
+    </script>
+</body>
+</html>

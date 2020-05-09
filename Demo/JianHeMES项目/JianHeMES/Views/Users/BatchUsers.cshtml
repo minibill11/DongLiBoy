@@ -1,0 +1,155 @@
+﻿
+@{
+    ViewBag.Title = "BatchUsers";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<h1 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">批量添加</h1>
+<style>
+    .inputtext222{
+       display:flex;
+       justify-content:center;
+   }
+    textarea{
+        height:30px;
+        width:15%;
+    }
+    .has-gutter tr th .cell,.el-table__row td .cell{
+        text-align:center;
+    }
+    .el-table__row td{
+        padding:0;
+    }
+    .addusers_footer{
+        display:flex;
+        justify-content:space-between;
+        margin-top:10px;
+    }
+    .red{
+        color:red;
+    }
+</style>
+<div id="app">
+    <div style="width:79%;margin:auto auto;">
+        <div class="inputtext222">
+            <textarea v-model="inputInfos" placeholder="表格粘贴处..."></textarea>
+        </div>
+        <el-table v-bind:data="tableData" style="width: 100%" max-height="660" border stripe>
+            <el-table-column type="index" label="序号" width="80">
+            </el-table-column>
+            <el-table-column prop="UserNum" label="工号" width="120">
+            </el-table-column>
+            <el-table-column prop="UserName" label="姓名" width="120">
+            </el-table-column>
+            <el-table-column prop="PassWord" label="密码" width="100">
+            </el-table-column>
+            <el-table-column prop="Role" label="区块（角色）" width="120">
+            </el-table-column>
+            <el-table-column prop="Department" label="部门" width="154">
+            </el-table-column>
+            <el-table-column prop="Description" label="描述" width="180">
+            </el-table-column>
+            <el-table-column label="操作" width="100">
+                <template slot-scope="scope">
+                    <el-button v-bind:class="scope.row.color==true?'red':''" v-on:click.native.prevent="deleteRow(scope.$index, tableData)"
+                               type="text"
+                               size="small">
+                        移除
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <div class="addusers_footer">
+            <span v-show="flagadd">
+                <strong style="color:red;">{{tableData.length}}</strong>条数据
+            </span>
+            <div>
+                <el-button v-show="flagadd" size="small" type="danger" v-on:click="reset">清空</el-button>
+                <el-button v-show="flagadd" size="small" type="success" v-on:click="addUsers">保存</el-button>
+            </div>
+            
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+
+    const app = new Vue({
+        el: "#app",
+        data: {
+            inputInfos: "",
+            tableData: [],
+            keyArr: ["UserNum", "UserName", "PassWord", "Role", "Department", "Description"],
+            flagadd:false
+        },
+        methods: {
+            deleteRow(index) {
+                this.tableData.splice(index, 1);
+                this.count--;
+            },
+            reset(){
+                this.tableData = [];
+                this.inputInfos = "";
+            },
+            addUsers() {
+                if (this.tableData.length > 0) {
+                    axios.post("/Users/ADDusers", { users: this.tableData }).then(res=> {
+                        console.log(res.data)
+                        if (res.data.repat == true) {
+                            this.$notify({
+                                message: "操作成功",
+                                type: "success"
+                            });
+                            this.reset();
+                        } else {
+                            this.$notify({
+                                message: "操作失败",
+                                type: "warning"
+                            });
+                            res.data.res.forEach(item=> {
+                                this.tableData.forEach(items=> {
+                                    if (item.UserName == items.UserName && item.UserNum == items.UserNum) {
+                                        items.color = true;
+                                    }
+                                })
+                            })
+                        }
+                    }).catch(err=> {
+                        this.$notify({
+                            message: "连接失败",
+                            type: "warning"
+                        })
+                    })
+                } else {
+                    this.$notify({
+                        message: "先粘贴数据",
+                        type:"warning"
+                    })
+                }
+            }
+        },
+        watch: {
+            inputInfos(val) {
+                if (this.inputInfos != '' && this.inputInfos != null) {
+                    copy(this.inputInfos,this.tableData,this.keyArr)
+                }
+            },
+            tableData() {
+                if (this.tableData.length > 0) {
+                    this.flagadd = true;
+                } else {
+                    this.flagadd = false;
+                    this.inputInfos = "";
+                }
+            }
+        },
+        mounted() {
+
+        }
+    })
+</script>

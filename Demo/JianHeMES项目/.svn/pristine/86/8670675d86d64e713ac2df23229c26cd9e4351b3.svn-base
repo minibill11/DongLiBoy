@@ -1,0 +1,197 @@
+﻿
+@{
+    ViewBag.Title = "用户清单";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+<style>
+    h2 {
+        text-align: center;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        font-size: 21px;
+    }
+
+    #app {
+        width: 45%;
+        margin: 15px auto;
+    }
+
+    .cell {
+        padding: 0 !important;
+    }
+
+    .el-table td, .el-table th {
+        padding: 5px;
+        text-align: center;
+    }
+</style>
+
+<h2>用户清单</h2>
+
+<div id="app">
+    <el-table v-bind:data="tableData"
+              max-height="650"
+              style="width: 100%">
+        <el-table-column prop="Department"
+                         sortable
+                         label="部门"
+                         width="180">
+        </el-table-column>
+        <el-table-column prop="UserNum"
+                         label="工号"
+                         sortable
+                         width="100">
+        </el-table-column>
+        <el-table-column prop="UserName"
+                         sortable
+                         label="姓名">
+        </el-table-column>
+        <el-table-column label="操作">
+            <template slot-scope="scope">
+                <el-button size="mini" type="danger" v-popover:popover5 @@click="remove(scope.row,scope.$index)">移除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+</div>
+
+<script>
+
+    const app = new Vue({
+        el: "#app",
+        data: {
+            localListFlag: false,
+            centerListFlag: false,
+            canremove:false,
+            tableData:[],
+            localTbleData: [],
+            centerTableData:[],
+            visible2:false
+        },
+        mounted() {
+            if (checkRoles(roles, '查看工厂用户清单')) {
+                this.localListFlag = true;
+            } else {
+                this.localListFlag = false;
+            }
+            if (checkRoles(roles, '查看总部用户清单')) {
+                this.centerListFlag = true;
+            } else {
+                this.centerListFlag = false;
+            };
+            if (checkRoles(roles, '删除用户名')) {
+                this.canremove = true;
+            } else {
+                this.canremove = false;
+            };
+            this.getAllUser();
+        },
+        methods: {
+            // 获取全部用户数据
+            getAllUser() {
+                if (this.localListFlag || this.centerListFlag) {
+                    axios.post("/Users/UserqueryList").then(res=> {
+                        console.log(res.data)
+                        let localArr = [];
+                        res.data.huizhou.forEach(item=> {
+                            if (item.Userlist.length > 0) {
+                                item.Userlist.forEach(items=> {
+                                    localArr.push(items);
+                                })
+                            }
+
+                        })
+                        this.localTbleData = localArr;
+                        let arr = res.data.shenzhen;
+                        res.data.huizhou.forEach(item=> {
+                            if (item.DeaprList == "财务部") {
+                                arr.push(item);
+                                return false;
+                            }
+                        });
+                        let tearr = []
+                        arr.forEach(item=> {
+                            if (item.Userlist.length>0) {
+                                item.Userlist.forEach(items=> {
+                                    tearr.push(items);
+                                })
+                            }
+                        });
+                        this.centerTableData = tearr
+
+                        if (this.localListFlag == true && this.centerListFlag == true) {
+                            let allarr = this.localTbleData.concat(this.centerTableData);
+
+                            this.tableData = allarr;
+                            
+                        } else if (this.centerListFlag == true) {
+                            this.tableData = this.centerTableData;
+                        } else if (this.localListFlag == true) {
+                            this.tableData = this.localTbleData;
+                        }
+                        this.$notify({
+                            message: "数据加载成功!",
+                            type: "success"
+                        });
+
+                    }).catch(err=> {
+                        this.$notify({
+                            message: "网络错误!",
+                            type: "warning"
+                        })
+                    })
+                } else {
+                    this.$message({
+                        message: "暂无权限查看",
+                        type:"warning"
+                    })
+                }
+            },
+            // 移除用户
+            remove(item, index) {
+                if (this.canremove == true) {
+                    this.$confirm(`此操作将永久删除用户:${item.UserName}, 是否继续?`, {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                        center: true
+                    }).then(() => {
+                        axios.post("/Users/DeleteUser", { id: item.ID }).then(res=> {
+                            if (res.data) {
+                                this.$message({
+                                    type: 'success',
+                                    message: '删除成功!'
+                                });
+                            } else {
+                                this.$message({
+                                    type: 'warning',
+                                    message: '删除失败!'
+                                });
+                            }
+                        }).catch(err=> {
+                            this.$message({
+                                type: 'warning',
+                                message: '网络错误!'
+                            });
+                        })
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });
+                    });
+                } else {
+                    this.$notify({
+                        type: 'warning',
+                        message: '暂无权限!'
+                    });
+                }
+            }
+        }
+    })
+</script>

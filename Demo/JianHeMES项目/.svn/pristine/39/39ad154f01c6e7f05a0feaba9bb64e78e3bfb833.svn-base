@@ -1,0 +1,2156 @@
+﻿using JianHeMES.Areas.KongYaHT.Models;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Mail;
+using System.Text;
+using System.Threading;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class CommonController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        public bool isCheckRole(string rolename, string discription, string name, int id)
+        {
+            var position = db.Users.Where(c => c.UserNum == id).Select(c => c.Role).FirstOrDefault();
+            if (position == "系统管理员")
+            {
+                return true;
+            }
+            var code = db.UserRolelistTable.Where(c => c.RolesName == rolename && c.Discription == discription).Select(c => c.RolesCode).FirstOrDefault().ToString();
+            var codeList = db.Useroles.Where(c => c.UserName == name && c.UserID == id && c.RolesName == rolename).Select(c => c.Roles).FirstOrDefault();
+            if (codeList == null)
+                return false;
+
+            return codeList.Contains(code);
+        }
+
+        //权限设置
+        public ActionResult Permissions(int id)
+        {
+            var idlist = db.Useroles.Where(c => c.UserID == id).Select(c => new { c.RolesName, c.Roles }).ToList();
+            if (idlist == null)
+            {
+                return Content("null");
+            }
+            JObject limits = new JObject();
+            int k = 0;
+            var userrolelisttable = db.UserRolelistTable.ToList();
+            foreach (var item in idlist)
+            {
+                var recordlist = userrolelisttable.Where(c => c.RolesName == item.RolesName).ToList();
+                string[] strCharArr = item.Roles.Split(',');
+                for (int i = 0; strCharArr.Count() > i; i++)
+                {
+                    int code = int.Parse(strCharArr[i]);
+                    var Perm = recordlist.Where(c => c.RolesCode == code).FirstOrDefault().Discription;
+                    limits.Add(k.ToString(), Perm);
+                    k++;
+                }
+            }
+            return Content(JsonConvert.SerializeObject(limits));
+        }
+
+
+        //根据人名传出组织架构的所属上两级
+        public ActionResult GetUpTwoLeave(string name)
+        {
+            JObject result = new JObject();
+            var message = db.Personnel_Roster.Where(c => c.Name == name).FirstOrDefault();
+            if (message == null)
+            {
+                return null;
+            }
+            result.Add("Group", message.DP_Group);
+            var list = db.Personnel_Organization.ToList();
+            var Leavename = list.Where(c => c.Subordinate.Split(',')[0] == message.DP_Group).Select(c => c.Superior).FirstOrDefault();
+            if (Leavename.Substring(Leavename.Length - 2, 2) == "车间")
+            {
+                result.Add("Workshop", Leavename);
+                var depatment = list.Where(c => c.Subordinate.Split(',')[0] == Leavename).Select(c => c.Superior).FirstOrDefault();
+                result.Add("Department", depatment);
+            }
+            else
+            {
+                result.Add("Workshop", null);
+                result.Add("Department", Leavename);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //根据部门或车间找下一级
+        public ActionResult GetDownOneLeave(string upLeave)
+        {
+            JArray workshop = new JArray();
+            JArray group = new JArray();
+            JObject list = new JObject();
+            var message = db.Personnel_Organization.Where(c => c.Superior == upLeave).Select(c => c.Subordinate).ToList();
+            if (message == null)
+            {
+                return null;
+            }
+            foreach (var item in message)
+            {
+                var sub = item.Split(',')[0];
+                var count = db.Personnel_Organization.Count(c => c.Superior == sub);
+                if (count != 0)
+                {
+                    if (sub.Substring(sub.Length - 2, 2) == "车间")
+                        workshop.Add(sub);
+                    else if (sub.Substring(sub.Length - 1, 1) == "组")
+                        group.Add(sub);
+                }
+            }
+            list.Add("Workshop", workshop);
+            list.Add("Group", group);
+            return Content(JsonConvert.SerializeObject(list));
+        }
+
+        //使用了模组号
+        public void DelteMudole(string ordenum, string num)
+        {
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\" + ordenum + ".json") == true)
+            {
+                var jsonstring = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordenum + ".json");
+                var json = JsonConvert.DeserializeObject<JObject>(jsonstring);
+                var normal = json["Normal"].ToList();
+                if (normal.Contains(num))
+                {
+                    var index = normal.IndexOf(num);
+                    normal[index].Remove();
+                    string output2 = Newtonsoft.Json.JsonConvert.SerializeObject(json, Newtonsoft.Json.Formatting.Indented);
+                    System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordenum + ".json", output2);
+                }
+                else
+                {
+                    if (json.Property("Special") != null)
+                    {
+                        var special = json["Special"].ToList();
+                        if (special.Contains(num))
+                        {
+                            var index = special.IndexOf(num);
+                            special[index].Remove();
+                            string output2 = Newtonsoft.Json.JsonConvert.SerializeObject(json, Newtonsoft.Json.Formatting.Indented);
+                            System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordenum + ".json", output2);
+
+                        }
+                    }
+                }
+            }
+        }
+
+        #region-----调用部门版本架构(只用于人事模块)
+        public List<Personnel_Architecture> CompanyDatetime(DateTime executionTime)
+        {
+            var exdate = db.Personnel_Architecture.Where(c => c.ExecutionTime <= executionTime).Max(c => c.ExecutionTime);//前端传来的时间和数据库里部门版本的执行时间对比大小
+
+            //从数据库找到所有的部门、部门负责人、编制人数、刚需人数   .Select(c => new { c.Department, c.Principal, c.Aurhorized_personnel, c.Need_personnel })
+            var datelist = db.Personnel_Architecture.Where(c => c.ExecutionTime == exdate).ToList();
+
+            return datelist;
+        }
+        #endregion
+
+        #region----部门版本（属于公共方法）
+        public ActionResult comany(DateTime exce)
+        {
+            var exdate = db.Personnel_Architecture.Where(c => c.ExecutionTime <= exce).Max(c => c.ExecutionTime);//前端传来的时间和数据库里部门版本的执行时间对比大小
+            //从数据库找到所有的部门、部门负责人、编制人数、刚需人数   
+            var datelist = db.Personnel_Architecture.Where(c => c.ExecutionTime == exdate).Select(c => c.Department).ToList();
+            return Content(JsonConvert.SerializeObject(datelist));
+        }
+        #endregion
+
+        /// <summary>
+        /// 挪用工序操作
+        /// </summary>
+        /// <param name="nuoBarCode"></param>
+        /// <param name="nuoOrder"></param>
+        /// <param name="newbarcode"></param>
+        /// <param name="newOrdernum"></param>
+        public void NuoOperation(string nuoBarCode, string nuoOrder, string newbarcode, string newOrdernum)
+        {
+
+            var barcode = db.BarCodes.Where(c => c.OrderNum == nuoOrder && c.BarCodesNum == nuoBarCode).FirstOrDefault();
+            var appearancebarcode = db.BarCodes.Where(c => c.OrderNum == newOrdernum && c.BarCodesNum == newbarcode).FirstOrDefault();
+            appearancebarcode.ModuleGroupNum = barcode.ModuleGroupNum;
+            barcode.ModuleGroupNum = null;
+            System.IO.File.Delete(@"D:\MES_Data\TemDate\OrderSequence\" + nuoOrder + ".json");
+            var oldpqc = db.Assemble.Where(c => c.OrderNum == nuoOrder && c.BoxBarCode == nuoBarCode).ToList();
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\ProductionControllerExcept.json") == true)
+            {
+                var jsonstring = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\ProductionControllerExcept.json");
+                var list = jsonstring.Split(',').ToList();
+                if (list.Contains(nuoOrder))
+                {
+                    list.Remove(nuoOrder);
+                    string[] array = list.ToArray();
+                    jsonstring = string.Join(",", array);
+                }
+                System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\ProductionControllerExcept.json", jsonstring);
+            }
+            foreach (var oldpqcitem in oldpqc)
+            {
+                if (oldpqcitem.OldOrderNum == null && oldpqcitem.OldBarCodesNum == null)
+                {
+                    oldpqcitem.OldOrderNum = oldpqcitem.OrderNum;
+                    oldpqcitem.OldBarCodesNum = oldpqcitem.BoxBarCode;
+                }
+                oldpqcitem.OrderNum = newOrdernum; oldpqcitem.BoxBarCode = newbarcode;
+            }
+
+            var oldfqc = db.FinalQC.Where(c => c.OrderNum == nuoOrder && c.BarCodesNum == nuoBarCode).ToList();
+            foreach (var oldpqcitem in oldfqc)
+            {
+                if (oldpqcitem.OldOrderNum == null && oldpqcitem.OldBarCodesNum == null)
+                {
+                    oldpqcitem.OldOrderNum = oldpqcitem.OrderNum;
+                    oldpqcitem.OldBarCodesNum = oldpqcitem.BarCodesNum;
+                }
+                oldpqcitem.OrderNum = newOrdernum; oldpqcitem.BarCodesNum = newbarcode;
+            }
+
+            var oldburnM = db.Burn_in_MosaicScreen.Where(c => c.OrderNum == nuoOrder && c.BarCodesNum == nuoBarCode).ToList();
+            foreach (var oldpqcitem in oldburnM)
+            {
+                if (oldpqcitem.OldOrderNum == null && oldpqcitem.OldBarCodesNum == null)
+                {
+                    oldpqcitem.OldOrderNum = oldpqcitem.OrderNum;
+                    oldpqcitem.OldBarCodesNum = oldpqcitem.BarCodesNum;
+                }
+                oldpqcitem.OrderNum = newOrdernum; oldpqcitem.BarCodesNum = newbarcode;
+            }
+
+            var oldBurn = db.Burn_in.Where(c => c.OrderNum == nuoOrder && c.BarCodesNum == nuoBarCode).ToList();
+            foreach (var oldpqcitem in oldBurn)
+            {
+                if (oldpqcitem.OldOrderNum == null && oldpqcitem.OldBarCodesNum == null)
+                {
+                    oldpqcitem.OldOrderNum = oldpqcitem.OrderNum;
+                    oldpqcitem.OldBarCodesNum = oldpqcitem.BarCodesNum;
+                }
+                oldpqcitem.OrderNum = newOrdernum; oldpqcitem.BarCodesNum = newbarcode;
+            }
+
+            var oldcali = db.CalibrationRecord.Where(c => c.OrderNum == nuoOrder && c.BarCodesNum == nuoBarCode).ToList();
+            foreach (var oldpqcitem in oldcali)
+            {
+                if (oldpqcitem.OldOrderNum == null && oldpqcitem.OldBarCodesNum == null)
+                {
+                    oldpqcitem.OldOrderNum = oldpqcitem.OrderNum;
+                    oldpqcitem.OldBarCodesNum = oldpqcitem.BarCodesNum;
+                }
+                oldpqcitem.OrderNum = newOrdernum; oldpqcitem.BarCodesNum = newbarcode;
+            }
+
+            var oldapper = db.Appearance.Where(c => c.OrderNum == nuoOrder && c.BarCodesNum == nuoBarCode).ToList();
+            foreach (var oldpqcitem in oldapper)
+            {
+                if (oldpqcitem.OldOrderNum == null && oldpqcitem.OldBarCodesNum == null)
+                {
+                    oldpqcitem.OldOrderNum = oldpqcitem.OrderNum;
+                    oldpqcitem.OldBarCodesNum = oldpqcitem.BarCodesNum;
+                }
+                oldpqcitem.OrderNum = newOrdernum; oldpqcitem.BarCodesNum = newbarcode;
+            }
+            db.SaveChanges();
+        }
+
+        //根据外箱条码反推订单号
+        //public string GetOrdernumFromBarcode(string outherbarcode)
+        //{
+        //    string[] list = outherbarcode.Split('-');
+        //    var first = list[0];
+        //    var num = list[1];
+        //    var year = first.Substring(0, 2);
+        //    var content = first.Substring(2);
+        //    var ordenum = "20" + year + "-" + content + "-" + num;
+        //    return ordenum;
+        //}
+        //查找当前订单号的出入库情况(包含混装的和被混装的)
+        public List<Warehouse_Join> GetCurrentwarehousList(string ordernum)
+        {
+            List<Warehouse_Join> result = new List<Warehouse_Join>();
+
+            //查找订单所有的外箱条码列表
+            var list = db.Warehouse_Join.Where(c => c.CartonOrderNum == ordernum).ToList();
+            var list2 = db.Warehouse_Join.Where(c => c.CartonOrderNum != ordernum && c.OrderNum == ordernum).ToList();
+            list.AddRange(list2);
+
+            //查找订单所有未出库的列表
+            var falselist = list.Where(c => c.IsOut == false).ToList();
+            var faslebarcodeList = falselist.Select(c => c.OuterBoxBarcode).Distinct().ToList();
+            //查找已出库，并且不是挪用出库，包含混装在内的列表
+            var truelist = list.Where(c => c.IsOut == true && (c.NewBarcode == ordernum || c.NewBarcode == null || c.NewBarcode == c.CartonOrderNum)).ToList();
+
+            if (falselist.Count() == 0 && truelist.Count() == 0)
+            {
+                return result;
+            }
+
+            result.AddRange(falselist);
+            //查找订单的打印外箱数量
+            var packagecount = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().Count();
+            var warehousoutcount = truelist.Select(c => c.OuterBoxBarcode).Distinct().ToList();
+            var foreachwarehous = warehousoutcount.Except(faslebarcodeList).ToList();
+            if (truelist.Count() != 0)//出库数量不为零
+            {
+
+                foreach (var item in foreachwarehous)
+                {
+                    if (truelist.Count(c => c.OuterBoxBarcode == item) != 0)//选取每一个外箱条码最后一次出库记录
+                    {
+                        var itemMaxNUm = truelist.Where(c => c.OuterBoxBarcode == item).Max(c => c.WarehouseOutNum);
+                        var currentwarehouout = truelist.Where(c => c.OuterBoxBarcode == item && c.WarehouseOutNum == itemMaxNUm).ToList();
+                        result.AddRange(currentwarehouout);
+                    }
+                }
+                ////查找最后一次全部出库的次数
+                //int i = 1;
+                //var maxNUM = truelist.Max(c => c.WarehouseOutNum);
+
+                //for (int j = 1; j <= maxNUM; j++)
+                //{
+                //    var aa = truelist.Where(c => c.WarehouseOutNum == j).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                //    if (aa == packagecount)
+                //    {
+                //        i = j;
+                //    }
+                //    else
+                //        break;
+                //}
+                //if (maxNUM == 0)
+                //{
+                //    result.AddRange(truelist);
+                //}
+
+                //else if (i != maxNUM)//有重复入库的
+                //{
+                //}
+                //else//没有重复入库，选最后一次出库记录
+                //{
+                //    var currentwarehouout = truelist.Where(c => c.WarehouseOutNum == i).ToList();
+                //    result.AddRange(currentwarehouout);
+                //}
+            }
+
+            return result;
+        }
+
+
+        /// <summary>
+        /// 发送邮箱
+        /// </summary>
+        /// <param name="sender">发送人</param>
+        /// <param name="recipient">收件人</param>
+        /// <param name="content">内容</param>
+        /// <param name="subject">主题</param>
+        /// <param name="ccList">抄送人列表</param>
+        public bool SendEmail(string sender, List<string> recipient, string content, string subject, List<string> ccList, string address)
+        {
+            SmtpClient client = new SmtpClient("192.168.1.100", Convert.ToInt32("25"));
+            MailMessage msg = new MailMessage();
+            try
+            {
+                msg.From = new MailAddress(sender);
+                foreach (var item in recipient)
+                {
+                    msg.To.Add(item);
+                }
+                // msg.Subject = subject;
+                msg.SubjectEncoding = System.Text.Encoding.GetEncoding("UTF-8");
+                msg.IsBodyHtml = false;
+                msg.Priority = MailPriority.High;
+                msg.Subject = subject;
+                foreach (var cc in ccList)
+                {
+                    msg.CC.Add(cc);
+                }
+                msg.Body = content;
+
+                msg.BodyEncoding = Encoding.GetEncoding("UTF-8");
+                msg.IsBodyHtml = true;
+                msg.Priority = MailPriority.Normal;
+                client.Send(msg);
+                return true;
+            }
+            catch (Exception e)
+            {
+                //string dd = e.Message;
+                //string bb = string.Join("-", recipient.ToArray());
+                //string xx = string.Join("-", ccList.ToArray());
+                //string aa = "sender:" + sender + ",content:" + content + ",subject:" + subject + ",address:" + address + ",recipient:" + bb + ",ccList:" + xx + ",message:" + dd;
+                //System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\1233.txt", aa);
+                return false;
+            }
+        }
+
+        //public ActionResult Permissions(int id)
+        //{
+
+        //    var idlist = db.Useroles.Where(c => c.UserID == id && c.RolesName == "人事日报管理").Select(c => c.Roles).FirstOrDefault();
+        //    if (string.IsNullOrEmpty(idlist))
+        //    {
+        //        return Content("null");
+        //    }
+        //    string[] strCharArr = idlist.Split(',');
+        //    JObject limits = new JObject();
+        //    int i = 0;
+        //    foreach (var item in strCharArr)
+        //    {
+        //        int code = int.Parse(item);
+        //        var Perm = db.UserRolelistTable.Where(c => c.RolesName == "人事日报管理" && c.RolesCode == code).Select(c => c.Discription).FirstOrDefault();
+        //        limits.Add(i.ToString(), Perm);
+        //        i++;
+        //    }
+        //    return Content(JsonConvert.SerializeObject(limits));
+        //}
+
+
+        /// <summary>
+        /// 获取最后一个版本的工序平衡表集合
+        /// </summary>
+        /// <returns></returns>
+        public List<ProcessBalance> GetNewNumberBalanceInfo()
+        {
+            var total = db.ProcessBalance.GroupBy(c => new { c.Type, c.ProductPCBnumber, c.Platform, c.Section, c.Title }).ToList();
+            List<ProcessBalance> balances = new List<ProcessBalance>();
+            foreach (var item in total)
+            {
+                var balance = db.ProcessBalance.OrderByDescending(c => c.SerialNumber).Where(c => c.Type == item.Key.Type && c.ProductPCBnumber == item.Key.ProductPCBnumber && c.Platform == item.Key.Platform && c.Section == item.Key.Section && c.Title == item.Key.Title).FirstOrDefault();
+                balances.Add(balance);
+
+            }
+            return balances;
+        }
+
+        /// <summary>
+        /// 获取最后一个版本的贴片表集合
+        /// </summary>
+        /// <returns></returns>
+        public List<Pick_And_Place> GetNewNumberPickInfo()
+        {
+            var tota2 = db.Pick_And_Place.GroupBy(c => new { c.Type, c.ProductPCBnumber, c.Platform }).ToList();
+            List<Pick_And_Place> pcik = new List<Pick_And_Place>();
+            foreach (var item in tota2)
+            {
+                var pickitem = db.Pick_And_Place.OrderByDescending(c => c.SerialNumber).Where(c => c.Type == item.Key.Type && c.ProductPCBnumber == item.Key.ProductPCBnumber && c.Platform == item.Key.Platform).FirstOrDefault();
+                pcik.Add(pickitem);
+
+            }
+            return pcik;
+        }
+    }
+
+
+    public class CycleRuning
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        public CommonController com = new CommonController();
+        private kongyadbEntities kongyadb = new kongyadbEntities();
+        private ApplicationDbContext equi_db = new ApplicationDbContext();
+        private ApplicationDbContext safety_db = new ApplicationDbContext();
+
+
+        static temp oldvalue;
+        public class temp
+        {
+            public double? effectivecurrent_u { get; set; }
+            public double? air1current_u { get; set; }
+            public double? air1temperature { get; set; }
+            public double? air1pressure { get; set; }
+            public DateTime air1time { get; set; }
+
+            public double? air2current_u { get; set; }
+            public double? air2temperature { get; set; }
+            public double? air2pressure { get; set; }
+            public DateTime air2time { get; set; }
+
+            public double? air3current_u { get; set; }
+            public double? air3temperature { get; set; }
+            public double? air3pressure { get; set; }
+            public DateTime air3time { get; set; }
+
+            //airbottle1[0].pressure, airbottle1[0].temperature, airbottle1[0].humidity
+            public double? airbottle1pressure { get; set; }
+            public double? airbottle1temperature { get; set; }
+            public double? airbottle1humidity { get; set; }
+            public DateTime airbottle1time { get; set; }
+
+            public double? airbottle2pressure { get; set; }
+            public double? airbottle2temperature { get; set; }
+            public double? airbottle2humidity { get; set; }
+
+            public double? airbottle3pressure { get; set; }
+            public double? airbottle3temperature { get; set; }
+            public double? airbottle3humidity { get; set; }
+
+            public double? dery1pressure { get; set; }
+            public double? dery1temperature { get; set; }
+            public double? dery1humidity { get; set; }
+
+            public double? dery2pressure { get; set; }
+            public double? dery2temperature { get; set; }
+            public double? dery2humidity { get; set; }
+
+            public double? head3pressure { get; set; }
+            public double? head3temperature { get; set; }
+            public double? head3humidity { get; set; }
+
+            public double? head4pressure { get; set; }
+            public double? head4temperature { get; set; }
+            public double? head4humidity { get; set; }
+        }
+
+        public class TempTemperatureAndHumidity
+        {
+            public int id { get; set; }
+            public string Name { get; set; }
+            public double? Temperature { get; set; }
+            public double? Humidity { get; set; }
+
+            public bool tempstatu { get; set; }
+            public bool humistatu { get; set; }
+        }
+        public void Small_Sample_EmailSend()
+        {
+            var host_inside = "172.16.6.145";
+            var host_outside = "hzjhgd.vicp.io";
+            while (true)
+            {
+                var send_list = db.Small_Sample_Email_Sended.Where(c => c.Sended == false).ToList();
+                if (send_list.Count > 0)
+                {
+                    var recipient_list = db.UserItemEmail.Where(c => c.ProcesName == "小样发送").ToList();
+                    string recipient_list_string = "";
+                    foreach (var item in recipient_list)
+                    {
+                        recipient_list_string = recipient_list_string == "" ? (item.UserName + "(" + item.EmailAddress + ")") : recipient_list_string + "," + item.UserName + "(" + item.EmailAddress + ")";
+                    }
+                    var ccList_list = db.UserItemEmail.Where(c => c.ProcesName == "小样抄送").ToList();
+                    string ccList_list_string = "";
+                    foreach (var item in ccList_list)
+                    {
+                        ccList_list_string = ccList_list_string == "" ? (item.UserName + "(" + item.EmailAddress + ")") : ccList_list_string + "," + item.UserName + "(" + item.EmailAddress + ")";
+                    }
+                    var ordernumber_list = send_list.Select(c => c.OrderNumber);
+                    string content = "";
+                    string address = "";
+                    foreach (var record in send_list)
+                    {
+                        string content_ = @"<a href=""http://" + host_inside + "/Small_Sample/Display?id=" + record.RecordID + "\"> " + record.OrderNumber + "订单的小样报告已经核准。(内网)</a></br><a href=\"http://" + host_outside + "/Small_Sample/Display?id=" + record.RecordID + "\">" + record.OrderNumber + "订单的小样报告已经核准通过。(外网)</a></br>";
+                        content = content + content_ + "</br>";
+                    }
+                    var result = com.SendEmail("xyts@lcjh.local", recipient_list.Select(c => c.EmailAddress).ToList(), content, String.Join(",", ordernumber_list.ToArray()) + "订单的小样报告已经核准通过。", ccList_list.Select(c => c.EmailAddress).ToList(), address);
+                    if (result)
+                    {
+                        foreach (var record in send_list)
+                        {
+                            record.Sended = true;
+                            record.SendDateTime = DateTime.Now;
+                            record.SendSituation = "收件人：" + recipient_list_string + "抄送人：" + ccList_list_string;
+                            db.SaveChanges();
+                        }
+                    }
+                }
+                Thread.CurrentThread.Join(new TimeSpan(0, 2, 0));//阻止设定时间
+            }
+        }
+
+
+        #region---设备未按周期保养，系统需发邮件
+        public void MonthMain_Email()
+        {
+            while (true)
+            {
+                var host_inside = "localhost:18863";
+                var host_outside = "hzjhgd.vicp.io";
+                string content = "";
+                string address = "";//地址
+                string meg = null;
+                bool aa = false;
+                string theme = "设备未按周期保养情况";//主题  
+                DateTime date = DateTime.Now;
+                var meglist = equi_db.Equipment_MonthlyMaintenance.Select(c => c.EquipmentNumber).Distinct().ToList();
+                var recipient_list = equi_db.UserItemEmail.Where(c => c.ProcesName == "设备未按周期保养发送").ToList();
+                string recipient_list_string = "";
+                foreach (var it in recipient_list)
+                {
+                    recipient_list_string = recipient_list_string == "" ? (it.UserName + "(" + it.EmailAddress + ")") : recipient_list_string + "," + it.UserName + "(" + it.EmailAddress + ")";
+                }
+                var ccList_list = equi_db.UserItemEmail.Where(c => c.ProcesName == "设备未按周期保养抄送");
+                string ccList_list_string = "";
+                foreach (var ite in ccList_list)
+                {
+                    ccList_list_string = ccList_list_string == "" ? (ite.UserName + "(" + ite.EmailAddress + ")") : ccList_list_string + "," + ite.UserName + "(" + ite.EmailAddress + ")";
+                }
+                foreach (var itm in meglist)
+                {
+                    var equi = equi_db.Equipment_MonthlyMaintenance.OrderByDescending(m => m.Id).Where(c => c.EquipmentNumber == itm).FirstOrDefault();
+                    if (date > equi.Nextmainten_cycle)
+                    {
+                        string tiemer = equi.Year + "-" + equi.Month;
+                        string content_list = @"<a href=""http://" + host_inside + "/Equipment/Equipment_MonthlyMaintenance_plan?" + "dates=" + tiemer + "&depar=" + equi.UserDepartment + "\"> "
+                        + equi.EquipmentName + "," + "保养周期:" + equi.MaintenanceDate + "-" + equi.Nextmainten_cycle + "," + "保养时间超出有效期"
+                        + "(内网)</a></br><a href=\"http://" + host_outside + "/Equipment/Equipment_MonthlyMaintenance_plan?" + "dates=" + tiemer + "&depar=" + equi.UserDepartment + "\"> "
+                        + equi.EquipmentName + "," + "保养周期:" + equi.MaintenanceDate + "-" + equi.Nextmainten_cycle + "," + "保养时间超出有效期" + "(外网)</a></br>";
+                        content = content + content_list + "</br>";//内容    
+                        meg = equi_db.Equipment_Maintenmail.Count(c => c.Situation == "设备未按周期保养" && c.Year == date.Year && c.Month == date.Month && c.EquipmentNumber == equi.EquipmentNumber).ToString();
+                        if (meg == "0")
+                        {
+                            Equipment_Maintenmail eq = new Equipment_Maintenmail();
+                            eq.EquipmentNumber = equi.EquipmentNumber;
+                            eq.EquipmentName = equi.EquipmentName;
+                            eq.Mainten_equipment = equi.Mainten_equipment;
+                            eq.MaintenanceDate = equi.MaintenanceDate;
+                            eq.Nextmainten_cycle = equi.Nextmainten_cycle;
+                            eq.Situation = "设备未按周期保养";
+                            eq.Year = date.Year;
+                            eq.Month = date.Month;
+                            eq.Sended = true;
+                            eq.SendDateTime = DateTime.Now;
+                            eq.SendSituation = "收件人：" + recipient_list_string + "抄送人：" + ccList_list_string;
+                            equi_db.Equipment_Maintenmail.Add(eq);
+                            equi_db.SaveChanges();
+                            aa = true;
+                        }
+                    }
+                }
+                if (!String.IsNullOrEmpty(content))
+                {
+                    if (aa == true)
+                    {
+                        com.SendEmail("gaohj@lcjh.local", recipient_list.Select(c => c.EmailAddress).ToList(), content, theme, ccList_list.Select(c => c.EmailAddress).ToList(), address);
+                    }
+                }
+                Thread.CurrentThread.Join(new TimeSpan(24, 0, 0));//阻止设定时间
+            }
+        }
+        #endregion
+        #region ---安全库存清单,现有库存低于安全库存，系统须发邮件
+        public void Safetystock_Email()
+        {
+            while (true)
+            {
+                var host_inside = "localhost:18863";
+                var host_outside = "hzjhgd.vicp.io";
+                string content = "";
+                string address = "";//地址
+                string meg = null;
+                string theme = "安全库存清单库存情况";//主题  
+                bool aa = false;
+                DateTime date = DateTime.Now;
+                var security = safety_db.Equipment_Safetystock.ToList();
+                var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());
+
+                var recipient_list = safety_db.UserItemEmail.Where(c => c.ProcesName == "现有库存低于安全库存发送").ToList();
+                string recipient_list_string = "";
+                foreach (var it in recipient_list)
+                {
+                    recipient_list_string = recipient_list_string == "" ? (it.UserName + "(" + it.EmailAddress + ")") : recipient_list_string + "," + it.UserName + "(" + it.EmailAddress + ")";
+                }
+                var ccList_list = safety_db.UserItemEmail.Where(c => c.ProcesName == "现有库存低于安全库存抄送");
+                string ccList_list_string = "";
+                foreach (var ite in ccList_list)
+                {
+                    ccList_list_string = ccList_list_string == "" ? (ite.UserName + "(" + ite.EmailAddress + ")") : ccList_list_string + "," + ite.UserName + "(" + ite.EmailAddress + ")";
+                }
+                Equipment_SafetyEmail eq = new Equipment_SafetyEmail();
+                foreach (var item in security)
+                {
+                    var erp_record = querylist.Where(c => c.img01 == item.Material).FirstOrDefault();
+                    string result = System.Text.RegularExpressions.Regex.Replace(item.Safety_stock, @"[^0-9]+", "");//使用正则表达式提取数字
+                    if (result != "")
+                    {
+                        double shuzi = Convert.ToDouble(result);
+                        double? img_stock = erp_record == null ? 0 : erp_record.img10;
+                        if (shuzi > img_stock)
+                        {
+                            string url = "&depar=" + System.Web.HttpUtility.UrlEncode(item.EquipmentName);
+                            string content_list = @"<a href=""http://" + host_inside + "/Equipment/Equipment_safety?" + url + "\"> "
+                                + item.EquipmentName + ",品名:" + item.Descrip + ",物料料号" + item.Material + ",现有库存:" + img_stock + ",安全库存:" + item.Safety_stock + ",需要紧急备料使用"
+                                + "(内网)</a></br><a href=\"http://" + host_outside + "/Equipment/Equipment_safety?" + "&depar=" + item.UserDepartment + "\"> "
+                                + item.EquipmentName + ",品名:" + item.Descrip + ",物料料号" + item.Material + ",现有库存:" + img_stock + ",安全库存:" + item.Safety_stock + ",需要紧急备料使用" + "(外网)</a></br>";
+                            content = content + content_list + "</br>";//内容     
+                            meg = safety_db.Equipment_SafetyEmail.Count(c => c.Material == item.Material && c.Existing_inventory == img_stock && c.EquipmentName == item.EquipmentName).ToString();
+                            if (meg == "0")
+                            {
+                                eq.EquipmentName = item.EquipmentName;
+                                eq.Descrip = item.Descrip;
+                                eq.Material = item.Material;
+                                eq.Existing_inventory = img_stock;
+                                eq.Safety_stock = item.Safety_stock;
+                                eq.Sended = true;
+                                eq.SendDateTime = DateTime.Now;
+                                eq.SendSituation = "收件人：" + recipient_list_string + "抄送人：" + ccList_list_string;
+                                safety_db.Equipment_SafetyEmail.Add(eq);
+                                safety_db.SaveChanges();
+                                aa = true;
+                            }
+                        }
+                    }
+                }
+                if (!String.IsNullOrEmpty(content))
+                {
+                    if (aa == true)
+                    {
+                        com.SendEmail("pantm@lcjh.local", recipient_list.Select(c => c.EmailAddress).ToList(), content, theme, ccList_list.Select(c => c.EmailAddress).ToList(), address);
+                    }
+                }
+                Thread.CurrentThread.Join(new TimeSpan(0, 5, 0));//阻止设定时间
+            }
+        }
+        #endregion
+
+        #region 空压房
+        public void CheckHarvesterProgram()
+        {
+            //var host_inside = "172.16.6.145";
+            //var host_outside = "hzjhgd.vicp.io";
+            DateTime aa = DateTime.Now;
+            DateTime lastrecore = DateTime.Now;
+            List<bool> onestatu = new List<bool>() { true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true };
+            int count = 1;
+            int notUpdate = 0;
+            int collectcount = 1;
+            int pccount = 0;
+            while (true)
+            {
+                ApplicationDbContext db2 = new ApplicationDbContext();
+                var recipient_list = db2.UserItemEmail.Where(c => c.ProcesName == "空压房运行情况").Select(c => c.EmailAddress).ToList();//邮件接收人
+                                                                                                                                  //var recipient_list = new List<string>();
+                                                                                                                                  //recipient_list.Add("zhangdy @lcjh.local");
+                string content = "";
+                string subject = "";//String.Join(",", ordernumber_list.ToArray()
+                string address = "";
+                List<string> cclist = new List<string>();
+                //cclist.Add("hejw@lcjh.local");
+                bool one = true;
+                bool two = true;
+                bool three = true;
+                //List<bool> flow = new List<bool>() { true, true, true };
+                //List<bool> fire = new List<bool>() { true, true, true };
+                //List<bool> six = new List<bool>() { true, true, true };
+                //List<bool> sevent = new List<bool>() { true, true, true };
+                bool start = false;
+                #region 取值
+                //空压机1最后两个
+                var lastTwoair1comp = kongyadb.aircomp1.OrderByDescending(c => c.id).Take(2).ToArray();
+                //与当前时间差值
+                var air1time = (DateTime.Now - lastTwoair1comp[0].recordingTime).TotalMinutes;
+                air1time = Math.Floor(air1time);
+
+                //空压机2最后两个
+                var lastTwoair2comp = kongyadb.aircomp2.OrderByDescending(c => c.id).Take(2).ToArray();
+                //与当前时间差值
+                var air2time = (DateTime.Now - lastTwoair2comp[0].recordingTime).TotalMinutes;
+                air2time = Math.Floor(air2time);
+
+                //空压机3最后两个
+                var lastTwoair3comp = kongyadb.aircomp3.OrderByDescending(c => c.id).Take(2).ToArray();
+                //与当前时间差值
+                var air3time = (DateTime.Now - lastTwoair3comp[0].recordingTime).TotalMinutes;
+                air3time = Math.Floor(air3time);
+
+                //气管1最后两个
+                var airbottle1 = kongyadb.airbottle1.OrderByDescending(c => c.id).FirstOrDefault();
+                var airbottle1time = (DateTime.Now - airbottle1.recordingTime).TotalMinutes;
+                airbottle1time = Math.Floor(airbottle1time);
+
+                //气管2最后两个
+                var airbottle2 = kongyadb.airbottle2.OrderByDescending(c => c.id).FirstOrDefault();
+                var airbottle2time = (DateTime.Now - airbottle2.recordingTime).TotalMinutes;
+                airbottle2time = Math.Floor(airbottle2time);
+
+                //气管3最后两个
+                var airbottle3 = kongyadb.airbottle3.OrderByDescending(c => c.id).FirstOrDefault();
+                var airbottle3time = (DateTime.Now - airbottle3.recordingTime).TotalMinutes;
+                airbottle3time = Math.Floor(airbottle3time);
+
+                //冷干1最后两个
+                var drey1 = kongyadb.dryer1.OrderByDescending(c => c.id).FirstOrDefault();
+                var drey1time = (DateTime.Now - drey1.recordingTime).TotalMinutes;
+                drey1time = Math.Floor(drey1time);
+
+                //冷干2最后两个
+                var drey2 = kongyadb.dryer2.OrderByDescending(c => c.id).FirstOrDefault();
+                var drey2time = (DateTime.Now - drey2.recordingTime).TotalMinutes;
+                drey2time = Math.Floor(drey2time);
+
+                //气管3出口最后两个
+                var head3 = kongyadb.headerpipe3inch.OrderByDescending(c => c.id).FirstOrDefault();
+                var head3time = (DateTime.Now - head3.recordingTime).TotalMinutes;
+                head3time = Math.Floor(head3time);
+
+                //气管4出口最后两个
+                var head4 = kongyadb.headerpipe4inch.OrderByDescending(c => c.id).FirstOrDefault();
+                var head4time = (DateTime.Now - head4.recordingTime).TotalMinutes;
+                head4time = Math.Floor(head4time);
+                #endregion
+
+                if (oldvalue != null)
+                {
+                    var collect = Temptimespan(collectcount);
+                    var pc = Temptimespan(pccount);
+                    //采集电脑是否有问题
+                    if (oldvalue.air1time == lastTwoair1comp[0].recordingTime && oldvalue.airbottle1time == airbottle1.recordingTime && Math.Floor((DateTime.Now - lastrecore).TotalMinutes) == pc)
+                    {
+                        content = "采集没有收到数据";
+                        subject = "采集没有收到数据";
+                        pccount++;
+                        var result = com.SendEmail("hejw@lcjh.local", recipient_list, content, subject, cclist, address);
+                        continue;
+                    }
+                    else if (notUpdate >= (collect * 20))
+                    {
+                        collectcount++;
+                        content = "采集数据一直未更新";
+                        subject = "采集数据一直未更新";
+                        var result = com.SendEmail("hejw@lcjh.local", recipient_list, content, subject, cclist, address);
+                        continue;
+                    }
+                    else
+                    {
+                        var currenc = lastTwoair1comp[0].current_u > 40 ? lastTwoair1comp[0].current_u : (lastTwoair2comp[0].current_u > 40 ? lastTwoair2comp[0].current_u : lastTwoair3comp[0].current_u);
+                        if (oldvalue.effectivecurrent_u == currenc && oldvalue.dery1humidity == drey1.humidity)
+                        {
+                            notUpdate++;
+                        }
+                        else
+                        {
+                            notUpdate = 0;
+                            collectcount = 1;
+                        }
+
+                        //开关进行通知
+                        #region 1.空压机开关机通知（只通知一次）
+                        //空压机1
+                        if (lastTwoair1comp[0].current_u != oldvalue.air1current_u && air1time == 0)
+                        {
+                            var value = KYswitch("1#螺杆空压机SA120A", lastTwoair1comp[0].current_u, lastTwoair1comp[0].temperature, lastTwoair1comp[0].pressure, oldvalue.air1current_u, oldvalue.air1temperature, oldvalue.air1pressure);
+                            if (value["content"] != "")
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                                lastrecore = lastTwoair1comp[0].recordingTime;
+                            }
+                        }
+                        //空压机2
+                        if (lastTwoair2comp[0].current_u != oldvalue.air2current_u && air2time == 0)
+                        {
+                            var value = KYswitch("2#空气压缩机90A", lastTwoair2comp[0].current_u, lastTwoair2comp[0].temperature, lastTwoair2comp[0].pressure, oldvalue.air2current_u, oldvalue.air2temperature, oldvalue.air2pressure);
+                            if (value["content"] != "")
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                                lastrecore = lastTwoair2comp[0].recordingTime;
+                            }
+                        }
+                        //空压机3 3#变频螺杆空压机SA120A
+                        if (lastTwoair3comp[0].current_u != oldvalue.air3current_u && air3time == 0)
+                        {
+                            var value = KYswitch("3#变频螺杆空压机SA120A", lastTwoair3comp[0].current_u, lastTwoair3comp[0].temperature, lastTwoair3comp[0].pressure, oldvalue.air3current_u, oldvalue.air3temperature, oldvalue.air3pressure);
+                            if (value["content"] != "")
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                                lastrecore = lastTwoair3comp[0].recordingTime;
+                            }
+                        }
+                        #endregion
+
+                        #region  2.空压数据值没有更新时通知 3.空压数据值恢复更新时通知一次
+                        //（第一次3分钟内没有数据更新通知，第二次10分钟，第三次30分钟，第四次1小时，第五次2小时）
+                        //空压机1
+                        if (lastTwoair1comp[0].current_u >= 40)
+                        {
+                            var value = KYdate("1#螺杆空压机SA120A", air1time, lastTwoair1comp[0].recordingTime, oldvalue.air1time);
+                            if (value["content"] != "")
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                                lastrecore = lastTwoair1comp[0].recordingTime;
+                            }
+                        }
+                        //空压机2
+                        if (lastTwoair2comp[0].current_u >= 40)
+                        {
+                            var value = KYdate("2#空气压缩机90A", air2time, lastTwoair2comp[0].recordingTime, oldvalue.air2time);
+                            if (value["content"] != "")
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                                lastrecore = lastTwoair2comp[0].recordingTime;
+                            }
+                        }
+                        //空压机3
+                        if (lastTwoair3comp[0].current_u >= 40)
+                        {
+                            var value = KYdate("3#变频螺杆空压机SA120A", air3time, lastTwoair3comp[0].recordingTime, oldvalue.air3time);
+                            if (value["content"] != "")
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                                lastrecore = lastTwoair3comp[0].recordingTime;
+                            }
+                        }
+
+                        #endregion
+
+                        #region 4.压力偏低或恢复时通知 5.温度或湿度或压力值为0或回复通知  6.气管内湿度高于50%或恢复通知 
+                        if (airbottle1time == 0)
+                        {
+                            var value = pressureTooLow("1#气管出口", airbottle1.pressure, ref one);
+                            if (one != onestatu[0])
+                            {
+                                onestatu[0] = one;
+                                start = true;
+                                lastrecore = airbottle1.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = IsZero("1#气管出口", airbottle1.pressure, airbottle1.temperature, ref two);
+                            if (two != onestatu[1])
+                            {
+                                onestatu[1] = two;
+                                start = true;
+                                lastrecore = airbottle1.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                        }
+
+                        if (airbottle2time == 0)
+                        {
+                            one = true;
+                            two = true;
+                            var value = pressureTooLow("2#气管出口", airbottle2.pressure, ref one);
+                            if (one != onestatu[2])
+                            {
+                                onestatu[2] = one;
+                                start = true;
+                                lastrecore = airbottle2.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = IsZero("2#气管出口", airbottle2.pressure, airbottle2.temperature, ref two);
+                            if (two != onestatu[3])
+                            {
+                                onestatu[3] = two;
+                                start = true;
+                                lastrecore = airbottle2.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                        }
+
+                        if (airbottle3time == 0)
+                        {
+                            one = true;
+                            two = true;
+                            var value = pressureTooLow("3#气管出口", airbottle3.pressure, ref one);
+                            if (one != onestatu[4])
+                            {
+                                onestatu[4] = one;
+                                start = true;
+                                lastrecore = airbottle3.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = IsZero("3#气管出口", airbottle3.pressure, airbottle3.temperature, ref two);
+                            if (two != onestatu[5])
+                            {
+                                onestatu[5] = two;
+                                start = true;
+                                lastrecore = airbottle3.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                        }
+
+                        if (drey1time == 0)
+                        {
+                            one = true;
+                            two = true;
+                            three = true;
+                            var value = pressureTooLow("1#冷干机", drey1.pressure, ref one);
+                            if (one != onestatu[6])
+                            {
+                                onestatu[6] = one;
+                                start = true;
+                                lastrecore = drey1.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = humidityTooHight("1#冷干机", drey1.humidity, ref two);
+                            if (two != onestatu[7])
+                            {
+                                onestatu[7] = two;
+                                start = true;
+                                lastrecore = drey1.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                            var value3 = IsZero("1#冷干机", drey1.pressure, drey1.temperature, ref three);
+                            if (three != onestatu[8])
+                            {
+                                onestatu[8] = three;
+                                start = true;
+                                lastrecore = drey1.recordingTime;
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+                            else if (three == false)
+                            {
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+
+                        }
+
+                        if (drey2time == 0)
+                        {
+                            one = true;
+                            two = true;
+                            three = true;
+                            var value = pressureTooLow("2#冷干机", drey2.pressure, ref one);
+                            if (one != onestatu[9])
+                            {
+                                onestatu[9] = one;
+                                start = true;
+                                lastrecore = drey2.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = humidityTooHight("2#冷干机", drey2.humidity, ref two);
+                            if (two != onestatu[10])
+                            {
+                                onestatu[10] = two;
+                                start = true;
+                                lastrecore = drey2.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                            var value3 = IsZero("2#冷干机", drey2.pressure, drey2.temperature, ref three);
+                            if (three != onestatu[11])
+                            {
+                                onestatu[11] = three;
+                                start = true;
+                                lastrecore = drey2.recordingTime;
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+                            else if (three == false)
+                            {
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+
+
+                        }
+
+                        if (head3time == 0)
+                        {
+                            one = true;
+                            two = true;
+                            three = true;
+                            var value = pressureTooLow("3寸管出口", head3.pressure, ref one);
+                            if (one != onestatu[12])
+                            {
+                                onestatu[12] = one;
+                                start = true;
+                                lastrecore = head3.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = humidityTooHight("3寸管出口", head3.humidity, ref two);
+                            if (two != onestatu[13])
+                            {
+                                onestatu[13] = two;
+                                start = true;
+                                lastrecore = head3.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                            var value3 = IsZero("3寸管出口", head3.pressure, head3.temperature, ref three);
+                            if (three != onestatu[14])
+                            {
+                                onestatu[14] = three;
+                                start = true;
+                                lastrecore = head3.recordingTime;
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+                            else if (three == false)
+                            {
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+
+                        }
+
+                        if (head4time == 0)
+                        {
+                            one = true;
+                            two = true;
+                            three = true;
+                            var value = pressureTooLow("4寸管出口", head4.pressure, ref one);
+                            if (one != onestatu[15])
+                            {
+                                onestatu[15] = one;
+                                start = true;
+                                lastrecore = head4.recordingTime;
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            else if (one == false)
+                            {
+                                content = content + value["content"];
+                                subject = subject + value["subject"];
+                            }
+                            var value2 = humidityTooHight("4寸管出口", head4.humidity, ref two);
+                            if (two != onestatu[16])
+                            {
+                                onestatu[16] = two;
+                                start = true;
+                                lastrecore = head4.recordingTime;
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+                            else if (two == false)
+                            {
+                                content = content + value2["content"];
+                                subject = subject + value2["subject"];
+                            }
+
+                            var value3 = IsZero("4寸管出口", head4.pressure, head4.temperature, ref three);
+                            if (three != onestatu[17])
+                            {
+                                onestatu[17] = three;
+                                start = true;
+                                lastrecore = head4.recordingTime;
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+                            else if (three == false)
+                            {
+                                content = content + value3["content"];
+                                subject = subject + value3["subject"];
+                            }
+                        }
+                        #endregion
+                    }
+                }
+                #region 将 最新的值赋给oldvalue
+                oldvalue = new temp
+                {
+                    effectivecurrent_u = lastTwoair1comp[0].current_u > 40 ? lastTwoair1comp[0].current_u : (lastTwoair2comp[0].current_u > 40 ? lastTwoair2comp[0].current_u : lastTwoair3comp[0].current_u),
+                    air1current_u = lastTwoair1comp[0].current_u,
+                    air1pressure = lastTwoair1comp[0].pressure,
+                    air1temperature = lastTwoair1comp[0].temperature,
+                    air1time = lastTwoair1comp[0].recordingTime,
+
+                    air2current_u = lastTwoair2comp[0].current_u,
+                    air2pressure = lastTwoair2comp[0].pressure,
+                    air2temperature = lastTwoair2comp[0].temperature,
+                    air2time = lastTwoair2comp[0].recordingTime,
+
+                    air3current_u = lastTwoair3comp[0].current_u,
+                    air3pressure = lastTwoair3comp[0].pressure,
+                    air3temperature = lastTwoair3comp[0].temperature,
+                    air3time = lastTwoair3comp[0].recordingTime,
+
+                    airbottle1humidity = airbottle1.humidity,
+                    airbottle1pressure = airbottle1.pressure,
+                    airbottle1temperature = airbottle1.temperature,
+                    airbottle1time = airbottle1.recordingTime,
+
+                    airbottle2humidity = airbottle2.humidity,
+                    airbottle2pressure = airbottle2.pressure,
+                    airbottle2temperature = airbottle2.temperature,
+
+                    airbottle3humidity = airbottle3.humidity,
+                    airbottle3pressure = airbottle3.pressure,
+                    airbottle3temperature = airbottle3.temperature,
+
+                    dery1humidity = drey1.humidity,
+                    dery1pressure = drey1.pressure,
+                    dery1temperature = drey1.temperature,
+
+                    dery2humidity = drey2.humidity,
+                    dery2pressure = drey2.pressure,
+                    dery2temperature = drey2.temperature,
+
+                    head3humidity = head3.humidity,
+                    head3pressure = head3.pressure,
+                    head3temperature = head3.temperature,
+
+                    head4humidity = head4.humidity,
+                    head4pressure = head4.pressure,
+                    head4temperature = head4.temperature
+                };
+                #endregion
+
+                //Thread.CurrentThread.Join(new TimeSpan(0, 0, 5));//阻止设定时间
+
+                if (!string.IsNullOrEmpty(content))
+                {
+                    var number = Temptimespan(count);
+                    if (start == true)
+                    {
+                        count = 1;
+                        var result = com.SendEmail("hejw@lcjh.local", recipient_list, content, subject, cclist, address);
+                    }
+                    else if (Math.Floor((DateTime.Now - lastrecore).TotalMinutes) == number)
+                    {
+                        count++;
+                        var result = com.SendEmail("hejw@lcjh.local", recipient_list, content, subject, cclist, address);
+                    }
+
+                }
+                Thread.CurrentThread.Join(new TimeSpan(0, 0, 5));//阻止设定时间
+            }
+
+        }
+
+        public int Temptimespan(int count)
+        {
+            switch (count)
+            {
+                case 0:
+                    return 0;
+                case 1:
+                    return 3;
+                case 2:
+                    return 10;
+                case 3:
+                    return 30;
+                case 4:
+                    return 60;
+                default:
+                    return (count - 4) * 120;
+            }
+        }
+        public Dictionary<string, string> pressureTooLow(string name, double? pressure1, ref bool siwtch)
+        {
+            string content = "";
+            string shuject = "";
+            if (pressure1 > 0.5)
+            {
+                //1#气管出口 压力恢复
+                content = "</br>" + content + name + " 压力恢复,现在压力为" + pressure1 + "Mpa</br>";
+                shuject = shuject + name + " 压力恢复,现在压力为" + pressure1 + "Mpa,";
+                siwtch = true;
+            }
+            else if (pressure1 <= 0.5)
+            {
+                //1#气管出口 压力恢复
+                content = "</br>" + content + name + "  压力过低,现在压力为" + pressure1 + "Mpa</br>";
+                shuject = shuject + name + " 压力过低,现在压力为" + pressure1 + "Mpa,";
+                siwtch = false;
+            }
+
+            Dictionary<string, string> dictionary = new Dictionary<string, string>();
+            dictionary.Add("content", content);
+            dictionary.Add("subject", shuject);
+            return dictionary;
+        }
+        public Dictionary<string, string> humidityTooHight(string name, double? humidity1, ref bool siwtch)
+        {
+            string content = "";
+            string shuject = "";
+            if (humidity1 >= 50)
+            {
+                //1#冷干机 气管内湿度高于50%
+                content = "</br>" + content + name + "气管内湿度高于50 % ,现湿度值为" + humidity1 + "%RH</br>";
+                shuject = shuject + name + "气管内湿度高于50 % ,现湿度值为" + humidity1 + "%RH,";
+                siwtch = false;
+            }
+            else if (humidity1 < 50)
+            {
+                //1#冷干机 气管内湿度恢复低于50%
+                content = "</br>" + content + name + " 气管内湿度恢复低于50 % ,现湿度值为" + humidity1 + "%RH</br>";
+                shuject = shuject + name + " 气管内湿度恢复低于50 % ,现湿度值为" + humidity1 + "%RH,";
+                siwtch = true;
+            }
+            Dictionary<string, string> dictionary = new Dictionary<string, string>();
+            dictionary.Add("content", content);
+            dictionary.Add("subject", shuject);
+            return dictionary;
+        }
+        public Dictionary<string, string> IsZero(string name, double? pressure1, double? temperature1, ref bool siwtch)
+        {
+            string content = "";
+            string shuject = "";
+            if (pressure1 == 0 || temperature1 == 0)
+            {
+                //1#气管出口 温度或湿度或压力值为0
+                string aa = pressure1 == 0 ? "压力为0" : "";
+                string bb = temperature1 == 0 ? "温度为0" : "";
+                content = "</br>" + content + name + aa + bb + " </br>";
+                shuject = shuject + name + aa + bb + ",";
+                siwtch = false;
+            }
+            else if (pressure1 > 0 || temperature1 > 0)
+            {
+                //1#气管出口 温度或湿度或压力值恢复
+                string aa = pressure1 > 0 ? "压力恢复为" + pressure1 + "Mpa" : "";
+                string bb = temperature1 > 0 ? "温度恢复为" + temperature1 + "℃" : "";
+                content = "</br>" + content + name + aa + bb + " </br>";
+                shuject = shuject + name + aa + bb + ",";
+                siwtch = true;
+            }
+            Dictionary<string, string> dictionary = new Dictionary<string, string>();
+            dictionary.Add("content", content);
+            dictionary.Add("subject", shuject);
+            return dictionary;
+        }
+        public Dictionary<string, string> KYswitch(string name, double? current_u1, double? temperature1, double? pressure1, double? current_u2, double? temperature2, double? pressure2)
+        {
+            string content = "";
+            string subject = "";
+            if (current_u1 > 40 && current_u2 < 40)
+            {
+                //从运行到停机
+                content = "</br>" + content + name + "从停机到运行 </br>";
+                subject = subject + name + "从停机到运行,";
+            }
+            else if (current_u1 > 40 && current_u2 == 0 && temperature2 == 0 && pressure2 == 0)
+            {
+                //从运行到断电
+                content = "</br>" + content + name + " 从断电到运行 </br>";
+                subject = subject + name + " 从断电到运行 ,";
+            }
+            else if (current_u1 < 40 && current_u2 > 40)
+            {
+                //从停机到运行
+                content = "</br>" + content + name + "从运行到停机</br>";
+                subject = subject + name + "从运行到停机,";
+            }
+            else if (current_u1 < 40 && current_u2 == 0 && temperature2 == 0 && pressure2 == 0)
+            {
+                //从停机到断电
+                content = "</br>" + content + name + "从断电到停机</br>";
+                subject = subject + name + "从断电到停机,";
+            }
+            else if (current_u1 == 0 && temperature1 == 0 && pressure1 == 0 && current_u2 > 40)
+            {
+                //从断电到运行
+                content = "</br>" + content + name + " 从运行到断电</br>";
+                subject = subject + name + " 从运行到断电,";
+            }
+            else if (current_u1 == 0 && temperature1 == 0 && pressure1 == 0 && current_u2 < 40)
+            {
+                //从断电到停机
+                content = "</br>" + content + name + "从停机到断电</br>";
+                subject = subject + name + "从停机到断电,";
+
+            }
+            Dictionary<string, string> dictionary = new Dictionary<string, string>();
+            dictionary.Add("content", content);
+            dictionary.Add("subject", subject);
+            return dictionary;
+        }
+
+        public Dictionary<string, string> KYdate(string name, double time, DateTime date1, DateTime date2)
+        {
+            string content = "";
+            string subject = "";
+            if (time == 3)
+            {
+                //没有数据第一次提示
+                content = "</br>" + content + name + "已经3分钟内没有数据</br>";
+                subject = subject + name + "已经3分钟内没有数据,";
+            }
+            else if (time == 10)
+            {
+                //没有数据第二次提示
+                content = "</br>" + content + name + "已经10分钟内没有数据</br>";
+                subject = subject + name + "已经10分钟内没有数据,";
+            }
+            else if (time == 30)
+            {
+                //没有数据第三次提示
+                content = "</br>" + content + name + "已经30分钟内没有数据</br>";
+                subject = subject + name + "已经30分钟内没有数据,";
+            }
+            else if (time == 60)
+            {
+                //没有数据第四次提示
+                content = "</br>" + content + name + "已经60分钟内没有数据</br>";
+                subject = subject + name + "已经60分钟内没有数据,";
+            }
+            else if (time >= 120 && (time % 120) == 0)
+            {
+                var num = time / 120;
+
+                content = "</br>" + content + name + " 已经" + num * 2 + "小时内没有数据</br>";
+                subject = subject + name + " 已经" + num * 2 + "小时内没有数据,";
+                //没有数据第num+4次提示
+            }
+            else if ((date1 - date2).TotalMinutes > 3 && time == 0)
+            {
+                content = "</br>" + content + name + " 数值恢复</br>";
+                subject = subject + name + " 数值恢复,";
+            }
+
+            Dictionary<string, string> dictionary = new Dictionary<string, string>();
+            dictionary.Add("content", content);
+            dictionary.Add("subject", subject);
+            return dictionary;
+        }
+
+        #endregion
+
+        #region 全厂温湿度监控
+        public void TemperatureAndHumidity()
+        {
+            #region 楼层全部清单
+            List<string> NameList = new List<string>();
+            NameList.Add("40004518#5");
+            NameList.Add("40004518#6");
+            NameList.Add("40004518#3");
+            NameList.Add("40004518#4");
+            NameList.Add("40004518#2");
+            NameList.Add("40004557#1");
+            NameList.Add("40004557#2");
+            NameList.Add("40004557#3");
+            NameList.Add("40004557#4");
+            NameList.Add("40004557#5");
+            NameList.Add("40004493#1");
+            NameList.Add("40004518#1");
+            NameList.Add("40001676#9");
+            NameList.Add("40021209#1");
+            NameList.Add("40004493#2");
+            NameList.Add("40021216#5");
+            NameList.Add("40021216#3");
+            NameList.Add("40021216#4");
+            NameList.Add("40021216#2");
+            NameList.Add("40021216#1");
+            NameList.Add("40001676#4");
+            NameList.Add("40004493#5");
+            NameList.Add("40004493#7");
+            NameList.Add("40004493#8");
+            NameList.Add("40004493#6");
+            NameList.Add("40004493#4");
+            NameList.Add("40004493#3");
+            NameList.Add("40021210#1");
+            NameList.Add("40021210#2");
+            NameList.Add("40000938#6");
+            NameList.Add("40000938#7");
+            NameList.Add("40000938#8");
+            NameList.Add("40000938#9");
+            NameList.Add("40000938#10");
+            NameList.Add("40000938#11");
+            NameList.Add("40000938#12");
+            #endregion
+            #region 楼层在范围内清单
+            List<string> ScopeOfNameList = new List<string>();
+            ScopeOfNameList.Add("40004518#1");
+            ScopeOfNameList.Add("40001676#9");
+            ScopeOfNameList.Add("40021209#1");
+            ScopeOfNameList.Add("40004493#2");
+            ScopeOfNameList.Add("40021216#5");
+            ScopeOfNameList.Add("40021216#3");
+            ScopeOfNameList.Add("40021216#4");
+            ScopeOfNameList.Add("40021216#2");
+            ScopeOfNameList.Add("40021216#1");
+            ScopeOfNameList.Add("40001676#4");
+            ScopeOfNameList.Add("40004493#5");
+            ScopeOfNameList.Add("40004493#7");
+            ScopeOfNameList.Add("40004493#8");
+            ScopeOfNameList.Add("40004493#6");
+            ScopeOfNameList.Add("40004493#4");
+            ScopeOfNameList.Add("40004493#3");
+            ScopeOfNameList.Add("40021210#1");
+            ScopeOfNameList.Add("40021210#2");
+            ScopeOfNameList.Add("40000938#6");
+            ScopeOfNameList.Add("40000938#7");
+            ScopeOfNameList.Add("40000938#8");
+            ScopeOfNameList.Add("40000938#9");
+            ScopeOfNameList.Add("40000938#10");
+            ScopeOfNameList.Add("40000938#11");
+            ScopeOfNameList.Add("40000938#12");
+            #endregion
+            List<TempTemperatureAndHumidity> oldlist = new List<TempTemperatureAndHumidity>();
+            var recipient_list = new List<string>();
+            recipient_list.Add("zhangdy@lcjh.local");
+
+            while (true)
+            {
+                string content = "";
+                string subject = "";
+                kongyadbEntities kongya = new kongyadbEntities();
+                List<TempTemperatureAndHumidity> newlist = new List<TempTemperatureAndHumidity>();
+                List<TempTemperatureAndHumidity> ScopeOfnewlist = new List<TempTemperatureAndHumidity>();
+                #region 取值
+                foreach (var item in NameList)
+                {
+                    string[] spit = item.Split('#');
+                    string DeviceID = spit[0];
+                    string NodeID = spit[1];
+                    var newvalue = kongya.THhistory.OrderByDescending(c => c.id).Where(c => c.DeviceID == DeviceID && c.NodeID == NodeID).Select(c => new TempTemperatureAndHumidity { id = c.id, Name = c.DeviceName, Temperature = c.Tem, Humidity = c.Hum, humistatu = true, tempstatu = true }).FirstOrDefault();
+                    newlist.Add(newvalue);
+                }
+                foreach (var item in ScopeOfNameList)
+                {
+                    string[] spit = item.Split('#');
+                    string DeviceID = spit[0];
+                    string NodeID = spit[1];
+                    var newvalue = kongya.THhistory.OrderByDescending(c => c.id).Where(c => c.DeviceID == DeviceID && c.NodeID == NodeID).Select(c => new TempTemperatureAndHumidity { id = c.id, Name = c.DeviceName, Temperature = c.Tem, Humidity = c.Hum, humistatu = true, tempstatu = true }).FirstOrDefault();
+                    ScopeOfnewlist.Add(newvalue);
+                }
+                #endregion
+
+                if (oldlist.Count != 0)
+                {
+                    #region 判断是否有数据
+                    foreach (var item in newlist)
+                    {
+                        var oldstatu = oldlist.Where(c => c.Name == item.Name).FirstOrDefault();
+                       
+                        if (oldstatu.id == item.id)
+                        {
+                            content = content + item.Name + "没有数据</br>";
+                            subject = subject + item.Name + "没有数据";
+                        }
+                        oldstatu.id = item.id;
+                    }
+                    #endregion
+                    #region 判断数据是否正常
+                    foreach (var item in ScopeOfnewlist)
+                    {
+                       
+                        var oldstatu = oldlist.Where(c => c.Name == item.Name).FirstOrDefault();
+                        bool statu = true;
+                        bool statu2 = true;
+                        string value = ContrastTemp(item.Temperature, ref statu);
+                        string value2 = ContrasthHum(item.Humidity, ref statu2);
+                        
+                        if (statu != oldstatu.tempstatu)
+                        {
+                            oldstatu.tempstatu = statu;
+                            content = content + item.Name + value+ "</br>";
+                            subject= subject + item.Name + value;
+                        }
+                        if (statu2 != oldstatu.humistatu)
+                        {
+                            oldstatu.humistatu = statu2;
+                            content = content + item.Name + value2+ "</br>";
+                            subject = subject + item.Name + value2;
+                        }
+                        
+                    }
+                    #endregion
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        var result = com.SendEmail("hejw@lcjh.local", recipient_list, content, subject, recipient_list, "");
+                    }
+                }
+                if (oldlist.Count == 0)
+                {
+                    oldlist = newlist;
+                }
+
+                Thread.CurrentThread.Join(new TimeSpan(0, 2, 0));//阻止设定时间
+            }
+        }
+        public string ContrastTemp(double? newtemp, ref bool tempbool)
+        {
+            string result = "";
+            if (newtemp > 28)
+            {
+                result = result + "温度超高，现温度为" + newtemp;
+                tempbool = false;
+            }
+            if (newtemp < 16)
+            {
+                result = result + "温度超低，现温度为" + newtemp;
+                tempbool = false;
+            }
+            if (newtemp > 16 && newtemp < 28)
+            {
+                result = result + "温度恢复，现温度为" + newtemp;
+                tempbool = true;
+            }
+            return result;
+        }
+        public string ContrasthHum(double? himu, ref bool humubool)
+        {
+            string result = "";
+            if (himu > 70)
+            {
+                result = result + "湿度超高，现湿度为" + himu;
+                humubool = false;
+            }
+            if (himu < 45)
+            {
+                result = result + "湿度超低，现湿度为" + himu;
+                humubool = false;
+            }
+            if (himu > 45 && himu < 70)
+            {
+                result = result + "湿度恢复，现湿度为" + himu;
+                humubool = true;
+            }
+
+            return result;
+        }
+        #endregion
+    }
+
+
+    #region 暂时没用，不要删
+    //    //空压机1
+    //                if (lastTwoair1comp[0].current_u != lastTwoair1comp[1].current_u && air1time == 0)
+    //                {
+    //                    if (lastTwoair1comp[0].current_u > 40 && lastTwoair1comp[1].current_u< 40)
+    //                    {
+    //                        //从运行到停机
+    //                        content = "1#螺杆空压机SA120A 从停机到运行";
+    //                    }
+    //                    else if (lastTwoair1comp[0].current_u > 40 && lastTwoair1comp[1].current_u == 0 && lastTwoair1comp[1].temperature == 0 && lastTwoair1comp[1].pressure == 0)
+    //                    {
+    //                        //从运行到断电
+    //                        content = "1#螺杆空压机SA120A 从断电到运行";
+    //                    }
+    //                    else if (lastTwoair1comp[0].current_u< 40 && lastTwoair1comp[1].current_u> 40)
+    //                    {
+    //                        //从停机到运行
+    //                        content = "1#螺杆空压机SA120A 从断电到运行";
+    //                    }
+    //                    else if (lastTwoair1comp[0].current_u< 40 && lastTwoair1comp[1].current_u == 0 && lastTwoair1comp[1].temperature == 0 && lastTwoair1comp[1].pressure == 0)
+    //                    {
+    //                        //从停机到断电
+    //                        content = "1#螺杆空压机SA120A 从断电到停机";
+    //                    }
+    //                    else if (lastTwoair1comp[0].current_u == 0 && lastTwoair1comp[0].temperature == 0 && lastTwoair1comp[0].pressure == 0 && lastTwoair1comp[1].current_u > 40)
+    //                    {
+    //                        //从断电到运行
+    //                        content = "1#螺杆空压机SA120A 从运行到断电";
+    //                    }
+    //                    else if (lastTwoair1comp[0].current_u == 0 && lastTwoair1comp[0].temperature == 0 && lastTwoair1comp[0].pressure == 0 && lastTwoair1comp[1].current_u > 40)
+    //                    {
+    //                        //从断电到停机
+    //                        content = "1#螺杆空压机SA120A 从停机到断电";
+
+    //                    }
+    //                }
+    //                //空压机2
+    //                if (lastTwoair2comp[0].current_u != lastTwoair2comp[1].current_u && air2time == 0)
+    //                {
+    //                    if (lastTwoair2comp[0].current_u > 40 && lastTwoair2comp[1].current_u< 40)
+    //                    {
+    //                        //从运行到停机
+    //                        content = content + " 2#空气压缩机90A 从停机到运行";
+    //                        subject = subject + " 2#空气压缩机90A 从停机到运行";
+    //                    }
+    //                    else if (lastTwoair2comp[0].current_u > 40 && lastTwoair2comp[1].current_u == 0 && lastTwoair2comp[1].temperature == 0 && lastTwoair2comp[1].pressure == 0)
+    //                    {
+    //                        //从运行到断电
+    //                        content = content + " 2#空气压缩机90A 从断电到运行";
+    //                        subject = subject + " 2#空气压缩机90A 从断电到运行";
+    //                    }
+    //                    else if (lastTwoair2comp[0].current_u< 40 && lastTwoair2comp[1].current_u> 40)
+    //                    {
+    //                        //从停机到运行
+    //                        content = content + " 2#空气压缩机90A 从运行到停机";
+    //                        subject = subject + " 2#空气压缩机90A 从运行到停机";
+    //                    }
+    //                    else if (lastTwoair2comp[0].current_u< 40 && lastTwoair2comp[1].current_u == 0 && lastTwoair2comp[1].temperature == 0 && lastTwoair2comp[1].pressure == 0)
+    //                    {
+    //                        //从停机到断电
+    //                        content = content + " 2#空气压缩机90A 从断电到停机";
+    //                        subject = subject + " 2#空气压缩机90A 从断电到停机";
+    //                    }
+    //                    else if (lastTwoair2comp[0].current_u == 0 && lastTwoair2comp[0].temperature == 0 && lastTwoair2comp[0].pressure == 0 && lastTwoair2comp[1].current_u > 40)
+    //                    {
+    //                        //从断电到运行
+    //                        content = content + " 2#空气压缩机90A 从运行到断电";
+    //                        subject = subject + " 2#空气压缩机90A 从运行到断电";
+    //                    }
+    //                    else if (lastTwoair2comp[0].current_u == 0 && lastTwoair2comp[0].temperature == 0 && lastTwoair2comp[0].pressure == 0 && lastTwoair2comp[1].current_u > 40)
+    //                    {
+    //                        //从断电到停机
+    //                        content = content + " 2#空气压缩机90A 从停机到断电";
+    //                        subject = subject + " 2#空气压缩机90A 从停机到断电";
+    //                    }
+    //                }
+    //                //空压机3
+    //                if (lastTwoair3comp[0].current_u != lastTwoair3comp[1].current_u && air3time == 0)
+    //                {
+    //                    if (lastTwoair3comp[0].current_u > 40 && lastTwoair3comp[1].current_u< 40)
+    //                    {
+    //                        //从运行到停机
+    //                        content = content + " 3#变频螺杆空压机SA120A 从停机到运行";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 从停机到运行";
+    //                    }
+    //                    else if (lastTwoair3comp[0].current_u > 40 && lastTwoair3comp[1].current_u == 0 && lastTwoair3comp[1].temperature == 0 && lastTwoair3comp[1].pressure == 0)
+    //                    {
+    //                        //从运行到断电
+    //                        content = content + " 3#变频螺杆空压机SA120A 从断电到运行";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 从断电到运行";
+    //                    }
+    //                    else if (lastTwoair3comp[0].current_u< 40 && lastTwoair3comp[1].current_u> 40)
+    //                    {
+    //                        //从停机到运行
+    //                        content = content + " 3#变频螺杆空压机SA120A 从运行到停机";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 从运行到停机";
+    //                    }
+    //                    else if (lastTwoair3comp[0].current_u< 40 && lastTwoair3comp[1].current_u == 0 && lastTwoair3comp[1].temperature == 0 && lastTwoair3comp[1].pressure == 0)
+    //                    {
+    //                        //从停机到断电
+    //                        content = content + " 3#变频螺杆空压机SA120A 从断电到停机";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 从断电到停机";
+    //                    }
+    //                    else if (lastTwoair3comp[0].current_u == 0 && lastTwoair3comp[0].temperature == 0 && lastTwoair3comp[0].pressure == 0 && lastTwoair3comp[1].current_u > 40)
+    //                    {
+    //                        //从断电到运行
+    //                        content = content + " 3#变频螺杆空压机SA120A 从运行到断电";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 从运行到断电";
+    //                    }
+    //                    else if (lastTwoair3comp[0].current_u == 0 && lastTwoair3comp[0].temperature == 0 && lastTwoair3comp[0].pressure == 0 && lastTwoair3comp[1].current_u > 40)
+    //                    {
+    //                        //从断电到停机
+    //                        content = content + " 3#变频螺杆空压机SA120A 从停机到断电";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 从停机到断电";
+    //                    }
+    //                }
+    //                #endregion
+
+    //                #region  2.空压数据值没有更新时通知 3.空压数据值恢复更新时通知一次
+    //                //（第一次3分钟内没有数据更新通知，第二次10分钟，第三次30分钟，第四次1小时，第五次2小时）
+    //                //空压机1
+    //                if (lastTwoair1comp[0].current_u >= 40)
+    //                {
+    //                    if (air1time == 3)
+    //                    {
+    //                        //没有数据第一次提示
+    //                        content = content + " 1#螺杆空压机SA120A已经3分钟内没有数据";
+    //                        subject = subject + " 1#螺杆空压机SA120A已经3分钟内没有数据";
+    //                    }
+    //                    else if (air1time == 10)
+    //                    {
+    //                        //没有数据第二次提示
+    //                        content = content + " 1#螺杆空压机SA120A已经10分钟内没有数据";
+    //                        subject = subject + " 1#螺杆空压机SA120A已经10分钟内没有数据";
+    //                    }
+    //                    else if (air1time == 30)
+    //                    {
+    //                        //没有数据第三次提示
+    //                        content = content + " 1#螺杆空压机SA120A已经30分钟内没有数据";
+    //                        subject = subject + " 1#螺杆空压机SA120A已经30分钟内没有数据";
+    //                    }
+    //                    else if (air1time == 60)
+    //                    {
+    //                        //没有数据第四次提示
+    //                        content = content + " 1#螺杆空压机SA120A已经60分钟内没有数据";
+    //                        subject = subject + " 1#螺杆空压机SA120A已经60分钟内没有数据";
+    //                    }
+    //                    else if (air1time >= 120 && (air1time % 120) == 0)
+    //                    {
+    //                        var num = air1time / 120;
+
+    //content = content + " 1#螺杆空压机SA120A 已经" + num* 2 + "小时内没有数据";
+    //                        subject = subject + " 1#螺杆空压机SA120A 已经" + num* 2 + "小时内没有数据";
+    //                        //没有数据第num+4次提示
+    //                    }
+    //                    else if ((lastTwoair1comp[0].recordingTime - lastTwoair1comp[1].recordingTime).TotalMinutes > 3 && air1time == 0)
+    //                    {
+    //                        content = content + " 1#螺杆空压机SA120A 数值恢复";
+    //                        subject = subject + " 1#螺杆空压机SA120A 数值恢复";
+    //                    }
+
+    //                }
+    //                //空压机2
+    //                if (lastTwoair2comp[0].current_u >= 40)
+    //                {
+    //                    if (air2time == 3)
+    //                    {
+    //                        //没有数据第一次提示
+    //                        content = content + " 2#空气压缩机90A已经 3分钟内没有数据";
+    //                        subject = subject + " 2#空气压缩机90A已经 3分钟内没有数据";
+    //                    }
+    //                    else if (air2time == 10)
+    //                    {
+    //                        //没有数据第二次提示
+    //                        content = content + " 2#空气压缩机90A已经 10分钟内没有数据";
+    //                        subject = subject + " 2#空气压缩机90A已经 10分钟内没有数据";
+    //                    }
+    //                    else if (air2time == 30)
+    //                    {
+    //                        //没有数据第三次提示
+    //                        content = content + " 2#空气压缩机90A已经 30分钟内没有数据";
+    //                        subject = subject + " 2#空气压缩机90A已经 30分钟内没有数据";
+    //                    }
+    //                    else if (air2time == 60)
+    //                    {
+    //                        //没有数据第四次提示
+    //                        content = content + " 2#空气压缩机90A已经 60分钟内没有数据";
+    //                        subject = subject + " 2#空气压缩机90A已经 60分钟内没有数据";
+    //                    }
+    //                    else if (air2time >= 120 && (air2time % 120) == 0)
+    //                    {
+    //                        var num = air2time / 120;
+    //content = content + " 2#空气压缩机90A已经 " + num* 2 + "小时内没有数据";
+    //                        subject = subject + " 2#空气压缩机90A已经 " + num* 2 + "小时内没有数据";
+    //                        //没有数据第num+4次提示
+    //                    }
+    //                    else if ((lastTwoair2comp[0].recordingTime - lastTwoair2comp[1].recordingTime).TotalMinutes > 3 && air2time == 0)
+    //                    {
+    //                        content = content + " 2#空气压缩机90A 数值恢复";
+    //                        subject = subject + " 2#空气压缩机90A 数值恢复";
+    //                        //数值恢复
+    //                    }
+    //                }
+    //                //空压机3
+    //                if (lastTwoair3comp[0].current_u >= 40)
+    //                {
+    //                    if (air3time == 3)
+    //                    {
+    //                        //没有数据第一次提示
+    //                        content = content + " 3#变频螺杆空压机SA120A已经 3分钟内没有数据";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A已经 3分钟内没有数据";
+    //                    }
+    //                    else if (air3time == 10)
+    //                    {
+    //                        //没有数据第二次提示
+    //                        content = content + " 3#变频螺杆空压机SA120A已经 10分钟内没有数据";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A已经 10分钟内没有数据";
+    //                    }
+    //                    else if (air3time == 30)
+    //                    {
+    //                        //没有数据第三次提示
+    //                        content = content + " 3#变频螺杆空压机SA120A已经 30分钟内没有数据";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A已经 30分钟内没有数据";
+    //                    }
+    //                    else if (air3time == 60)
+    //                    {
+    //                        //没有数据第四次提示
+    //                        content = content + " 3#变频螺杆空压机SA120A已经 60分钟内没有数据";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A已经 60分钟内没有数据";
+    //                    }
+    //                    else if (air3time >= 120 && (air3time % 120) == 0)
+    //                    {
+    //                        var num = air3time / 120;
+    //content = content + " 3#变频螺杆空压机SA120A已经 " + num* 2 + "小时内没有数据";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A已经 " + num* 2 + "小时内没有数据";
+
+    //                        //没有数据第num+4次提示
+    //                    }
+    //                    else if ((lastTwoair3comp[0].recordingTime - lastTwoair3comp[1].recordingTime).TotalMinutes > 3 && air3time == 0)
+    //                    {
+    //                        //数值恢复
+    //                        content = content + " 3#变频螺杆空压机SA120A 数值恢复";
+    //                        subject = subject + " 3#变频螺杆空压机SA120A 数值恢复";
+    //                    }
+    //                }
+    #region
+    /*
+    if (airbottle1[0].pressure > 0.5 && airbottle1[1].pressure <= 0.5)
+    {
+        //1#气管出口 压力过低
+        content = content + " 1#气管出口 压力恢复,现在压力为" + airbottle1[0].pressure;
+        subject = subject + " 1#气管出口 压力恢复";
+    }
+    else if (airbottle1[0].pressure <= 0.5 && airbottle1[1].pressure > 0.5)
+    {
+        //1#气管出口 压力恢复
+        content = content + "1#气管出口  压力过低,现在压力为" + airbottle1[0].pressure;
+        subject = subject + "1#气管出口  压力过低";
+    }
+
+    if ((airbottle1[0].pressure == 0 && airbottle1[1].pressure > 0) || (airbottle1[0].temperature == 0 && airbottle1[1].temperature > 0) || (airbottle1[0].humidity == 0 && airbottle1[1].humidity > 0))
+    {
+        //1#气管出口 温度或湿度或压力值为0
+        string aa = airbottle1[0].pressure == 0 ? "压力为0" : "";
+        string bb = airbottle1[0].temperature == 0 ? "温度为0" : "";
+        string cc = airbottle1[0].humidity == 0 ? "湿度为0" : "";
+        content = content + "1#气管出口 " + aa + bb + cc;
+        subject = subject + "1#气管出口 温度或湿度或压力值为0 ";
+    }
+    else if ((airbottle1[0].pressure > 0 && airbottle1[1].pressure == 0) || (airbottle1[0].temperature > 0 && airbottle1[1].temperature == 0) || (airbottle1[0].humidity > 0 && airbottle1[1].humidity == 0))
+    {
+        //1#气管出口 温度或湿度或压力值恢复
+        string aa = airbottle1[1].pressure == 0 ? "压力恢复为" + airbottle1[0].pressure : "";
+        string bb = airbottle1[1].temperature == 0 ? "压力恢复为" + airbottle1[0].temperature : "";
+        string cc = airbottle1[1].humidity == 0 ? "压力恢复为" + airbottle1[0].humidity : "";
+        content = content + "1#气管出口 " + aa + bb + cc;
+        subject = subject + "1#气管出口 温度或湿度或压力值恢复 ";
+    }
+    */
+    #endregion
+    #region
+    //if (airbottle2[0].pressure > 0.5 && airbottle2[1].pressure <= 0.5)
+    //{
+    //    //2#气管出口 压力过低
+    //    content = content + "2#气管出口 压力恢复 ，现在压力值为" + airbottle2[0].pressure;
+    //    subject = subject + "2#气管出口 压力恢复 ";
+    //}
+    //else if (airbottle2[0].pressure <= 0.5 && airbottle2[1].pressure > 0.5)
+    //{
+    //    //2#气管出口 压力恢复
+    //    content = content + "2#气管出口  压力过低 ，现在压力值为" + airbottle2[0].pressure; ;
+    //    subject = subject + "2#气管出口  压力过低";
+    //}
+
+    //if ((airbottle2[0].pressure == 0 && airbottle2[1].pressure > 0) || (airbottle2[0].temperature == 0 && airbottle2[1].temperature > 0) || (airbottle2[0].humidity == 0 && airbottle2[1].humidity > 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值为0
+    //    string aa = airbottle2[0].pressure == 0 ? "压力为0" : "";
+    //    string bb = airbottle2[0].temperature == 0 ? "温度为0" : "";
+    //    string cc = airbottle2[0].humidity == 0 ? "湿度为0" : "";
+    //    content = content + "2#气管出口 " + aa + bb + cc;
+    //    subject = subject + "2#气管出口 温度或湿度或压力值为0 ";
+    //}
+    //else if ((airbottle2[0].pressure > 0 && airbottle2[1].pressure == 0) || (airbottle2[0].temperature > 0 && airbottle2[1].temperature == 0) || (airbottle2[0].humidity > 0 && airbottle2[1].humidity == 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值恢复
+    //    string aa = airbottle2[1].pressure == 0 ? "压力恢复为" + airbottle2[0].pressure : "";
+    //    string bb = airbottle2[1].temperature == 0 ? "压力恢复为" + airbottle2[0].temperature : "";
+    //    string cc = airbottle2[1].humidity == 0 ? "压力恢复为" + airbottle2[0].humidity : "";
+    //    content = content + "2#气管出口 " + aa + bb + cc;
+    //    subject = subject + "2#气管出口 温度或湿度或压力值恢复 ";
+    //}
+    #endregion
+    #region
+    //if (airbottle3[0].pressure > 0.5 && airbottle3[1].pressure <= 0.5)
+    //{
+    //    //3#气管出口 压力过低
+    //    content = content + "3#气管出口 压力恢复，现在压力值为" + airbottle3[0].pressure; 
+    //    subject = subject + "3#气管出口 压力恢复 ";
+    //}
+    //else if (airbottle3[0].pressure <= 0.5 && airbottle3[1].pressure > 0.5)
+    //{
+    //    //3#气管出口 压力恢复
+    //    content = content + "3#气管出口 压力过低，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "3#气管出口 压力过低";
+    //}
+
+    //if ((airbottle3[0].pressure == 0 && airbottle3[1].pressure > 0) || (airbottle3[0].temperature == 0 && airbottle3[1].temperature > 0) || (airbottle3[0].humidity == 0 && airbottle3[1].humidity > 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值为0
+    //    string aa = airbottle3[0].pressure == 0 ? "压力为0" : "";
+    //    string bb = airbottle3[0].temperature == 0 ? "温度为0" : "";
+    //    string cc = airbottle3[0].humidity == 0 ? "湿度为0" : "";
+    //    content = content + "3#气管出口 " + aa + bb + cc;
+    //    subject = subject + "3#气管出口 温度或湿度或压力值为0 ";
+    //}
+    //else if ((airbottle3[0].pressure > 0 && airbottle3[1].pressure == 0) || (airbottle3[0].temperature > 0 && airbottle3[1].temperature == 0) || (airbottle3[0].humidity > 0 && airbottle3[1].humidity == 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值恢复
+    //    string aa = airbottle3[1].pressure == 0 ? "压力恢复为" + airbottle3[0].pressure : "";
+    //    string bb = airbottle3[1].temperature == 0 ? "压力恢复为" + airbottle3[0].temperature : "";
+    //    string cc = airbottle3[1].humidity == 0 ? "压力恢复为" + airbottle3[0].humidity : "";
+    //    content = content + "3#气管出口 " + aa + bb + cc;
+    //    subject = subject + "3#气管出口 温度或湿度或压力值恢复 ";
+    //}
+    #endregion
+    #region
+    //if (drey1[0].pressure > 0.5 && drey1[1].pressure <= 0.5)
+    //{
+    //    //1#冷干机 压力过低
+    //    content = content + "1#冷干机 压力恢复，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "1#冷干机 压力恢复";
+    //}
+    //else if (drey1[0].pressure <= 0.5 && drey1[1].pressure > 0.5)
+    //{
+    //    //1#冷干机 压力恢复
+    //    content = content + "1#冷干机 压力过低，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "1#冷干机 压力过低";
+    //}
+
+    //if ((drey1[0].pressure == 0 && drey1[1].pressure > 0) || (drey1[0].temperature == 0 && drey1[1].temperature > 0) || (drey1[0].humidity == 0 && drey1[1].humidity > 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值为0
+    //    string aa = airbottle3[0].pressure == 0 ? "压力为0" : "";
+    //    string bb = airbottle3[0].temperature == 0 ? "温度为0" : "";
+    //    string cc = airbottle3[0].humidity == 0 ? "湿度为0" : "";
+    //    content = content + "1#冷干机 温度或湿度或压力值为0 ";
+    //    subject = subject + "1#冷干机 温度或湿度或压力值为0 ";
+    //}
+    //else if ((drey1[0].pressure > 0 && drey1[1].pressure == 0) || (drey1[0].temperature > 0 && drey1[1].temperature == 0) || (drey1[0].humidity > 0 && drey1[1].humidity == 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值恢复
+    //    string aa = airbottle3[1].pressure == 0 ? "压力恢复为" + airbottle3[0].pressure : "";
+    //    string bb = airbottle3[1].temperature == 0 ? "压力恢复为" + airbottle3[0].temperature : "";
+    //    string cc = airbottle3[1].humidity == 0 ? "压力恢复为" + airbottle3[0].humidity : "";
+    //    content = content + "1#冷干机 温度或湿度或压力值恢复 ";
+    //    subject = subject + "1#冷干机 温度或湿度或压力值恢复 ";
+    //}
+
+    //if (drey1[0].humidity >= 50 && drey1[1].humidity < 50)
+    //{
+    //    //1#冷干机 气管内湿度高于50%
+    //    content = content + "1#冷干机 气管内湿度高于50% ";
+    //    subject = subject + "1#冷干机 气管内湿度高于50% ";
+    //}
+    //else if (drey1[0].humidity < 50 && drey1[1].humidity >= 50)
+    //{
+    //    //1#冷干机 气管内湿度恢复低于50%
+    //    content = content + " 1#冷干机 气管内湿度恢复低于50%";
+    //    subject = subject + " 1#冷干机 气管内湿度恢复低于50%";
+    //}
+    #endregion
+    #region
+    //if (drey2[0].pressure > 0.5 && drey2[1].pressure <= 0.5)
+    //{
+    //    //2#冷干机 压力过低
+    //    content = content + "2#冷干机 压力恢复 ，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "2#冷干机 压力恢复 ";
+    //}
+    //else if (drey2[0].pressure <= 0.5 && drey2[1].pressure > 0.5)
+    //{
+    //    //2#冷干机 压力恢复
+    //    content = content + "2#冷干机 压力过低，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "2#冷干机 压力过低";
+    //}
+
+    //if ((drey2[0].pressure == 0 && drey2[1].pressure > 0) || (drey2[0].temperature == 0 && drey2[1].temperature > 0) || (drey2[0].humidity == 0 && drey2[1].humidity > 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值为0
+    //    string aa = airbottle3[0].pressure == 0 ? "压力为0" : "";
+    //    string bb = airbottle3[0].temperature == 0 ? "温度为0" : "";
+    //    string cc = airbottle3[0].humidity == 0 ? "湿度为0" : "";
+    //    content = content + "2#冷干机 温度或湿度或压力值为0 ";
+    //    subject = subject + "2#冷干机 温度或湿度或压力值为0 ";
+    //}
+    //else if ((drey2[0].pressure > 0 && drey2[1].pressure == 0) || (drey2[0].temperature > 0 && drey2[1].temperature == 0) || (drey2[0].humidity > 0 && drey2[1].humidity == 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值恢复
+    //    content = content + "2#冷干机 温度或湿度或压力值恢复 ";
+    //    subject = subject + "2#冷干机 温度或湿度或压力值恢复 ";
+    //}
+
+    //if (drey2[0].humidity >= 50 && drey2[1].humidity < 50)
+    //{
+    //    //1#冷干机 气管内湿度高于50%
+    //    content = content + "2#冷干机 气管内湿度高于50% ";
+    //    subject = subject + "2#冷干机 气管内湿度高于50% ";
+    //}
+    //else if (drey2[0].humidity < 50 && drey2[1].humidity >= 50)
+    //{
+    //    //1#冷干机 气管内湿度恢复低于50%
+    //    content = content + " 2#冷干机 气管内湿度恢复低于50%";
+    //    subject = subject + " 2#冷干机 气管内湿度恢复低于50%";
+    //}
+    #endregion
+    #region
+    //if (head3[0].pressure > 0.5 && head3[1].pressure <= 0.5)
+    //{
+    //    //3#气管出口 压力过低
+    //    content = content + "3存管出口 压力恢复，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "3存管出口 压力恢复";
+    //}
+    //else if (head3[0].pressure <= 0.5 && head3[1].pressure > 0.5)
+    //{
+    //    //3#气管出口 压力恢复
+    //    content = content + "3存管出口 压力过低，现在压力值为" + airbottle3[0].pressure;
+    //    subject = subject + "3存管出口 压力过低";
+    //}
+
+    //if ((head3[0].pressure == 0 && head3[1].pressure > 0) || (head3[0].temperature == 0 && head3[1].temperature > 0) || (head3[0].humidity == 0 && head3[1].humidity > 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值为0
+    //    string aa = airbottle3[0].pressure == 0 ? "压力为0" : "";
+    //    string bb = airbottle3[0].temperature == 0 ? "温度为0" : "";
+    //    string cc = airbottle3[0].humidity == 0 ? "湿度为0" : "";
+    //    content = content + "3存管出口 温度或湿度或压力值为0 ";
+    //    subject = subject + "3存管出口 温度或湿度或压力值为0 ";
+    //}
+    //else if ((head3[0].pressure > 0 && head3[1].pressure == 0) || (head3[0].temperature > 0 && head3[1].temperature == 0) || (head3[0].humidity > 0 && head3[1].humidity == 0))
+    //{
+    //    //1#气管出口 温度或湿度或压力值恢复
+    //    content = content + "3存管出口 温度或湿度或压力值恢复 ";
+    //    subject = subject + "3存管出口 温度或湿度或压力值恢复 ";
+    //}
+
+    //if (head3[0].humidity >= 50 && head3[1].humidity < 50)
+    //{
+    //    //1#冷干机 气管内湿度高于50%
+    //    content = content + "3存管出口 气管内湿度高于50% ";
+    //    subject = subject + "3存管出口 气管内湿度高于50% ";
+    //}
+    //else if (head3[0].humidity < 50 && head3[1].humidity >= 50)
+    //{
+    //    //1#冷干机 气管内湿度恢复低于50%
+    //    content = content + " 3存管出口 气管内湿度恢复低于50%";
+    //    subject = subject + " 3存管出口 气管内湿度恢复低于50%";
+    //}
+    #endregion
+    #endregion
+
+}

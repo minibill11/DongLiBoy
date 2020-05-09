@@ -1,0 +1,357 @@
+﻿@*input输入框显示编辑切换*@
+<script type="text/template" id="inputEdit">
+    <div>
+        <span v-if="!isedit">{{nametext}}</span>
+        <el-input v-else
+                  size="mini"
+                  v-on:input="$emit('input', nametext)"
+                  v-model="nametext">
+        </el-input>
+        @*<slot></slot>*@
+    </div>
+</script>
+@*inputEdit按钮组件*@
+<script type="text/template" id="inputEditBtn">
+    <div v-if="isnull==null">
+        <input-new :thisrow="rowdata" :thisitem="isnull" :thisid="itemid" :statu="section" style="display:inline-block;"></input-new>
+        <el-popover placement="bottom"
+                    v-model="passVisible">
+            <p><i class="el-icon-info red"></i>确认跳过此工段吗？</p>
+            <div style="text-align: right; margin: 0">
+                <el-button type="text" @@click="passVisible = false" size="mini">取消</el-button>
+                <el-button type="primary" @@click="saveClick('pass')" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="info" plain round>跳过</el-button>
+        </el-popover>
+    </div>
+    <div v-else>
+        <input-new v-if="nametext!='/'" :thisrow="rowdata" :thisitem="isnull" :thisid="itemid" :statu="section" v-show="editShow()&&bottomAndLock" style="display:inline-block;"></input-new>
+        <el-popover placement="bottom"
+                    v-model="deleteVisible"
+                    v-show="editShow()">
+            <p><i class="el-icon-info red"></i>确认删除吗？</p>
+            <div style="text-align: right; margin: 0">
+                <el-button type="text" @@click="deleteVisible = false" size="mini">取消</el-button>
+                <el-button type="danger" @@click="saveClick('delete')" size="mini">确定</el-button>
+            </div>
+            <el-button slot="reference" size="mini" class="miniBtn" type="warning" plain round>删除</el-button>
+        </el-popover>
+        <el-button @@click="editClick()" v-show="editShow()" size="mini" class="miniBtn" type="success" round>
+            编辑
+        </el-button>
+        <el-button @@click="cancelClick()" v-show="!editShow()" size="mini" class="miniBtn" type="success" plain round>
+            取消
+        </el-button>
+        <el-button @@click="saveClick('save')" v-show="!editShow()" size="mini" class="miniBtn" type="success" round>
+            保存
+        </el-button>
+        @*<slot></slot>*@
+    </div>
+</script>
+<script>
+    //input输入框显示编辑切换
+    Vue.component('input-edit', {
+        props: ['nametext', 'isedit'],
+        template: document.getElementById("inputEdit")
+    });
+
+    //inputEdit按钮组件
+    Vue.component('input-edit-btn', {
+        props: ['rowdata', 'isedit', 'index', 'itemdata', 'itemid', 'section', 'nametext', 'isnull'],
+        template: document.getElementById("inputEditBtn"),
+        data: function () {
+            return {
+                initial: {},
+                passVisible: false,
+                deleteVisible: false
+            }
+        },
+        computed: {
+            bottomAndLock() {
+                return (this.section === "打底壳" || this.section === "锁面罩") ? false : true;
+            }
+        },
+        methods: {
+            //开启编辑
+            editClick() {
+                //关闭计时器
+                this.closeTimer();
+                //行编辑数量
+                this.rowdata.editNum++;
+                let item = this.itemdata, itemStr = JSON.stringify(item);
+                this.initial = JSON.parse(itemStr);
+                return {
+                    '插件': () => { item.PluginEidt = true },
+                    '三防': () => { item.ThreeProfEidt = true },
+                    '打底壳': () => { item.BottomCasEidt = true },
+                    //'装磁吸安装板': () => { item.MagneticEidt = true },
+                    '喷墨': () => { item.InkjetEidt = true },
+                    '灌胶': () => { item.GlueEidt = true },
+                    '气密': () => { item.AirtightEidt = true },
+                    '锁面罩': () => { item.LockTheMaskEdit = true },
+                    '老化': () => { item.BurinEidt = true },
+                }[this.section].call(this);
+            },
+            //保存-跳过-删除
+            saveClick(comefrom) {
+                //声明共同数据
+                let obj = {
+                    Type: this.rowdata.Type,
+                    Platform: this.rowdata.Platform,
+                    ProductPCBnumber: this.rowdata.PCB,
+                }, statu = this.section, address = "";
+                //地址赋值
+                let switchAddress = {
+                    '插件': () => { address = "Add_Plug_In"; },
+                    '三防': () => { address = "Add_ThreeProf"; },
+                    '打底壳': () => { address = "Add_MachineNum"; },
+                    //'装磁吸安装板': () => { address = "Add_MagneticSuction"; },
+                    '喷墨': () => { address = "Add_Inkjet"; },
+                    '灌胶': () => { address = "Add_Glue"; },
+                    '气密': () => { address = "Add_Airtight"; },
+                    '锁面罩': () => { address = "Add_MachineNum"; },
+                    '老化': () => { address = "Add_Burin"; },
+                };
+                switchAddress[statu].call(this);
+
+                //添加(跳过)-修改-删除
+                if (comefrom === "pass") {
+                    //区分跳过的工段，赋值地址和名称
+                    let switchobj = {
+                        '插件': () => { obj['Name'] = "/"; },
+                        '三防': () => { obj['ThreeProfProcessName'] = "/"; },
+                        //'装磁吸安装板': () => { obj['MagneticProcessName'] = "/"; },
+                        '喷墨': () => { obj['InkjetProcessName'] = "/"; },
+                        '灌胶': () => { obj['GlueProcessName'] = "/"; },
+                        '气密': () => { obj['AirtightProcessName'] = "/"; },
+                        '老化': () => { obj['BurinOneProcessName'] = "/"; },
+                    };
+                    switchobj[statu].call(this);
+                    //添加跳过信息
+                    axios.post('/Process_Capacity/' + address, {
+                        newData: obj,
+                        statu: "添加"
+                    }).then(res => {
+                        res.data.message === true ? this.passItem(res.data.content) : this.$message.error(res.data.content);
+                        this.passVisible = false;
+                    }).catch(err => {
+                        this.$message.error('添加失败！');
+                        this.passVisible = false;
+                    });
+                } else {
+                    let row = this.rowdata, index = this.index;
+                    switch (statu) {
+                        case '插件':
+                            obj['Id'] = row.PluginDevice[index].PluginDeviceID;
+                            obj['Name'] = row.PluginDevice[index].PluginDeviceName;
+                            obj['PCBASingleLampNumber'] = row.PluginDevice[index].PCBASingleLampNumber;
+                            obj['PluginStandardNumber'] = row.PluginDevice[index].PluginStandardNumber;
+                            break;
+                        case '三防':
+                            obj['Id'] = row.ThreeProf[index].ThreeProfID;
+                            obj['ThreeProfProcessName'] = row.ThreeProf[index].ThreeProfProcessName;
+                            obj['ThreeProfStandardTotal'] = row.ThreeProf[index].ThreeProfStandardTotal;
+                            obj['ThreeProfStabdardOutput'] = row.ThreeProf[index].ThreeProfStabdardOutput;
+                            break;
+                        case '打底壳':
+                            obj['Id'] = row.BottomCas[index].BottomCasID;
+                            obj['BottomCasDispensMachineNum'] = row.BottomCas[index].BottomCasDispensMachineNum;
+                            obj['BottomCasScrewMachineNum'] = row.BottomCas[index].BottomCasScrewMachineNum;
+                            break;
+                        //case '装磁吸安装板':
+                        //    obj['Id'] = row.Magnetic[index].MagneticID;
+                        //    obj['MagneticProcessName'] = row.Magnetic[index].MagneticProcessName;
+                        //    obj['MagneticStandardTotal'] = row.Magnetic[index].MagneticStandardTotal;
+                        //    obj['MagneticStabdardOutput'] = row.Magnetic[index].MagneticStabdardOutput;
+                        //    break;
+                        case '喷墨':
+                            obj['Id'] = row.Inkjet[index].InkjetID;
+                            obj['InkjetProcessName'] = row.Inkjet[index].InkjetProcessName;
+                            obj['InkjetSuctionStandardTotal'] = row.Inkjet[index].InkjetSuctionStandardTotal;
+                            obj['InkjetStabdardOutputPerHour'] = row.Inkjet[index].InkjetStabdardOutputPerHour;
+                            break;
+                        case '灌胶':
+                            obj['Id'] = row.Glue[index].GlueID;
+                            obj['GlueProcessName'] = row.Glue[index].GlueProcessName;
+                            obj['GlueStandardTotal'] = row.Glue[index].GlueStandardTotal;
+                            obj['GlueStabdardOutput'] = row.Glue[index].GlueStabdardOutput;
+                            break;
+                        case '气密':
+                            obj['Id'] = row.Airtight[index].AirtightID;
+                            obj['AirtightProcessName'] = row.Airtight[index].AirtightProcessName;
+                            obj['AirtightStandardTotal'] = row.Airtight[index].AirtightStandardTotal;
+                            obj['AirtightStabdardOutput'] = row.Airtight[index].AirtightStabdardOutput;
+                            break;
+                        case '锁面罩':
+                            obj['Id'] = row.LockTheMask[index].LockTheMaskID;
+                            obj['LockTheMaskScrewMachineNum'] = row.LockTheMask[index].LockTheMaskScrewMachineNum;
+                            break;
+                        case '老化':
+                            obj['Id'] = row.Burin[index].BurinID;
+                            obj['BurinOneProcessName'] = row.Burin[index].BurinOneProcessName;
+                            obj['BurninOneSuctionStandardTotal'] = row.Burin[index].BurninOneSuctionStandardTotal;
+                            obj['BurinOneStabdardOutputPerHour'] = row.Burin[index].BurinOneStabdardOutputPerHour;
+                            obj['BurinTwoProcessName'] = row.Burin[index].BurinTwoProcessName;
+                            obj['BurinTwoSuctionStandardTotal'] = row.Burin[index].BurinTwoSuctionStandardTotal;
+                            obj['BurinTwoStabdardOutputPerHour'] = row.Burin[index].BurinTwoStabdardOutputPerHour;
+                            break;
+                        //default:
+                    };
+                    if (comefrom === "delete") {
+                        //删除信息
+                        axios.post('/Process_Capacity/' + address, {
+                            newData: obj,
+                            statu: "删除"
+                        }).then(res => {
+                            res.data.message === true ? this.deleteItem() : this.$message.error(res.data.content);
+                            this.deleteVisible = false;
+                        }).catch(err => {
+                            this.$message.error('删除失败！');
+                            this.deleteVisible = false;
+                        });
+                    } else {
+                        //区分 --打底壳和打底壳 与其它工段不同
+                        if (statu === "打底壳" || statu === "锁面罩") {
+                            let machineObj = {};
+                            if (statu === "打底壳") {
+                                machineObj = {
+                                    id: obj.Id,
+                                    ScrewMachineNum: obj.BottomCasScrewMachineNum,
+                                    DispensMachineNum: obj.BottomCasDispensMachineNum,
+                                };
+                            } else {
+                                machineObj = {
+                                    id: obj.Id,
+                                    ScrewMachineNum: obj.LockTheMaskScrewMachineNum,
+                                    DispensMachineNum: 0,
+                                };
+                            };
+                            axios.post('/Process_Capacity/' + address, machineObj).then(res => {
+                                if (res.data.message === true) {
+                                    this.$message.success(res.data.content);
+                                    this.closeEdit();
+                                } else {
+                                    this.$message.error(res.data.content);
+                                    this.cancelClick();
+                                };
+                            }).catch(err => {
+                                this.$message.error('修改失败！');
+                                this.cancelClick();
+                            });
+                        } else {
+                            axios.post('/Process_Capacity/' + address, {
+                                newData: obj,
+                                statu: "修改"
+                            }).then(res => {
+                                if (res.data.message === true) {
+                                    this.$message.success(res.data.content);
+                                    this.closeEdit();
+                                } else {
+                                    this.$message.error(res.data.content);
+                                    this.cancelClick();
+                                };
+                            }).catch(err => {
+                                this.$message.error('修改失败！');
+                                this.cancelClick();
+                            });
+                        };
+                    };
+                };
+            },
+            //取消编辑
+            cancelClick() {
+                //打开计时器
+                this.openTimer();
+                //行编辑数量
+                this.rowdata.editNum--;
+                let item = this.itemdata, ini = this.initial;
+                for (let i in ini) {
+                    item[i] = ini[i];
+                };
+            },
+            //关闭编辑框
+            closeEdit() {
+                //打开计时器
+                this.openTimer();
+                //行编辑数量
+                this.rowdata.editNum--;
+                let item = this.itemdata;
+                return {
+                    '插件': () => { item.PluginEidt = false },
+                    '三防': () => { item.ThreeProfEidt = false },
+                    '打底壳': () => { item.BottomCasEidt = false },
+                    //'装磁吸安装板': () => { item.MagneticEidt = false },
+                    '喷墨': () => { item.InkjetEidt = false },
+                    '灌胶': () => { item.GlueEidt = false },
+                    '气密': () => { item.AirtightEidt = false },
+                    '锁面罩': () => { item.LockTheMaskEdit = false },
+                    '老化': () => { item.BurinEidt = false },
+                }[this.section].call(this);
+            },
+            //编辑按钮显示
+            editShow() {
+                let item = this.itemdata;
+                return {
+                    '插件': () => { return item.PluginEidt === true ? false : true; },
+                    '三防': () => { return item.ThreeProfEidt === true ? false : true; },
+                    '打底壳': () => { return item.BottomCasEidt === true ? false : true; },
+                    //'装磁吸安装板': () => { return item.MagneticEidt === true ? false : true; },
+                    '喷墨': () => { return item.InkjetEidt === true ? false : true; },
+                    '灌胶': () => { return item.GlueEidt === true ? false : true; },
+                    '气密': () => { return item.AirtightEidt === true ? false : true; },
+                    '锁面罩': () => { return item.LockTheMaskEdit === true ? false : true; },
+                    '老化': () => { return item.BurinEidt === true ? false : true; },
+                }[this.section].call(this);
+            },
+            //跳过后的显示
+            passItem(newitem) {
+                let row = this.rowdata;
+                return {
+                    '插件': () => { row.PluginDevice = []; row.PluginDevice.push(newitem) },
+                    '三防': () => { row.ThreeProf = []; row.ThreeProf.push(newitem) },
+                    //'装磁吸安装板': () => { row.Magnetic = []; row.Magnetic.push(newitem) },
+                    '喷墨': () => { row.Inkjet = []; row.Inkjet.push(newitem) },
+                    '灌胶': () => { row.Glue = []; row.Glue.push(newitem) },
+                    '气密': () => { row.Airtight = []; row.Airtight.push(newitem) },
+                    '老化': () => { row.Burin = []; row.Burin.push(newitem) },
+                }[this.section].call(this);
+                this.$message.success('添加成功！');
+            },
+            //删除后的显示
+            deleteItem() {
+                let item = this.isnull, row = this.rowdata;
+                if (item.length > 1) {
+                    return {
+                        '插件': () => { row.PluginDevice.splice(this.index, 1); },
+                        '三防': () => { row.ThreeProf.splice(this.index, 1); },
+                        //'装磁吸安装板': () => { row.Magnetic.splice(this.index, 1); },
+                        '喷墨': () => { row.Inkjet.splice(this.index, 1); },
+                        '灌胶': () => { row.Glue.splice(this.index, 1); },
+                        '气密': () => { row.Airtight.splice(this.index, 1); },
+                        '老化': () => { row.Burin.splice(this.index, 1); },
+                    }[this.section].call(this);
+                } else {
+                    return {
+                        '插件': () => { row.PluginDevice = null; },
+                        '三防': () => { row.ThreeProf = null; },
+                        //'装磁吸安装板': () => { row.Magnetic = null; },
+                        '喷墨': () => { row.Inkjet = null; },
+                        '灌胶': () => { row.Glue = null; },
+                        '气密': () => { row.Airtight = null; },
+                        '老化': () => { row.Burin = null; },
+                    }[this.section].call(this);
+                };
+                this.$message.success('删除成功！');
+            },
+            //监控编辑数量，控制计时器状态
+            closeTimer() {
+                app.editNumTimer++;
+                app.editNumTimer > 0 && clearInterval(app.pollingTimer);
+            },
+            openTimer() {
+                app.editNumTimer--;
+                app.editNumTimer == 0 && app.monitorTimer();
+            }
+        }
+    });
+</script>

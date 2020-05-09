@@ -1,0 +1,486 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace JianHeMES.Controllers
+{
+    public class Warehouse_MaterialController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        // GET: Warehouse_Material
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        #region----MC部仓库物料管理
+
+        #region ---- 查询物料信息页
+        [HttpPost]
+        public ActionResult QueryMaterial(string material)
+        {
+            var security = db.Equipment_Safetystock.Where(c => c.Material == material).ToList();//获取数据
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());//根据物料编号到ERP里查找数据
+            return Content(JsonConvert.SerializeObject(querylist));
+        }
+        #endregion
+
+        #region ----修改库位号
+        public ActionResult ModifyLocation(string material, string position)
+        {
+            JObject table = new JObject();
+            var savecount = 0;
+            var security = db.Equipment_Safetystock.Where(c => c.Material == material).ToList();//获取数据
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());//根据物料编号到ERP里查找数据
+            foreach (var item in querylist)//循环querlist
+            {
+                if (db.Warehouse_Modify_WarehouseNum.Count(c => c.MaterialNumber == item.img01) == 0)
+                {
+                    var rede = new Warehouse_Modify_WarehouseNum() { MaterialNumber = material, MaterialBacrcode = null, OldWarehouseNum = item.img03, NewWarehouseNum = position, Modifier = ((Users)Session["user"]).UserName, ModifyTime = DateTime.Now };
+                    db.Warehouse_Modify_WarehouseNum.Add(rede);
+                    savecount = db.SaveChanges();//保存到数据库
+                }
+            }
+            if (savecount > 0)//判断savecount是否大于0
+            {
+                table.Add("Position", position);//把库位号add到table里面
+                table.Add("Site", true);
+            }
+            else//等于0 
+            {
+                table.Add("Site", false);
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+        #endregion
+
+        #region ----显示修改库位号清单
+        public ActionResult LocationQuery()
+        {
+            var locationlist = db.Warehouse_Modify_WarehouseNum.Select(c => new { c.ID, c.MaterialNumber, c.MaterialBacrcode, c.OldWarehouseNum, c.NewWarehouseNum }).ToList();
+            return Content(JsonConvert.SerializeObject(locationlist));
+        }
+        #endregion
+
+        #region ----如果ERP里的库位号已经修改过来，就把MES里的记录删除
+        public ActionResult DeleteLocation(int id)
+        {
+            JObject table = new JObject();
+            var locationlist = db.Warehouse_Modify_WarehouseNum.Select(c => new { c.MaterialNumber, c.OldWarehouseNum, c.NewWarehouseNum });
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(locationlist.Select(c => c.MaterialNumber).ToList());//根据物料编号到ERP里查找数据
+            foreach (var item in querylist)
+            {
+                if (item.img03 == locationlist.Select(c => c.NewWarehouseNum).FirstOrDefault())
+                {
+                    var record = db.Warehouse_Modify_WarehouseNum.Where(c => c.ID == id).FirstOrDefault();//根据ID表里查询数据
+                    UserOperateLog operaterecord = new UserOperateLog();
+                    operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
+                    operaterecord.Operator = ((Users)Session["User"]).UserName;//添加删除操作人
+                    //添加操作记录（如：张三在2020年2月27日删除设备管理邮件抄送人为李四的记录）
+                    operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除库位号" + record.Modifier + "的记录。";
+                    db.Warehouse_Modify_WarehouseNum.Remove(record);//删除对应的数据
+                    db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
+                    int count = db.SaveChanges();//保存到数据库
+                    if (count > 0)//判断count是否大于0（有没有把数据保存到数据库）
+                    {
+                        table.Add("table", true);
+                        table.Add("ware", "删除成功");
+                        return Content(JsonConvert.SerializeObject(table));
+                    }
+                    else //等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        table.Add("table", false);
+                        table.Add("ware", "删除失败");
+                        return Content(JsonConvert.SerializeObject(table));
+                    }
+                }
+                else
+                {
+                    table.Add("table", false);
+                    table.Add("ware", "库位号不一致");
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+        #endregion
+
+        #endregion
+
+        #region ---其他方法
+        // GET: Warehouse_Material/Details/5
+        public ActionResult Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Warehouse_Material/Create
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Create([Bind(Include = "ID,ManufactorNum,ManufactorName,MaterialNumber,ProductName,Specifications,Type,VarietyType")] Warehouse_Material_BaseInfo warehouse_Material_BaseInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Warehouse_Material_BaseInfo.Add(warehouse_Material_BaseInfo);
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Edit/5
+        public ActionResult Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // POST: Warehouse_Material/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Edit([Bind(Include = "ID,ManufactorNum,ManufactorName,MaterialNumber,ProductName,Specifications,Type,VarietyType")] Warehouse_Material_BaseInfo warehouse_Material_BaseInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(warehouse_Material_BaseInfo).State = EntityState.Modified;
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Delete/5
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // POST: Warehouse_Material/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            db.Warehouse_Material_BaseInfo.Remove(warehouse_Material_BaseInfo);
+            db.SaveChanges();
+            return RedirectToAction("Index");
+        }
+        #endregion
+
+
+        #region------库存金额查询
+
+        public class StockAmountCal: CommonERPDB.cxcr006
+        {
+
+
+        }
+
+        public ActionResult StockAmountCalculate()
+        {
+            ViewBag.financerecordcount = 0;
+            ViewBag.mcunissuerecordcount = 0;
+            ViewBag.queryfinancedatatimespan = null;
+            ViewBag.querymc_unissuedatatimespan = null;
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult StockAmountCalculate(DateTime inputdate, DateTime enddate)
+        {
+            DateTime queryfinancedatabegin = DateTime.Now;
+            var financedata = CommonERPDB.ERP_FinanceDetialsQuery();
+            ViewBag.queryfinancedatatimespan = DateTime.Now - queryfinancedatabegin;
+            var dt = DataTableTool.ToDataTable(financedata);
+
+            ViewBag.financerecordcount = financedata.Count;
+            //DateTime inputdate = new DateTime(2019, 1, 25);
+            //DateTime enddate = new DateTime(2019, 1, 31);
+            List<string> tc_cxc01_list = financedata.Select(c => c.tc_cxc01).ToList();
+            DateTime querymc_unissuedata = DateTime.Now;
+            var mc_unissuedata = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate);
+            ViewBag.querymc_unissuedatatimespan = DateTime.Now - querymc_unissuedata;
+            ViewBag.mcunissuerecordcount = mc_unissuedata.Count;
+            List<CommonERPDB.Financedetails> financedetails = new List<CommonERPDB.Financedetails>();
+            foreach (var item in financedata)
+            {
+                var record = new CommonERPDB.Financedetails();
+                record.A = item.tc_cxc01;
+                record.B = item.tc_cxc02;
+                record.C = item.tc_cxc03;
+                //record.D= item.
+                record.E = item.tc_cxc04;
+                record.F = item.tc_cxc06 / item.tc_cxc04;
+                record.G = item.tc_cxc06;
+                record.H = item.tc_cxc04 - item.tc_cxc07 - item.tc_cxc08 - item.tc_cxc09;
+                record.I = record.H * record.F;
+                record.J = mc_unissuedata.Where(c => c.sfa03 == item.tc_cxc01 && c.sfbud01.Contains("-K0")).Sum(c => c.sfa05_sfa06);
+
+                record.T = 0;//未知
+                record.K = (record.J + record.T) > record.E ? record.E : (record.J + record.T);
+                record.L = record.K * record.F;
+                record.M = mc_unissuedata.Where(c => c.sfa03 == item.tc_cxc01).Except(mc_unissuedata.Where(c => c.sfa03 == item.tc_cxc01 && c.sfbud01.Contains("-K0"))).Sum(c => c.sfa05_sfa06);
+                record.N = record.M > (record.E - record.K) ? record.E - record.K : record.M;
+                record.O = record.H - record.N;
+                record.P = record.N * record.F;
+                record.Q = record.E - record.K - record.N;
+                record.R = record.Q * record.F;
+                record.S = record.H - record.Q;
+                record.U = 0;//未知
+                record.V = 0;//未知
+                record.W = item.tc_cxc07;
+                record.X = record.W == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.AF - record.AM - record.AT - record.BA - record.BM - record.BS) > record.W ? record.W : (record.K - record.AF - record.AM - record.AT - record.BA - record.BM - record.BS)));
+                record.Y = record.X * record.F;
+                record.Z = record.W == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.AH - record.AO - record.AV - record.BC - record.BO - record.BU) > (record.W - record.X) ? (record.W - record.X) : (record.N - record.AH - record.AO - record.AV - record.BC - record.BO - record.BU)));
+                record.AA = record.F * record.Z;
+                record.AB = record.AC - record.AA - record.Y;
+                record.AC = record.W * record.F;
+                record.AD = item.tc_cxc08;
+                record.AE = record.AD * record.F;
+                record.AF = record.AD == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.AM - record.AT - record.BA - record.BM - record.BS) > record.AD ? record.AD : (record.K - record.AM - record.AT - record.BA - record.BM - record.BS)));
+                record.AG = record.F * record.AF;
+                record.AH = record.AD == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.AO - record.AV - record.BC - record.BO - record.BU) > (record.AD - record.AF) ? (record.AD - record.AF) : (record.N - record.AO - record.AV - record.BC - record.BO - record.BU)));
+                record.AI = record.AH * record.F;
+                record.AJ = record.AE - record.AG - record.AI;
+                record.AK = item.tc_cxc09;
+                record.AL = record.AK * record.F;
+                record.AM = record.AK == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.AT - record.BA - record.BM - record.BS) > record.AK ? record.AK : (record.K - record.AT - record.BA - record.BM - record.BS)));
+                record.AN = record.AM * record.F;
+                record.AO = record.AK == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.AV - record.BC - record.BO - record.BU) > (record.AK - record.AM) ? (record.AK - record.AM) : (record.N - record.AV - record.BC - record.BO - record.BU)));
+                record.AP = record.AO * record.F;
+                record.AQ = record.AL - record.AN - record.AP;
+                record.AR = item.tc_cxc10;
+                record.AS = record.AR * record.F;
+                record.AT = record.AR == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.BA - record.BM - record.BS) > record.AR ? record.AR : (record.K - record.BA - record.BM - record.BS)));
+                record.AU = record.AT * record.F;
+                record.AV = record.AR == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.BC - record.BO - record.BU) > (record.AR - record.AT) ? (record.AR - record.AT) : (record.N - record.BC - record.BO - record.BU)));
+                record.AW = record.AV * record.F;
+                record.AX = record.AS - record.AU - record.AW;
+                record.AY = item.tc_cxc11;
+                record.AZ = record.AY * record.F;
+                record.BA = record.AY == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.BM - record.BS) > record.AY ? record.AY : (record.K - record.BM - record.BS)));
+                record.BB = record.BA * record.F;
+                record.BC = record.AY == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.BO - record.BU) > (record.AY - record.BA) ? (record.AY - record.BA) : (record.N - record.BO - record.BU)));
+                record.BD = record.BC * record.F;
+                record.BE = record.AZ - record.BB - record.BD;
+                record.BF = item.tc_cxc12;
+                record.BG = record.BF * record.F;
+                record.BH = item.tc_cxc13;
+                record.BI = record.BH * record.F;
+                record.BJ = item.tc_cxc14;
+                record.BK = record.BJ * record.F;
+                record.BL = 0;//未知
+                record.BM = record.BF == 0 ? 0 : (record.K == 0 ? 0 : (record.K - record.BS > record.BF ? record.AH : record.K - record.BS));
+                record.BN = record.BM * record.F;
+                record.BO = record.BF == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.BU) > (record.BF - record.BM) ? record.BF - record.BM : record.N - record.BU));
+                record.BP = record.BO * record.F;
+                record.BQ = record.BG - record.BN - record.BP;
+                record.BR = record.BH + record.BJ;
+                record.BS = record.BR == 0 ? 0 : (record.K == 0 ? 0 : (record.K > record.BR ? record.BR : record.K));
+                record.BT = record.BS * record.F;
+                record.BU = record.BR == 0 ? 0 : (record.N == 0 ? 0 : (record.N > (record.BR - record.BS) ? record.BR - record.BS : record.N));
+                record.BV = record.BU * record.F;
+                record.BW = record.BX - record.BV - record.BT;
+                record.BX = record.BI + record.BK;
+                record.BY = record.BW + record.BV + record.BT + record.BQ + record.BP + record.BN + record.BE + record.BD + record.BB + record.Y + record.AA + record.AB + record.AG + record.AI + record.AJ + record.AN + record.AP + record.AQ + record.AU + record.AW + record.AX;
+                //record.BZ = item.
+
+                financedetails.Add(record);
+            }
+            JArray results = new JArray();
+            //成品 市场备库订单
+            JObject resultrecord = new JObject();
+            resultrecord.Add("类别", "成品");
+            resultrecord.Add("分类明细", "市场备库订单");
+            var market1month = financedetails.Where(c => c.C.Contains("-K0") /*&& (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))*/).Sum(c => c.Y);
+            resultrecord.Add("1个月以内", market1month);
+            var market2_3month = financedetails.Where(c => c.C.Contains("-K0") /*&& (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))*/).Sum(c => c.AG);
+            resultrecord.Add("2-3个月", market2_3month);
+            var market4_6month = financedetails.Where(c => c.C.Contains("-K0") /*&& (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))*/).Sum(c => c.AN);
+            resultrecord.Add("4-6个月", market4_6month);
+            var market7_12month = financedetails.Where(c => c.C.Contains("-K0") /*&& (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))*/).Sum(c => c.AU);
+            resultrecord.Add("7-12个月", market7_12month);
+            var market1_2year = financedetails.Where(c => c.C.Contains("-K0") /*&& (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))*/).Sum(c => c.BB);
+            resultrecord.Add("1-2年", market1_2year);
+            //var market2_3year = financedetails.Where(c => c.C.Contains("-K0")&&( c.B.Contains("室内显示屏")|| c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.);
+            resultrecord.Add("2-3年", "无");
+            var marketover3year = financedetails.Where(c => c.C.Contains("-K0") /*&& (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))*/).Sum(c => c.BT);
+            resultrecord.Add("3年以上", marketover3year);
+            var markettotal = market1month + market2_3month + market4_6month + market7_12month + market1_2year + marketover3year;  //缺2-3年数据
+            resultrecord.Add("合计金额", markettotal);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 销售订单
+            resultrecord = new JObject();
+            resultrecord.Add("类别", "成品");
+            resultrecord.Add("分类明细", "销售订单");
+            //订单带-J、-RM、-K0
+            var temprecord = financedetails.Except(financedetails.Where(c => c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0"))).ToList();
+            var sale1month = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.Y);
+            resultrecord.Add("1个月以内", sale1month);
+            var sale2_3month = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.AG);
+            resultrecord.Add("2-3个月", sale2_3month);
+            var sale4_6month = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.AN);
+            resultrecord.Add("4-6个月", sale4_6month);
+            var sale7_12month = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.AU);
+            resultrecord.Add("7-12个月", sale7_12month);
+            var sale1_2year = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.BB);
+            resultrecord.Add("1-2年", sale1_2year);
+            //var market2_3year = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.);
+            resultrecord.Add("2-3年", "无");
+            var saleover3year = temprecord.Where(c => c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏")).Sum(c => c.BT);
+            resultrecord.Add("3年以上", saleover3year);
+            var saletotal = market1month + market2_3month + market4_6month + market7_12month + market1_2year + marketover3year;  //缺2-3年数据
+            resultrecord.Add("合计金额", saletotal);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 样品
+            resultrecord = new JObject();
+            resultrecord.Add("类别", "成品");
+            resultrecord.Add("分类明细", "样品");
+            var sample1month = financedetails.Where(c => (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0")) && (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.Y);
+            resultrecord.Add("1个月以内", sample1month);
+            var sample2_3month = financedetails.Where(c => (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0")) && (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.AG);
+            resultrecord.Add("2-3个月", sample2_3month);
+            var sample4_6month = financedetails.Where(c => (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0")) && (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.AN);
+            resultrecord.Add("4-6个月", sample4_6month);
+            var sample7_12month = financedetails.Where(c => (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0")) && (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.AU);
+            resultrecord.Add("7-12个月", sample7_12month);
+            var sample1_2year = financedetails.Where(c => (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0")) && (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.BB);
+            resultrecord.Add("1-2年", sample1_2year);
+            //var sample2_3year = financedetails.Where(c =>  (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0"))&&( c.B.Contains("室内显示屏")|| c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.);
+            resultrecord.Add("2-3年", "无");
+            var sampleover3year = financedetails.Where(c => (c.B.Contains("-J") || c.B.Contains("-RM") || c.B.Contains("-K0")) && (c.B.Contains("室内显示屏") || c.B.Contains("室外显示屏") || c.B.Contains("户外显示屏"))).Sum(c => c.BT);
+            resultrecord.Add("3年以上", sampleover3year);
+            var sampletotal = market1month + market2_3month + market4_6month + market7_12month + market1_2year + marketover3year;  //缺2-3年数据
+            resultrecord.Add("合计金额", sampletotal);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            #region---TODO
+            ////成品 场外仓
+            //resultrecord = new JObject();
+
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+
+            ////成品 配件单
+            //resultrecord = new JObject();
+            //resultrecord.Add("类别", "成品");
+            //resultrecord.Add("分类明细", "配件单");
+            //var parts1month = financedetails.Where(c => c.B.Contains("配件")).Sum(c => c.Y);
+            //resultrecord.Add("1个月以内", parts1month);
+            //var parts2_3month = financedetails.Where(c => c.B.Contains("配件")).Sum(c => c.AG);
+            //resultrecord.Add("2-3个月", parts2_3month);
+            //var parts4_6month = financedetails.Where(c => c.B.Contains("配件")).Sum(c => c.AN);
+            //resultrecord.Add("4-6个月", parts4_6month);
+            //var parts7_12month = financedetails.Where(c => c.B.Contains("配件")).Sum(c => c.AU);
+            //resultrecord.Add("7-12个月", parts7_12month);
+            //var parts1_2year = financedetails.Where(c => c.B.Contains("配件")).Sum(c => c.BB);
+            //resultrecord.Add("1-2年", parts1_2year);
+            ////var parts2_3year = financedetails.Where(c =>  c.B.Contains("配件")).Sum(c => c.);
+            //resultrecord.Add("2-3年", "无");
+            //var partsover3year = financedetails.Where(c => c.B.Contains("配件")).Sum(c => c.BT);
+            //resultrecord.Add("3年以上", partsover3year);
+            //var partstotal = market1month + market2_3month + market4_6month + market7_12month + market1_2year + marketover3year;  //缺2-3年数据
+            //resultrecord.Add("合计金额", partstotal);
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+
+
+            ////原材料 备库订单
+            //resultrecord = new JObject();
+
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+
+            ////原材料 销售订单
+            //resultrecord = new JObject();
+
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+
+            ////原材料 无订单需求
+            //resultrecord = new JObject();
+
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+
+
+            ////在制 市场备库订单
+            //resultrecord = new JObject();
+
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+
+            ////在制 销售订单
+            //resultrecord = new JObject();
+
+            //results.Add(resultrecord);
+            //resultrecord = new JObject();
+            #endregion
+
+            return Content(JsonConvert.SerializeObject(results));
+        }
+
+
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

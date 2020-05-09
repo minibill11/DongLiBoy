@@ -1,0 +1,318 @@
+﻿using Microsoft.Ajax.Utilities;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Data;
+using System.Linq;
+using System.Web;
+
+namespace JianHeMES.Controllers
+{
+    public class CommonERPDB
+    {
+        #region------ ERP表类
+        public class img_file
+        {
+            //[Key]
+            //public int Id { get; set; }
+
+            [Display(Name = "料件编号"), StringLength(50)]
+            public string img01 { get; set; }
+
+            [Display(Name = "仓库编号"), StringLength(50)]
+            public string img02 { get; set; }
+
+            [Display(Name = "储位"), StringLength(50)]
+            public string img03 { get; set; }
+
+            [Display(Name = "批号"), StringLength(50)]
+            public string img04 { get; set; }
+
+            [Display(Name = "参考号码"), StringLength(50)]
+            public string img05 { get; set; }
+
+            [Display(Name = "参考序号"), StringLength(50)]
+            public int? img06 { get; set; }
+
+            [Display(Name = "采购单位/生产单位"), StringLength(50)]
+            public string img07 { get; set; }
+
+            [Display(Name = "收货数量"), StringLength(50)]
+            public double? img08 { get; set; }
+
+            [Display(Name = "库存单位"), StringLength(50)]
+            public string img09 { get; set; }
+
+            [Display(Name = "库存数量"), StringLength(50)]
+            public double? img10 { get; set; }
+
+            [Display(Name = "No Use"), StringLength(50)]
+            public double? img11 { get; set; }
+
+            [Display(Name = "No Use"), StringLength(50)]
+            public double? img12 { get; set; }
+
+            [Display(Name = "制造日期"), StringLength(50)]
+            public DateTime? img13 { get; set; }
+
+            [Display(Name = "最近一次盘点日期"), StringLength(50)]
+            public DateTime? img14 { get; set; }
+
+            [Display(Name = "最近一次收料日期"), StringLength(50)]
+            public DateTime? img15 { get; set; }
+
+            [Display(Name = "最近一次发料日期"), StringLength(50)]
+            public DateTime? img16 { get; set; }
+
+            [Display(Name = "最近一次异动日期"), StringLength(50)]
+            public DateTime? img17 { get; set; }
+
+            [Display(Name = "有效日期"), StringLength(50)]
+            public DateTime? img18 { get; set; }
+
+            [Display(Name = "库存等级"), StringLength(50)]
+            public string img19 { get; set; }
+
+            [Display(Name = "单位数量换算率"), StringLength(50)]
+            public double? img20 { get; set; }
+
+            [Display(Name = "单位数量换算率-对料件库存单"), StringLength(50)]
+            public double? img21 { get; set; }
+
+            [Display(Name = "仓储类别"), StringLength(50)]
+            public string img22 { get; set; }
+
+            [Display(Name = "是否为可用仓储"), StringLength(50)]
+            public string img23 { get; set; }
+
+            [Display(Name = "是否为ＭＲＰ可用仓储"), StringLength(50)]
+            public string img24 { get; set; }
+
+            [Display(Name = "保税与否"), StringLength(50)]
+            public string img25 { get; set; }
+
+            [Display(Name = "仓储所属会计科目"), StringLength(50)]
+            public string img26 { get; set; }
+
+            [Display(Name = "工单发料优先顺序"), StringLength(50)]
+            public int? img27 { get; set; }
+
+            [Display(Name = "销售出货优先顺序"), StringLength(50)]
+            public int? img28 { get; set; }
+
+            //[Display(Name = "未知"), StringLength(50)]
+            //public string img29 { get; set; }
+
+            [Display(Name = "直接材料成本"), StringLength(50)]
+            public double? img30 { get; set; }
+
+            [Display(Name = "间接材料成本"), StringLength(50)]
+            public double? img31 { get; set; }
+
+            [Display(Name = "厂外加工材料成本"), StringLength(50)]
+            public double? img32 { get; set; }
+
+            [Display(Name = "厂外加工人工成本"), StringLength(50)]
+            public double? img33 { get; set; }
+
+            [Display(Name = "库存单位对成本单位的转换率"), StringLength(50)]
+            public double? img34 { get; set; }
+
+            [Display(Name = "专案号码"), StringLength(50)]
+            public string img35 { get; set; }
+
+            [Display(Name = "外观编号"), StringLength(50)]
+            public string img36 { get; set; }
+
+            [Display(Name = "呆滞日期"), StringLength(50)]
+            public DateTime? img37 { get; set; }
+
+            [Display(Name = "备注"), StringLength(50)]
+            public string img38 { get; set; }
+
+            //[Display(Name = "所属工厂"), StringLength(50)]
+            //public string imgplant { get; set; }
+
+            //[Display(Name = "所属法人"), StringLength(50)]
+            //public string imglegal { get; set; }
+
+        }
+
+
+
+        #endregion
+
+        #region------ ERP查询方法
+
+        public static List<img_file> ERP_Query_SafetyStock(List<string> material_List)
+        {
+            string data = string.Empty;
+            //JObject result = new JObject();
+            DataTable OutDataTable = new DataTable();
+            OutDataTable.TableName = "data";
+            DataRow dataRow;
+            List<img_file> result_list = new List<img_file>();
+            using (OracleConnection cn = GetOracleConnection())
+            {
+                cn.Open();
+                string sql = "";
+                foreach (var item in material_List)
+                {
+                    if (sql == "") sql = "Select * from img_file where img01 ='" + item + "'";
+                    else sql = sql + " or img01 = '" + item + "'";
+                }
+                OracleCommand cmd = new OracleCommand(sql, cn);
+                cmd.CommandType = System.Data.CommandType.Text;
+                OracleDataReader dtr = cmd.ExecuteReader();
+                if (dtr.Read())
+                {
+                    for (int j = 0; j < dtr.FieldCount; j++)
+                    {
+                        OutDataTable.Columns.Add(dtr.GetName(j));
+                    }
+
+                    #region------ 修改列名
+                    //OutDataTable.Columns["img01"].ColumnName = "料件编号";
+                    //OutDataTable.Columns["img02"].ColumnName = "仓库编号";
+                    //OutDataTable.Columns["img03"].ColumnName = "储位";
+                    //OutDataTable.Columns["img04"].ColumnName = "批号";
+                    //OutDataTable.Columns["img05"].ColumnName = "参考号码";
+                    //OutDataTable.Columns["img06"].ColumnName = "参考序号";
+                    //OutDataTable.Columns["img07"].ColumnName = "采购单位";
+                    //OutDataTable.Columns["img08"].ColumnName = "收货数量";
+                    //OutDataTable.Columns["img09"].ColumnName = "库存单位";
+                    //OutDataTable.Columns["img10"].ColumnName = "库存数量";
+                    //OutDataTable.Columns["img11"].ColumnName = "No Use";
+                    //OutDataTable.Columns["img12"].ColumnName = "No Use";
+                    //OutDataTable.Columns["img13"].ColumnName = "制造日期";
+                    //OutDataTable.Columns["img14"].ColumnName = "最近一次盘点日期";
+                    //OutDataTable.Columns["img15"].ColumnName = "最近一次收料日期";
+                    //OutDataTable.Columns["img16"].ColumnName = "最近一次发料日期";
+                    //OutDataTable.Columns["img17"].ColumnName = "最近一次异动日期";
+                    //OutDataTable.Columns["img18"].ColumnName = "有效日期";
+                    //OutDataTable.Columns["img19"].ColumnName = "库存等级";
+                    //OutDataTable.Columns["img20"].ColumnName = "单位数量换算率";
+                    //OutDataTable.Columns["img21"].ColumnName = "单位数量换算率-对料件库存单";
+                    //OutDataTable.Columns["img22"].ColumnName = "仓储类别";
+                    //OutDataTable.Columns["img23"].ColumnName = "是否为可用仓储";
+                    //OutDataTable.Columns["img24"].ColumnName = "是否为ＭＲＰ可用仓储";
+                    //OutDataTable.Columns["img25"].ColumnName = "保税与否";
+                    //OutDataTable.Columns["img26"].ColumnName = "仓储所属会计科目";
+                    //OutDataTable.Columns["img27"].ColumnName = "工单发料优先顺序";
+                    //OutDataTable.Columns["img28"].ColumnName = "销售出货优先顺序";
+                    ////OutDataTable.Columns["img29"].ColumnName = "未知列";
+                    //OutDataTable.Columns["img30"].ColumnName = "直接材料成本";
+                    //OutDataTable.Columns["img31"].ColumnName = "间接材料成本";
+                    //OutDataTable.Columns["img32"].ColumnName = "厂外加工材料成本";
+                    //OutDataTable.Columns["img33"].ColumnName = "厂外加工人工成本";
+                    //OutDataTable.Columns["img34"].ColumnName = "库存单位对成本单位的转换率";
+                    //OutDataTable.Columns["img35"].ColumnName = "专案号码";
+                    //OutDataTable.Columns["img36"].ColumnName = "外观编号";
+                    //OutDataTable.Columns["img37"].ColumnName = "呆滞日期";
+                    //OutDataTable.Columns["img38"].ColumnName = "备注";
+                    ////OutDataTable.Columns["imgplant"].ColumnName = "所属工厂";
+                    ////OutDataTable.Columns["imglengal"].ColumnName = "所属法人";
+                    #endregion
+
+                    do
+                    {
+                        while (dtr.Read())
+                        {
+                            dataRow = OutDataTable.NewRow();
+                            for (int j = 0; j < dtr.FieldCount; j++)
+                            {
+                                data = dtr[j].ToString();
+                                dataRow[j] = data;
+                            }
+                            OutDataTable.Rows.Add(dataRow);
+                            result_list.Add(new img_file
+                            {
+                                img01 = (string)dataRow["img01"],
+                                img02 = (string)dataRow["img02"],
+                                img03 = (string)dataRow["img03"],
+                                img04 = (string)dataRow["img04"],
+                                img05 = (string)dataRow["img05"],
+                                img06 = (string)dataRow["img06"] == "" ? 0 : Convert.ToInt16(dataRow["img06"]),
+                                img07 = (string)dataRow["img07"],
+                                img08 = (string)dataRow["img08"] == "" ? 0 : Convert.ToDouble(dataRow["img08"]),
+                                img09 = (string)dataRow["img09"],
+                                img10 = (string)dataRow["img10"] == "" ? 0 : Convert.ToDouble(dataRow["img10"]),
+                                img11 = (string)dataRow["img11"] == "" ? 0 : Convert.ToDouble(dataRow["img11"]),
+                                img12 = (string)dataRow["img12"] == "" ? 0 : Convert.ToDouble(dataRow["img12"]),
+                                img13 = StringTODateTime((string)dataRow["img13"]),
+                                img14 = StringTODateTime((string)dataRow["img14"]),
+                                img15 = StringTODateTime((string)dataRow["img15"]),
+                                img16 = StringTODateTime((string)dataRow["img16"]),
+                                img17 = StringTODateTime((string)dataRow["img17"]),
+                                img18 = StringTODateTime((string)dataRow["img18"]),
+                                img19 = (string)dataRow["img19"],
+                                img20 = (string)dataRow["img20"] == "" ? 0 : Convert.ToDouble(dataRow["img20"]),
+                                img21 = (string)dataRow["img21"] == "" ? 0 : Convert.ToDouble(dataRow["img21"]),
+                                img22 = (string)dataRow["img22"],
+                                img23 = (string)dataRow["img23"],
+                                img24 = (string)dataRow["img24"],
+                                img25 = (string)dataRow["img25"],
+                                img26 = (string)dataRow["img26"],
+                                img27 = (string)dataRow["img27"] == "" ? 0 : Convert.ToInt16(dataRow["img27"]),
+                                img28 = (string)dataRow["img28"] == "" ? 0 : Convert.ToInt16(dataRow["img28"]),
+                                //img29 = (string)dataRow["img29"],
+                                img30 = (string)dataRow["img30"] == "" ? 0 : Convert.ToDouble(dataRow["img30"]),
+                                img31 = (string)dataRow["img31"] == "" ? 0 : Convert.ToDouble(dataRow["img31"]),
+                                img32 = (string)dataRow["img32"] == "" ? 0 : Convert.ToDouble(dataRow["img32"]),
+                                img33 = (string)dataRow["img33"] == "" ? 0 : Convert.ToDouble(dataRow["img33"]),
+                                img34 = (string)dataRow["img34"] == "" ? 0 : Convert.ToDouble(dataRow["img34"]),
+                                img35 = (string)dataRow["img35"],
+                                img36 = (string)dataRow["img36"],
+                                img37 = StringTODateTime((string)dataRow["img37"]),
+                                img38 = (string)dataRow["img38"],
+                                //imgplant = (string)dataRow["imgplant"],
+                                //imglegal = (string)dataRow["imglegal"],
+                            });
+                        }
+                    } while (dtr.NextResult());
+                    //foreach (var item in material_List)
+                    //{
+                    //    var OneMaterialList = result_list.Where(c => c.img01 == item && c.img10 > 0).ToList();
+                    //    result.Add(item, JsonConvert.SerializeObject(OneMaterialList));
+                    //}
+                }
+                dtr.Close();
+                cn.Close();
+            }
+            return result_list;
+        }
+
+
+        #endregion
+
+        #region------ 其他方法
+        private static OracleConnection GetOracleConnection()
+        {
+            OracleConnection conn = new OracleConnection();
+            conn.ConnectionString = "User Id=hzdb;Password=hzdb;Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.5)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=topprod)))";
+            return conn;
+        }
+
+        //String转换DateTime
+        public static DateTime? StringTODateTime(string str)
+        {
+            DateTime? result = null;
+            if (str == "")
+            {
+                return result;
+            }
+            else
+            {
+                result = Convert.ToDateTime(str);
+                return result;
+            }
+        }
+        #endregion
+
+
+
+    }
+}

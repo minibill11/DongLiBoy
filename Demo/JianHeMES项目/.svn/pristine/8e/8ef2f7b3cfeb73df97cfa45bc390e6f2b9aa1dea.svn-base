@@ -1,0 +1,951 @@
+﻿
+@{
+    ViewBag.Title = "Equipment_MonthlyMaintenance_plan";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+<style>
+    .redline{
+        background-color:red;
+    }
+    .container{
+        width:1401px;
+    }
+    .red{color:red;}
+    .topTable{
+        width:100%;
+       margin:10px auto;
+    }
+     textarea{
+        height:30px;
+        width:15%;
+    }
+    .topTable > thead > tr > th,.topTable>tbody>tr>td{
+         text-align:center;
+    }
+    .topTable>tbody>tr>td{
+        font-size:11px;
+    }
+    .selects{
+        border:none;
+        width:100%;
+        padding: 1px;
+        color:red;
+        border:1px solid #dcd8d8;
+        -webkit-appearance:none;
+        -moz-appearance:none;
+        appearance:none; /*去掉下拉箭头*/
+    }
+    .selectContainer{
+        text-align:center;
+        margin: 5px auto;
+    }
+
+    .tableCodeContainer,.footerMeddleContainer{
+        display:flex;
+        justify-content:flex-end;
+    }
+    .footerLastContainer{
+        margin-top:5px;
+        display:flex;
+        justify-content:flex-start;
+    }
+    .footerLastContainer > div{
+        width:20%;
+    }
+    .tableCodeInner{
+        width:250px;
+    }
+    .innerLeft{
+        width:10%;
+    }
+    .innerRight{
+        width:90%;
+    }
+    .addrecardtable table tbody tr td{
+        padding:2px;
+    }
+
+</style>
+<h2 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">月保养计划</h2>
+
+<div id="app" v-show="flag">
+    @* 导航按钮 *@
+    <p style="display:flex;justify-content:center;margin-top:10px;">
+        <a class="shebeitaizhang" href="/Equipment/First_equipment"><el-button type="primary" size="mini" plain>设备台账</el-button></a>
+        <a class="chechTimePlan" href="/Equipment/Equipment_MonthlyMaintenance_plan"><el-button type="primary" size="mini" plain>月保养计划</el-button></a>
+        <a class="checkTally" href="/Equipment/Equipment_Tally"><el-button type="primary" size="mini" plain>点检表记录表</el-button></a>
+        <a class="checkRepiabill" href="/Equipment/EquipmentRepairbill_Query"><el-button type="primary" size="mini" plain>仪器设备报修单</el-button></a>
+        <a class="checkRepiabill" href="/Equipment/Equipment_safety"><el-button type="primary" size="mini" plain>安全库存清单</el-button></a>
+        <a class="targetSumary" href="/Equipment/Equipment_Quality_target"><el-button type="primary" size="mini" plain>指标达成率</el-button></a>
+    </p>
+    <div>
+        <div class="selectContainer">
+            <el-date-picker v-model="selectTime"
+                            type="month"
+                            size="mini"
+                            clearable
+                            placeholder="选择月">
+            </el-date-picker>
+            <el-select v-model="selectDepar" size="mini" clearable placeholder="请选择">
+                <el-option v-for="item in deparList"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <a class="targetSumary" href="/Equipment/Equipment_MonthTotalQuery"><el-button type="primary" size="mini" plain>汇总</el-button></a>
+        </div>
+        <table border="1" class="topTable">
+            <thead>
+                <tr>
+                    <th rowspan="2">序号</th>
+                    
+                    <th style="width:80px;" colspan="2">保养日期</th>
+                    <th style="width:25px;" v-for="i in 31">{{i}}</th>
+                    <th>保养工时</th>
+                    <th>保养负责人</th>
+                    <th>保养日期</th>
+                    <th>下次保养日期</th>
+                    <th rowspan="2">备注</th>
+                    <th rowspan="2">保养记录</th>
+                </tr>
+                <tr>
+                    <th>编号</th>
+                    <th>设备</th>
+                    <th colspan="35">技术部ME月保养</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(items,index) in tableData" v-bind:class="items.color==200?'redline':''">
+                    <td>{{index + 1}}</td>
+                    <td>{{items.EquipmentNumber}}</td>
+                    <td v-on:click="showDetialOfPlan(items)">{{items.EquipmentName}}</td>
+                    <td v-on:click="changeInfos(items)" v-for="item in 31">
+                        <select disabled class="selects" v-if="parseDate(items.Mainten_equipment)==item">
+                            <option>√</option>
+                            <option></option>
+                        </select>
+                    </td>
+                    <td>{{items.Maintenance_work}}</td>
+                    <td>{{items.Mainten_supervisor}}</td>
+                    <td>{{items.MaintenanceDate | YMD}}</td>
+                    <td>{{items.Nextmainten_cycle| YMD}}</td>
+                    <td>{{items.Remark}}</td>
+                    <td>{{items.Abnormal_records}}</td>
+                </tr>
+            </tbody>
+        </table>
+        @* 备注审核部分 *@
+        <div class="footerContainer" v-show="showRemark">
+            <div class="tableCodeContainer">
+                <div class="tableCodeInner">表单编号：</div>
+            </div>
+            <div class="footerMeddleContainer">
+                <div class="innerLeft">备注：</div>
+                <div class="innerRight">
+                    <div>1；‘√’为技术部执行月保养日期，月保养依据设备保养SOP执行。</div>
+                    <div>2；保养内容如实记录在设备点检记录表上并签名及日期。</div>
+                    <div>3；月保养由技术部ME工程师主导，生产设备技术员配合完成。</div>
+                    <div>4；月保养因生产计划无法停机可与部门长协调延迟保养时间，请假人员由工作代理人执行保养。</div>
+                </div>
+            </div>
+            <div class="footerLastContainer">
+                <div>制表：{{tableMaker}}{{tableMakeTime | YMD}}</div>
+                <div v-popover:popover1>技术部：{{Tec_Notarize}}</div>
+                <div v-popover:popover2>{{selectDepar}}：{{AssortDepar}}</div>
+                <div v-popover:popover3>PC部门：{{PCDepar}}</div>
+                <div v-popover:popover4>审核：{{Assessor}}</div>
+            </div>
+        </div>
+    </div>
+    <el-button type="success" v-show="showAddPlan" v-on:click="addRecord" size="small">增加保养计划</el-button>
+    <el-button type="success" v-show="showAddPlan" v-on:click="addRecords" size="small">批量增加保养计划</el-button>
+
+    @* 审核弹出框部分 *@
+    <el-popover ref="popover1"
+                placement="bottom"
+                title="技术部确认"
+                width="200"
+                trigger="click"
+                content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+        <div v-if="TeCan && AssortDepar!=null&& Tec_Notarize==null">
+            <el-select v-model="Tec_Notarize" size="mini" v-on:change="TcSelectChanged" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <p v-else>无对应权限</p>
+    </el-popover>
+    <el-popover ref="popover2"
+                placement="bottom"
+                title="设备使用部门确认"
+                width="200"
+                trigger="click"
+                content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+        <div v-if="UserDeparCan && AssortDepar==null">
+            <el-select v-model="AssortDepar" size="mini" v-on:change="UDSelectChanged" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <p v-else>无对应权限</p>
+    </el-popover>
+    <el-popover ref="popover3"
+                placement="bottom"
+                title="PC部确认"
+                width="200"
+                trigger="click"
+                content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+        <div v-if="PCCan && Tec_Notarize!=null&& PCDepar==null">
+            <el-select v-model="PCDepar" size="mini" v-on:change="PCSelectChanged" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <p v-else>无对应权限</p>
+    </el-popover>
+    <el-popover ref="popover4"
+                placement="bottom"
+                title="保养计划表审核"
+                width="200"
+                trigger="click"
+                content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+        <div v-if="FinalCan && AssortDepar!=null&& Tec_Notarize!=null&& PCDepar!=null&& Assessor==null">
+            <el-select v-model="Assessor" size="mini" v-on:change="FnSelectChanged" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <p v-else>无对应权限</p>
+    </el-popover>
+
+    @* 修改一行数据弹框 *@
+    <el-dialog title="修改信息"
+               v-bind:visible.sync="dialogVisible"
+               width="35%"
+               v-bind:before-close="handleClose">
+        <div>
+            <el-form label-width="100px" v-bind:model="formLabelAlign">
+                <el-form-item label="设备信息">
+                    {{formLabelAlign.ename}}：{{formLabelAlign.EquipmentNumber}}：{{selectDepar}}：{{selectTime | YM}} 
+                </el-form-item>
+                <el-form-item label="计划保养日期">
+                    <el-date-picker v-model="formLabelAlign.changedete"
+                                    type="date"
+                                    size="mini"
+                                    placeholder="请选择保养日期">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="保养工时">
+                    <el-input-number v-model="formLabelAlign.hours" size="mini" v-bind:step="0.5"></el-input-number>
+                </el-form-item>
+                <el-form-item label="负责人">
+                    <el-input v-model="formLabelAlign.agent" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="备注">
+                    <el-input v-model="formLabelAlign.remark" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="异常记录">
+                    <el-input v-model="formLabelAlign.Abnormal_records" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="实际保养日期">
+                    <el-date-picker v-model="formLabelAlign.MaintenanceDate"
+                                    type="date"
+                                    size="mini"
+                                    placeholder="请选择保养日期">
+                    </el-date-picker>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="saveChaged">保 存</el-button>
+        </span>
+    </el-dialog>
+
+    @* 增加保养计划弹框 *@
+    <el-dialog title="新增计划"
+               v-bind:visible.sync="addrecod"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div>
+            <el-form label-width="100px" v-bind:model="addRecordData">
+                <el-form-item label="设备编号:">
+                    <el-select v-model="addRecordData.enumber" size="mini" filterable placeholder="请选择">
+                        <el-option v-for="item in EnumLists"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="保养记录时间:">
+                    <el-date-picker v-model="addRecordData.createDate"
+                                    type="month"
+                                    size="mini"
+                                    placeholder="请选择保养日期">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="部门:">
+                    {{addRecordData.depar}}
+                </el-form-item>
+                <el-form-item label="设备名称:">
+                    {{addRecordData.ename}}
+                </el-form-item>
+                <el-form-item label="计划保养日期:">
+                    <el-date-picker v-model="addRecordData.repiarDate"
+                                    type="date"
+                                    size="mini"
+                                    placeholder="请选择保养日期">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="保养工时:">
+                    <el-input-number v-model="addRecordData.hours" size="mini" v-bind:step="0.5"></el-input-number>
+                </el-form-item>
+                <el-form-item label="负责人:">
+                    <el-input v-model="addRecordData.agent" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="备注:">
+                    <el-input v-model="addRecordData.remark" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="异常记录:">
+                    <el-input v-model="addRecordData.Abnormal_records" size="mini"></el-input>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="addrecod = false">取 消</el-button>
+            <el-button type="primary" v-on:click="saveAdd">保 存</el-button>
+        </span>
+    </el-dialog>
+
+
+    @* 批量增加保养计划弹框 *@
+    <el-dialog title="批量增加保养计划"
+               v-bind:visible.sync="showaddRecordsDialog"
+               width="80%"
+               v-bind:before-close="handleClose">
+        <div class="addrecardtable">
+            <div>
+                <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+                <el-date-picker v-model="addrecordsSelectTime"
+                                type="month"
+                                size="mini"
+                                placeholder="选择月">
+                </el-date-picker>
+                <el-select v-model="selectDepar" size="mini" clearable placeholder="请选择">
+                    <el-option v-for="item in deparList"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <el-table v-bind:data="tableDataAddRecard"
+                      max-height="500"
+                      index
+                      highlight-current-row
+                      style="width: 100%">
+                <el-table-column type="index"
+                                 label="序号"
+                                 sortable
+                                 width="50">
+                </el-table-column>
+                <el-table-column prop="EquipmentNumber"
+                                 label="设备编号"
+                                 sortable
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称"
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="Mainten_equipment"
+                                 sortable
+                                 label="计划保养时间">
+                </el-table-column>
+                <el-table-column prop="Maintenance_work"
+                                 sortable
+                                 label="保养工时">
+                </el-table-column>
+                <el-table-column prop="Mainten_supervisor"
+                                 label="保养负责人">
+                </el-table-column>
+                <el-table-column prop="Remark"
+                                 label="备注">
+                </el-table-column>
+                <el-table-column prop="Abnormal_records"
+                                 label="保养记录">
+                </el-table-column>
+                <el-table-column prop="color"
+                                 label="操作"
+                                 width="100">
+                    <template slot-scope="scope">
+                        <el-button v-show="scope.row.color" class="red" v-on:click="removeTr(scope.row,scope.$index)" size="mini">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <span>本次共添加<strong style="color:red;">{{addRecordsNums}}</strong>条记录</span>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button type="danger" v-on:click="clearallrecoards">清 空</el-button>
+            <el-button v-on:click="showaddRecordsDialog = false">取 消</el-button>
+            <el-button type="primary" v-on:click="saveAddRecrd">保 存</el-button>
+        </span>
+    </el-dialog>
+
+    @{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+</div>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<script>
+    // 解析获取地址栏参数
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        console.log(r)
+        if (r != null) return decodeURI(unescape(r[2])); return null;
+    }
+
+    // 返回首页
+    function goback() {
+        window.location.href = "/Equipment/index"
+    }
+
+    // 解析时间返回日期
+    function parseDate(val) {
+        if(val=='' || val == null) return null
+        let dd = new Date(val);
+        return dd.getDate();
+    }
+    let app = new Vue({
+        el: "#app",
+        data: {
+            userName: "@UserName",
+            selectTime: null,
+            selectDepar: null,
+            deparList: [],
+            addDeparlist: [],
+            tableData: [],
+            dialogVisible: false,
+            formLabelAlign: {
+                ename: null,
+                changedete: null,
+                hours: null,
+                agent: null,
+                remark: null,
+                Abnormal_records: null,
+                MaintenanceDate: null
+            },
+            needSaveData: null,
+            addrecod: false,
+            showAddBtn: false,
+            addRecordData: {
+                enumber: null,
+                ename: null,
+                repiarDate: null,
+                hours: null,
+                agent: null,
+                remark: null,
+                createDate: null,
+                depar: null,
+                Abnormal_records: null
+            },
+            EnumLists: [],
+            showRemark: false,
+            TcComfirm: "casso/通过",
+            PCComfirm: "casso/通过",
+            finalComfirm: "casso/通过",
+            UserDeparComfirm: "UserDeparComfirm",
+            showAddPlan: false,
+            TeCan: false,
+            UserDeparCan: false,
+            PCCan: false,
+            FinalCan: false,
+            flag: false,
+            options: [{
+                value: '通过',
+                label: '通过'
+            }, {
+                value: '未通过',
+                label: '未通过'
+            }],
+            tableMaker: null,
+            tableMakeTime: null,
+            Tec_Notarize: null,
+            AssortDepar: null,
+            PCDepar: null,
+            Assessor: null,
+            isIndex2: false,
+            showaddRecordsDialog: false,
+            tableDataAddRecard: [],
+            inputInfo: '',
+            addrecordsSelectTime: null,
+            addRecordsNums: 0,
+            maker: null,
+            makeDate: null
+        },
+        mounted() {
+            let lastUrl = document.referrer;   // 上个页面url
+            console.log(lastUrl)
+            try {
+                let urlParaArr = document.location.toString().split("?")[1].split("&"), rt = {};
+                for (let i of urlParaArr) {
+                    let objArr = i.split("=");
+                    rt[objArr[0]] = decodeURI(objArr[1]);
+                };
+                console.log(rt)
+
+                if (lastUrl.indexOf("Index2") != -1 || lastUrl.indexOf("Equipment_Tally_maintenance") != -1) {
+
+                    let dates = getUrlParam("dates");   // 设备编号
+                    let depar = getUrlParam("depar");
+                    console.log(depar)
+                    this.selectTime = rt.dates
+                    this.selectDepar = rt.depar
+                } else {
+                    let dates = getUrlParam("dates");  //时间
+                    let depar = getUrlParam("depar");  //部门
+                    this.selectTime = rt.dates
+                    this.selectDepar = rt.depar
+                }
+            } catch (e) {
+                this.selectTime = window.localStorage.getItem("Equipment_month_planTime")
+                this.selectDepar = window.localStorage.getItem("Equipment_month_planDepar")
+            };
+
+
+            this.getDeparList();
+
+            // 以下是权限检测
+            var roles = JSON.parse(localStorage.getItem("rigths"));
+            if (roles == null) {
+                setTimeout(function () { window.location.reload() }, 2000);
+            }
+            if (checkRoles(roles, "新建时间计划表")) {
+                this.showAddPlan = true;
+            }
+            if (checkRoles(roles, "技术部确认")) {
+                this.TeCan = true;
+            }
+            if (checkRoles(roles, "保养设备部门确认")) {
+                this.UserDeparCan = true;
+            }
+            if (checkRoles(roles, "PC部门确认")) {
+                this.PCCan = true;
+            }
+            if (checkRoles(roles, "审核时间计划表")) {
+                this.FinalCan = true;
+            }
+            if (checkRoles(roles, "查询时间计划表")) {
+                this.flag = true;
+            }
+        },
+        methods: {
+            // 跳转到对应的点检表
+            showDetialOfPlan(item) {
+                let dd = new Date(item.Mainten_equipment)
+                let year = dd.getFullYear()
+                let month = dd.getMonth() + 1
+                window.open(`/Equipment/Equipment_Tally_maintenance?num=${item.EquipmentNumber}&year=${year}&month=${month}`)
+                //console.log(item)
+
+            },
+            // 确认保存批量添加保养记录
+            saveAddRecrd() {
+                if (this.addrecordsSelectTime != null && this.selectDepar != null && this.tableDataAddRecard.length > 0) {
+                    let dd = new Date(this.addrecordsSelectTime);
+                    let year = dd.getFullYear()
+                    let month = dd.getMonth() + 1
+                    axios.post("/Equipment/Equip_ManintList", { inputList: this.tableDataAddRecard, year, month, userdepartment: this.selectDepar}).then(res=> {
+                        console.log(res.data)
+                        if (res.data == true) {
+                            this.$message({
+                                message: "批量上传成功",
+                                type: "success"
+                            });
+                            this.clearallrecoards();
+                            this.showaddRecordsDialog = false;
+                        } else if (res.data == false) {
+                            this.$message({
+                                message: "批量上传失败",
+                                type: "warning"
+                            });
+                        } else {
+                            this.$message({
+                                message: "上传数据存在重复，请手动排查删除",
+                                type: "warning"
+                            });
+                            res.data.forEach(item=> {
+                                this.tableDataAddRecard.forEach(items=> {
+                                    console.log(typeof (item) + '----' + typeof (items.EquipmentNumber))
+                                    if (item == items.EquipmentNumber) {
+                                        items.color = true;
+                                        console.log(item)
+                                    } else {
+                                    }
+                                });
+                            });
+                        }
+                    })
+                } else {
+                    this.$notify({
+                        message: "请补全信息",
+                        type: "warning"
+                    })
+                }
+            },
+            // 清空批量添加表格数据以及粘贴框数据
+            clearallrecoards() {
+                this.inputInfo = '';
+                this.tableDataAddRecard = []
+            },
+            // 批量添加表格移除一行数据
+            removeTr(item, index) {
+                this.tableDataAddRecard.forEach((item, indexs) => {
+                    if (indexs == index) {
+                        this.tableDataAddRecard.splice(index, 1);
+                    }
+                });
+                if (this.tableDataAddRecard.length < 1) {
+                    this.inputInfo = '';
+                }
+            },
+            // 获取部门
+            getDeparList() {
+                axios.post("/Equipment/UserDepar_list").then(res=> {
+                    res.data.forEach(item=> {
+                        let obj = { label: item, value: item }
+                        this.deparList.push(obj);
+                    })
+                }).catch(err=> {
+
+                })
+            },
+            // 获取新建时部门列表Userdepartment_list  UserDepar_list
+            getAdddeparList() {
+                axios.post("/Equipment/Userdepartment_list").then(res=> {
+                    res.data.forEach(item=> {
+                        let obj = { label: item, value: item }
+                        this.addDeparlist.push(obj);
+                    })
+                }).catch(err=> {
+
+                })
+            },
+            // 获取表格信息
+            getTableInfos(time, depar) {
+                let d = new Date(time);
+                let yy = d.getFullYear();
+                let mm = d.getMonth() + 1;
+                axios.post("/Equipment/Query_Maintenance_plan", { userDepartment: depar, year: yy, month: mm }).then(res=> {
+                    this.maker = res.data.Mainten_Lister
+                    this.makeDate = res.data.TabulationTime
+
+
+                    if (res.data.mes.length > 0) {
+                        let resdata = res.data.mes
+                        if (res.data.mainten.ment.length > 0) {
+                            res.data.mainten.ment.forEach(item=> {
+                                resdata.forEach(items=> {
+                                    if (item == items.EquipmentNumber) {
+                                        items.color = 200
+                                        console.log(items)
+                                    }
+                                })
+                            });
+                        }
+                        this.tableMaker = res.data.Mainten_Lister
+                        this.tableMakeTime = res.data.TabulationTime
+
+                        this.Tec_Notarize = res.data.Tec_Notarize
+                        this.AssortDepar = res.data.AssortDepar
+                        this.PCDepar = res.data.PCDepar;
+                        this.Assessor = res.data.Assessor
+                        console.log(res.data.mainten.ment)
+                        console.log(resdata)
+                        this.tableData = resdata;
+                        this.showAddBtn = true;
+                        this.showRemark = true;
+                    } else {
+                        this.showAddBtn = false;
+                        this.showRemark = false;
+                        this.$message({
+                            message: "暂无对应数据",
+                            type: "warning"
+                        })
+                    }
+                }).catch(err=> {
+                    this.$message({
+                        message: "获取表格信息是连接失败",
+                        type: "warning"
+                    })
+                })
+            },
+            // 修改当行信息
+            changeInfos(item) {
+                if (this.AssortDepar == null || this.AssortDepar == '') {
+                    this.needSaveData = item;
+                    this.formLabelAlign.ename = item.EquipmentName
+                    this.formLabelAlign.EquipmentNumber = item.EquipmentNumber
+                    this.formLabelAlign.agent = item.Mainten_supervisor
+                    this.formLabelAlign.remark = item.Remark
+                    this.formLabelAlign.MaintenanceDate = item.MaintenanceDate
+                    this.formLabelAlign.Abnormal_records = item.Abnormal_records
+                    this.formLabelAlign.changedete = item.Mainten_equipment
+                    this.formLabelAlign.hours = parseFloat(item.Maintenance_work)
+                    this.dialogVisible = true;
+                } else {
+                    this.$notify({
+                        title: "已禁止修改",
+                        message: "此计划表已审核，不可再修改",
+                        type: "warning"
+                    })
+                }
+            },
+            // 确认修改
+            saveChaged() {
+                if (this.formLabelAlign.changedete != null) {
+                    this.needSaveData.EquipmentName = this.formLabelAlign.ename;
+                    this.needSaveData.Mainten_supervisor = this.formLabelAlign.agent;
+                    this.needSaveData.Abnormal_records = this.formLabelAlign.Abnormal_records;
+                    this.needSaveData.Remark = this.formLabelAlign.remark;
+                    this.needSaveData.MaintenanceDate = this.formLabelAlign.MaintenanceDate;
+                    this.needSaveData.Mainten_equipment = this.formLabelAlign.changedete;
+                    this.needSaveData.Maintenance_work = this.formLabelAlign.hours + 'H';
+                    this.needSaveData.Mainten_Lister = this.maker;
+                    this.needSaveData.TabulationTime = this.makeDate;
+                    axios.post("/Equipment/Edit_MonthMain_plan", this.needSaveData).then(res=> {
+                        if (res.data.Editequipment_Monthly == "修改成功！") {
+                            this.dialogVisible = false;
+                            this.$message({
+                                message: "修改成功",
+                                type: "success"
+                            });
+                            let timess = localStorage.getItem("Equipment_month_planTime")
+                            let depars = localStorage.getItem("Equipment_month_planDepar")
+                            console.log(timess)
+                            console.log(depars)
+                            this.getTableInfos(timess, depars)
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            message: "修改数据时连接失败",
+                            type: "warning"
+                        })
+                    })
+                } else {
+                    this.$message({
+                        message: "请选择日期",
+                        type: "warning"
+                    })
+                }
+            },
+
+            // 通用弹框关闭
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            },
+
+            // 增加保养记录
+            addRecord() {
+                this.getAllEquinums();
+                this.getAdddeparList();
+                this.addrecod = true;
+            },
+            // 批量增加保养记录
+            addRecords() {
+                this.showaddRecordsDialog = true
+                this.selectDepar = null
+            },
+
+            // 新建保存
+            saveAdd() {
+                if (this.addRecordData.enumber != null && this.addRecordData.repiarDate != null && this.addRecordData.hours != null && this.addRecordData.createDate != null && this.addRecordData.depar != null) {
+                    let dd = new Date(this.addRecordData.createDate);  // 
+                    let year = dd.getFullYear();
+                    let month = dd.getMonth() + 1;
+                    let obj = {
+                        UserDepartment: this.addRecordData.depar, EquipmentName: this.addRecordData.ename,
+                        EquipmentNumber: this.addRecordData.enumber, Mainten_equipment: this.addRecordData.repiarDate,
+                        Maintenance_work: this.addRecordData.hours + 'H', Mainten_supervisor: this.addRecordData.agent,
+                        Abnormal_records: this.addRecordData.Abnormal_records, Year: year, Month: month, Remark: this.addRecordData.remark
+                    }
+                    axios.post("/Equipment/ADDMonthlyMain_plan", obj).then(res=> {
+                        console.log(res.data)
+                        if (res.data.meg == 'true') {
+                            this.$message({
+                                message: "保存成功",
+                                type: "success"
+                            });
+                            this.addrecod = false;
+                            this.selectTime = this.addRecordData.createDate;
+                            this.selectDepar = this.addRecordData.depar
+                            //thisgetTableInfos(this.addRecordData.createDate, this.addRecordData.depar)
+                        } else {
+                            if ("plan_main" in res.data) {
+                                this.$message({
+                                    message: res.data.plan_main,
+                                    type: "warning"
+                                });
+                            } else {
+                                this.$message({
+                                    message: "保存失败",
+                                    type: "warning"
+                                })
+                            }
+                        }
+                    }).catch(err=> {
+                        this.$message({
+                            message: "新建保存时连接失败",
+                            type: "warning"
+                        })
+                    })
+                } else {
+                    this.$message({
+                        message: "请补全信息",
+                        type: "warning"
+                    })
+                }
+            },
+            // 获取所有设备编号
+            getAllEquinums() {
+                axios.post("/Equipment/EQNumberList").then(res=> {
+                    console.log(res.data)
+                    res.data.forEach(item=> {
+                        let obj = { label: item, value: item }
+                        this.EnumLists.push(obj);
+                    })
+                })
+            },
+            // 技术部选择框改变
+            TcSelectChanged(val) {
+                this.Tec_Notarize = this.userName + '-' + val;
+                this.checkCommon('tec_notarize', this.Tec_Notarize)
+            },
+            // PC选择框
+            PCSelectChanged(val) {
+                this.PCDepar = this.userName + '-' + val;
+                this.checkCommon('pcdepar', this.PCDepar)
+            },
+            // 使用部门
+            UDSelectChanged(val) {
+                this.AssortDepar = this.userName + '-' + val;
+                this.checkCommon('assortdepar', this.AssortDepar)
+            },
+            // 最终审核
+            FnSelectChanged(val) {
+                this.Assessor = this.userName + '-' + val;
+                this.checkCommon('assessor', this.Assessor)
+            },
+            // 审核公共方法
+            checkCommon(kw, val) {
+                let dd = new Date(this.selectTime);
+                let year = dd.getFullYear();
+                let month = dd.getMonth() + 1;
+                let obj = {
+                    userdepartment: this.selectDepar, year, month
+                    };
+                obj[kw]= val
+                axios.post("/Equipment/EditAsserMonthMain_plan", obj).then(res=>{
+                    console.log(res.data)
+                    if (res.data == true) {
+                        this.$message({
+                        message: "操作成功",
+                        type: "success"
+                    })
+                    } else {
+                        this.$message({
+                        message: "操作失败",
+                        type: "success"
+                    })
+                    }
+                    }).catch(err=> {
+                        this.$notify({
+                            title: "连接失败",
+                            message: "提交审核结果时出错",
+                            type: "warning"
+                        })
+                    })
+            }
+        },
+        watch: {
+            // 监听时间选择器改变则获取新的数据
+            selectTime() {
+                this.tableData = []
+                localStorage.setItem("Equipment_month_planTime", this.selectTime);
+                if (this.selectTime != null && this.selectDepar != null) {
+
+                    this.getTableInfos(this.selectTime, this.selectDepar)
+                }
+            },
+            // 监听部门选择器改变则获取新的数据
+            selectDepar() {
+                this.tableData = []
+                localStorage.setItem("Equipment_month_planDepar", this.selectDepar);
+                if (this.selectTime != null && this.selectDepar != null || '') {
+
+                    this.getTableInfos(this.selectTime, this.selectDepar)
+                }
+            },
+            // 监听新增保养计划中资产编号的改变--获取使用部门跟设备编号
+            "addRecordData.enumber": function () {
+                if (this.addRecordData.enumber != null) {
+                    axios.post("/Equipment/EquipmentInfo_getdata_by_eqnum", { equipmentNumber: this.addRecordData.enumber }).then(res => {
+                        this.addRecordData.ename = res.data.EquipmentName;
+                        this.addRecordData.depar = res.data.UserDepartment;
+                    })
+                }
+            },
+            // 批量添加的粘贴框改变则生成新的表格数据
+            inputInfo(val) {
+                this.tableDataAddRecard = [];
+                if (this.inputInfo == null) return false;
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+
+                initDatas.forEach(item=> {
+                    let obj = {
+                        EquipmentNumber: item[0],
+                        EquipmentName: item[1],
+                        Mainten_equipment: item[2],
+                        Maintenance_work: item[3],
+                        Mainten_supervisor: item[4],
+                        Remark: item[5],
+                        Abnormal_records: item[6],
+                        color: false
+                    }
+                    this.tableDataAddRecard.push(obj)
+                });
+                this.addRecordsNums = this.tableDataAddRecard.length;
+            }
+        }
+    });
+    
+
+</script>

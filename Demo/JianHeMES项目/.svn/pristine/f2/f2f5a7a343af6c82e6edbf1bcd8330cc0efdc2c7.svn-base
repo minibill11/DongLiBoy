@@ -1,0 +1,896 @@
+﻿@model JianHeMES.Models.Warehouse_SparePartsAndComponents_Out
+
+@{
+    ViewBag.Title = "备品配件检验";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+
+    .TunnelLabel {
+        margin: 0 auto;
+        border: 1px solid #100f0f;
+        width: 308px;
+        height: 280px;
+    }
+
+    .tophei {
+        height: 160px;
+    }
+
+        .tophei > div {
+            height: 80px;
+        }
+
+        .tophei .tophei_1 {
+            position: relative;
+        }
+
+        .tophei .tophei_2 {
+            border-top: 1px solid #100f0f;
+            border-bottom: 1px solid #100f0f;
+        }
+
+        .tophei .imgicon1 {
+            margin: 0;
+            padding-top: 33px;
+            text-align: center;
+        }
+
+        .tophei .imgicon2 {
+            margin: 0;
+            padding-top: 25px;
+            text-align: center;
+        }
+
+    .bottomhei {
+        display: inline-flex;
+        text-align: center;
+        height: 60px;
+        border-bottom: 1px solid #100f0f;
+    }
+
+        .bottomhei .separate {
+            width: 76px;
+            border-right: 1px solid #100f0f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .separate1 {
+            width: 75px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+    .bottomhei1 {
+        display: inline-flex;
+        text-align: center;
+        height: 59px;
+    }
+
+        .bottomhei .mcFrame_top_3:nth-child(1), .bottomhei1 .mcFrame_top_3:nth-child(1) {
+            border-right: 1px solid #100f0f;
+            width: 78px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .mcFrame_top_3:nth-child(2), .bottomhei1 .mcFrame_top_3:nth-child(2) {
+            border-right: 1px solid #100f0f;
+            width: 78px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .mcFrame_top_3:nth-child(3), .bottomhei1 .mcFrame_top_3:nth-child(3) {
+            border-right: 1px solid #100f0f;
+            width: 76px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottomhei .mcFrame_top_3:nth-child(4), .bottomhei1 .mcFrame_top_3:nth-child(4) {
+            width: 75px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+    h2 {
+        margin: 0;
+        padding-top: 35px;
+        text-align: center;
+    }
+
+    .masterBarDiv {
+        width: 100%;
+        position: absolute;
+        top: -3px;
+    }
+
+    .textCenter {
+        text-align: center;
+    }
+
+    #imgcode {
+        width: 240px;
+    }
+
+    .tophei_2 {
+        position: relative;
+    }
+
+    .imgicon {
+        position: absolute;
+        width: 110px;
+        top: 5px;
+        left: 5px;
+    }
+
+    .divframe {
+        width: 381px;
+        margin: 1px auto;
+        text-align: center;
+        border: 1px solid #ccc;
+        min-height: 260px;
+        margin-right: 35px
+    }
+
+    .divframe1 {
+        width: 300px;
+        text-align: center;
+        margin: 1px auto;
+        margin-bottom: 5px;
+    }
+
+    .el-table__empty-block {
+        min-height: 0;
+    }
+
+    @@media screen and (max-width:820px) {
+        .link {
+            display: inline-block;
+        }
+
+        .tips {
+            margin-left: 50px;
+        }
+    }
+
+    @@media screen and (min-width:820px) {
+
+        .affirm2 {
+            margin-left: 232px;
+        }
+
+        .affirm1 {
+            margin-left: 350px;
+        }
+
+        .el-table th {
+            font-size: 13px;
+            padding: 5px 0;
+            text-align: center;
+            color: #444
+        }
+
+        .el-table td {
+            font-size: 13px;
+            padding: 2px 0;
+            text-align: center;
+        }
+
+        .el-table .cell, .el-table--border td:first-child .cell {
+            padding: 0;
+        }
+
+        .el-table .warning-row {
+            background: #fcd2d2;
+        }
+
+        .el-table .success-row {
+            background: #f0f9eb;
+        }
+
+        .tips {
+            margin-left: 240px;
+        }
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>@ViewBag.Title</h3>
+        <div class="link">
+            <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+            <a href="/Packagings/SPC_Display"><el-button size="small" type="primary" plain style="margin:2px">查询基本信息</el-button></a>
+            <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" type="primary" plain style="margin:2px">物料基本信息录入</el-button></a>
+            <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+            <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px" v-show="materialPreparation">物料备料</el-button></a>
+            <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+            <a href="/Packagings/SPC_PrintOuterBoxLable" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="printOutsibox">打印外箱标签</el-button></a>
+        </div>
+    </div>
+    <el-main>
+        <el-col :md="8">
+            <div class="query">
+                订单号：
+                <select-input v-model.trim="orderNum"
+                              v-bind:disabled="materialInfo.length>0"
+                              :options="options"
+                              :isfocus="true"
+                              :ismultiple="false"
+                              size="medium"
+                              style="width:190px"
+                              allow-create filterable clearable>
+                </select-input>
+            </div>
+            <div class="query">
+                屏序：<el-input v-model.trim="screenNum" placeholder="请输入屏序" style="width:191px" size="medium" clearable v-bind:disabled="materialInfo.length>0"></el-input>
+            </div>
+            <div class="query">
+                批次：<el-input v-model.trim="Batch" placeholder="请输入批次" style="width:191px" size="medium" clearable v-bind:disabled="materialInfo.length>0"></el-input>
+            </div>
+            <div class="query">
+                外箱类型：
+                <el-select v-model="OutsideType" placeholder="请选择类型" size="medium" allow-create filterable clearable v-bind:disabled="materialInfo.length>0" style="width:190px">
+                    <el-option v-for="item in OutsideTypeOptions"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="query">
+                物品类型：
+                <el-select v-model="materialType" placeholder="请选择物品类型" size="medium" allow-create filterable clearable style="width:190px">
+                    <el-option v-for="item in materialTypeOptions"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="query">
+                物料号：
+                <el-input v-model.trim="materialNumber"
+                          placeholder="请输入物料号"
+                          ref="inputRef"
+                          style="width:191px"
+                          v-on:keyup.enter.native="barScan"
+                          size="medium"
+                          clearable
+                          autofocus
+                          id="jiaodian">
+                </el-input>
+            </div>
+            <div class="query">
+                包装数量：
+                <el-select v-model="quantity" clearable placeholder="请选择数量" size="medium" style="width:190px" id="select-box">
+                    <el-option v-for="item in quantityOptions"
+                               :key="item"
+                               :value="item">
+                    </el-option>
+                </el-select>
+            </div>
+            <div style="display:inline-flex">
+                <el-button class="affirm2" size="mini" type="info" v-on:click="reset" plain>重置</el-button>
+                <el-button class="affirm2" size="mini" type="primary" v-on:click="addMaterial" v-show="packingMaterial" plain>确认</el-button>
+            </div>
+            <div class="divframe1">
+                <el-table ref="multipleTable"
+                          v-bind:data="tableDataOne"
+                          tooltip-effect="dark"
+                          style="width: 100%"
+                          @@row-click="singleElectionOne" border v-show="bindone">
+                    <el-table-column type="radio"
+                                     width="50">
+                        <template slot-scope="scope">
+                            <el-radio class="radio" v-model="templateSelectionOne" :label="scope.$index">&nbsp;</el-radio>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Material_Name" label="物料名称" width="150"></el-table-column>
+                    <el-table-column prop="Quantity" label="数量" width="98"></el-table-column>
+                </el-table>
+            </div>
+            <div class="divframe1">
+                <el-table ref="multipleTable"
+                          v-bind:data="spc_Description"
+                          tooltip-effect="dark"
+                          style="width: 100%"
+                          @@row-click="singleElection" border v-show="bind">
+                    <el-table-column type="selection"
+                                     width="55">
+                        <template slot-scope="scope">
+                            <el-radio class="radio" v-model="templateSelection" :label="scope.$index">&nbsp;</el-radio>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Specification_Description" label="规格描述" width="243"></el-table-column>
+                </el-table>
+            </div>
+            <div class="divframe1">
+                <el-table v-bind:data="stockData"
+                          height="60"
+                          border>
+                    <el-table-column prop="orderNum"
+                                     label="订单号"
+                                     width="100">
+                    </el-table-column>
+                    <el-table-column prop="stocked"
+                                     label="已检验物料"
+                                     width="100">
+                    </el-table-column>
+                    <el-table-column prop="complete"
+                                     label="完成率"
+                                     width="99">
+                    </el-table-column>
+                </el-table>
+            </div>
+        </el-col>
+        <el-col :md="16">
+            <div style="display:inline-flex">
+                <div class="divframe">
+                    <el-table v-bind:data="materialInfo"
+                              height="259"
+                              border>
+                        <el-table-column prop="MaterialNumber"
+                                         label="物料号"
+                                         width="120">
+                        </el-table-column>
+                        <el-table-column prop="Quantity"
+                                         label="数量"
+                                         width="80">
+                        </el-table-column>
+                        <el-table-column prop="ScreenNum"
+                                         label="屏序"
+                                         width="80">
+                        </el-table-column>
+                        <el-table-column prop="SPC_Material_Type"
+                                         label="类型"
+                                         width="98">
+                        </el-table-column>
+                    </el-table>
+                    <span v-if="materialInfo.length!=0">条码数量：{{materialInfo.length}}</span>
+                </div>
+                <div class="TunnelLabel">
+                    <div class="tophei">
+                        <div class="tophei_1">
+                            <img class="imgicon" src="~/Images/LOGO.jpg" />
+                            <h1 class="imgicon1">{{orderNum}}</h1>
+                        </div>
+                        <div class="tophei_2">
+                            <div class="masterBarDiv textCenter">
+                                <svg id="imgcode"></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bottomhei ">
+                        <div class="mcFrame_top_3">
+                            <span>物料描述(DESC)</span>
+                        </div>
+                        <div class="mcFrame_top_3">
+                            <span>{{OutsideType}}</span>
+                        </div>
+                        <div class="separate">
+                            <div class="one">
+                                <span>件号/数</span>
+                                <span>(SN/TN)</span>
+                            </div>
+                        </div>
+                        <div class="separate1">
+                            <div class="two"><span>{{snt}}</span></div>
+                        </div>
+                    </div>
+                    <div class="bottomhei1 ">
+                        <div class="mcFrame_top_3">
+                            <span>毛重量(G.W.kg)</span>
+                        </div>
+                        <div class="mcFrame_top_3"><span></span></div>
+                        <div class="mcFrame_top_3">
+                            <span>净重(N.W.kg)</span>
+                        </div>
+                        <div class="mcFrame_top_3"><span></span></div>
+                    </div>
+                </div>
+            </div>
+            <el-table border v-bind:data="tableData" max-height="200px" style="margin-bottom:10px;width:731px">
+                <el-table-column prop="MaterialNumber" label="物料编码" width="120"></el-table-column>
+                <el-table-column prop="Specifications" label="规格描述" width="205">
+                </el-table-column>
+                <el-table-column prop="picture" label="图片" width="200">
+                    <template slot-scope="scope" class="replaceBlack">
+                        <div style="display: inline;">
+                            <el-image v-for="url in scope.row.picture.picturejpg_list"
+                                      id="img-id"
+                                      :key="url"
+                                      :preview-src-list="scope.row.picture.picturejpg_list"
+                                      :src="url"
+                                      style="width:80px;height:65px;margin:2px"
+                                      lazy>
+                            </el-image>
+                            <div class="she" v-for="(url,index) in scope.row.picture.picturepdf_list">
+                                <a v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url}`" target="_blank">查看PDF_{{index+1}}</a>
+                            </div>
+                        </div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="draw" label="图纸" width="205">
+                    <template slot-scope="scope">
+                        <div style="display: inline;">
+                            <el-image v-for="(url,index) in scope.row.draw.drawjpg_list"
+                                      :key="index"
+                                      :preview-src-list="scope.row.draw.drawjpg_list"
+                                      :src="url"
+                                      style="width:80px;height:65px;margin:2px"
+                                      lazy>
+                            </el-image>
+                            <div class="she" v-for="(url,index) in scope.row.draw.drawpdf_list">
+                                <a v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url}`" target="_blank">查看PDF_{{index+1}}</a>
+                            </div>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-col>
+    </el-main>
+    <div>
+        <div id="img"></div>
+    </div>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            orderNum: '',         //订单号
+            options: [],
+            materialNumber: '',    //物料编号
+            materialNumOptions: [],
+            outMaterialCode: '',  //外箱条码
+            quantity: '',        //数量
+            quantityOptions: [],
+            screenNum: '',        //屏序
+            materialInfo: [],
+            snt: '',            //SNTN
+            Batch: '',  //批次
+            OutsideTypeOptions: [{ label: '选项一', value: '备品' }, { label: '选项一', value: '配件' }, { label: '选项一', value: '配件、备品' }],
+            OutsideType: '',//类型
+            stockData: [],
+            materialPreparation: false,//备料权限
+            printOutsibox: false,//打印外箱标签权限
+            packingMaterial: false,//物料检验
+            tableData: [],//图片表格数据
+            materialType: '',//物料类型
+            materialTypeOptions: [{ label: '选项一', value: '备品' }, { label: '选项一', value: '配件' }, { label: '选项一', value: '其他' }],
+            state: '',//用于判断从修改页面进来，就不请求后台重新生成外箱号
+            tableDataOne: [],
+            templateSelectionOne: [],
+            templateRadio1: '',//没有物料号的
+            bindone: false,
+            spc_Description: [],
+            bind: false,
+            templateSelection: [],
+            spctableData: [],
+            visiQuatity: [],//用于存放未去重的数量
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '物料备料')) {
+                this.materialPreparation = true
+            } else {
+                this.materialPreparation = false
+            };
+            if (checkRoles(roles, '物料装箱')) {
+                this.packingMaterial = true
+            } else {
+                this.packingMaterial = false
+            };
+            if (checkRoles(roles, '打印外箱标签')) {
+                this.printOutsibox = true
+            } else {
+                this.printOutsibox = false
+            };
+            // 若是从修改包装页面进来，就获取地址栏上的外箱号
+            let lastUrl = document.referrer;
+            if (lastUrl.toLowerCase().indexOf("SPC_Packaging_Modify") == -1) {
+                this.outMaterialCode = getUrlParam('outMaterialCode')
+                this.orderNum = getUrlParam('orderNum')
+                this.screenNum = getUrlParam('ScreenNum')
+                this.Batch = getUrlParam('Batch')
+                this.OutsideType = getUrlParam('SPCOuterBoxType')
+                this.state = getUrlParam('state')
+                this.snt = getUrlParam('SNTN')
+            };
+        },
+        methods: {
+            //重置
+            reset() {
+                window.location.href = "/Packagings/SPC_Packaging"
+            },
+            //选择规格描述
+            singleElection(row) {
+                this.templateSelection = this.tableData.indexOf(row);
+                this.templateRadio = row.Specification_Description;
+            },
+            //没有物料号的
+            singleElectionOne(row) {
+                this.templateSelectionOne = this.tableDataOne.indexOf(row);
+                this.templateRadio1 = row.Id;
+                console.log(this.tableDataOne.indexOf(row))
+            },
+            //添加物料信息
+            addMaterial() {
+                document.getElementById("jiaodian").focus() // 文本框获得焦点
+                //物料号为空的检验装箱方式
+                if (this.materialNumber == "无") {
+                    if (this.orderNum != '' && this.materialNumber != '' && this.templateSelectionOne.length != 0 && this.templateRadio1 != '' && this.screenNum != '' && this.snt != '' && this.Batch != '') {
+                        axios.post("/Packagings/SPC_Packaging", {
+                            id: this.templateRadio1,
+                            orderNumber: this.orderNum,
+                            spc_OuterBoxBarcode: this.outMaterialCode,
+                            quantity: 0,
+                            screenNum: this.screenNum,
+                            batch: this.Batch,
+                            sntn: this.snt,
+                            spc_OuterBox_Type: this.OutsideType,
+                            spc_Description: null,
+                            materialNumber: "无",
+                            materialType: this.materialType
+                        }).then(res => {
+                            console.log(res.data)
+                            if (res.data == "保存成功！") {
+                                this.$message({
+                                    message: "检验成功！",
+                                    type: 'success'
+                                });
+                                this.materialInfo = [];
+                                this.tableData = []
+                                this.materialNumber = this.quantity = ''
+                                this.getdata()
+                                this.getPackagingPlan()
+                                this.bindone = false
+                                this.templateRadio1 = ''
+                                this.templateSelectionOne = []
+                            } else {
+                                this.$message({
+                                    message: "数据保存失败！",
+                                    type: 'warning'
+                                });
+                            }
+                        })
+                        this.materialNumber = this.quantity = ''
+                    } else {
+                        this.$message({
+                            message: '请选择物料名称！',
+                            type: 'warning'
+                        });
+                    }
+                } else {//物料号不为空，判断数量是否相等
+                    if (this.visiQuatity.length > 1) {//大于一代表有两个物料号相同
+                        if (this.spc_Description.length > 1) {//规格描述信息表大于一代表有两个物料号相同并且数量也相同，需要传描述给后端
+                            if (this.orderNum != '' && this.materialNumber != '' && this.templateSelection.length != 0 && this.templateRadio != '' && this.screenNum != '' && this.snt != '' && this.Batch != '' && this.quantity != '' && this.materialType != '') {
+                                axios.post("/Packagings/SPC_Packaging", {
+                                    id: 0,
+                                    orderNumber: this.orderNum,
+                                    spc_OuterBoxBarcode: this.outMaterialCode,
+                                    quantity: this.quantity,
+                                    screenNum: this.screenNum,
+                                    batch: this.Batch,
+                                    sntn: this.snt,
+                                    spc_OuterBox_Type: this.OutsideType,
+                                    spc_Description: this.templateRadio,
+                                    materialNumber: this.materialNumber,
+                                    materialType: this.materialType
+                                }).then(res => {
+                                    console.log(res.data)
+                                    if (res.data == "检验成功！") {
+                                        this.$message({
+                                            message: res.data,
+                                            type: 'success'
+                                        });
+                                        this.getdata()
+                                        this.getPackagingPlan()
+                                        this.bind = false
+                                        this.templateSelection = this.tableData = this.visiQuatity = this.spc_Description = this.spctableData = []
+                                        this.materialNumber = this.quantity = this.templateRadio = ''
+                                    } else {
+                                        this.$message({
+                                            message: "检验失败！",
+                                            type: 'warning'
+                                        });
+                                    }
+                                })
+                            } else {
+                                this.$message({
+                                    message: '请选择物料描述！',
+                                    type: 'warning'
+                                });
+                            }
+                        } else {//否则物料号相同，数量不相同
+                            this.materialPackaging()
+                        }
+                    } else {//物料号是唯一的
+                        this.materialPackaging()
+                    }
+                }
+            },
+            //物料号相同，数量不相同的检验装箱方式
+            materialPackaging() {
+                if (this.orderNum != '' && this.materialNumber != '' && this.screenNum != '' && this.snt != '' && this.Batch != '' && this.quantity != '' && this.materialType != '') {
+                    axios.post("/Packagings/SPC_Packaging", {
+                        id: 0,
+                        orderNumber: this.orderNum,
+                        spc_OuterBoxBarcode: this.outMaterialCode,
+                        quantity: this.quantity,
+                        screenNum: this.screenNum,
+                        batch: this.Batch,
+                        sntn: this.snt,
+                        spc_OuterBox_Type: this.OutsideType,
+                        spc_Description: null,
+                        materialNumber: this.materialNumber,
+                        materialType: this.materialType
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "检验成功！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'success'
+                            });
+                            this.getdata()
+                            this.getPackagingPlan()
+                            this.quantity = this.materialNumber = ''
+                            $("#select-box").css('border', '');
+                        } else {
+                            this.$message({
+                                message: "检验失败！",
+                                type: 'warning'
+                            });
+                        }
+                    })
+                } else {
+                    this.$message({
+                        message: '请填写完整在确认！',
+                        type: 'warning'
+                    });
+                }
+            },
+            //获取条码信息
+            getOutBoxNum() {
+                if (this.state != "无") {
+                    axios.post("/Packagings/createOutBoxNum", {
+                        orderNumber: this.orderNum,
+                        screenNum: this.screenNum,
+                        batch: this.Batch,
+                    }).then(res => {
+                        if (res.data != null && res.data != "创建外箱号出错!") {
+                            this.outMaterialCode = res.data.OuterBoxBarCodeNum;
+                            let str = res.data.OuterBoxBarCodeNum;//截取后2位
+                            let str2 = str.substr(str.length - 2)
+                            if (str2[0] == 0) {
+                                this.snt = str2[1]
+                            } else {
+                                this.snt = str2
+                            }
+                        }
+                        else {
+                            this.$message({
+                                message: '创建外箱号出错！',
+                                type: 'warning'
+                            });
+                        }
+                    })
+                }
+            },
+            //使用后端返回的条码号生成条形码
+            setmasterBarDiv() {
+                JsBarcode("#imgcode", this.outMaterialCode, {
+                    height: 60,                    //条形码的高度
+                    format: "CODE128",            //选择要使用的条形码类型
+                    font: "monospace",           //设置文本字体
+                    textAlign: "center",        //设置文本的水平对齐方式
+                    textMargin: 0,             //设置条形码和文本之间的间距
+                    fontSize: 26,             //设置文本的大小
+                    lineColor: "#000",       //条形码颜色
+                    margin: 0,              //设置条形码周围的空白边距
+                    marginTop: 0
+                });
+            },
+            //找出已装箱物料信息
+            getdata() {
+                axios.post("/Packagings/getBoxedMaterial", {
+                    OutsideBarcode: this.outMaterialCode
+                }).then(res => {
+                    this.materialInfo = res.data
+                    console.log(res.data)
+                }).catch(err => {
+                    console.log("请求失败")
+                })
+            },
+            //找出装箱进度(条件根据订单号、屏序、批次)
+            getPackagingPlan() {
+                axios.post("/Packagings/SPC_Containerised", {
+                    orderNumber: this.orderNum,
+                    batch: this.Batch,
+                    screenNum: this.screenNum
+                }).then(res => {
+                    console.log(res.data)
+                    this.stockData = res.data
+                }).catch(err => {
+                    console.log("请求失败")
+                })
+            },
+            //获取右边表格信息（物料编码、描述、图片、图纸）
+            getPictrueInfo() {
+                this.tableData = [];
+                if (this.materialNumber != "无" && this.materialNumber.length > 8) {
+                    axios.post("/Packagings/SPC_Display", {
+                        materialNumber: this.materialNumber,
+                        productName: null
+                    }).then(res => {
+                        this.loading = false
+                        console.log(res.data)
+                        this.tableData = res.data
+                    }).catch(err => {
+                        console.log("请求失败")
+                        this.loading = false
+                    })
+                }
+            },
+            barScan() {
+                //根据订单号、物料号、屏序、批次、物料类型找出物料号对应的数量
+                if (this.materialNumber != "无" && this.materialNumber != '' && this.materialType != '') {
+                    this.quantityOptions = [];
+                    axios.post("/Packagings/GetMaterialNumberByQuantity", {
+                        ordernumber: this.orderNum,
+                        materialNumber: this.materialNumber,
+                        screenNum: this.screenNum,
+                        batch: this.Batch,
+                        materialType: this.materialType
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "没找到物料号对应的数量！") {
+                            this.$message({
+                                showClose: true,
+                                message: '找不到物料号对应的数量',
+                                type: 'warning'
+                            });
+                        } else if (res.data == "此物料已检验！") {
+                            this.$message({
+                                message: '此物料已检验！',
+                                type: 'warning',
+                                duration: 4000,
+                            });
+                        } else if (res.data.length > 0) {
+                            let arr = [];
+                            let list = [];
+                            if (res.data.length == 1) {
+                                this.quantity = res.data[0]
+                            }
+                            else {
+                                for (let item in res.data) {
+                                    arr.push(res.data[item].Quantity)
+                                    list.push(res.data[item])
+                                }
+                                this.visiQuatity = arr
+                                var newArr = Array.from(new Set(arr));//去重数量
+                                if (newArr.length == 1) {
+                                    this.quantity = newArr[0]
+                                } else {
+                                    this.quantityOptions = newArr;
+                                }
+                                this.spctableData = list
+                                if (this.quantityOptions.length > 1) {
+                                    $("#select-box").css({ 'border': '1px solid #FF0000', 'background': '#fff' })
+                                } else {
+                                    $("#select-box").css('border', '');
+                                }
+                            }
+                        }
+                    })
+                }
+                this.getPictrueInfo()
+            }
+        },
+        watch: {
+            quantity() {
+                if (this.quantity != '') {
+                    for (let item in this.spctableData) {
+                        if (this.quantity == this.spctableData[item].Quantity) {
+                            this.spc_Description.push(this.spctableData[item])
+                            if (this.spc_Description.length > 1) {
+                                this.bind = true
+                            }
+                        } else {
+                            this.bind = false
+                        }
+                    }
+                } else {
+                    this.spc_Description = []
+                    this.bind = false
+                }
+            },
+            materialNumber() {
+                //根据订单号、物料号、屏序、批次、物料类型找出物料号对应的数量
+                if (this.materialNumber == "无" && this.materialNumber != '' && this.materialType != '') {
+                    axios.post("/Packagings/GetMaterialNumberByQuantity", {
+                        ordernumber: this.orderNum,
+                        materialNumber: "无",
+                        screenNum: this.screenNum,
+                        batch: this.Batch,
+                        materialType: this.materialType
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "找不到没有物料号的记录") {
+                            this.$message({
+                                showClose: true,
+                                message: res.data,
+                                type: 'warning'
+                            });
+                        } else if (res.data.length > 0) {
+                            this.tableDataOne = res.data
+                            this.bindone = true
+                        }
+                    })
+                }
+            },
+            Batch() {
+                //获取条码号
+                if (this.orderNum != '' && this.screenNum != '' && this.Batch != '') {
+                    this.getOutBoxNum();
+                }
+                //找出装箱进度(条件根据订单号、屏序、批次)
+                if (this.orderNum != '' && this.Batch != '' && this.screenNum != '') {
+                    this.getPackagingPlan()
+                } else {
+                    this.stockData = [];
+                    this.snt = '';
+                    this.state = ''
+                }
+            },
+            outMaterialCode() {
+                if (this.outMaterialCode != "") {
+                    app.setmasterBarDiv(this.outMaterialCode);
+                };
+                if (this.outMaterialCode != '' && this.state == '无') {//找出此外箱已装箱的物料
+                    this.getdata()
+                }
+            },
+        }
+    })
+    // 解析地址栏参数
+    function getUrlParam(name) {
+        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r != null) return decodeURI(r[2]); return '';
+    }
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

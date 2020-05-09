@@ -1,0 +1,332 @@
+﻿
+@{
+    ViewBag.Title = "Equipment_Keycomponents";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<style>
+    .Equipment_KeycomponentsContentContainer{
+        width:85%;
+        margin :25px auto;
+    }
+    .el-dialog__body{
+        padding:0 !important;
+    }
+    .el-table td{
+        padding:2px;
+    }
+    .el-table td .cell{
+        padding:2px;
+        text-align:center;
+        font-size:12px;
+    }
+    .el-table thead tr th{
+        text-align:center;
+    }
+    .Equipment_KeycomponentsFooter{
+        padding-top:25px;
+        padding-left:120px;
+    }
+    .tableContainer_keyComponent .el-button{
+        padding:2px;
+    }
+    .inputtext23{
+       display:flex;
+       justify-content:center;
+   }
+    textarea{
+        height:30px;
+        width:15%;
+    }
+    .red{
+        color:red;
+    }
+</style>
+<h4 style="text-align:center;">关键原器件清单</h4>
+
+
+<div id="app">
+    <el-button size="small" type="primary" v-on:click="uploadAll">批量上传关键原器件清单</el-button>
+    <div class="Equipment_KeycomponentsContentContainer">
+        <div class="tableContainer_keyComponent">
+            <el-table v-bind:data="tableData"
+                      border
+                      style="width: 100%">
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称"
+                                 width="180">
+                    <template slot-scope="scope">
+                        <el-button size="mini" v-on:click="changeRow(scope.row,scope.$index)" type="primary">{{scope.row.EquipmentName}}</el-button>
+                    </template>
+                </el-table-column>
+                <el-table-column type="index"
+                                 label="序号"
+                                 width="80">
+                </el-table-column>
+                <el-table-column prop="Descrip"
+                                 width="178"
+                                 label="品名">
+                    
+                </el-table-column>
+                <el-table-column prop="Specifica"
+                                 width="175"
+                                 label="规格/型号">
+                </el-table-column>
+                <el-table-column prop="Materused"
+                                 width="180"
+                                 label="用途">
+                </el-table-column>
+                <el-table-column prop="Remark"
+                                 width="175"
+                                 label="备注">
+                </el-table-column>
+            </el-table>
+        </div>
+        <div class="Equipment_KeycomponentsFooter">
+            <p style="font-weight:600">关键元器件清单说明：</p>
+            <p>1）建立设备关键元器件清单有助于季度、年度保养确认</p>
+            <p>2）设备维修配件申购相关型号查询</p>
+        </div>
+    </div>
+
+    @* 修改当行弹框 *@
+    <el-dialog title="修改"
+               v-bind:visible.sync="dialogVisible"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div class="dialogContent">
+            <el-form v-bind:model="changeForm" label-width="100px">
+                <el-form-item label="设备名称" prop="EquipmentName">
+                    <el-input disabled v-model="changeForm.EquipmentName" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="品名" prop="Descrip">
+                    <el-input v-model="changeForm.Descrip" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="规格/型号" prop="Specifica">
+                    <el-input v-model="changeForm.Specifica" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="用途" prop="Materused">
+                    <el-input v-model="changeForm.Materused" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="备注" prop="Remark">
+                    <el-input v-model="changeForm.Remark" size="small"></el-input>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="comfirmChanged">确定修改</el-button>
+        </span>
+    </el-dialog>
+
+
+    @* 批量上传 *@
+    <el-dialog title="批量上传"
+               width="1123px"
+               v-bind:visible.sync="showuploadall"
+               v-bind:before-close="handleClose">
+        <div class="inputtext23">
+            <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+        </div>
+        <div class="dialogContentuploadall">
+            <el-table v-bind:data="tableData2"
+                      border
+                      max-height="500"
+                      style="width: 100%">
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称"
+                                 width="200">
+                </el-table-column>
+                <el-table-column type="index"
+                                 label="序号"
+                                 width="80">
+                </el-table-column>
+                <el-table-column prop="Descrip"
+                                 width="188"
+                                 label="品名">
+                </el-table-column>
+                <el-table-column prop="Specifica"
+                                 width="185"
+                                 label="规格/型号">
+                </el-table-column>
+                <el-table-column prop="Materused"
+                                 width="180"
+                                 label="用途">
+                </el-table-column>
+                <el-table-column prop="Remark"
+                                 width="200"
+                                 label="备注">
+                </el-table-column>
+                <el-table-column width="75"
+                                 label="操作">
+                    <template slot-scope="scope">
+                        <el-button size="mini" v-bind:class="scope.row.color==200?'red':''" v-on:click="DelRow(scope.row,scope.$index)" type="primary">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <div class="bottomInfo" v-if="flag">
+                <p class="pone">本次共提交<span style="color:red;font-size:18px;">{{count}}</span>条数据！<span v-if="flags">存在重复数据，请移除其中一项并点击上传！</span></p>
+                <p>
+                    <el-button v-on:click="showuploadall = false" size="mini">取 消</el-button>
+                    <el-button v-on:click="comfirmUploadAll" type="primary" size="mini">上传<i class="el-icon-upload el-icon--right"></i></el-button>
+                    <el-button v-on:click="delated" type="primary" size="mini">清空<i class="el-icon-delete el-icon--right"></i></el-button>
+                </p>
+            </div>
+        </span>
+    </el-dialog>
+</div>
+
+
+<script>
+
+    
+    let app = new Vue({
+        el: "#app",
+        data:{
+            tableData: [],
+            tableData2: [],
+            EquipmentNum: null,
+            dialogVisible: false,
+            showuploadall:false,
+            changeForm: {},
+            inputInfo: null,
+            flag: false,
+            flags:false
+        },
+        methods: {
+            // 获取表格信息
+            getTableData(ename) {
+                axios.post("/Equipment/Keyinquire", { equipmentNumber: ename }).then(res=> {
+                    console.log(res.data)
+                    this.tableData = res.data
+                })
+            },
+            // 修改当行数据
+            changeRow(row, index) {
+                if (checkRoles(roles, '修改关键元器件清单')) {
+                    this.dialogVisible = true;
+                    this.changeForm = row;
+                } else {
+                    this.message({
+                        message: "暂无权限",
+                        type:"warning"
+                    })
+                }
+            },
+            // 确认修改
+            comfirmChanged() {
+                let postData = {
+                    equipmentNumber: this.EquipmentNum, descrip: this.changeForm.Descrip, specifica: this.changeForm.Specifica, materused: this.changeForm.Materused, remark: this.changeForm.Remark, id: this.changeForm.Id
+                }
+                axios.post("/Equipment/Equipment_EditComponet",postData).then(res=> {
+                    console.log(res.data)
+                    if (res.data.mes) {
+                        this.$notify({
+                            message: "操作成功",
+                            type: "success"
+                        });
+                        this.dialogVisible = false;
+                    } else {
+                        this.$notify({
+                            message: "操作失败",
+                            type: "warning"
+                        });
+                    }
+                })                
+            },
+            // 点击批量上传
+            uploadAll(){
+                if (checkRoles(roles, '上传关键元器件清单')) {
+                    this.showuploadall = true;
+                } else {
+                    this.message({
+                        message: "暂无权限",
+                        type: "warning"
+                    })
+                }
+            },
+            // 确定批量上传
+            comfirmUploadAll() {
+                this.tableData2.forEach(item=> {
+                    item.EquipmentNumber = this.EquipmentNum
+                })
+                if (this.tableData2.length > 0) {
+                    axios.post("/Equipment/Keycomponents_query", { inputList: this.tableData2 }).then(res=> {
+                        console.log(res.data)
+                        if (res.data == true) {
+                            this.$notify({
+                                message: "操作成功",
+                                type: "success"
+                            });
+                            this.showuploadall = false;
+                            this.delated();
+                            this.getTableData(this.EquipmentNum)
+                        } else if (res.data.repeat == false) {
+                            this.$notify({
+                                message: "存在重复数据，请手动删除",
+                                type: "warning"
+                            });
+                            res.data.res.forEach(item=> {
+                                this.tableData2.forEach(items=>{
+                                    if (item.EquipmentNumber == items.EquipmentNumber && item.EquipmentName == items.EquipmentName && item.Descrip == items.Descrip && item.Specifica == items.Specifica && item.Materused == items.Materused) {
+                                        items.color==200
+                                    }
+                                })
+                            })
+                        }
+                    })
+                } else {
+                    this.$notify({
+                        message: "请输入数据",
+                        type: "warning"
+                    });
+                }
+            },
+            // 批量上传删除当行
+            DelRow(row,index){
+                this.tableData2.splice(index,1)
+            },
+            //清空批量上传
+            delated(){
+                this.tableData2 = [];
+                this.inputInfo = null
+            },
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            }
+        },
+        watch:{
+            inputInfo(val) {
+                if (this.inputInfo == null) { this.flag = false } else { this.flag = true }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                initDatas.forEach(item=> {
+                    let obj = {
+                        EquipmentName: item[0], Descrip: item[1], Specifica: item[2], Materused: item[3], Remark: item[4], color: 202
+                    };
+                    this.tableData2.push(obj);
+                });
+                this.count = this.tableData2.length;
+            }
+        },
+        mounted() {
+            this.EquipmentNum = getUrlParam("equipmenNum")
+            console.log(this.EquipmentNum)
+            this.getTableData(this.EquipmentNum)
+        }
+    })
+</script>

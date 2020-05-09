@@ -1,0 +1,560 @@
+﻿@{
+    ViewBag.Title = "人事日报表";
+}
+
+<link href="~/Scripts/easyui/easyui.css" rel="stylesheet" />
+<link href="~/Scripts/easyui/icon.css" rel="stylesheet" />
+<script src="~/Scripts/easyui/jquery.easyui.min.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<style>
+    
+    #datagrid-td-group1-0-3>.datagrid-cell-group,
+    #datagrid-td-group1-0-4>.datagrid-cell-group,
+    #datagrid-td-group1-0-6>.datagrid-cell-group{
+        height:35px;
+        white-space:normal;
+    }
+    #datagrid-td-group1-0-5>.datagrid-cell-group{
+        height:30px;
+        line-height:30px;
+    }
+    /*更改表格文字大小*/
+    .datagrid-header span, .datagrid-cell, .datagrid-cell-group {
+        font-size: 12px !important;
+    }
+
+    .datagrid-body td, .datagrid-header td {
+        border-color: rgba(35, 35, 35, 0.5);
+    }
+    /*表头，底部颜色*/
+    .datagrid-header-row,
+    .datagrid-view1 > .datagrid-body > .datagrid-body-inner > .datagrid-btable > tbody > .datagrid-row:last-child td,
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td {
+        background-color: rgba(252, 213, 180, 0.8) !important;
+    }
+
+    .datagrid-row {
+        height: 28px;
+    }
+    /*表格标题*/
+    .panel-title {
+        font-size: 20px;
+        color: inherit;
+        text-align: center;
+        height: 26px;
+        font-weight: 500;
+    }
+    /*高亮黄色*/
+    .datagrid-view1 > .datagrid-body > .datagrid-body-inner > .datagrid-btable > tbody > .datagrid-row td:nth-child(3),
+    .datagrid-view1 > .datagrid-body > .datagrid-body-inner > .datagrid-btable > tbody > .datagrid-row td:nth-child(4),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(3),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(5),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(15),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(16),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(17),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(18),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(19),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(20),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row td:nth-child(21) {
+        background-color: rgba(255, 255, 0, 0.8);
+    }
+
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(5),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(7),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(9),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(11),
+    .datagrid-view2 > .datagrid-body > .datagrid-btable > tbody > .datagrid-row:last-child td:nth-child(13) {
+        background-color: rgba(220, 230, 241, 0.8) !important;
+    }
+
+    #title {
+        border-bottom: 1px solid #95B8E7;
+        background: linear-gradient(to bottom,#eff5ff 0,#e0ecff 100%);
+        height: 38px;
+        padding: 5px;
+    }
+
+    .datagrid-cell {
+        padding: 1px;
+    }
+
+    @@media screen and (max-width:768px) {
+        .container, .body-content {
+            padding: 1px;
+        }
+    }
+
+    .datagrid-wrap{
+        width:1176px !important;
+        margin:0 auto;
+    }
+</style>
+
+<div id="app">
+    <br />
+    <div style="display:flex;justify-content:space-between;">
+        <span class="btn btn-default tijiao">@Html.ActionLink("提交日报信息", "Create")</span>
+        <span style="display:none;" class="btn btn-default bumenbanben">@Html.ActionLink("部门版本", "Architecture")</span>
+    </div>
+    @*<span class="btn btn-default">@Html.RouteLink("人事日报表2", "Default", new { controller = "Personnel", Action = "Daily2" })</span>*@
+    <br />
+    
+        <br />
+        <div id="title" class="text-center">
+            <span style="font-size:20px" v-bind:title="floatmessage">人事日报</span>
+            <span style="float:right;">日期：<input type="date" name="date" v-model="SearchDate" /></span>
+        </div>
+        <table id="tableData" class="easyui-datagrid" toolbar="#title" style="width:100%;"></table>
+        <form id="getForm" action="/Personnel/GetExcelFile" method="post" style="display:none" @*target="_blank"*@>
+            <input type="text" id="postDepartment" name="department" />
+            <input type="date" name="date" v-model="SearchDate" />
+        </form>
+    
+    
+</div>
+
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role;
+    var UserId = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+    var ischeck = ViewBag.editinfo;
+}
+<script type="text/javascript">
+    function checkRoles(list, roleName) {   //检测权限
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+
+    var app = new Vue({
+        el: "#app",
+        data: {
+            floatmessage: "黄色背景是统计或架构信息；汇总人数 = 正式人数 + 劳务工人数 + 当日入职正式工人数 + 当日入职劳务工人数；当前缺口人数 = 刚需人数 - 汇总人数（如果减出来是负数，那就不纳入合计）；本周入职人数：是部门从星期一到星期五入职的总人数（正式+劳务）；当月入职人数：是部门从本月的1号到本月的最后一天的入职人数总和（显示的数值是今天入职人数和1号之后的入职人数总和）；当月离职正式工人数: 是部门这个月的离职人数总和（显示的数值是今天离职人数和1号之后的离职人数总和）；当月离职劳务工人数: 是部门这个月的离职人数总和（显示的数值是今天离职人数和1号之后的离职人数总和）；当月待离职正式工人数: 是部门这个月的待离职人数总和（显示的数值是今天待离职人数和1号之后的待离职人数总和）；当月待离职劳务工人数: 是部门这个月的待离职人数总和（显示的数值是今天待离职人数和1号之后的待离职人数总和）",
+            SearchDate: "",
+            isRecord: true,
+            userName: "@UserName",
+            userRole: "@UserRole",
+            isCheck: "@ischeck",
+            userId:"@UserId",
+            flag: true,
+            roles: '',
+            maful:false
+        },
+        created: function () {   // 页面加载之前执行
+            this.roles = JSON.parse(localStorage.getItem("rigths"))
+            //日期格式化
+            Date.prototype.Format = function (fmt) {
+                var o = {
+                    "M+": this.getMonth() + 1, //月份
+                    "d+": this.getDate(), //日
+                    "H+": this.getHours(), //小时
+                    "m+": this.getMinutes(), //分
+                    "s+": this.getSeconds(), //秒
+                    "q+": Math.floor((this.getMonth() + 3) / 3), //季度
+                    "S": this.getMilliseconds() //毫秒
+                };
+                if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+                for (var k in o)
+                    if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+                return fmt;
+            };
+        },
+        mounted: function () {
+            //this.checkRol()
+            
+            $('#tableData').datagrid({
+                singleSelect: true,
+                collapsible: true,
+                nowrap: false,
+                striped: true,
+                frozenColumns: [[
+                    {
+                        field: 'Department', title: '部门', align: 'center', width: 78,
+                        formatter: function (value, row, index) {
+                            if (value == "合计") {
+                                return value;
+                            } else {
+                                var aLink = "<a href='javascript:void(0)' onclick='postExcel(&apos;" + value + "&apos;)'>" + value + "</a>";
+                                return aLink;
+                            };
+
+                        }
+                    },
+                    { field: 'Principal', title: '负责人', align: 'center', width: 50 },
+                    { field: 'Aurhorized_personnel', title: '编制<br />人数', align: 'center', width: 36 },
+                    {
+                        field: 'Need_personnel', title: '刚需<br />人数', align: 'center', width: 36,
+                        styler: function (value, row, index) {
+                            //return 'background-color: rgba(255, 255, 0, 0.8)';
+                            //return '<span style="color:red">Edit Delete</span>';
+                        }
+                    }
+                ]],
+                columns: [[
+                    { title: '在册人数', rowspan: 2, colspan: 3, },
+                    //{
+                    //    field: 'Today_on_board_employees', title: '当日入<br />职正式<br />工人数', align: 'center', rowspan: 3, width: 50,
+                    //    formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    //},
+                    //{
+                    //    field: 'Today_on_board_workers', title: '当日入<br />职劳务<br />工人数', align: 'center', rowspan: 3, width: 50,
+                    //    formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    //},
+                    {
+                        field: 'Today_dutynum', title: '今日<br />在岗<br />人数', align: 'center', rowspan: 3, width: 36,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Dangqian_que', title: '刚需<br />缺口', align: 'center', rowspan: 3, width: 36,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    //{ field: 'Interview', title: '预填表<br />人数', align: 'center', rowspan: 3, width: 40 },
+                    { title: '每日入职人数', colspan: 10, },
+                    { title: '本周入职<br />人数小计', rowspan: 2, colspan: 2, },
+                    { title: '本月入职<br />人数合计', rowspan: 2, colspan: 2, },
+                    { title: '本月已离职人数合计',  colspan: 3, },
+                    { title: '本月待离职<br />人数合计', rowspan: 2, colspan: 2, },
+                    { field: 'Date', title: '时间', align: 'center', rowspan: 3, width: 72 },
+                    {
+                        field: 'Reporter', title: '上报人', align: 'center', rowspan: 3, width: 50,
+                        styler: function (value, row, index) {
+                            if (value == "未上报") {
+                                return 'color: red';
+                            };
+                        },
+                        formatter: function (value, row, index) {
+                            if (value != null) {
+                                if (true) {
+                                    return "<span>" + value + "<br/>" + "<a class='xiugai' href='/Personnel/Edit/" + row.id + "'>修改</a></span>"
+                                } else {
+                                    return "<span>" + value + "</span>"
+                                };
+                            } else {
+                                return ""
+                            };
+                        }
+                    }
+                ], [
+                    {
+                        title: '', colspan: 2, align: 'center',
+                        //styler: function (value, row, index) {
+                        //    return {class:'week',style:'color:red'}
+                        //}
+                    },
+                    { title: '', colspan: 2, align: 'center' },
+                    { title: '', colspan: 2, align: 'center' },
+                    { title: '', colspan: 2, align: 'center' },
+                    { title: '', colspan: 2, align: 'center' },
+                    {
+                        field: 'Month_dimission_employees_over7days', title: '正式入职<br />满七天', align: 'center', rowspan: 2, width: 52,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_dimission_employees_nvever_over7days', title: '正式入职<br />未满七天', align: 'center', rowspan: 2, width: 52,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_dimission_workers', title: '劳务', align: 'center', rowspan: 2, width: 34,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                ], [
+                    //在册人数
+                    {
+                        field: 'Employees_personnel', title: '正式', align: 'center', width: 34,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Workers_personnel', title: '劳务', align: 'center', width: 34,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Huizong', title: '合计', align: 'center',  width: 34,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+
+                    //每日
+                    {
+                        field: 'Mon_employees', title: '正式', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Mon_workers', title: '劳务', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Tues_employees', title: '正式', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Tues_workers', title: '劳务', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Wednes_employees', title: '正式', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Wednes_workers', title: '劳务', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Thurs_employees', title: '正式', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Thurs_workers', title: '劳务', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Fri_employees', title: '正式', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Fri_workers', title: '劳务', align: 'center', width: 31,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    //本周入职、本月入职
+                    {
+                        field: 'Week_total_employees', title: '正式', align: 'center', width: 38,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Week_total_workers', title: '劳务', align: 'center', width: 38,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_on_board_employees', title: '正式', align: 'center', width: 39,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    {
+                        field: 'Month_on_board_workers', title: '劳务', align: 'center', width: 39,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                    //本月已离职、待离职
+                    //{
+                    //    field: 'Month_dimission_employees', title: '正式', align: 'center', width: 44,
+                    //    formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    //},
+                    
+                    
+                    {
+                        field: 'Resigned_that_month', title: '正式', align: 'center', width: 38,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+
+                    },
+                    {
+                        field: 'Resigned_workers_that_month', title: '劳务', align: 'center', width: 38,
+                        formatter: function (value, row, index) { return value == "0" ? "" : value; }
+                    },
+                ]],
+                onLoadSuccess: function (data) {
+                    //alert(checkRoles(this.roles))
+                    
+                    app.maful = true
+
+                    if (app.isRecord == true) {
+                        //添加“合计”列
+                        $('#tableData').datagrid('appendRow', {
+                            //第1部分
+                            Department: '合计',
+                            Principal: ' ',
+                            Aurhorized_personnel: '<span>' + compute("Aurhorized_personnel") + '</span>',
+                            Need_personnel: '<span>' + compute("Need_personnel") + '</span>',
+                            
+                            //第2部分
+                            Employees_personnel: '<span>' + compute("Employees_personnel") + '</span>',
+                            Workers_personnel: '<span>' + compute("Workers_personnel") + '</span>',
+                            Huizong: '<span>' + compute("Huizong") + '</span>',
+
+                            //Today_on_board_employees: '<span>' + compute("Today_on_board_employees") + '</span>',
+                            //Today_on_board_workers: '<span>' + compute("Today_on_board_workers") + '</span>',
+                            Today_dutynum: '<span>' + compute("Today_dutynum") + '</span>',
+                            Dangqian_que: '<span>' + compute("Dangqian_que") + '</span>',
+                            //Interview: '<span>' + compute("Interview") + '</span>',
+
+                            //第3部分
+                            Mon_employees: '<span>' + compute("Mon_employees") + '</span>',
+                            Mon_workers: '<span>' + compute("Mon_workers") + '</span>',
+                            Tues_employees: '<span>' + compute("Tues_employees") + '</span>',
+                            Tues_workers: '<span>' + compute("Tues_workers") + '</span>',
+                            Wednes_employees: '<span>' + compute("Wednes_employees") + '</span>',
+                            Wednes_workers: '<span>' + compute("Wednes_workers") + '</span>',
+                            Thurs_employees: '<span>' + compute("Thurs_employees") + '</span>',
+                            Thurs_workers: '<span>' + compute("Thurs_workers") + '</span>',
+                            Fri_employees: '<span>' + compute("Fri_employees") + '</span>',
+                            Fri_workers: '<span>' + compute("Fri_workers") + '</span>',
+                            //第4部分
+                            Week_total_employees: '<span>' + compute("Week_total_employees") + '</span>',
+                            Week_total_workers: '<span>' + compute("Week_total_workers") + '</span>',
+                            Month_on_board_employees: '<span>' + compute("Month_on_board_employees") + '</span>',
+                            Month_on_board_workers: '<span>' + compute("Month_on_board_workers") + '</span>',
+                            //Month_dimission_employees: '<span>' + compute("Month_dimission_employees") + '</span>',
+                            Month_dimission_employees_over7days: '<span>' + compute("Month_dimission_employees_over7days") + '</span>',
+                            Month_dimission_employees_nvever_over7days: '<span>' + compute("Month_dimission_employees_nvever_over7days") + '</span>',
+                            Month_dimission_workers: '<span>' + compute("Month_dimission_workers") + '</span>',
+                            Resigned_that_month: '<span>' + compute("Resigned_that_month") + '</span>',
+                            Resigned_workers_that_month: '<span>' + compute("Resigned_workers_that_month") + '</span>',
+                            //Reporter: '',
+                            //Rate: '<span class="subtotal">' + ((compute("TotalOrderScore") / compute("TotalTrailCount")) * 100).toFixed(2) + '</span>'
+                        });
+                    } else {
+                        $('#tableData').datagrid('mergeCells', {
+                            index: 0,
+                            field: 'Department',
+                            colspan: 4,
+                            rowspan: 2
+                        });
+                        $('#tableData').datagrid('mergeCells', {
+                            index: 0,
+                            field: 'Employees_personnel',
+                            colspan: 24,
+                            rowspan: 2
+                        });
+                    };
+                },
+            });
+            var nowDate = new Date().Format("yyyy-MM-dd");
+            this.SearchDate = nowDate;
+        },
+        updated: function () {
+            //this.$nextTick(function () {
+            //    //此处填每次渲染完后执行的代码
+            //});
+        },
+        watch: {
+            SearchDate: function (selectDate) {
+                if (selectDate != "") {
+                    //this.$options.methods.weekdate(selectDate);
+                    this.$options.methods.postJson(selectDate);
+                };
+            },
+            roles() {
+                if (checkRoles(this.roles, '提交日报信息')) {
+                    $('.tijiao').show()
+                } else {
+                    $('.tijiao').hide()
+                }
+            },
+            maful() {    //解决修改权限问题  
+                if (this.maful == true) {
+                    if (checkRoles(this.roles, '修改日报信息')) {
+                        $('.xiugai').show()
+                    } else {
+                        $('.xiugai').hide()
+                    }
+                }
+            }
+        },
+        methods: {
+            weekdate: function (selectDate) {
+                var dt = new Date(selectDate);
+                var selectTime = dt.getTime();
+                var weekDay = dt.getDay();
+                var oneDayTime = 24 * 60 * 60 * 1000;
+                $(".datagrid-header-row:nth-child(2) > td >.datagrid-cell-group").each(function (index) {
+                    if (index < 5) {
+                        if (weekDay == 0) {
+                            var weekTime = new Date(selectTime - ((6 - index) * oneDayTime));//周
+                            $(this).text((weekTime.getMonth() + 1) + "月" + weekTime.getDate() + "日");
+                            $('#dg').datagrid('reload');
+                        } else {
+                            var weekTime = new Date(selectTime - (weekDay - 1 - index) * oneDayTime);//周
+                            $(this).text((weekTime.getMonth() + 1) + "月" + weekTime.getDate() + "日")
+                            $('#dg').datagrid('reload');
+                        };
+                    };
+                });
+            },
+            postJson: function (selectDate) {
+                $.ajax({
+                    url: "/Personnel/getjsondata",
+                    type: "post",
+                    dataType: "json",
+                    data: {
+                        date: selectDate,
+                    },
+                    success: function (returnVal) {
+                        console.log(returnVal);
+                        if (returnVal.无记录 == "无记录") {
+                            app.isRecord = false;
+                            var data = {
+                                rows: [{ "Department": "无记录", "Employees_personnel": "" },
+                                    { "Department": "无记录", "Employees_personnel": "无记录" }]
+                            };
+                        } else {
+                            app.isRecord = true;
+                            var data = {
+                                //total: 28,
+                                rows: returnVal
+                            };
+                        };
+                        $('#tableData').datagrid('loadData', data);
+                        app.$options.methods.weekdate(selectDate);
+                    },
+                    error: function (err) {
+                        alert("读取日期“" + selectDate + "”数据失败");
+                    }
+                });
+            },
+            checkRol() {    //判定权限---查看页面权限
+                axios.post("/Common/isCheckRole", { rolename: "人事日报管理", discription: "显示人事日报", name: this.userName, id: this.userId }).then(res=> {
+                    console.log(res.data)
+                    if (res.data == 'True') {
+                        
+                    } else {
+                        $("#app").hide()
+                        var comfirm = confirm("没有权限查看此页面！")
+                        if (comfirm == true) {
+                            window.history.back()
+                        }
+                        else {
+                            window.history.back()
+                        }
+                    }
+                }).catch(err=> {
+                    console.log("999")
+                })
+            }
+        },
+    });
+    function compute(colName) {
+        var rows = $('#tableData').datagrid('getRows');
+        var total = 0;
+        for (var i = 0; i < rows.length; i++) {
+            total += (parseFloat(rows[i][colName]) <= 0 ? 0 : parseFloat(rows[i][colName]));
+        };
+        return isNaN(total) ? 0 : total;
+    };
+    //下载excel
+    function postExcel(value) {
+        $.ajax({
+            url: "/Personnel/GetExcelFile",
+            type: "post",
+            data: {
+                department: value,
+                date: app.SearchDate,
+            },
+            success: function (data) {
+                if (data == "文件不存在") {
+                    alert('此部门今天的人员动态信息文件尚未上传，无文件可下载！');
+                } else {
+                    $("#postDepartment").val(value);
+                    $("#getForm").submit();
+                    $("#postDepartment").val("");
+                }
+            },
+            error: function (err) {
+                alert("下载excel表格失败")
+            }
+        });
+    };
+
+    
+</script>

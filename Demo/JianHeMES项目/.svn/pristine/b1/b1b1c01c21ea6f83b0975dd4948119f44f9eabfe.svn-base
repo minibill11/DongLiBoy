@@ -1,0 +1,397 @@
+﻿@{
+    ViewBag.Title = "待处理事项";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;    
+        padding:8px;
+        font-size:12px        
+    }
+    .div1 {
+        text-align: center
+    }
+    .div1 .el-table {
+        overflow: hidden;
+        display: inline-block
+    }
+    .el-divider--horizontal {
+        margin: 2px 0;
+    }
+    .el-button--text {
+        padding: 1px;
+        font-size:14px
+    }
+    .spcolor {
+        color: darkturquoise
+    }
+</style>
+<div id="app">
+    <el-container>
+        <el-header class="text-center">
+            <h3>待处理事项</h3>
+            <el-button size="small" type="primary" id="tianjia" v-on:click="skip" style="display:none;">添加提示权限</el-button>
+        </el-header>           
+        <el-main style="margin-top:10px">
+            <div class="div1">
+                <el-table v-bind:data="processAssessor" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:501px;" v-if="column3">
+                    <el-table-column label="工序产能确认审核">
+                        <el-table-column prop="type" label="型号" width="80"></el-table-column>
+                        <el-table-column prop="platform" label="平台" width="80"></el-table-column>
+                        <el-table-column prop="PCBNumber" label="pcb编号" width="120"></el-table-column>
+                        <el-table-column prop="Section" label="工段" width="80"></el-table-column>
+                        <el-table-column prop="title" label="工序描述" width="140">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="process(scope.row)">{{scope.row.title}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="processApprove" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:501px;" v-if="column4">
+                    <el-table-column label="工序产能确认批准">
+                        <el-table-column prop="type" label="型号" width="80"></el-table-column>
+                        <el-table-column prop="platform" label="平台" width="80"></el-table-column>
+                        <el-table-column prop="PCBNumber" label="pcb编号" width="120"></el-table-column>
+                        <el-table-column prop="Section" label="工段" width="80"></el-table-column>
+                        <el-table-column prop="title" label="工序描述" width="140">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="process(scope.row)">{{scope.row.title}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="processData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:501px;" v-if="column5">
+                    <el-table-column label="工序产能确认受控">
+                        <el-table-column prop="type" label="型号" width="80"></el-table-column>
+                        <el-table-column prop="platform" label="平台" width="80"></el-table-column>
+                        <el-table-column prop="PCBNumber" label="pcb编号" width="120"></el-table-column>
+                        <el-table-column prop="Section" label="工段" width="80"></el-table-column>
+                        <el-table-column prop="title" label="工序描述" width="140">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="process(scope.row)">{{scope.row.title}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="tableData" height="350px"  v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:151px;" v-if="column1">
+                    <el-table-column prop="OrderNumber" label="小样审核" width="150" >
+                        <template slot-scope="scope">
+                            <span class="spcolor" type="text" size="middle" v-on:click="postme(scope.row.Id)">{{scope.row.OrderNumber}}</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="tableData1" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:151px;" v-if="column2">
+                    <el-table-column prop="OrderNumber" label="小样核准" width="150">
+                        <template slot-scope="scope">
+                            <span class="spcolor" type="text" size="middle" v-on:click="postme(scope.row.Id)">{{scope.row.OrderNumber}}</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="repairData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:241px;" v-if="column6">
+                    <el-table-column label="设备报修单未审核">
+                        <el-table-column prop="EquipmentNumber" label="设备编号" width="100">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="repair(scope.row)">{{scope.row.EquipmentNumber}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="faulttime" label="时间" width="140">
+                            <template slot-scope="scope">
+                                <span type="text">{{scope.row.faulttime|timeFilter }}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="repairApproData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:241px;" v-if="column7">
+                    <el-table-column label="设备报修单未批准">
+                        <el-table-column prop="EquipmentNumber" label="设备编号" width="100">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="repair(scope.row)">{{scope.row.EquipmentNumber}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="faulttime" label="时间" width="140">
+                            <template slot-scope="scope">
+                                <span type="text">{{scope.row.faulttime|timeFilter }}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="unfilledData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:241px;" v-if="column8">
+                    <el-table-column label="设备报修单未填写数据">
+                        <el-table-column prop="EquipmentNumber" label="使用部门" width="100">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="repair(scope.row)">{{scope.row.EquipmentNumber}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="faulttime" label="时间" width="140">
+                            <template slot-scope="scope">
+                                <span type="text">{{scope.row.faulttime|timeFilter }}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="notTallyData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:241px;" v-if="column9">
+                    <el-table-column label="设备点检未确认点检保养">
+                        <el-table-column prop="EquipmentNumber" label="设备编号" width="100">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="godianjian(scope.row)">{{scope.row.EquipmentNumber}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="" label="时间" width="140">
+                            <template slot-scope="scope">
+                                <span type="text" size="middle">{{scope.row.year}}-{{scope.row.month}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="monthApporData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:201px;" v-if="column10">
+                    <el-table-column label="月保养时间计划表确认审核">
+                        <el-table-column prop="UserDepartment" label="使用部门" width="100">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="goMonthMaintain(scope.row)">{{scope.row.UserDepartment}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="" label="时间" width="100">
+                            <template slot-scope="scope">
+                                <span type="text" size="middle">{{scope.row.year}}-{{scope.row.month}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+                <el-table v-bind:data="specificationData" height="350px" border v-bind:header-cell-style="{background:'#F0F8FF'}" style="width:150px;" v-if="column11">
+                    <el-table-column label="设备质量指标达成状况统计表审核批准" width="149">
+                        <template slot-scope="scope">
+                            <span class="spcolor" type="text" size="middle" v-on:click="goSpecification(scope.row)">{{scope.row.year}}-{{scope.row.month}}</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+            </div>
+        </el-main>
+    </el-container>
+</div>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+<script>
+    Vue.filter("timeFilter", function (val) {
+        if (!val) return '';    
+        var date = new Date(val)
+        let year = date.getFullYear();
+        let month = date.getMonth() + 1;
+        let day = date.getDate();
+        return `${year}-${month}-${day}`
+    })
+    var app = new Vue({
+        el: '#app',
+        data: {
+            uId:"@UserIds",
+            tableData: [],          //小样确认审核表            
+            tableData1: [],        //小样确认核准表
+            processData: [],       //工序产能确认受控表
+            processAssessor: [],   //工序产能确认审核
+            processApprove: [],    //工序产能确认批准
+            repairData: [],        //设备报修单审核表
+            repairApproData: [],   //设备报修单批准
+            unfilledData: [],      //设备报修单未填写数据
+            notTallyData: [],      //设备报修单未填写数据
+            monthApporData: [],     //设备月保养时间计划表确认审核
+            specificationData: [],    //设备质量指标达成状况统计表审核批准
+            column1: false,     //控制小样确认审核表显示
+            column2: false,     //控制小样确认核准表显示
+            column3: false,     //控制工序产能确认受控表显示
+            column4: false,     //控制工序产能确认审核显示
+            column5: false,     //控制工序产能确认批准显示
+            column6: false,     //控制设备报修单审核表显示
+            column7: false,     //控制设备报修单批准表显示
+            column8: false,     //控制设备报修单未填写数据表显示
+            column9: false,     //控制设备点检未确认点检保养表显示
+            column10: false,    //控制设备月保养时间计划表确认审核表显示
+            column11: false,    //控制设备质量指标达成状况统计表审核批准显示
+            bind: false,
+        },
+        created: function () {
+            this.getData()
+        },
+        methods: {
+            skip() {
+                window.open("/Tips/TipsArguments");
+            },
+            postme(item) {
+                window.open("/Small_Sample/Display?" + "id=" + item);
+            },            
+            process(item) {     
+                if (item.Section == "SMT") {
+                    window.open("/Process_Capacity/StandardCapacity?" + "id=" + item.id + "&type=" + item.type + "&PCBNumber=" + item.PCBNumber + "&platform=" + item.platform + "&Section=" + item.Section + "&title=" + item.title);
+                } else {
+                    window.open("/Process_Capacity/ProcessBalanceCard?" + "id=" + item.id + "&type=" + item.type + "&PCBNumber=" + item.PCBNumber + "&platform=" + item.platform + "&Section=" + item.Section + "&title=" + item.title);
+                }                             
+            },   
+            repair(item) {               
+                window.open("/Equipment/EquipmentRepairbill?" + "num=" + item.EquipmentNumber + "&time=" + item.faulttime)
+
+            },
+            godianjian(item) {
+                window.open("/Equipment/Equipment_Tally_maintenance?" + "num=" + item.EquipmentNumber + "&year=" + item.year + "&month=" + item.month)
+            },
+            goMonthMaintain(item) {
+                let tiemer = item.year + "-" + item.month
+                window.location.href = "/Equipment/Equipment_MonthlyMaintenance_plan?" + "dates=" + encodeURI(tiemer) + "&depar=" + encodeURI(item.UserDepartment)
+            },  
+            goSpecification(item) {
+                let tiemer = item.year + "-" + item.month
+                window.location.href = "/Equipment/Equipment_Quality_target?" + "equiquanlityselecttime=" + tiemer
+            },
+            timer() {
+                return setTimeout(() => {
+                    this.getData()
+                }, 3000)
+            },
+            getData() {
+                axios.post("/Tips/Index", { userId: this.uId }).then(res => {
+                    //console.log(res.data)                                       
+                    if ('小样报告确认审核' in res.data) {
+                        if (res.data.小样报告确认审核 == "[]") {
+                            this.column1 = false
+                        } else {
+                            let objAssessor = JSON.parse(res.data.小样报告确认审核);
+                            this.tableData = objAssessor;
+                            this.column1 = true
+                        }                       
+                    }                   
+                    if ('小样报告确认核准' in res.data) {
+                        if (res.data.小样报告确认核准 == "[]") {
+                            this.column2 = false
+                        } else {
+                            let objApproved = JSON.parse(res.data.小样报告确认核准)
+                            this.tableData1 = objApproved;
+                            this.column2 = true
+                        }
+                    }
+
+                    if ('工序产能确认审核' in res.data) {
+                        if (res.data.工序产能确认审核 == "[]") {
+                            this.column3 = false
+                        } else {
+                            let procAssessor = JSON.parse(res.data.工序产能确认审核)
+                            this.processAssessor = procAssessor;
+                            this.column3 = true
+                        }
+                    }
+                    
+                    if ('工序产能确认批准' in res.data) {
+                        if (res.data.工序产能确认批准 == "[]") {
+                            this.column4 = false
+                        } else {
+                            let procApprove = JSON.parse(res.data.工序产能确认批准)
+                            this.processApprove = procApprove
+                            this.column4 = true
+                        }
+                    }
+
+                    if ('工序产能确认受控' in res.data) {
+                        if (res.data.工序产能确认受控 == "[]") {
+                            this.column5 = false
+                        } else {
+                            let control = JSON.parse(res.data.工序产能确认受控)
+                            this.processData = control;
+                            this.column5 = true
+                        }
+                    }   
+
+                    if ('设备报修单审核' in res.data) {
+                        if (res.data.设备报修单审核 == "[]") {
+                            this.column6 = false
+                        } else {
+                            let repairdata = JSON.parse(res.data.设备报修单审核)                           
+                            this.repairData = repairdata;
+                            this.column6 = true
+                        }
+                    }
+
+                    if ('设备报修单批准' in res.data) {
+                        if (res.data.设备报修单批准 == "[]") {
+                            this.column7 = false
+                        } else {
+                            let repairApprodata = JSON.parse(res.data.设备报修单批准)                         
+                            this.repairApproData = repairApprodata;
+                            this.column7 = true
+                        }
+                    }
+
+                    if ('设备报修单未填写数据' in res.data) {
+                        if (res.data.设备报修单未填写数据 == "[]") {
+                            this.column8 = false
+                        } else {
+                            let unfilled = JSON.parse(res.data.设备报修单未填写数据)
+                            this.unfilledData = unfilled;
+                            this.column8 = true
+                        }
+                    }
+
+                    if ('设备点检未确认点检保养' in res.data) {
+                        if (res.data.设备点检未确认点检保养 == "[]") {
+                            this.column9 = false
+                        } else {
+                            let notTally = JSON.parse(res.data.设备点检未确认点检保养)
+                            this.notTallyData = notTally;
+                            this.column9 = true
+                        }
+                    }
+
+                    if ('设备月保养时间计划表确认审核' in res.data) {
+                        if (res.data.设备月保养时间计划表确认审核 == "[]") {
+                            this.column10 = false
+                        } else {
+                            let monthAppor = JSON.parse(res.data.设备月保养时间计划表确认审核)
+                            this.monthApporData = monthAppor;
+                            this.column10 = true
+                        }
+                    }
+                    
+                    if ('设备质量指标达成状况统计表审核批准' in res.data) {
+                        if (res.data.设备质量指标达成状况统计表审核批准 == "[]") {
+                            this.column11 = false
+                        } else {
+                            let specification = JSON.parse(res.data.设备质量指标达成状况统计表审核批准)
+                            this.specificationData = specification;
+                            this.column11 = true
+                        }
+                    }
+                    
+                })
+            },
+        },
+        watch: {
+            tableData() {
+                if (this.tableData != "[]" || this.tableData1 != "[]" || this.processAssessor != "[]" || this.processApprove != "[]" || this.processData != "[]" || this.repairData != "[]" || this.repairApproData != "[]" || this.unfilledData != "[]" || this.notTallyData != "[]" || this.monthApporData != "[]" || this.specificationData != "[]") {
+                    this.timer()
+                }
+            }
+        },
+        mounted: function () {            
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '用户管理')) {
+                $('#tianjia').show()
+            } else {
+                $('#tianjia').hide()
+            };
+        }
+    })
+
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

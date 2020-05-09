@@ -1,0 +1,286 @@
+﻿@{
+    ViewBag.Title = "工序产能首页";
+}
+
+@*  <summary>
+    1.工序产能首页，展示工序产能各工段详细信息
+    2.可以根据 平台和型号 筛选信息
+    3.可以根据文件状态，查看未审核/未批准等列表信息
+    4.点击录入信息可跳转至工序产能信息录入界面
+    5.点击表格内的平台号，可打开该平台详细信息
+    6.可查看每行的平衡系数图表
+    </summary>*@
+
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<link href="~/Content/styleFile/processCapacity/indexStyle.css" rel="stylesheet" />@*工序产能公共样式文件*@
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                @*跳转按钮，跳到index2操作页*@
+                <a href="/Process_Capacity/index2" style="float:left;"><el-button type="primary" size="small" plain>录入信息</el-button></a>
+                @*插入查询框分部页*@
+                @RenderPage("_summaryQuery.cshtml")
+            </el-row>
+            <el-row>
+                @*使用审核列表组件*@
+                <file-statu-table ref="statuRef" :statu="queryTable.statu" :ispower="limitsRole[3]"></file-statu-table>
+            </el-row>
+            <el-row class="text-center">
+                @*插入主表分部页*@
+                @RenderPage("_summaryTable.cshtml")
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+    2/_fileStatuTable，审核下拉列表组件
+    3/_chart，echart图表插件组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+@RenderPage("_fileStatuTable.cshtml")
+@RenderPage("_chart.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            filterResult: [],//存储筛选总数据后的结果
+            /** 选择框的值
+                queryTable.protype 筛选型号
+                queryTable.proplatform 筛选平台
+                queryTable.statu 文件状态
+                */
+            queryTable: {
+                protype: "",
+                proplatform: "",
+                statu: ""
+            },
+            /** 选择框的下拉列表
+                options.protype 筛选型号下拉列表
+                options.proplatform 筛选平台下拉列表
+                options.statu 文件状态下拉列表
+                */
+            options: {
+                protype: [],
+                proplatform: [],
+                statu: [{ value: '未审核' }, { value: '审核未通过' }, { value: '审核通过' }, { value: '未批准' }, { value: '批准未通过' }, { value: '批准通过' },]
+            },
+            limitsList: {},//用来存储用户所有的权限列表
+            limitsRole: {},//用来存储用户与工序产能相关的权限列表
+            pollingTimer: "",//定时器，控制页面定时刷新
+        },
+        //页面打开时执行
+        created: function () {
+            //获取登陆时存储在浏览器的权限列表
+            this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            //获取下拉型号列表
+            this.getProtype();
+            //获取下拉平台列表
+            this.getPlatfrom();
+
+            /** 获取与工序产能相关的权限对象列表，包括如下
+             *  1、新建平台 ，2、上传文件和编辑 ， 3、查看附表 ， 4、上传PDF和图片 ， 5、审核附表 ，6、批准附表 ，7、受控附表
+             *  对应的结果用函数checkRoles判断   例：存在“新建平台”权限，则权限1为true，不存在则为false
+             */
+            this.limitsRole = {
+                1: this.checkRoles("新建平台"),
+                2: this.checkRoles("上传文件和编辑"),
+                3: this.checkRoles("查看附表"),
+                4: this.checkRoles("上传PDF和图片"),
+                5: this.checkRoles("审核附表"),
+                6: this.checkRoles("批准附表"),
+                7: this.checkRoles("受控附表"),
+            };
+        },
+        //函数方法
+        methods: {
+            //总表数据轮询
+            getTableData() {
+                axios.post('/Process_Capacity/TotalProcess_CapacityOnlyRead', {
+                    type: '',
+                    platform: ''
+                }).then(res => {
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    //存储返回值
+                    this.tableList = res.data;
+                    //执行条件过滤方法
+                    this.filterList();
+                }).catch(err => {
+                    console.warn("获取数据失败")
+                });
+            },
+            //总表条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/Process_Capacity/TotalProcess_CapacityOnlyRead', {
+                    type: '',
+                    platform: ''
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    this.filterResult = res.data;
+                    this.loading = false;
+                    this.$message.success('查询成功！');
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //型号下拉列表获取方法
+            getProtype() {
+                axios.post('/Process_Capacity/TypeList').then(res => {
+                    //console.log(res.data);
+                    this.options.protype = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //平台下拉列表获取方法
+            getPlatfrom() {
+                axios.post('/Process_Capacity/DisplayPlatfromFromType', { type: '' }).then(res => {
+                    //console.log(res.data);
+                    this.options.proplatform = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            /**
+             * @@param roleName 参数为权限名称 例：‘新建平台’
+             * 传入参数，在该用户权限列表中遍历查找该权限名称，若存在该权限，返回true，否则返回false
+             */
+            checkRoles(roleName) {   //检测权限
+                let list = this.limitsList;
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //轮询计时方法，每30秒自动更新页面数据
+            monitorTimer() {
+                this.pollingTimer = setInterval(() => {
+                    this.getTableData();
+                }, 30000);
+            },
+            //监听平台选择，调用筛选方法，即时更新筛选后的表格
+            watchPlatform(v) {
+                this.filterList();
+            },
+            //监听型号选择，调用筛选方法，即时更新筛选后的表格
+            watchType(v) {
+                this.filterList();
+            },
+            //筛选方法，
+            filterList() {
+                let array = this.tableList,//所有数据
+                    arr1 = this.queryTable.proplatform,//下拉列表选择的平台值
+                    arr2 = this.queryTable.protype,//下拉列表选择的型号值
+                    thisArr1, thisArr2;
+                //过滤平台值，筛选出过滤后的列表 存为thisArr1
+                thisArr1 = array.filter(function (val) {
+                    if (arr1 == null || arr1 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr1) {
+                            if (val.Platform.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                //在thisArr1筛选后，继续过滤型号值
+                thisArr2 = thisArr1.filter(function (val) {
+                    if (arr2 == null || arr2 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr2) {
+                            if (val.Type.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                this.filterResult = thisArr2;//存储筛选后的数据
+            },
+            //@@2019年底弃用，页面中小表格的合计行计算方法
+            sectionTotal(row, section, name) {
+                let count = 0, nullnum = 0, sectionnum = 0, maxmin = { ic1: 0, ic2: 0, light1: 0, light2: 0 };
+                for (let s of row[section]) {
+                    sectionnum += s.content.length;
+                    for (let n of s.content) {
+                        //最大最小贴片的值
+                        if (section == 'SMT' && name == 'StandardTotal' && s.name === '贴片') {
+                            switch (n.seaction) {
+                                case 'IC最大': maxmin.ic1 = n[name]; break;
+                                case 'IC最小': maxmin.ic2 = n[name]; break;
+                                case '灯面最大': maxmin.light1 = n[name]; break;
+                                case '灯面最大': maxmin.light2 = n[name]; break;
+                            };
+                        };
+                        //累计
+                        if (n[name] === '/') {
+                            nullnum += 1;
+                            count += 0;
+                        } else {
+                            count += n[name];
+                        };
+                    };
+                };
+
+                //最大最小贴片的值,2个值取其中一个值较小的
+                if (section == 'SMT' && name == 'StandardTotal') {
+                    count -= (maxmin.ic1 >= maxmin.ic2) ? maxmin.ic1 : maxmin.ic2;
+                    count -= (maxmin.light1 >= maxmin.light2) ? maxmin.light1 : maxmin.light2;
+                };
+
+                //若值全为 / ，合计不显示0，显示/
+                if (nullnum === sectionnum) {
+                    return '/';
+                };
+                //判断显示的小数
+                let x = String(count).indexOf(".") + 1, length = String(count).length - x;
+                if (x > 0) {
+                    if (name == 'StandardTotal') {
+                        return count.toFixed(0);
+                    } else {
+                        if (length > 2) {
+                            return count.toFixed(2);
+                        } else {
+                            return count;
+                        };
+                    };
+                } else {
+                    return count;
+                };
+            },
+            //总合计
+            allTotal(row) {
+
+            }
+        },
+        //页面加载完后执行
+        mounted: function () {
+            this.queryTable.statu = '未审核';//赋值文件状态默认值为未审核
+            this.onQuerySubmit();//页面加载完后 调用方法获取表格数据
+            this.monitorTimer();//启动轮询计时器
+        }
+    });
+</script>

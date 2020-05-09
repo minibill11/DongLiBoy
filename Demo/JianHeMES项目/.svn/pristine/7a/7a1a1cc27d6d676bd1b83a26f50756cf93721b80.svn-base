@@ -1,0 +1,332 @@
+﻿@{
+    ViewBag.Title = "班组信息";
+}
+
+@*  <summary>
+    1.班组信息查看/新增/删除/编辑
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-main {
+        padding: 0;
+        min-height: 600px;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .box-card {
+        width: 300px;
+        margin: 0 auto 10px;
+    }
+
+    h4, h3 {
+        margin-top: 10px;
+    }
+
+    .el-card__body, .el-card__header {
+        padding: 10px;
+    }
+
+    .el-card__body {
+        min-height: 300px;
+        overflow: auto;
+    }
+
+    .el-tag {
+        margin: 7px 10px 0 0;
+    }
+
+    .button-new-tag {
+        margin: 7px 10px 7px 0;
+        height: 32px;
+        line-height: 30px;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    .input-new-tag {
+        width: 180px;
+        margin: 7px 3px 7px 0;
+        vertical-align: bottom;
+    }
+
+    .el-table .cell, .el-table--border td:first-child .cell, .el-table .cell, .el-table--border th:first-child .cell {
+        padding: 0 3px 0;
+    }
+
+    @@media screen and (min-width:1200px) {
+        .box-card {
+            width: 500px;
+        }
+    }
+
+    /* 表格内的输入框居中 */
+    .el-table input {
+        text-align: center
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h3 class="text-center">@ViewBag.Title</h3>
+            </div>
+            <div v-show="screenSize<768">
+                <h4>@ViewBag.Title</h4>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <el-col :span="mainData.length>1&&screenSize>768?12:24" v-for="(item,index) in mainData" :key="item">
+                    <el-card class="box-card">
+                        <div slot="header" class="clearfix text-center">
+                            <span style="font-size:18px;">所属部门：<b>{{item.department}}</b></span>
+                        </div>
+                        <div v-if="item.addInputVisible">
+                            <el-input class="input-new-tag"
+                                      v-model="item.addInputValue"
+                                      ref="saveTagInput"
+                                      size="small"
+                                      @@keyup.enter.native="handleInputConfirm(item)"
+                                      @@blur="handleInputConfirm(item)">
+                            </el-input>
+                            <el-button class="button-new-tag" size="small" @@click="item.addInputVisible=false" style="margin:0">取消</el-button>
+                            <el-button class="button-new-tag" size="small" @@click="handleInputConfirm(item)" style="margin-left:0">确定</el-button>
+                        </div>
+                        <el-button v-else class="button-new-tag" size="small" @@click="showInput(item,index)">+ 新增班组</el-button>
+                        @* 原本的显示 *@
+                        @*<el-tag :key="tag"
+                                    v-for="tag in item.dynamicTags"
+                                    closable
+                                    :disable-transitions="false"
+                                    @@close="handleClose(tag,item)">
+                                {{tag}}
+                            </el-tag>*@
+
+                        @* 需要编辑后的显示 *@
+                        <el-table :data="item.dynamicTagsList"
+                                  size="mini "
+                                  max-height="280"
+                                  align="center"
+                                  border>
+                            <el-table-column type="index"
+                                             label="序号"
+                                             width="40"
+                                             align="center">
+                            </el-table-column>
+                            <el-table-column prop="name"
+                                             label="组名"
+                                             align="center">
+                                <template slot-scope="scope">
+                                    <el-input v-if="scope.row.editShow"
+                                              v-model="scope.row.editVal"
+                                              ref="tableTagInput"
+                                              @@keyup.enter.native="tableInputConfirm(scope.row,scope.$index,item)"
+                                              @*@@blur="scope.row.editShow=false"*@
+                                              size="mini">
+                                    </el-input>
+                                    <b v-else style="color:#413e3e">{{scope.row.name}}</b>
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="操作"
+                                             width="80"
+                                             align="center">
+                                <template slot-scope="scope">
+                                    <div v-if="!scope.row.editShow">
+                                        <el-button @@click="editMethod(scope.row,scope.$index)" type="text" size="mini">编辑</el-button>
+                                        <el-button @@click="handleClose(scope.row.name,item)" type="text" size="mini">删除</el-button>
+                                    </div>
+                                    <div v-else>
+                                        <el-button @@click="tableInputConfirm(scope.row,scope.$index,item)" type="text" size="mini">确认</el-button>
+                                        <el-button @@click="scope.row.editShow=false" type="text" size="mini">取消</el-button>
+                                    </div>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-card>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//等待开关
+            screenSize: document.body.clientWidth,//屏幕宽度
+            mainData: [],//数据
+
+        },
+        //页面创建时执行
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            //获取信息
+            this.getData();
+        },
+        methods: {
+            //获取已存在信息
+            getData() {
+                this.loading = true;
+                axios.post("/Users/indexDisplayGroup").then(res => {
+                    console.log(res.data);
+                    //未登陆则返回null
+                    if (res.data == '') {
+                        this.$message.warning("登陆状态已丢失，请重试打开页面！")
+                    } else {
+                        for (let i of res.data) {
+                            let group = i.Group, dynamicTagsList = [];
+                            for (let g of group) {
+                                dynamicTagsList.push({
+                                    name: g,
+                                    editShow: false,
+                                    editVal: ""
+                                });
+                            };
+
+                            this.mainData.push({
+                                department: i.department,
+                                addInputVisible: false,
+                                addInputValue: "",
+                                dynamicTags: group,
+                                dynamicTagsList: dynamicTagsList
+                            });
+                        };
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //删除班组, 未登录返回‘失败’，成功返回‘成功’
+            handleClose(tag, val) {
+                this.$confirm(`确认删除 "${val.department}" 班组：" ${tag} "？`, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    this.loading = true;
+                    axios.post("/Users/DeleteGroup", { group: tag, deparment: val.department }).then(res => {
+                        //console.log(res.data);
+                        if (res.data == '失败') {
+                            this.$message.warning("登陆状态已丢失，请重试打开页面！")
+                        } else {
+                            //原数组
+                            val.dynamicTags.splice(val.dynamicTags.indexOf(tag), 1);
+                            //表格数组
+                            let list = val.dynamicTagsList;
+                            for (let i in list) {
+                                if (list[i].name == tag) {
+                                    list.splice(i, 1);
+                                };
+                            };
+                            this.$message({
+                                type: 'success',
+                                message: '删除成功!'
+                            });
+                        };
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn(err);
+                        this.loading = false;
+                    });
+                }).catch(() => {
+                });
+            },
+            //显示输入框
+            showInput(val, index) {
+                val.addInputVisible = true;
+                this.$nextTick(_ => {
+                    let refs = this.$refs.saveTagInput;
+                    refs[refs.length - 1].$refs.input.focus();
+                });
+            },
+            //新增班组, 未登录返回‘失败’，其它原因返回信息，成功返回‘成功’
+            handleInputConfirm(val) {
+                if (val.addInputValue) {
+                    this.loading = true;
+                    axios.post("/Users/CreateGroup", { group: val.addInputValue, deparment: val.department }).then(res => {
+                        //console.log(res.data);
+                        if (res.data == '失败') {
+                            this.$message.warning("登陆状态已丢失，请重试打开页面！");
+                        } else if (res.data == '成功') {
+                            //原数组
+                            val.dynamicTags.push(val.addInputValue);
+                            //表格数组
+                            val.dynamicTagsList.push({
+                                name: val.addInputValue,
+                                editShow: false,
+                                editVal: ""
+                            });
+                            this.$message.success("添加成功");
+                        } else {
+                            this.$message.warning(res.data);
+                        };
+                        val.addInputVisible = false;
+                        val.addInputValue = '';
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn(err);
+                        val.addInputVisible = false;
+                        val.addInputValue = '';
+                        this.loading = false;
+                    });
+                } else {
+                    val.addInputVisible = false;
+                    val.addInputValue = '';
+                };
+            },
+            //表格编辑确认, 未登录返回‘失败’，其它原因返回信息，成功返回‘成功’
+            tableInputConfirm(row, index, val) {
+                this.loading = true;
+                axios.post("/Users/UpdateGroup", {
+                    newgroup: row.editVal,
+                    oldgroup: row.name,
+                    deparment: val.department
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data == '失败') {
+                        this.$message.warning("登陆状态已丢失，请重试打开页面！");
+                    } else {
+                        //原数组
+                        let tag = val.dynamicTags;
+                        tag.splice(tag.indexOf(row.name), 1, row.editVal);
+                        //表格数组
+                        row.name = row.editVal;
+                        this.$message.success("修改成功");
+                    };
+                    row.editShow = false;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    row.editShow = false;
+                    this.loading = false;
+                });
+            },
+            //表格行启动编辑
+            editMethod(row, index) {
+                row.editVal = row.name;
+                row.editShow = true;
+
+                this.$nextTick(_ => {
+                    let refs = this.$refs.tableTagInput;
+                    refs[refs.length - 1].$refs.input.focus();
+                });
+            },
+        }
+    });
+</script>

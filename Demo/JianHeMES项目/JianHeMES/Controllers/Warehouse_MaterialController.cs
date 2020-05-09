@@ -1,0 +1,2991 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Net;
+using System.Text;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using static JianHeMES.Controllers.CommonalityController;
+using static JianHeMES.Controllers.CommonERPDB;
+
+namespace JianHeMES.Controllers
+{
+    public class Warehouse_MaterialController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        // GET: Warehouse_Material
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        #region----MC部仓库物料管理
+
+        #region ---- 查询物料信息页
+        [HttpPost]
+        public ActionResult QueryMaterial(string material)
+        {
+            //var security = db.Equipment_Safetystock.Where(c => c.Material == material).ToList();//获取数据
+            //var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());//根据物料编号到ERP里查找数据
+            var querylist = CommonERPDB.ERP_MaterialQuery(material, "").ToList();
+            return Content(JsonConvert.SerializeObject(querylist));
+        }
+
+        [HttpPost]
+        public ActionResult QueryMaterialNumName(string materialNumber,string materialName)
+        {
+            var resultlist = CommonERPDB.ERP_MaterialQuery(materialNumber,materialName).Select(c=>new { c.img01,c.ima02,c.ima021,c.img02,c.img03,c.img08,c.img09,c.img10,c.img18}).ToList();//根据物料编号到ERP里查找数据
+            return Content(JsonConvert.SerializeObject(resultlist));
+        }
+
+        #endregion
+
+        #region ----修改库位号
+        public ActionResult ModifyLocation(string material, string position)
+        {
+            JObject table = new JObject();
+            var savecount = 0;
+            var security = db.Equipment_Safetystock.Where(c => c.Material == material).ToList();//获取数据
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());//根据物料编号到ERP里查找数据
+            foreach (var item in querylist)//循环querlist
+            {
+                if (db.Warehouse_Modify_WarehouseNum.Count(c => c.MaterialNumber == item.img01) == 0)
+                {
+                    var rede = new Warehouse_Modify_WarehouseNum() { MaterialNumber = material, MaterialBacrcode = null, OldWarehouseNum = item.img03, NewWarehouseNum = position, Modifier = ((Users)Session["user"]).UserName, ModifyTime = DateTime.Now };
+                    db.Warehouse_Modify_WarehouseNum.Add(rede);
+                    savecount = db.SaveChanges();//保存到数据库
+                }
+            }
+            if (savecount > 0)//判断savecount是否大于0
+            {
+                table.Add("Position", position);//把库位号add到table里面
+                table.Add("Site", true);
+            }
+            else//等于0 
+            {
+                table.Add("Site", false);
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+        #endregion
+
+        #region ----显示修改库位号清单
+        public ActionResult LocationQuery()
+        {
+            var locationlist = db.Warehouse_Modify_WarehouseNum.Select(c => new { c.ID, c.MaterialNumber, c.MaterialBacrcode, c.OldWarehouseNum, c.NewWarehouseNum }).ToList();
+            return Content(JsonConvert.SerializeObject(locationlist));
+        }
+        #endregion
+
+        #region ----如果ERP里的库位号已经修改过来，就把MES里的记录删除
+        public ActionResult DeleteLocation(int id)
+        {
+            JObject table = new JObject();
+            var locationlist = db.Warehouse_Modify_WarehouseNum.Select(c => new { c.MaterialNumber, c.OldWarehouseNum, c.NewWarehouseNum });
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(locationlist.Select(c => c.MaterialNumber).ToList());//根据物料编号到ERP里查找数据
+            foreach (var item in querylist)
+            {
+                if (item.img03 == locationlist.Select(c => c.NewWarehouseNum).FirstOrDefault())
+                {
+                    var record = db.Warehouse_Modify_WarehouseNum.Where(c => c.ID == id).FirstOrDefault();//根据ID表里查询数据
+                    UserOperateLog operaterecord = new UserOperateLog();
+                    operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
+                    operaterecord.Operator = ((Users)Session["User"]).UserName;//添加删除操作人
+                    //添加操作记录（如：张三在2020年2月27日删除设备管理邮件抄送人为李四的记录）
+                    operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除库位号" + record.Modifier + "的记录。";
+                    db.Warehouse_Modify_WarehouseNum.Remove(record);//删除对应的数据
+                    db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
+                    int count = db.SaveChanges();//保存到数据库
+                    if (count > 0)//判断count是否大于0（有没有把数据保存到数据库）
+                    {
+                        table.Add("table", true);
+                        table.Add("ware", "删除成功");
+                        return Content(JsonConvert.SerializeObject(table));
+                    }
+                    else //等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        table.Add("table", false);
+                        table.Add("ware", "删除失败");
+                        return Content(JsonConvert.SerializeObject(table));
+                    }
+                }
+                else
+                {
+                    table.Add("table", false);
+                    table.Add("ware", "库位号不一致");
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+        #endregion
+
+        #endregion
+
+        #region ---其他方法
+        // GET: Warehouse_Material/Details/5
+        public ActionResult Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Warehouse_Material/Create
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Create([Bind(Include = "ID,ManufactorNum,ManufactorName,MaterialNumber,ProductName,Specifications,Type,VarietyType")] Warehouse_Material_BaseInfo warehouse_Material_BaseInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Warehouse_Material_BaseInfo.Add(warehouse_Material_BaseInfo);
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Edit/5
+        public ActionResult Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // POST: Warehouse_Material/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Edit([Bind(Include = "ID,ManufactorNum,ManufactorName,MaterialNumber,ProductName,Specifications,Type,VarietyType")] Warehouse_Material_BaseInfo warehouse_Material_BaseInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(warehouse_Material_BaseInfo).State = EntityState.Modified;
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Delete/5
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // POST: Warehouse_Material/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            db.Warehouse_Material_BaseInfo.Remove(warehouse_Material_BaseInfo);
+            db.SaveChanges();
+            return RedirectToAction("Index");
+        }
+        #endregion
+
+
+        #region------库存金额查询
+
+        public ActionResult StockAmountCalculate()
+        {
+            ViewBag.financerecordcount = 0;
+            ViewBag.mcunissuerecordcount = 0;
+            ViewBag.queryfinancedatatimespan = null;
+            ViewBag.querymc_unissuedatatimespan = null;
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult StockAmountCalculateGetExcel(string outputexcelfile,DateTime inputdate, DateTime enddate)
+        {
+            //cxcr006 成品类表头
+            string[] columns = { "料号", "品名", "规格", "面积", "本月结存数", "本月结存单价", "本月结存金额", "30天", "90天", "180天", "365天", "2年", "3年", "3-5年", "5年以上", "会计科目", "库位号","分类明细" };
+            //cxcr006_raw_material 原材料类表头
+            string[] columns_raw_material = { "料号", "品名", "规格", "面积", "本月结存数", "本月结存单价", "本月结存金额", "30天", "90天", "180天", "365天", "2年" , "3年", "3-5年", "5年以上", "会计科目", "库位号", "分类明细", "工单号", "工单备注", "工单录入日期", "单位" , "应发数量", "已发数量", "未发数量" };
+            //在制品类表头
+            string[] columns_work_in_process = { "工单号", "料号", "上月结存数量", "上月结存金额", "期间", "工单年月份", "年度", "月份", "物料品名", "其他分群码四", "物料规格", "是否为重覆性生产料件 (Y/N)", "重工否(Y/N)", "备注", "分类明细" };
+            //csfr008 MC表发料记录表表头
+            string[] columns_raw_material_MC = { "工单号", "工单备注", "工单录入日期", "生产数量", "入库数量", "料号", "品名", "规格", "单位", "应发数量", "已发数量", "未发数量"};
+
+            byte[] filecontent = null;
+            string re = "";
+            //财务整个月底结存表记录
+            List<cxcr006> financealldata = CommonERPDB.ERP_FinanceDetialsQuery();
+            //筛选出科目140501的记录
+            var financedata = financealldata.Where(c => c.AccountingSubject == 140501).ToList();
+
+            //按年月查出仓库编号是LCWC1，且库位编号是CWC01的记录
+            var outsiderecord = CommonERPDB.OutsideWarehouseQuery(enddate.Year, enddate.Month);           
+            //取出厂外仓的所有物料号
+            var mn_list = outsiderecord.Select(c => c.imk01).ToList();
+            //根据厂外仓物料号统计厂外仓信息
+            var outsideWS = financedata.Where(c => mn_list.Contains(c.tc_cxc01)).ToList();
+
+            //财务上月库存结存明细表排除140501科目以外的记录：原材料-基本材料，原材料-辅助材料，半成品
+            var financedata_raw_material = financealldata.Where(c => c.AccountingSubject != 140501).ToList();
+            //MC发料表
+            var raw_material = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c=>c.sfa05_sfa06>0).ToList();
+
+            //第一优先级应该是厂外仓，然后是备库和样品，再然后是配件订单，剩下的就是销售订单了和其他的
+            switch (outputexcelfile)
+            {
+             #region 财务分科
+                case "财务科目类":
+                    filecontent = ExcelExportHelper.ExportExcel(financealldata.ToList(), outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "原材料-基本材料":
+                    var result1 = financealldata.Where(c => c.AccountingSubject == 140301).ToList();
+                    result1.ForEach(a => a.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(result1, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "原材料-辅助材料":
+                    var result2 = financealldata.Where(c => c.AccountingSubject == 140302).ToList();
+                    result2.ForEach(a => a.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(result2, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "成品":
+                    var result3 = financealldata.Where(c => c.AccountingSubject == 140501).ToList();
+                    result3.ForEach(a => a.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(result3, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "半成品":
+                    var result4 = financealldata.Where(c => c.AccountingSubject == 140502).ToList();
+                    result4.ForEach(a => a.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(result4, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+             #endregion
+
+             #region 成品类
+                case "成品类":
+                    List<cxcr006> result0 = new List<cxcr006>();
+                    //"厂外仓"
+                    outsideWS.ForEach(c => c.Classification = "厂外仓"); 
+                    result0.AddRange(outsideWS);
+                    //"市场备库订单"
+                    financedata = financedata.Except(outsideWS).ToList();
+                    var marketInfo0 = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+                    marketInfo0.ForEach(c => c.Classification = "市场备库订单");
+                    result0.AddRange(marketInfo0);
+                    //"样品"
+                    financedata = financedata.Except(marketInfo0).ToList();
+                    var samples0 = financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0")).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    samples0.ForEach(c => c.Classification = "样品");
+                    result0.AddRange(samples0);
+                    //"配件"
+                    financedata = financedata.Except(samples0).ToList();
+                    var assemble0 = financedata.Where(c => c.tc_cxc02.Contains("配件")).ToList();
+                    assemble0.ForEach(c => c.Classification = "配件");
+                    result0.AddRange(assemble0);
+                    //"销售订单"
+                    financedata = financedata.Except(assemble0).ToList();
+                    var sales0 = financedata.Except(financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0"))).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    sales0.ForEach(c => c.Classification = "销售订单");
+                    result0.AddRange(sales0);
+                    //"其他"
+                    var others = financedata.Except(sales0).ToList();
+                    others.ForEach(c => c.Classification = "其他");
+                    result0.AddRange(others);
+                    filecontent = ExcelExportHelper.ExportExcel(result0.ToList(), outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "厂外仓":
+                    //待定
+                    outsideWS.ForEach(c => c.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(outsideWS, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "市场备库订单":
+                    //排除厂外仓记录
+                    financedata = financedata.Except(outsideWS).ToList();
+                    //科目140501在排除厂外仓后筛选市场备库订单信息
+                    var marketInfo = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+                    marketInfo.ForEach(c => c.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(marketInfo, outputexcelfile + "("+DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "样品":
+                    //排除厂外仓记录
+                    financedata = financedata.Except(outsideWS).ToList();
+                    //科目140501在排除厂外仓后筛选市场备库订单信息
+                    var marketInfo1 = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+                    //排除市场备库订单信息
+                    financedata = financedata.Except(marketInfo1).ToList();
+                    //筛选样品信息
+                    var samples = financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0")).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    samples.ForEach(c => c.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(samples, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "配件":
+                    //排除厂外仓记录
+                    financedata = financedata.Except(outsideWS).ToList();
+                    //科目140501在排除厂外仓后筛选市场备库订单信息
+                    var marketInfo2 = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+                    //排除市场备库订单信息
+                    financedata = financedata.Except(marketInfo2).ToList();
+                    //筛选样品信息
+                    var samples1 = financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0")).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    //排除样品信息
+                    financedata = financedata.Except(samples1).ToList();
+                    //筛选配件
+                    var assemble = financedata.Where(c => c.tc_cxc02.Contains("配件")).ToList();
+                    assemble.ForEach(c => c.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(assemble, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "销售订单":
+                    //排除厂外仓记录
+                    financedata = financedata.Except(outsideWS).ToList();
+                    //科目140501在排除厂外仓后筛选市场备库订单信息
+                    var marketInfo3 = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+                    //排除市场备库订单信息
+                    financedata = financedata.Except(marketInfo3).ToList();
+                    //筛选样品信息
+                    var samples2 = financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0")).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    //排除样品信息
+                    financedata = financedata.Except(samples2).ToList();
+                    //筛选配件
+                    var assemble1 = financedata.Where(c => c.tc_cxc02.Contains("配件")).ToList();
+                    //排除配件
+                    financedata = financedata.Except(assemble1).ToList();
+                    //筛选销售订单信息
+                    var sales = financedata.Except(financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0"))).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    sales.ForEach(c => c.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(sales, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                case "其他":
+                    //排除厂外仓记录
+                    financedata = financedata.Except(outsideWS).ToList();
+                    //科目140501在排除厂外仓后筛选市场备库订单信息
+                    var marketInfo4 = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+                    //排除市场备库订单信息
+                    financedata = financedata.Except(marketInfo4).ToList();
+                    //筛选样品信息
+                    var samples3 = financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0")).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    //排除样品信息
+                    financedata = financedata.Except(samples3).ToList();
+                    //筛选配件
+                    var assemble2 = financedata.Where(c => c.tc_cxc02.Contains("配件")).ToList();
+                    //排除配件
+                    financedata = financedata.Except(assemble2).ToList();
+                    //筛选销售订单信息
+                    var sales2 = financedata.Except(financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0"))).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+                    //排除销售订单信息
+                    financedata = financedata.Except(sales2).ToList();
+                    financedata.ForEach(c => c.Classification = outputexcelfile);
+                    filecontent = ExcelExportHelper.ExportExcel(financedata, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+                #endregion
+
+             #region 在制品类
+                case "在制品类":
+                    var result5 = CommonERPDB.ERP_Work_in_process(inputdate, enddate);
+                    result5.ForEach(c =>
+                    {
+                        if(c.sfbud01.Contains("-J") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-K0"))
+                        {
+                            c.Classification = "在制市场备库订单";
+                        }
+                        else
+                        {
+                            c.Classification = "在制销售订单";
+                        }
+                    });
+                    filecontent = ExcelExportHelper.ExportExcel(result5, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_work_in_process);
+                    break;
+                case "在制市场备库订单":
+                    var work_in_process1 = CommonERPDB.ERP_Work_in_process(inputdate, enddate).Where(c => c.sfbud01.Contains("-J") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-K0")).ToList();
+                    filecontent = ExcelExportHelper.ExportExcel(work_in_process1, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_work_in_process);
+                    break;
+                case "在制销售订单":
+                    var work_in_process = CommonERPDB.ERP_Work_in_process(inputdate, enddate);
+                    var work_in_process2 = work_in_process.Except(work_in_process.Where(c => c.sfbud01.Contains("-J") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-K0"))).ToList();
+                    filecontent = ExcelExportHelper.ExportExcel(work_in_process2, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_work_in_process);
+                    break;
+                #endregion
+
+             #region 原材料
+                //MC表发料记录表
+                case "MC表发料记录表":
+                    filecontent = ExcelExportHelper.ExportExcel(raw_material, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_raw_material_MC);
+                    break;
+                #region case "原材料类":
+                case "原材料类":
+                    List<cxcr006_raw_material> result6 = new List<cxcr006_raw_material>();
+                    var financedata_Long = CXCR_ConvertType(financealldata.Where(c=>c.AccountingSubject!=140501).ToList());
+                    //1.把MC未发料表分成KRMJ和非KRMJ两组记录
+                    //2.按物料号求和KRMJ和非KRMJ两组记录
+                    //3.用财务financedata-MC未发料两组记录数量（按时间段期减），剩余>0部分转入无订单需求(f增加Classification为"无订单需求(原材料)")，减去部分的MC未发料也增加Classififcationo为"备库订单(原材料)"和"销售订单(原材料)".
+                    //1.KRMJ  b
+                    var raw_material_b = raw_material.Where(c =>c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).ToList();
+                    //2.分组求和 b
+                    var raw_material_b_sum_list = raw_material_b.GroupBy(c => c.sfa03).Select(g => (new { materinanumber = g.FirstOrDefault().sfa03, unissue_sum = g.Sum(item => item.sfa05_sfa06) })).ToList();
+                    //1.非KRMJ  c
+                    var raw_material_c = raw_material.Except(raw_material_b).ToList();
+                    //2.求和分组  c
+                    var raw_material_c_sum_list = raw_material_c.GroupBy(c => c.sfa03).Select(g => (new { materinanumber = g.FirstOrDefault().sfa03, unissue_sum = g.Sum(item => item.sfa05_sfa06) })).ToList();
+                    //3.运算
+                    foreach (var finance_record in financedata_Long)
+                    {
+                        double price = finance_record.tc_cxc06 / finance_record.tc_cxc04;//计算单价
+                        Dictionary<int, double> a0_dictionary = new Dictionary<int, double>{ { 0, finance_record.tc_cxc04 },{1, finance_record.tc_cxc07 }, {2, finance_record.tc_cxc08 }, {3, finance_record.tc_cxc09 },{4, finance_record.tc_cxc10 }, {5, finance_record.tc_cxc11 }, {6, finance_record.tc_cxc12 },{7, finance_record.tc_cxc13 }, {8, finance_record.tc_cxc14 } };
+                        Dictionary<int, double> a1_dictionary = new Dictionary<int, double>();
+                        Dictionary<int, double> a_dictionary = new Dictionary<int, double>();
+                        Dictionary<int, double> b_dictionary = new Dictionary<int, double>();
+                        Dictionary<int, double> c_dictionary = new Dictionary<int, double>();
+
+                        #region 条号找备库订单求和记录
+                        var mc_b_sum_record = raw_material_b_sum_list.Where(c => c.materinanumber == finance_record.tc_cxc01).ToList();
+                        if (mc_b_sum_record.Count() > 0)
+                        {
+                            var sum = mc_b_sum_record.FirstOrDefault().unissue_sum > a0_dictionary[0] ? a0_dictionary[0] : mc_b_sum_record.FirstOrDefault().unissue_sum;//求和>结存?结存：求和
+                            b_dictionary.Add(0, sum);
+                            a1_dictionary.Add(0,a0_dictionary[0] - sum);
+                            for (int i = 8; i > 0; i--)
+                            {
+                                if (a0_dictionary[i] == 0)
+                                {
+                                    b_dictionary.Add(i, 0);
+                                    a1_dictionary.Add(i,0);
+                                }
+                                else if (sum >= a0_dictionary[i])
+                                {
+                                    b_dictionary.Add(i,a0_dictionary[i]);
+                                    a1_dictionary.Add(i, 0);
+                                    sum = sum - a0_dictionary[i];
+                                }
+                                else
+                                {
+                                    b_dictionary.Add( i,sum);
+                                    a1_dictionary.Add(i,a0_dictionary[i] - sum);
+                                    sum = 0;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach(var item in a0_dictionary)
+                            {
+                                a1_dictionary.Add(item.Key,item.Value);
+                            }
+                        }
+                        #endregion
+
+                        #region 条号找销售订单求和记录
+                        var mc_c_sum_record = raw_material_c_sum_list.Where(c => c.materinanumber == finance_record.tc_cxc01).ToList();
+                        if (mc_c_sum_record.Count() > 0)
+                        {
+                            var sum = mc_c_sum_record.FirstOrDefault().unissue_sum > a1_dictionary[0] ? a1_dictionary[0] : mc_c_sum_record.FirstOrDefault().unissue_sum;//求和>结存?结存：求和
+                            c_dictionary.Add(0,sum);
+                            a_dictionary.Add(0,a1_dictionary[0] - sum);
+                            for (int i = 8; i > 0; i--)
+                            {
+                                if (a1_dictionary[i] == 0)
+                                {
+                                    c_dictionary.Add(i,0);
+                                    a_dictionary.Add(i,0);
+                                }
+                                else if (sum >= a1_dictionary[i])
+                                {
+                                    c_dictionary.Add(i,a1_dictionary[i]);
+                                    a_dictionary.Add(i, 0);
+                                    sum = sum - a1_dictionary[i];
+                                }
+                                else
+                                {
+                                    c_dictionary.Add(i,sum);
+                                    a_dictionary.Add(i,a1_dictionary[i] - sum);
+                                    sum = 0;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach (var item in a1_dictionary)
+                            {
+                                a_dictionary.Add(item.Key, item.Value);
+                            }
+                        }
+                        #endregion
+
+                        #region 重建记录
+                        //b_array
+                        double b0value = 0;
+                        b_dictionary.TryGetValue(0,out b0value);
+                        if (b0value > 0)
+                        {
+                            var finance_record_b = CXCR_ConvertTypeSingal(finance_record);
+                            finance_record_b.tc_cxc04 = b_dictionary[0];
+                            finance_record_b.tc_cxc06 = b_dictionary[0] * price;
+                            finance_record_b.tc_cxc07 = b_dictionary[1];
+                            finance_record_b.tc_cxc08 = b_dictionary[2];
+                            finance_record_b.tc_cxc09 = b_dictionary[3];
+                            finance_record_b.tc_cxc10 = b_dictionary[4];
+                            finance_record_b.tc_cxc11 = b_dictionary[5];
+                            finance_record_b.tc_cxc12 = b_dictionary[6];
+                            finance_record_b.tc_cxc13 = b_dictionary[7];
+                            finance_record_b.tc_cxc14 = b_dictionary[8];
+                            finance_record_b.sfa05_sfa06 = b_dictionary[0];
+                            finance_record_b.sfa05 = raw_material_b.Where(c => c.sfa03 == finance_record.tc_cxc01).Sum(c => c.sfa05);
+                            finance_record_b.sfa06 = raw_material_b.Where(c => c.sfa03 == finance_record.tc_cxc01).Sum(c => c.sfa06);
+                            finance_record_b.Classification = "备库订单(原材料)";
+                            result6.Add(finance_record_b);
+                        }
+                        //c_array
+                        double c0value = 0;
+                        c_dictionary.TryGetValue(0, out c0value);
+                        if (c0value > 0)
+                        {
+                            var finance_record_c = CXCR_ConvertTypeSingal(finance_record);
+                            finance_record_c.tc_cxc04 = c_dictionary[0];
+                            finance_record_c.tc_cxc06 = c_dictionary[0] * price;
+                            finance_record_c.tc_cxc07 = c_dictionary[1];
+                            finance_record_c.tc_cxc08 = c_dictionary[2];
+                            finance_record_c.tc_cxc09 = c_dictionary[3];
+                            finance_record_c.tc_cxc10 = c_dictionary[4];
+                            finance_record_c.tc_cxc11 = c_dictionary[5];
+                            finance_record_c.tc_cxc12 = c_dictionary[6];
+                            finance_record_c.tc_cxc13 = c_dictionary[7];
+                            finance_record_c.tc_cxc14 = c_dictionary[8];
+                            finance_record_c.sfa05 = raw_material_c.Where(c=>c.sfa03== finance_record.tc_cxc01).Sum(c => c.sfa05);
+                            finance_record_c.sfa06 = raw_material_c.Where(c => c.sfa03 == finance_record.tc_cxc01).Sum(c => c.sfa06);
+                            finance_record_c.sfa05_sfa06 = c_dictionary[0];
+                            finance_record_c.Classification = "销售订单(原材料)";
+                            result6.Add(finance_record_c);
+                        }
+                        //a_array
+                        if (b0value > 0 || c0value > 0)
+                        {
+                            if(a_dictionary[0]>0)
+                            {
+                                var finance_record_d = CXCR_ConvertTypeSingal(finance_record);
+                                finance_record_d.tc_cxc04 = a_dictionary[0];
+                                finance_record_d.tc_cxc06 = a_dictionary[0] * price;
+                                finance_record_d.tc_cxc07 = a_dictionary[1];
+                                finance_record_d.tc_cxc08 = a_dictionary[2];
+                                finance_record_d.tc_cxc09 = a_dictionary[3];
+                                finance_record_d.tc_cxc10 = a_dictionary[4];
+                                finance_record_d.tc_cxc11 = a_dictionary[5];
+                                finance_record_d.tc_cxc12 = a_dictionary[6];
+                                finance_record_d.tc_cxc13 = a_dictionary[7];
+                                finance_record_d.tc_cxc14 = a_dictionary[8];
+                                finance_record_d.sfa05_sfa06 = a_dictionary[0];
+                                finance_record_d.Classification = "无订单需求(原材料)";
+                                result6.Add(finance_record_d);
+                            }
+                            #region 用于检验数据的原始记录
+                            //finance_record.Classification = "原始记录";
+                            //finance_record.sfa05 = raw_material.Where(c=>c.sfa03==finance_record.tc_cxc01).Sum(c => c.sfa05);
+                            //finance_record.sfa06 = raw_material.Where(c => c.sfa03 == finance_record.tc_cxc01).Sum(c => c.sfa06);
+                            //finance_record.sfa05_sfa06 = raw_material.Where(c => c.sfa03 == finance_record.tc_cxc01).Sum(c => c.sfa05_sfa06);
+                            //result6.Add(finance_record);
+                            #endregion
+                        }
+                        else
+                        {
+                            finance_record.Classification = "无订单需求(原材料)";
+                            result6.Add(finance_record);
+                        }
+                        #endregion
+
+                    }
+                    filecontent = ExcelExportHelper.ExportExcel(result6, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_raw_material);
+                    break;
+                #endregion
+
+                #region 备库订单(原材料)""销售订单(原材料)""无订单需求(原材料)"
+                case "备库订单(原材料)":
+                    //上表转长类型
+                    List<cxcr006_raw_material> financedata_raw_material_Long0 = new List<cxcr006_raw_material>();
+                    List<cxcr006_raw_material> financedata_raw_material_Long_ExceptbySum = new List<cxcr006_raw_material>();
+                    financedata_raw_material_Long0 = CXCR_ConvertType(financedata_raw_material);
+                    //MC发料表（排除未发料为0的记录）
+                    var mc_unissuedata = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c => c.sfa05_sfa06 != 0).ToList();
+                    //1.MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<string>
+                    var mc_unissuedata_K_RM_J_material_number_list = mc_unissuedata.Where(c => c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).Select(c => c.sfa03).Distinct().ToList();
+                    var mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03 = mc_unissuedata.Where(c => mc_unissuedata_K_RM_J_material_number_list.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+                    //MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+                    var financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list = financedata_raw_material_Long0.Where(c => mc_unissuedata_K_RM_J_material_number_list.Contains(c.tc_cxc01)).ToList();
+                    //追加未发料之和
+                    foreach (var item in financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list)
+                    {
+                        var record_add = mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                        if (record_add != null)
+                        {
+                            item.sfb01 = record_add.sfb01;
+                            item.sfbud01 = record_add.sfbud01;
+                            item.sfb81 = record_add.sfb81;
+                            item.sfa12 = record_add.sfa12;
+                            item.sfa05 = record_add.sfa05;
+                            item.sfa06 = record_add.sfa06;
+                            item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                            //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                            if (item.tc_cxc04 > item.sfa05_sfa06)
+                            {
+                                //no_order_record无订单需求
+                                cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                                {
+                                    tc_cxc01 = item.tc_cxc01,
+                                    tc_cxc02 = item.tc_cxc02,
+                                    tc_cxc03 = item.tc_cxc03,
+                                    area = item.area,
+                                    tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                                    tc_cxc05 = item.tc_cxc05,
+                                    tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                                    tc_cxc07 = 0,
+                                    tc_cxc08 = 0,
+                                    tc_cxc09 = 0,
+                                    tc_cxc10 = 0,
+                                    tc_cxc11 = 0,
+                                    tc_cxc12 = 0,
+                                    tc_cxc13 = 0,
+                                    tc_cxc14 = 0,
+                                    AccountingSubject = item.AccountingSubject,
+                                    WarehouseNumber = item.WarehouseNumber,
+                                    sfb01 = item.sfb01,
+                                    sfbud01 = item.sfbud01,
+                                    sfb81 = item.sfb81,
+                                    sfa12 = item.sfa12,
+                                    sfa05 = 0,
+                                    sfa06 = 0,
+                                    sfa05_sfa06 = 0
+                                };
+                                double nu_send = item.sfa05_sfa06;
+                                double endjine = item.tc_cxc06;
+                                item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                                item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                                double item_tc_cxc04 = item.tc_cxc04;
+                                if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14;
+                                        item.tc_cxc14 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                        item.tc_cxc14 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13;
+                                        item.tc_cxc13 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                        item.tc_cxc13 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12;
+                                        item.tc_cxc12 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                        item.tc_cxc12 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11;
+                                        item.tc_cxc11 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                        item.tc_cxc11 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10;
+                                        item.tc_cxc10 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                        item.tc_cxc10 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09;
+                                        item.tc_cxc09 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                        item.tc_cxc09 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08;
+                                        item.tc_cxc08 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                        item.tc_cxc08 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07;
+                                        item.tc_cxc07 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                        item.tc_cxc07 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                financedata_raw_material_Long_ExceptbySum.Add(no_order_record);
+                            }
+                        }
+                    }
+                    financedata_raw_material_Long_ExceptbySum.ForEach(c => c.Classification = "无订单需求(原材料)");
+                    financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.ForEach(c => c.Classification = "备库订单(原材料)");
+                    financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.AddRange(financedata_raw_material_Long_ExceptbySum);
+                    if (financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list == null)
+                    {
+                        cxcr006_raw_material newrecord = new cxcr006_raw_material();
+                        newrecord.tc_cxc01 = "无记录";
+                        financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Add(newrecord);
+                    }
+                    filecontent = ExcelExportHelper.ExportExcel(financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_raw_material);
+                    break;
+                case "销售订单(原材料)":
+                    //2.MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<string>
+                    //MC发料表（排除未发料为0的记录）
+                    List<cxcr006_raw_material> financedata_raw_material_Long1 = new List<cxcr006_raw_material>();
+                    List<cxcr006_raw_material> financedata_raw_material_Long_ExceptbySum1 = new List<cxcr006_raw_material>();
+                    financedata_raw_material_Long1 = CXCR_ConvertType(financedata_raw_material);
+                    var mc_unissuedata1 = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c => c.sfa05_sfa06 != 0).ToList();
+                    var mc_unissuedata_K_RM_J_material_number_list1 = mc_unissuedata1.Where(c => c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).Select(c => c.sfa03).Distinct().ToList();
+                    var mc_unissuedata_Except_K_RM_J_material_number_list = mc_unissuedata1.Select(c => c.sfa03).Distinct().Except(mc_unissuedata_K_RM_J_material_number_list1).ToList();
+                    var mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03 = mc_unissuedata1.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+                    //MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+                    var financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list = financedata_raw_material_Long1.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list.Contains(c.tc_cxc01)).ToList();
+                    //追加未发料之和
+                    foreach (var item in financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list)
+                    {
+                        var record_add = mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                        if (record_add != null)
+                        {
+                            item.sfb01 = record_add.sfb01;
+                            item.sfbud01 = record_add.sfbud01;
+                            item.sfb81 = record_add.sfb81;
+                            item.sfa12 = record_add.sfa12;
+                            item.sfa05 = record_add.sfa05;
+                            item.sfa06 = record_add.sfa06;
+                            item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                            //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                            if (item.tc_cxc04 > item.sfa05_sfa06)
+                            {
+                                //no_order_record无订单需求
+                                cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                                {
+                                    tc_cxc01 = item.tc_cxc01,
+                                    tc_cxc02 = item.tc_cxc02,
+                                    tc_cxc03 = item.tc_cxc03,
+                                    area = item.area,
+                                    tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                                    tc_cxc05 = item.tc_cxc05,
+                                    tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                                    tc_cxc07 = 0,
+                                    tc_cxc08 = 0,
+                                    tc_cxc09 = 0,
+                                    tc_cxc10 = 0,
+                                    tc_cxc11 = 0,
+                                    tc_cxc12 = 0,
+                                    tc_cxc13 = 0,
+                                    tc_cxc14 = 0,
+                                    AccountingSubject = item.AccountingSubject,
+                                    WarehouseNumber = item.WarehouseNumber,
+                                    sfb01 = item.sfb01,
+                                    sfbud01 = item.sfbud01,
+                                    sfb81 = item.sfb81,
+                                    sfa12 = item.sfa12,
+                                    sfa05 = 0,
+                                    sfa06 = 0,
+                                    sfa05_sfa06 = 0
+                                };
+                                double nu_send = item.sfa05_sfa06;
+                                double endjine = item.tc_cxc06;
+                                item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                                item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                                double item_tc_cxc04 = item.tc_cxc04;
+                                if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14;
+                                        item.tc_cxc14 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                        item.tc_cxc14 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13;
+                                        item.tc_cxc13 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                        item.tc_cxc13 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12;
+                                        item.tc_cxc12 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                        item.tc_cxc12 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11;
+                                        item.tc_cxc11 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                        item.tc_cxc11 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10;
+                                        item.tc_cxc10 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                        item.tc_cxc10 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09;
+                                        item.tc_cxc09 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                        item.tc_cxc09 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08;
+                                        item.tc_cxc08 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                        item.tc_cxc08 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07;
+                                        item.tc_cxc07 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                        item.tc_cxc07 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                financedata_raw_material_Long_ExceptbySum1.Add(no_order_record);
+                            }
+                        }
+                    }
+                    financedata_raw_material_Long_ExceptbySum1.ForEach(c => c.Classification = "无订单需求(原材料)");
+                    financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.ForEach(c => c.Classification = "销售订单(原材料)");
+                    financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.AddRange(financedata_raw_material_Long_ExceptbySum1);
+                    if (financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list==null)
+                    {
+                        cxcr006_raw_material newrecord = new cxcr006_raw_material();
+                        newrecord.tc_cxc01 = "无记录";
+                        financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Add(newrecord);
+                    }
+                    filecontent = ExcelExportHelper.ExportExcel(financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_raw_material);
+                    break;
+                case "无订单需求(原材料)":
+                    // 财务上月库存结存明细表排除140501科目以外的记录：原材料 - 基本材料，原材料 - 辅助材料，半成品
+                    var financedata_raw_material2 = financealldata.Where(c => c.AccountingSubject != 140501).ToList();
+                    //上表转长类型
+                    List<cxcr006_raw_material> financedata_raw_material_Long2 = new List<cxcr006_raw_material>();
+                    List<cxcr006_raw_material> financedata_raw_material_Long_ExceptbySum2 = new List<cxcr006_raw_material>();
+                    financedata_raw_material_Long2 = CXCR_ConvertType(financedata_raw_material);
+                    //MC发料表（排除未发料为0的记录）
+                    var mc_unissuedata2 = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c => c.sfa05_sfa06 != 0).ToList();
+
+                    //1.MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<string>
+                    var mc_unissuedata_K_RM_J_material_number_list2 = mc_unissuedata2.Where(c => c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).Select(c => c.sfa03).Distinct().ToList();
+                    var mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03_2 = mc_unissuedata2.Where(c => mc_unissuedata_K_RM_J_material_number_list2.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+                    //MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+                    var financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list2 = financedata_raw_material_Long2.Where(c => mc_unissuedata_K_RM_J_material_number_list2.Contains(c.tc_cxc01)).ToList();
+                    //追加未发料之和
+                    foreach (var item in financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list2)
+                    {
+                        if (item.tc_cxc01 == "23001-0149")
+                        {
+                            string dafsa = "";
+                        }
+                        var record_add = mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03_2.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                        if (record_add != null)
+                        {
+                            item.sfa05 = record_add.sfa05;
+                            item.sfa06 = record_add.sfa06;
+                            item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                            //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                            if (item.tc_cxc04 > item.sfa05_sfa06)
+                            {
+                                //no_order_record无订单需求
+                                cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                                {
+                                    tc_cxc01 = item.tc_cxc01,
+                                    tc_cxc02 = item.tc_cxc02,
+                                    tc_cxc03 = item.tc_cxc03,
+                                    area = item.area,
+                                    tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                                    tc_cxc05 = item.tc_cxc05,
+                                    tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                                    tc_cxc07 = 0,
+                                    tc_cxc08 = 0,
+                                    tc_cxc09 = 0,
+                                    tc_cxc10 = 0,
+                                    tc_cxc11 = 0,
+                                    tc_cxc12 = 0,
+                                    tc_cxc13 = 0,
+                                    tc_cxc14 = 0,
+                                    AccountingSubject = item.AccountingSubject,
+                                    WarehouseNumber = item.WarehouseNumber,
+                                    sfb01 = item.sfb01,
+                                    sfbud01 = item.sfbud01,
+                                    sfb81 = item.sfb81,
+                                    sfa12 = item.sfa12,
+                                    sfa05 = 0,
+                                    sfa06 = 0,
+                                    sfa05_sfa06 = 0
+                                };
+                                double nu_send = item.sfa05_sfa06;
+                                double endjine = item.tc_cxc06;
+                                item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                                item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                                double item_tc_cxc04 = item.tc_cxc04;
+                                if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14;
+                                        item.tc_cxc14 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                        item.tc_cxc14 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13;
+                                        item.tc_cxc13 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                        item.tc_cxc13 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12;
+                                        item.tc_cxc12 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                        item.tc_cxc12 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11;
+                                        item.tc_cxc11 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                        item.tc_cxc11 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10;
+                                        item.tc_cxc10 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                        item.tc_cxc10 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09;
+                                        item.tc_cxc09 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                        item.tc_cxc09 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08;
+                                        item.tc_cxc08 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                        item.tc_cxc08 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07;
+                                        item.tc_cxc07 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                        item.tc_cxc07 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                financedata_raw_material_Long_ExceptbySum2.Add(no_order_record);
+                            }
+                        }
+                    }
+
+                    //2.MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<string>
+                    var mc_unissuedata_Except_K_RM_J_material_number_list2 = mc_unissuedata2.Select(c => c.sfa03).Distinct().Except(mc_unissuedata_K_RM_J_material_number_list2).ToList();
+                    var mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03_2 = mc_unissuedata2.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list2.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+                    //MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+                    var financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list2 = financedata_raw_material_Long2.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list2.Contains(c.tc_cxc01)).ToList();
+                    //追加未发料之和
+                    foreach (var item in financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list2)
+                    {
+                        var record_add = mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03_2.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                        if (record_add != null)
+                        {
+                            item.sfa05 = record_add.sfa05;
+                            item.sfa06 = record_add.sfa06;
+                            item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                            //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                            if (item.tc_cxc04 > item.sfa05_sfa06)
+                            {
+                                //no_order_record无订单需求
+                                cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                                {
+                                    tc_cxc01 = item.tc_cxc01,
+                                    tc_cxc02 = item.tc_cxc02,
+                                    tc_cxc03 = item.tc_cxc03,
+                                    area = item.area,
+                                    tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                                    tc_cxc05 = item.tc_cxc05,
+                                    tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                                    tc_cxc07 = 0,
+                                    tc_cxc08 = 0,
+                                    tc_cxc09 = 0,
+                                    tc_cxc10 = 0,
+                                    tc_cxc11 = 0,
+                                    tc_cxc12 = 0,
+                                    tc_cxc13 = 0,
+                                    tc_cxc14 = 0,
+                                    AccountingSubject = item.AccountingSubject,
+                                    WarehouseNumber = item.WarehouseNumber,
+                                    sfb01 = item.sfb01,
+                                    sfbud01 = item.sfbud01,
+                                    sfb81 = item.sfb81,
+                                    sfa12 = item.sfa12,
+                                    sfa05 = 0,
+                                    sfa06 = 0,
+                                    sfa05_sfa06 = 0
+                                };
+                                double nu_send = item.sfa05_sfa06;
+                                double endjine = item.tc_cxc06;
+                                item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                                item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                                double item_tc_cxc04 = item.tc_cxc04;
+                                if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14;
+                                        item.tc_cxc14 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                        item.tc_cxc14 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13;
+                                        item.tc_cxc13 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                        item.tc_cxc13 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12;
+                                        item.tc_cxc12 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                        item.tc_cxc12 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11;
+                                        item.tc_cxc11 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                        item.tc_cxc11 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10;
+                                        item.tc_cxc10 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                        item.tc_cxc10 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09;
+                                        item.tc_cxc09 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                        item.tc_cxc09 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08;
+                                        item.tc_cxc08 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                        item.tc_cxc08 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                                {
+                                    if (item_tc_cxc04 == 0)
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07;
+                                        item.tc_cxc07 = 0;
+                                    }
+                                    else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                                    {
+                                        item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                                    }
+                                    else
+                                    {
+                                        no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                        item.tc_cxc07 = item_tc_cxc04;
+                                        item_tc_cxc04 = 0;
+                                    }
+                                }
+                                financedata_raw_material_Long_ExceptbySum2.Add(no_order_record);
+                            }
+                        }
+                    }
+                    //本月结存数<=未发料之和，按本月结存数统计
+
+                    //3.MC发料表（排除未发料为0的记录）无订单需求 List<cxcr006_raw_material>
+                    var exceptlist = financedata_raw_material_Long2.Where(c => mc_unissuedata2.Select(d => d.sfa03).Distinct().ToList().Contains(c.sfbud01)).ToList();
+                    var financedata_raw_material_Long_Others = financedata_raw_material_Long2.Except(exceptlist).ToList();
+                    financedata_raw_material_Long_Others.ForEach(c => c.Classification = "无订单需求(原材料)");
+
+                    //追加1.备库订单与2.销售订单以外的物料清单
+                    financedata_raw_material_Long_ExceptbySum2.ForEach(c => c.Classification = "无订单需求(原材料)(分离后剩余数)");
+                    financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list2.ForEach(c => c.Classification = "备库订单(原材料)000");
+                    financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list2.ForEach(c => c.Classification = "销售订单(原材料)000");
+                    financedata_raw_material_Long_Others.AddRange(financedata_raw_material_Long_ExceptbySum2);
+                    financedata_raw_material_Long_Others.AddRange(financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list2);
+                    financedata_raw_material_Long_Others.AddRange(financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list2);
+
+                    filecontent = ExcelExportHelper.ExportExcel(financedata_raw_material_Long_Others, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）", false, columns_raw_material);
+                    break;
+                #endregion
+
+             #endregion
+
+                default:
+                    re = "整个财务结存表";
+                    filecontent = ExcelExportHelper.ExportExcel(financealldata,  re + "(" + DateTime.Now.ToString("D") + "）", false, columns);
+                    break;
+            }
+            return File(filecontent, ExcelExportHelper.ExcelContentType, outputexcelfile + "(" + DateTime.Now.ToString("D") + "）.xlsx");
+        }
+
+        //"备库订单(原材料)"Case方法
+        public List<cxcr006_raw_material> Raw_SpareOrder(List<cxcr006> financedata_raw_material, DateTime inputdate, DateTime enddate)
+        {
+
+            ////财务上月库存结存明细表排除140501科目以外的记录：原材料-基本材料，原材料-辅助材料，半成品
+            //var financedata_raw_material = financealldata.Where(c => c.AccountingSubject != 140501).ToList();
+            //上表转长类型
+            List<cxcr006_raw_material> raw_material_Long = new List<cxcr006_raw_material>();
+            List<cxcr006_raw_material> ExceptbySum = new List<cxcr006_raw_material>();
+            raw_material_Long = CXCR_ConvertType(financedata_raw_material);
+            //MC发料表（排除未发料为0的记录）
+            var mc_unissuedata = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c => c.sfa05_sfa06 != 0).ToList();
+            //1.MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<string>
+            var mc_unissuedata_K_RM_J_list = mc_unissuedata.Where(c => c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).Select(c => c.sfa03).Distinct().ToList();
+            //MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+            var raw_material_by_mc_unissuedata_K_RM_J_list = raw_material_Long.Where(c => mc_unissuedata_K_RM_J_list.Contains(c.tc_cxc01)).ToList();
+            var mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03 = mc_unissuedata.Where(c => mc_unissuedata_K_RM_J_list.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+            //追加未发料之和
+            foreach (var item in raw_material_by_mc_unissuedata_K_RM_J_list)
+            {
+                var record_add = mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                if (record_add != null)
+                {
+                    item.sfb01 = record_add.sfb01;
+                    item.sfbud01 = record_add.sfbud01;
+                    item.sfb81 = record_add.sfb81;
+                    item.sfa12 = record_add.sfa12;
+                    item.sfa05 = record_add.sfa05;
+                    item.sfa06 = record_add.sfa06;
+                    item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                    //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                    if (item.tc_cxc04 > item.sfa05_sfa06)
+                    {
+                        //no_order_record无订单需求
+                        cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                        {
+                            tc_cxc01 = item.tc_cxc01,
+                            tc_cxc02 = item.tc_cxc02,
+                            tc_cxc03 = item.tc_cxc03,
+                            area = item.area,
+                            tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                            tc_cxc05 = item.tc_cxc05,
+                            tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                            tc_cxc07 = 0,
+                            tc_cxc08 = 0,
+                            tc_cxc09 = 0,
+                            tc_cxc10 = 0,
+                            tc_cxc11 = 0,
+                            tc_cxc12 = 0,
+                            tc_cxc13 = 0,
+                            tc_cxc14 = 0,
+                            AccountingSubject = item.AccountingSubject,
+                            WarehouseNumber = item.WarehouseNumber,
+                            sfb01 = item.sfb01,
+                            sfbud01 = item.sfbud01,
+                            sfb81 = item.sfb81,
+                            sfa12 = item.sfa12,
+                            sfa05 = 0,
+                            sfa06 = 0,
+                            sfa05_sfa06 = 0
+                        };
+                        double nu_send = item.sfa05_sfa06;
+                        double endjine = item.tc_cxc06;
+                        item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                        item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                        double item_tc_cxc04 = item.tc_cxc04;
+                        if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14;
+                                item.tc_cxc14 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                item.tc_cxc14 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13;
+                                item.tc_cxc13 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                item.tc_cxc13 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12;
+                                item.tc_cxc12 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                item.tc_cxc12 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11;
+                                item.tc_cxc11 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                item.tc_cxc11 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10;
+                                item.tc_cxc10 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                item.tc_cxc10 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09;
+                                item.tc_cxc09 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                item.tc_cxc09 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08;
+                                item.tc_cxc08 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                item.tc_cxc08 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07;
+                                item.tc_cxc07 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                item.tc_cxc07 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        ExceptbySum.Add(no_order_record);
+                    }
+                }
+            }
+            ExceptbySum.ForEach(c => c.Classification = "无订单需求(原材料)");
+            raw_material_by_mc_unissuedata_K_RM_J_list.ForEach(c => c.Classification = "备库订单(原材料)");
+            raw_material_by_mc_unissuedata_K_RM_J_list.AddRange(ExceptbySum);
+            return raw_material_by_mc_unissuedata_K_RM_J_list;
+        }
+
+        //"销售订单(原材料)"Case方法
+        public List<cxcr006_raw_material> Raw_SaleOrder(List<cxcr006> financealldata, DateTime inputdate, DateTime enddate)
+        {
+            List<cxcr006_raw_material> financedata_raw_material_Long1 = new List<cxcr006_raw_material>();
+            List<cxcr006_raw_material> financedata_raw_material_Long_ExceptbySum = new List<cxcr006_raw_material>();
+            var mc_unissuedata1 = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c => c.sfa05_sfa06 != 0).ToList();
+            var mc_unissuedata_K_RM_J_material_number_list1 = mc_unissuedata1.Where(c => c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).Select(c => c.sfa03).Distinct().ToList();
+            var mc_unissuedata_Except_K_RM_J_material_number_list = mc_unissuedata1.Select(c => c.sfa03).Distinct().Except(mc_unissuedata_K_RM_J_material_number_list1).ToList();
+            var mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03 = mc_unissuedata1.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+            //MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+            var financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list = financedata_raw_material_Long1.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list.Contains(c.tc_cxc01)).ToList();
+            //追加未发料之和
+            foreach (var item in financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list)
+            {
+                var record_add = mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                if (record_add != null)
+                {
+                    item.sfb01 = record_add.sfb01;
+                    item.sfbud01 = record_add.sfbud01;
+                    item.sfb81 = record_add.sfb81;
+                    item.sfa12 = record_add.sfa12;
+                    item.sfa05 = record_add.sfa05;
+                    item.sfa06 = record_add.sfa06;
+                    item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                    //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                    if (item.tc_cxc04 > item.sfa05_sfa06)
+                    {
+                        //no_order_record无订单需求
+                        cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                        {
+                            tc_cxc01 = item.tc_cxc01,
+                            tc_cxc02 = item.tc_cxc02,
+                            tc_cxc03 = item.tc_cxc03,
+                            area = item.area,
+                            tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                            tc_cxc05 = item.tc_cxc05,
+                            tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                            tc_cxc07 = 0,
+                            tc_cxc08 = 0,
+                            tc_cxc09 = 0,
+                            tc_cxc10 = 0,
+                            tc_cxc11 = 0,
+                            tc_cxc12 = 0,
+                            tc_cxc13 = 0,
+                            tc_cxc14 = 0,
+                            AccountingSubject = item.AccountingSubject,
+                            WarehouseNumber = item.WarehouseNumber,
+                            sfb01 = item.sfb01,
+                            sfbud01 = item.sfbud01,
+                            sfb81 = item.sfb81,
+                            sfa12 = item.sfa12,
+                            sfa05 = 0,
+                            sfa06 = 0,
+                            sfa05_sfa06 = 0
+                        };
+                        double nu_send = item.sfa05_sfa06;
+                        double endjine = item.tc_cxc06;
+                        item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                        item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                        double item_tc_cxc04 = item.tc_cxc04;
+                        if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14;
+                                item.tc_cxc14 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                item.tc_cxc14 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13;
+                                item.tc_cxc13 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                item.tc_cxc13 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12;
+                                item.tc_cxc12 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                item.tc_cxc12 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11;
+                                item.tc_cxc11 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                item.tc_cxc11 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10;
+                                item.tc_cxc10 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                item.tc_cxc10 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09;
+                                item.tc_cxc09 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                item.tc_cxc09 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08;
+                                item.tc_cxc08 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                item.tc_cxc08 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07;
+                                item.tc_cxc07 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                item.tc_cxc07 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        financedata_raw_material_Long_ExceptbySum.Add(no_order_record);
+                    }
+                }
+            }
+            financedata_raw_material_Long_ExceptbySum.ForEach(c => c.Classification = "无订单需求(原材料)");
+            financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.ForEach(c => c.Classification = "销售订单(原材料)");
+            financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.AddRange(financedata_raw_material_Long_ExceptbySum);
+            return financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list;
+        }
+
+        static List<cxcr006_raw_material> CXCR_ConvertType(List<cxcr006> inputlist)
+        {
+            List<cxcr006_raw_material> result_list = new List<cxcr006_raw_material>();
+            foreach(var item in inputlist)
+            {
+                cxcr006_raw_material record = new cxcr006_raw_material();
+                record.tc_cxc01 = item.tc_cxc01;
+                record.tc_cxc02 = item.tc_cxc02;
+                record.tc_cxc03 = item.tc_cxc03;
+                record.area = item.area;
+                record.tc_cxc04 = item.tc_cxc04;
+                record.tc_cxc05 = item.tc_cxc05;
+                record.tc_cxc06 = item.tc_cxc06;
+                record.tc_cxc07 = item.tc_cxc07;
+                record.tc_cxc08 = item.tc_cxc08;
+                record.tc_cxc09 = item.tc_cxc09;
+                record.tc_cxc10 = item.tc_cxc10;
+                record.tc_cxc11 = item.tc_cxc11;
+                record.tc_cxc12 = item.tc_cxc12;
+                record.tc_cxc13 = item.tc_cxc13;
+                record.tc_cxc14 = item.tc_cxc14;
+                record.AccountingSubject = item.AccountingSubject;
+                record.WarehouseNumber = item.WarehouseNumber;
+                result_list.Add(record);
+            }
+            return result_list;
+        }
+        static cxcr006_raw_material CXCR_ConvertTypeSingal(cxcr006_raw_material inputlist)
+        {
+            cxcr006_raw_material record = new cxcr006_raw_material();
+            record.tc_cxc01 = inputlist.tc_cxc01;
+            record.tc_cxc02 = inputlist.tc_cxc02;
+            record.tc_cxc03 = inputlist.tc_cxc03;
+            record.area = inputlist.area;
+            record.tc_cxc04 = inputlist.tc_cxc04;
+            record.tc_cxc05 = inputlist.tc_cxc05;
+            record.tc_cxc06 = inputlist.tc_cxc06;
+            record.tc_cxc07 = inputlist.tc_cxc07;
+            record.tc_cxc08 = inputlist.tc_cxc08;
+            record.tc_cxc09 = inputlist.tc_cxc09;
+            record.tc_cxc10 = inputlist.tc_cxc10;
+            record.tc_cxc11 = inputlist.tc_cxc11;
+            record.tc_cxc12 = inputlist.tc_cxc12;
+            record.tc_cxc13 = inputlist.tc_cxc13;
+            record.tc_cxc14 = inputlist.tc_cxc14;
+            record.AccountingSubject = inputlist.AccountingSubject;
+            record.WarehouseNumber = inputlist.WarehouseNumber;
+            return record;
+        }
+
+
+        [HttpPost]
+        public ActionResult StockAmountCalculate(DateTime inputdate, DateTime enddate,bool outputexcelfile=false)
+        {
+            //检查ERP
+            var connectERPresult = CommonERPDB.TryConnectERP();
+            if (connectERPresult != "连接正常")
+            {
+                JArray result = new JArray();//输出总结果
+                JObject testResult = new JObject();
+                testResult.Add("类别", "查询失败");
+                testResult.Add("分类明细", connectERPresult);
+                result.Add(testResult);
+                return Content(JsonConvert.SerializeObject(result));
+                //return Content("连接ERP数据库服务器失败！请检查网络或者ERP数据库服务器是否已启动。");//{"ORA-12541: TNS: 无监听程序"}
+            }
+
+            #region 成品部分
+            //按年月查出仓库编号是LCWC1，且库位编号是CWC01的记录
+            var outsiderecord = CommonERPDB.OutsideWarehouseQuery(enddate.Year,enddate.Month);
+           //开始财务上月库存结存明细表查询时间
+            DateTime queryfinancedatabegin = DateTime.Now;
+            //var test = CommonERPDB.ERP_MaterialQueryTest2();
+            //财务上月库存结存明细表查询   单价tc_cxc05
+            var financealldata = CommonERPDB.ERP_FinanceDetialsQuery();
+            var financedata = financealldata;
+            //计算财务上月库存结存明细表查询时长
+            ViewBag.queryfinancedatatimespan = DateTime.Now - queryfinancedatabegin;
+            //var dt = DataTableTool.ToDataTable(financedata); //财务上月库存结存明细表转为DataTable类型
+            ViewBag.financerecordcount = financedata.Count;//统计财务上月库存结存明细表记录条数
+            //取出财务上月库存结存明细表物料号清单
+            //List<string> tc_cxc01_list = financedata.Select(c => c.tc_cxc01).Distinct().ToList();  
+            //成品金额全部合计
+            decimal total = (decimal)financedata.Sum(c => c.tc_cxc06);
+
+            //输出成品全部明细记录
+            if(outputexcelfile==true)
+            {
+                string[] columns = { "料号", "品名", "规格", "面积", "本月结存数", "本月结存单价", "本月结存金额", "30天", "90天", "180天", "365天", "2年", "3年", "3-5年", "5年以上", "会计科目", "库位号" };
+                byte[] filecontent = ExcelExportHelper.ExportExcel(financedata, "ERP导出财务月底库存结算表" + DateTime.Now.ToString("D") + "）", false, columns);
+                return File(filecontent,ExcelExportHelper.ExcelContentType, "库存结算表（" + DateTime.Now.ToString("D") + "）.xlsx");
+            }
+
+            //List <CommonERPDB.Financedetails> financedetails_my = new List<CommonERPDB.Financedetails>();
+            JArray results = new JArray();//输出总结果
+            //科目清单
+            var kemu_list = financedata.Select(c => c.AccountingSubject).Distinct().OrderBy(c=>c).ToList();
+            JObject resultrecord = new JObject();//单行记录
+            Dictionary<int, string> dict= new Dictionary<int, string>();
+            dict.Add(140301,"原材料-基本材料");
+            dict.Add(140302,"原材料-辅助材料");
+            dict.Add(140501,"成品");
+            dict.Add(140502,"半成品");
+            foreach (var item in kemu_list)
+            {
+                resultrecord.Add("类别", "财务科目类");
+                resultrecord.Add("分类明细",dict[item]);// item==140301? "原材料-基本材料": item == 140302 ? "原材料-辅助材料" : item == 140501? "成品" : item == 140502 ? "半成品":""
+                var market1month = financedata.Where(c=>c.AccountingSubject==item).Sum(c=>(c.tc_cxc06/c.tc_cxc04)*c.tc_cxc07);
+                resultrecord.Add("1个月以内", market1month.ToString("n4"));
+
+                var market2_3month = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+                resultrecord.Add("2-3个月", market2_3month.ToString("n4"));
+
+                var market4_6month = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+                resultrecord.Add("4-6个月", market4_6month.ToString("n4"));
+
+                var market7_12month = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+                resultrecord.Add("7-12个月", market7_12month.ToString("n4"));
+
+                var market1_2year = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+                resultrecord.Add("1-2年", market1_2year.ToString("n4"));
+
+                var market2_3year = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+                resultrecord.Add("2-3年", market2_3year.ToString("n4"));
+
+                var marketr3_5year = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+                resultrecord.Add("3-5年", marketr3_5year.ToString("n4"));
+
+                var marketover5year = financedata.Where(c => c.AccountingSubject == item).Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+                resultrecord.Add("5年以上", marketover5year.ToString("n4"));
+
+                var markettotal = market1month + market2_3month + market4_6month + market7_12month + market1_2year + market2_3year + marketr3_5year + marketover5year;
+                resultrecord.Add("合计金额", markettotal.ToString("n4"));
+                resultrecord.Add("记录条数", financedata.Count(c => c.AccountingSubject == item));
+                resultrecord.Add("备注", item);
+                results.Add(resultrecord);
+                resultrecord = new JObject();
+            }
+
+            resultrecord.Add("5年以上", "全部合计");
+            resultrecord.Add("合计金额", total.ToString("n4"));
+            resultrecord.Add("记录条数", financedata.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //第一优先级应该是厂外仓，然后是备库和样品，再然后是配件订单，剩下的就是销售订单了和其他的
+            financedata = financedata.Where(c => c.AccountingSubject == 140501).ToList();
+            //成品 4.厂外仓，财务发出的厂外仓数据为依据  //财务380条，程序208条
+            var mn_list = outsiderecord.Select(c => c.imk01).ToList();
+            var temp4 = financedata.Where(c => mn_list.Contains(c.tc_cxc01)).ToList();
+            financedata = financedata.Except(temp4).ToList(); //排除厂外仓记录
+            resultrecord.Add("类别", "成品类");
+            resultrecord.Add("分类明细", "厂外仓");
+            var market1month4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", market1month4.ToString("n4"));
+            var market2_3month4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", market2_3month4.ToString("n4"));
+            var market4_6month4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", market4_6month4.ToString("n4"));
+            var market7_12month4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", market7_12month4.ToString("n4"));
+            var market1_2year4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", market1_2year4.ToString("n4"));
+            var market2_3year4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", market2_3year4.ToString("n4"));
+            var market3_5year4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", market3_5year4.ToString("n4"));
+            var marketover5year4 = temp4.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", marketover5year4.ToString("n4"));
+            var markettotal4 = market1month4 + market2_3month4 + market4_6month4 + market7_12month4 + market1_2year4 + market2_3year4 + market3_5year4 + marketover5year4;
+            resultrecord.Add("合计金额", markettotal4.ToString("n4"));
+            resultrecord.Add("记录条数", temp4.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 1.市场备库订单   //财务120条，程序115条
+            var temp1 = financedata.Where(c => c.tc_cxc03.Contains("-K0") && (c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏"))).ToList();
+            var tem1 = financedata.Where(c=>c.tc_cxc03.Split(',')[0].Contains("-K0") && ((c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")))).ToList();
+            financedata = financedata.Except(temp1).ToList();//排除市场备库订单记录
+            resultrecord.Add("类别", "成品类");
+            resultrecord.Add("分类明细", "市场备库订单");
+            var market1month1 = temp1.Sum(c=>(c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", market1month1.ToString("n4"));
+            var market2_3month1 = temp1.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", market2_3month1.ToString("n4"));
+            var market4_6month1 = temp1.Sum(c=>(c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", market4_6month1.ToString("n4"));
+            var market7_12month1 = temp1.Sum(c=>(c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", market7_12month1.ToString("n4"));
+            var market1_2year1 = temp1.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", market1_2year1.ToString("n4"));
+            var market2_3year1 = temp1.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", market2_3year1.ToString("n4"));
+            var market3_5year1 = temp1.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", market3_5year1.ToString("n4"));
+            var marketover5year1 = temp1.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", marketover5year1.ToString("n4"));
+            var markettotal1 = market1month1 + market2_3month1 + market4_6month1 + market7_12month1 + market1_2year1 + market2_3year1 + market3_5year1+ marketover5year1;
+            resultrecord.Add("合计金额", markettotal1.ToString("n4"));
+            resultrecord.Add("记录条数", temp1.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 3.样品,订单带-J、-RM、-K  //财务展会样品92，客户借样订单216条，程序405条
+            var temp3 = financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0")).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+            financedata = financedata.Except(temp3).ToList();
+            resultrecord.Add("类别", "成品类");
+            resultrecord.Add("分类明细", "样品");
+            var market1month3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", market1month3.ToString("n4"));
+            var market2_3month3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", market2_3month3.ToString("n4"));
+            var market4_6month3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", market4_6month3.ToString("n4"));
+            var market7_12month3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", market7_12month3.ToString("n4"));
+            var market1_2year3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", market1_2year3.ToString("n4"));
+            var market2_3year3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", market2_3year3.ToString("n4"));
+            var market3_5year3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", market3_5year3.ToString("n4"));
+            var marketover5year3 = temp3.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", marketover5year3.ToString("n4"));
+            var markettotal3 = market1month3 + market2_3month3 + market4_6month3 + market7_12month3 + market1_2year3 + market2_3year3 + market3_5year3 + marketover5year3;
+            resultrecord.Add("合计金额", markettotal3.ToString("n4"));
+            resultrecord.Add("记录条数", temp3.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 5.配件单，库存明细表中品名是配件的  //财务销售和配件179条，程序218条
+            var temp5 = financedata.Where(c => c.tc_cxc02.Contains("配件")).ToList();
+            financedata = financedata.Except(temp5).ToList();
+            resultrecord.Add("类别", "成品类");
+            resultrecord.Add("分类明细", "配件");
+            var market1month5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", market1month5.ToString("n4"));
+            var market2_3month5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", market2_3month5.ToString("n4"));
+            var market4_6month5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", market4_6month5.ToString("n4"));
+            var market7_12month5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", market7_12month5.ToString("n4"));
+            var market1_2year5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", market1_2year5.ToString("n4"));
+            var market2_3year5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", market2_3year5.ToString("n4"));
+            var market3_5year5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", market3_5year5.ToString("n4"));
+            var marketover5year5 = temp5.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", marketover5year5.ToString("n4"));
+            var markettotal5 = market1month5 + market2_3month5 + market4_6month5 + market7_12month5 + market1_2year5 + market2_3year5 + market3_5year5 + marketover5year5;
+            resultrecord.Add("合计金额", markettotal5.ToString("n4"));
+            resultrecord.Add("记录条数", temp5.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 2.销售订单,订单不带-J、-RM、-K  //财务销售和配件179条，程序322条
+            var temp2 = financedata.Except(financedata.Where(c => c.tc_cxc03.Contains("-J") || c.tc_cxc03.Contains("-RM") || c.tc_cxc03.Contains("-K0"))).Where(c => c.tc_cxc02.Contains("室内显示屏") || c.tc_cxc02.Contains("室外显示屏") || c.tc_cxc02.Contains("户外显示屏")).ToList();
+            financedata = financedata.Except(temp2).ToList();//排除销售订单
+            resultrecord.Add("类别", "成品类");
+            resultrecord.Add("分类明细", "销售订单");
+            var market1month2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", market1month2.ToString("n4"));
+            var market2_3month2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", market2_3month2.ToString("n4"));
+            var market4_6month2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", market4_6month2.ToString("n4"));
+            var market7_12month2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", market7_12month2.ToString("n4"));
+            var market1_2year2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", market1_2year2.ToString("n4"));
+            var market2_3year2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", market2_3year2.ToString("n4"));
+            var market3_5year2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", market3_5year2.ToString("n4"));
+            var marketover5year2 = temp2.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", marketover5year2.ToString("n4"));
+            var markettotal2 = market1month2 + market2_3month2 + market4_6month2 + market7_12month2 + market1_2year2 + market2_3year2 + market3_5year2 + marketover5year2;
+            resultrecord.Add("合计金额", markettotal2.ToString("n4"));
+            resultrecord.Add("记录条数", temp2.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //成品 6.其他
+            var temp6 = financedata;
+            resultrecord.Add("类别", "成品类");
+            resultrecord.Add("分类明细", "其他");
+            var market1month6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", market1month6.ToString("n4"));
+            var market2_3month6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", market2_3month6.ToString("n4"));
+            var market4_6month6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", market4_6month6.ToString("n4"));
+            var market7_12month6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", market7_12month6.ToString("n4"));
+            var market1_2year6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", market1_2year6.ToString("n4"));
+            var market2_3year6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", market2_3year6.ToString("n4"));
+            var market3_5year6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", market3_5year6.ToString("n4"));
+            var marketover5year6 = temp6.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", marketover5year6.ToString("n4"));
+            var markettotal6 = market1month6 + market2_3month6 + market4_6month6 + market7_12month6 + market1_2year6 + market2_3year6 + market3_5year6 + marketover5year6;
+            resultrecord.Add("合计金额", markettotal6.ToString("n4"));
+            resultrecord.Add("记录条数", temp6.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            resultrecord.Add("5年以上", "全部合计");
+            resultrecord.Add("合计金额", (markettotal1 + markettotal2 + markettotal3 + markettotal4 + markettotal5 + markettotal6).ToString("f3"));
+            resultrecord.Add("记录条数", temp1.Count+temp2.Count+temp3.Count+temp4.Count+temp5.Count+temp6.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+            #endregion
+
+
+            #region 在制品部分
+            var work_in_process = CommonERPDB.ERP_Work_in_process(inputdate, enddate);
+            //在制工单明细表中备注中订单号中带"-J""RM" “-K0”
+            var work_in_process_include = work_in_process.Where(c => c.sfbud01.Contains("-J") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-K0"));
+            //在制工单 1.市场备库订单
+            resultrecord.Add("类别", "在制品类");
+            resultrecord.Add("分类明细", "在制市场备库订单");
+            var workinprocess1month1 = work_in_process_include.Where(c=>c.durations== "1个月以内").Sum(c => c.ccg92);
+            resultrecord.Add("1个月以内", workinprocess1month1.ToString("n4"));
+            var workinprocess2_3month1 = work_in_process_include.Where(c => c.durations == "2-3个月").Sum(c => c.ccg92);
+            resultrecord.Add("2-3个月", workinprocess2_3month1.ToString("n4"));
+            var workinprocess4_6month1 = work_in_process_include.Where(c => c.durations == "4-6个月").Sum(c => c.ccg92);
+            resultrecord.Add("4-6个月", workinprocess4_6month1.ToString("n4"));
+            var workinprocess7_12month1 = work_in_process_include.Where(c => c.durations == "7-12个月").Sum(c => c.ccg92);
+            resultrecord.Add("7-12个月", workinprocess7_12month1.ToString("n4"));
+            var workinprocess1_2year1 = work_in_process_include.Where(c => c.durations == "1-2年").Sum(c => c.ccg92);
+            resultrecord.Add("1-2年", workinprocess1_2year1.ToString("n4"));
+            var workinprocess2_3year1 = work_in_process_include.Where(c => c.durations == "2-3年").Sum(c => c.ccg92);
+            resultrecord.Add("2-3年", workinprocess2_3year1.ToString("n4"));
+            var workinprocess3_5year1 = work_in_process_include.Where(c => c.durations == "3-5年").Sum(c => c.ccg92);
+            resultrecord.Add("3-5年", workinprocess3_5year1.ToString("n4"));
+            var workinprocessover5year1 = work_in_process_include.Where(c => c.durations == "5年以上").Sum(c => c.ccg92);
+            resultrecord.Add("5年以上", workinprocessover5year1.ToString("n4"));
+            var workinprocesstotal1 = workinprocess1month1 + workinprocess2_3month1 + workinprocess4_6month1 + workinprocess7_12month1 + workinprocess1_2year1 + workinprocess2_3year1 + workinprocess3_5year1 + workinprocessover5year1;
+            resultrecord.Add("合计金额", workinprocesstotal1.ToString("n4"));
+            resultrecord.Add("记录条数", work_in_process_include.Count());
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //在制工单明细表中备注中订单号中不带"-J""RM" “-K0”
+            var work_in_process_uninclude = work_in_process.Except(work_in_process_include);
+            //在制工单 2.销售订单
+            resultrecord.Add("类别", "在制品类");
+            resultrecord.Add("分类明细", "在制销售订单");
+            var workinprocess1month2 = work_in_process_uninclude.Where(c => c.durations == "1个月以内").Sum(c => c.ccg92);
+            resultrecord.Add("1个月以内", workinprocess1month2.ToString("n4"));
+            var workinprocess2_3month2 = work_in_process_uninclude.Where(c => c.durations == "2-3个月").Sum(c => c.ccg92);
+            resultrecord.Add("2-3个月", workinprocess2_3month2.ToString("n4"));
+            var workinprocess4_6month2 = work_in_process_uninclude.Where(c => c.durations == "4-6个月").Sum(c => c.ccg92);
+            resultrecord.Add("4-6个月", workinprocess4_6month2.ToString("n4"));
+            var workinprocess7_12month2 = work_in_process_uninclude.Where(c => c.durations == "7-12个月").Sum(c => c.ccg92);
+            resultrecord.Add("7-12个月", workinprocess7_12month2.ToString("n4"));
+            var workinprocess1_2year2 = work_in_process_uninclude.Where(c => c.durations == "1-2年").Sum(c => c.ccg92);
+            resultrecord.Add("1-2年", workinprocess1_2year2.ToString("n4"));
+            var workinprocess2_3year2 = work_in_process_uninclude.Where(c => c.durations == "2-3年").Sum(c => c.ccg92);
+            resultrecord.Add("2-3年", workinprocess2_3year2.ToString("n4"));
+            var workinprocess3_5year2 = work_in_process_uninclude.Where(c => c.durations == "3-5年").Sum(c => c.ccg92);
+            resultrecord.Add("3-5年", workinprocess3_5year2.ToString("n4"));
+            var workinprocessover5year2 = work_in_process_uninclude.Where(c => c.durations == "5年以上").Sum(c => c.ccg92);
+            resultrecord.Add("5年以上", workinprocessover5year2.ToString("n4"));
+            var workinprocesstotal2 = workinprocess1month2 + workinprocess2_3month2 + workinprocess4_6month2 + workinprocess7_12month2 + workinprocess1_2year2 + workinprocess2_3year2 + workinprocess3_5year2 + workinprocessover5year2;
+            resultrecord.Add("合计金额", workinprocesstotal2.ToString("n4"));
+            resultrecord.Add("记录条数", work_in_process_uninclude.Count());
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            resultrecord.Add("类别", "");
+            resultrecord.Add("分类明细", "");
+            resultrecord.Add("合计金额", (workinprocesstotal1+workinprocesstotal2).ToString("n4"));
+            resultrecord.Add("记录条数", work_in_process.Count());
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+            #endregion
+
+
+
+            //MC表发料记录表(原材料)
+            resultrecord.Add("类别", "原材料类");
+            resultrecord.Add("分类明细", "MC表发料记录表");
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+
+            #region 原材料部分
+            //财务上月库存结存明细表排除140501科目以外的记录：原材料-基本材料，原材料-辅助材料，半成品
+            var financedata_raw_material = financealldata.Where(c => c.AccountingSubject != 140501).ToList();
+            //上表转长类型
+            List<cxcr006_raw_material> financedata_raw_material_Long = new List<cxcr006_raw_material>();
+            List<cxcr006_raw_material> financedata_raw_material_Long_ExceptbySum = new List<cxcr006_raw_material>();
+            financedata_raw_material_Long = CXCR_ConvertType(financedata_raw_material);
+            //MC发料表（排除未发料为0的记录）
+            var mc_unissuedata = CommonERPDB.ERP_MC_NuIssueDetialsQuery(inputdate, enddate).Where(c=>c.sfa05_sfa06!=0).ToList();
+            //1.MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<string>
+            var mc_unissuedata_K_RM_J_material_number_list = mc_unissuedata.Where(c => c.sfbud01.Contains("-K") || c.sfbud01.Contains("RM") || c.sfbud01.Contains("-J")).Select(c => c.sfa03).Distinct().ToList();
+            var mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03 = mc_unissuedata.Where(c=> mc_unissuedata_K_RM_J_material_number_list.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s=>new csfr008 {sfa03=s.FirstOrDefault().sfa03, sfa05 =s.Sum(item=>item.sfa05),sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+            //MC发料表（排除未发料为0的记录）带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+            var financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list = financedata_raw_material_Long.Where(c => mc_unissuedata_K_RM_J_material_number_list.Contains(c.tc_cxc01)).ToList();
+            //追加未发料之和
+            foreach(var item in financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list)
+            {
+                var record_add = mc_unissuedata_K_RM_J_material_number_list_sum_by_sfa03.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                if(record_add!=null)
+                {
+                    item.sfb01 = record_add.sfb01;
+                    item.sfbud01 = record_add.sfbud01;
+                    item.sfb81 = record_add.sfb81;
+                    item.sfa12 = record_add.sfa12;
+                    item.sfa05 = record_add.sfa05;
+                    item.sfa06 = record_add.sfa06;
+                    item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                    //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                    if(item.tc_cxc04>item.sfa05_sfa06)
+                    {
+                        //no_order_record无订单需求
+                        cxcr006_raw_material no_order_record = new cxcr006_raw_material() {
+                            tc_cxc01 = item.tc_cxc01,
+                            tc_cxc02 = item.tc_cxc02,
+                            tc_cxc03 = item.tc_cxc03,
+                            area = item.area,
+                            tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                            tc_cxc05 = item.tc_cxc05,
+                            tc_cxc06 = (item.tc_cxc06/item.tc_cxc04)*(item.tc_cxc04 - item.sfa05_sfa06),
+                            tc_cxc07 = 0,
+                            tc_cxc08 = 0,
+                            tc_cxc09 = 0,
+                            tc_cxc10 = 0,
+                            tc_cxc11 = 0,
+                            tc_cxc12 = 0,
+                            tc_cxc13 = 0,
+                            tc_cxc14 = 0,
+                            AccountingSubject = item.AccountingSubject,
+                            WarehouseNumber = item.WarehouseNumber,
+                            sfb01 = item.sfb01,
+                            sfbud01 = item.sfbud01,
+                            sfb81 = item.sfb81,
+                            sfa12 = item.sfa12,
+                            sfa05 = 0,
+                            sfa06 = 0,
+                            sfa05_sfa06 = 0
+                        };  
+                        double nu_send = item.sfa05_sfa06;
+                        double endjine = item.tc_cxc06;
+                        item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                        item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                        double item_tc_cxc04 = item.tc_cxc04;
+                        if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if(item_tc_cxc04==0)
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14;
+                                item.tc_cxc14 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                item.tc_cxc14 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13;
+                                item.tc_cxc13 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                item.tc_cxc13 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12;
+                                item.tc_cxc12 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                item.tc_cxc12 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11;
+                                item.tc_cxc11 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                item.tc_cxc11 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10;
+                                item.tc_cxc10 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                item.tc_cxc10 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09;
+                                item.tc_cxc09 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                item.tc_cxc09 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08;
+                                item.tc_cxc08 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                item.tc_cxc08 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07;
+                                item.tc_cxc07 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                item.tc_cxc07 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        financedata_raw_material_Long_ExceptbySum.Add(no_order_record);
+                    }
+                }
+            }
+
+            //本月结存数<=未发料之和，按本月结存数统计
+            //原材料 1.备库订单
+            resultrecord.Add("类别", "原材料类");
+            resultrecord.Add("分类明细", "备库订单(原材料)");
+            var raw_material1month1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", raw_material1month1.ToString("n4"));
+            var raw_material2_3month1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", raw_material2_3month1.ToString("n4"));
+            var raw_material4_6month1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", raw_material4_6month1.ToString("n4"));
+            var raw_material7_12month1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", raw_material7_12month1.ToString("n4"));
+            var raw_material1_2year1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", raw_material1_2year1.ToString("n4"));
+            var raw_material2_3year1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", raw_material2_3year1.ToString("n4"));
+            var raw_material3_5year1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", raw_material3_5year1.ToString("n4"));
+            var raw_materialover5year1 = financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", raw_materialover5year1.ToString("n4"));
+            var raw_materialtotal1 = raw_material1month1 + raw_material2_3month1 + raw_material4_6month1 + raw_material7_12month1 + raw_material1_2year1 + raw_material2_3year1 + raw_material3_5year1 + raw_materialover5year1;
+            resultrecord.Add("合计金额", raw_materialtotal1.ToString("n4"));
+            resultrecord.Add("记录条数", financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+
+            //2.MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<string>
+            var mc_unissuedata_Except_K_RM_J_material_number_list = mc_unissuedata.Select(c => c.sfa03).Distinct().Except(mc_unissuedata_K_RM_J_material_number_list).ToList();
+            var mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03 = mc_unissuedata.Where(c=> mc_unissuedata_Except_K_RM_J_material_number_list.Contains(c.sfa03)).GroupBy(c => c.sfa03).Select(s => new csfr008 { sfa03 = s.FirstOrDefault().sfa03, sfa05 = s.Sum(item => item.sfa05), sfa06 = s.Sum(item => item.sfa06), sfa05_sfa06 = s.Sum(item => item.sfa05_sfa06) }).ToList();
+            //MC发料表（排除未发料为0的记录）不带-K,RM,-J的物料编号 List<cxcr006_raw_material>
+            var financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list = financedata_raw_material_Long.Where(c => mc_unissuedata_Except_K_RM_J_material_number_list.Contains(c.tc_cxc01)).ToList();
+            //追加未发料之和
+            foreach (var item in financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list)
+            {
+                var record_add = mc_unissuedata_Except_K_RM_J_material_number_list_sum_by_sfa03.Where(c => c.sfa03 == item.tc_cxc01).FirstOrDefault();
+                if (record_add != null)
+                {
+                    item.sfb01 = record_add.sfb01;
+                    item.sfbud01 = record_add.sfbud01;
+                    item.sfb81 = record_add.sfb81;
+                    item.sfa12 = record_add.sfa12;
+                    item.sfa05 = record_add.sfa05;
+                    item.sfa06 = record_add.sfa06;
+                    item.sfa05_sfa06 = record_add.sfa05_sfa06;
+                    //本月结存数>未发料之和,拆成两部分（未发料之和，本月结存数-未发料之和），第二部分转到无订单需求
+                    if (item.tc_cxc04 > item.sfa05_sfa06)
+                    {
+                        //no_order_record无订单需求
+                        cxcr006_raw_material no_order_record = new cxcr006_raw_material()
+                        {
+                            tc_cxc01 = item.tc_cxc01,
+                            tc_cxc02 = item.tc_cxc02,
+                            tc_cxc03 = item.tc_cxc03,
+                            area = item.area,
+                            tc_cxc04 = item.tc_cxc04 - item.sfa05_sfa06,
+                            tc_cxc05 = item.tc_cxc05,
+                            tc_cxc06 = (item.tc_cxc06 / item.tc_cxc04) * (item.tc_cxc04 - item.sfa05_sfa06),
+                            tc_cxc07 = 0,
+                            tc_cxc08 = 0,
+                            tc_cxc09 = 0,
+                            tc_cxc10 = 0,
+                            tc_cxc11 = 0,
+                            tc_cxc12 = 0,
+                            tc_cxc13 = 0,
+                            tc_cxc14 = 0,
+                            AccountingSubject = item.AccountingSubject,
+                            WarehouseNumber = item.WarehouseNumber,
+                            sfb01 = item.sfb01,
+                            sfbud01 = item.sfbud01,
+                            sfb81 = item.sfb81,
+                            sfa12 = item.sfa12,
+                            sfa05 = 0,
+                            sfa06 = 0,
+                            sfa05_sfa06 = 0
+                        };
+                        double nu_send = item.sfa05_sfa06;
+                        double endjine = item.tc_cxc06;
+                        item.tc_cxc06 = (endjine / item.tc_cxc04) * item.sfa05_sfa06;
+                        item.tc_cxc04 = nu_send; //备库订单.本月结存数
+                        double item_tc_cxc04 = item.tc_cxc04;
+                        if (item.tc_cxc14 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14;
+                                item.tc_cxc14 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc14 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc14;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc14 = item.tc_cxc14 - item_tc_cxc04;
+                                item.tc_cxc14 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc13 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13;
+                                item.tc_cxc13 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc13 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc13;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc13 = item.tc_cxc13 - item_tc_cxc04;
+                                item.tc_cxc13 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc12 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12;
+                                item.tc_cxc12 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc12 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc12;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc12 = item.tc_cxc12 - item_tc_cxc04;
+                                item.tc_cxc12 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc11 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11;
+                                item.tc_cxc11 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc11 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc11;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc11 = item.tc_cxc11 - item_tc_cxc04;
+                                item.tc_cxc11 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc10 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10;
+                                item.tc_cxc10 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc10 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc10;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc10 = item.tc_cxc10 - item_tc_cxc04;
+                                item.tc_cxc10 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc09 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09;
+                                item.tc_cxc09 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc09 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc09;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc09 = item.tc_cxc09 - item_tc_cxc04;
+                                item.tc_cxc09 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc08 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08;
+                                item.tc_cxc08 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc08 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc08;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc08 = item.tc_cxc08 - item_tc_cxc04;
+                                item.tc_cxc08 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        if (item.tc_cxc07 > 0 && item_tc_cxc04 >= 0)
+                        {
+                            if (item_tc_cxc04 == 0)
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07;
+                                item.tc_cxc07 = 0;
+                            }
+                            else if (item_tc_cxc04 - item.tc_cxc07 > 0)
+                            {
+                                item_tc_cxc04 = item_tc_cxc04 - item.tc_cxc07;
+                            }
+                            else
+                            {
+                                no_order_record.tc_cxc07 = item.tc_cxc07 - item_tc_cxc04;
+                                item.tc_cxc07 = item_tc_cxc04;
+                                item_tc_cxc04 = 0;
+                            }
+                        }
+                        financedata_raw_material_Long_ExceptbySum.Add(no_order_record);
+                    }
+                }
+            }
+            //本月结存数<=未发料之和，按本月结存数统计
+
+            //原材料 2.销售订单
+            resultrecord.Add("类别", "原材料类");
+            resultrecord.Add("分类明细", "销售订单(原材料)");
+            var raw_material1month2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", raw_material1month2.ToString("n4"));
+            var raw_material2_3month2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", raw_material2_3month2.ToString("n4"));
+            var raw_material4_6month2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", raw_material4_6month2.ToString("n4"));
+            var raw_material7_12month2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", raw_material7_12month2.ToString("n4"));
+            var raw_material1_2year2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", raw_material1_2year2.ToString("n4"));
+            var raw_material2_3year2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", raw_material2_3year2.ToString("n4"));
+            var raw_material3_5year2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", raw_material3_5year2.ToString("n4"));
+            var raw_materialover5year2 = financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", raw_materialover5year2.ToString("n4"));
+            var raw_materialtotal2 = raw_material1month2 + raw_material2_3month2 + raw_material4_6month2 + raw_material7_12month2 + raw_material1_2year2 + raw_material2_3year2 + raw_material3_5year2 + raw_materialover5year2;
+            resultrecord.Add("合计金额", raw_materialtotal2.ToString("n4"));
+            resultrecord.Add("记录条数", financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            //3.MC发料表（排除未发料为0的记录）无订单需求 List<cxcr006_raw_material>
+            var financedata_raw_material_Long_Others = financedata_raw_material_Long.Except(financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list).Except(financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list).ToList();
+            //追加1.备库订单与2.销售订单以外的物料清单
+            financedata_raw_material_Long_Others.AddRange(financedata_raw_material_Long_ExceptbySum);
+
+            //原材料(含半成品) 3.无订单需求
+            resultrecord.Add("类别", "原材料类");
+            resultrecord.Add("分类明细", "无订单需求(原材料)");
+            var raw_material1month3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc07);
+            resultrecord.Add("1个月以内", raw_material1month3.ToString("n4"));
+            var raw_material2_3month3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc08);
+            resultrecord.Add("2-3个月", raw_material2_3month3.ToString("n4"));
+            var raw_material4_6month3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc09);
+            resultrecord.Add("4-6个月", raw_material4_6month3.ToString("n4"));
+            var raw_material7_12month3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc10);
+            resultrecord.Add("7-12个月", raw_material7_12month3.ToString("n4"));
+            var raw_material1_2year3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc11);
+            resultrecord.Add("1-2年", raw_material1_2year3.ToString("n4"));
+            var raw_material2_3year3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc12);
+            resultrecord.Add("2-3年", raw_material2_3year3.ToString("n4"));
+            var raw_material3_5year3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc13);
+            resultrecord.Add("3-5年", raw_material3_5year3.ToString("n4"));
+            var raw_materialover5year3 = financedata_raw_material_Long_Others.Sum(c => (c.tc_cxc06 / c.tc_cxc04) * c.tc_cxc14);
+            resultrecord.Add("5年以上", raw_materialover5year3.ToString("n4"));
+            var raw_materialtotal3 = raw_material1month3 + raw_material2_3month3 + raw_material4_6month3 + raw_material7_12month3 + raw_material1_2year3 + raw_material2_3year3 + raw_material3_5year3 + raw_materialover5year3;
+            resultrecord.Add("合计金额", raw_materialtotal3.ToString("n4"));
+            resultrecord.Add("记录条数", financedata_raw_material_Long_Others.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+            resultrecord.Add("5年以上", "全部合计");
+            resultrecord.Add("合计金额", (raw_materialtotal1 + raw_materialtotal2 + raw_materialtotal3).ToString("n4"));
+            resultrecord.Add("记录条数", financedata_raw_material_Long_by_mc_unissuedata_K_RM_J_material_number_list.Count + financedata_raw_material_Long_by_mc_unissuedata_Except_K_RM_J_material_number_list.Count + financedata_raw_material_Long_Others.Count);
+            results.Add(resultrecord);
+            resultrecord = new JObject();
+
+
+            //var dt1 = DataTableTool.ToDataTable(financedata_raw_material_mc_unissuedata_K_RM_J);
+            //string ddddd = "";
+
+            #endregion
+
+            #region----韩表
+            //List<CommonERPDB.Financedetails> financedetails = new List<CommonERPDB.Financedetails>();
+            ////按韩志贤提供的excel表公式计算结果
+            //foreach (var item in financedata)
+            //{
+            //    var record = new CommonERPDB.Financedetails();
+            //    record.A = item.tc_cxc01;
+            //    record.B = item.tc_cxc02;
+            //    record.C = item.tc_cxc03;
+            //    //record.D= item.
+            //    record.E = item.tc_cxc04;
+            //    record.F = item.tc_cxc06 / item.tc_cxc04;
+            //    record.G = item.tc_cxc06;
+            //    record.H = item.tc_cxc04 - item.tc_cxc07 - item.tc_cxc08 - item.tc_cxc09;
+            //    record.I = record.H * record.F;
+            //    record.J = mc_unissuedata.Where(c => c.sfa03 == item.tc_cxc01 && c.sfbud01.Contains("-K0")).Sum(c => c.sfa05_sfa06);
+
+            //    record.T = 0;//未知
+            //    record.K = (record.J + record.T) > record.E ? record.E : (record.J + record.T);
+            //    record.L = record.K * record.F;
+            //    record.M = mc_unissuedata.Where(c => c.sfa03 == item.tc_cxc01).Except(mc_unissuedata.Where(c => c.sfa03 == item.tc_cxc01 && c.sfbud01.Contains("-K0"))).Sum(c => c.sfa05_sfa06);
+            //    record.N = record.M > (record.E - record.K) ? record.E - record.K : record.M;
+            //    record.O = record.H - record.N;
+            //    record.P = record.N * record.F;
+            //    record.Q = record.E - record.K - record.N;
+            //    record.R = record.Q * record.F;
+            //    record.S = record.H - record.Q;
+            //    record.U = 0;//未知
+            //    record.V = 0;//未知
+            //    record.W = item.tc_cxc07;
+            //    record.X = record.W == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.AF - record.AM - record.AT - record.BA - record.BM - record.BS) > record.W ? record.W : (record.K - record.AF - record.AM - record.AT - record.BA - record.BM - record.BS)));
+            //    record.Y = record.X * record.F;
+            //    record.Z = record.W == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.AH - record.AO - record.AV - record.BC - record.BO - record.BU) > (record.W - record.X) ? (record.W - record.X) : (record.N - record.AH - record.AO - record.AV - record.BC - record.BO - record.BU)));
+            //    record.AA = record.F * record.Z;
+            //    record.AB = record.AC - record.AA - record.Y;
+            //    record.AC = record.W * record.F;
+            //    record.AD = item.tc_cxc08;
+            //    record.AE = record.AD * record.F;
+            //    record.AF = record.AD == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.AM - record.AT - record.BA - record.BM - record.BS) > record.AD ? record.AD : (record.K - record.AM - record.AT - record.BA - record.BM - record.BS)));
+            //    record.AG = record.F * record.AF;
+            //    record.AH = record.AD == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.AO - record.AV - record.BC - record.BO - record.BU) > (record.AD - record.AF) ? (record.AD - record.AF) : (record.N - record.AO - record.AV - record.BC - record.BO - record.BU)));
+            //    record.AI = record.AH * record.F;
+            //    record.AJ = record.AE - record.AG - record.AI;
+            //    record.AK = item.tc_cxc09;
+            //    record.AL = record.AK * record.F;
+            //    record.AM = record.AK == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.AT - record.BA - record.BM - record.BS) > record.AK ? record.AK : (record.K - record.AT - record.BA - record.BM - record.BS)));
+            //    record.AN = record.AM * record.F;
+            //    record.AO = record.AK == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.AV - record.BC - record.BO - record.BU) > (record.AK - record.AM) ? (record.AK - record.AM) : (record.N - record.AV - record.BC - record.BO - record.BU)));
+            //    record.AP = record.AO * record.F;
+            //    record.AQ = record.AL - record.AN - record.AP;
+            //    record.AR = item.tc_cxc10;
+            //    record.AS = record.AR * record.F;
+            //    record.AT = record.AR == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.BA - record.BM - record.BS) > record.AR ? record.AR : (record.K - record.BA - record.BM - record.BS)));
+            //    record.AU = record.AT * record.F;
+            //    record.AV = record.AR == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.BC - record.BO - record.BU) > (record.AR - record.AT) ? (record.AR - record.AT) : (record.N - record.BC - record.BO - record.BU)));
+            //    record.AW = record.AV * record.F;
+            //    record.AX = record.AS - record.AU - record.AW;
+            //    record.AY = item.tc_cxc11;
+            //    record.AZ = record.AY * record.F;
+            //    record.BA = record.AY == 0 ? 0 : (record.K == 0 ? 0 : ((record.K - record.BM - record.BS) > record.AY ? record.AY : (record.K - record.BM - record.BS)));
+            //    record.BB = record.BA * record.F;
+            //    record.BC = record.AY == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.BO - record.BU) > (record.AY - record.BA) ? (record.AY - record.BA) : (record.N - record.BO - record.BU)));
+            //    record.BD = record.BC * record.F;
+            //    record.BE = record.AZ - record.BB - record.BD;
+            //    record.BF = item.tc_cxc12;
+            //    record.BG = record.BF * record.F;
+            //    record.BH = item.tc_cxc13;
+            //    record.BI = record.BH * record.F;
+            //    record.BJ = item.tc_cxc14;
+            //    record.BK = record.BJ * record.F;
+            //    record.BL = 0;//未知
+            //    record.BM = record.BF == 0 ? 0 : (record.K == 0 ? 0 : (record.K - record.BS > record.BF ? record.AH : record.K - record.BS));
+            //    record.BN = record.BM * record.F;
+            //    record.BO = record.BF == 0 ? 0 : (record.N == 0 ? 0 : ((record.N - record.BU) > (record.BF - record.BM) ? record.BF - record.BM : record.N - record.BU));
+            //    record.BP = record.BO * record.F;
+            //    record.BQ = record.BG - record.BN - record.BP;
+            //    record.BR = record.BH + record.BJ;
+            //    record.BS = record.BR == 0 ? 0 : (record.K == 0 ? 0 : (record.K > record.BR ? record.BR : record.K));
+            //    record.BT = record.BS * record.F;
+            //    record.BU = record.BR == 0 ? 0 : (record.N == 0 ? 0 : (record.N > (record.BR - record.BS) ? record.BR - record.BS : record.N));
+            //    record.BV = record.BU * record.F;
+            //    record.BW = record.BX - record.BV - record.BT;
+            //    record.BX = record.BI + record.BK;
+            //    record.BY = record.BW + record.BV + record.BT + record.BQ + record.BP + record.BN + record.BE + record.BD + record.BB + record.Y + record.AA + record.AB + record.AG + record.AI + record.AJ + record.AN + record.AP + record.AQ + record.AU + record.AW + record.AX;
+            //    //record.BZ = item.
+
+            //    financedetails.Add(record);
+            //}
+            #endregion
+
+            return Content(JsonConvert.SerializeObject(results));
+        }
+        #endregion
+
+        #region---导出excel
+        [HttpPost]
+        public FileContentResult ExportExcel(string tableData,DateTime enddate) {
+            DataTable table = new DataTable();
+            var array = JsonConvert.DeserializeObject(tableData) as JArray;
+            if (array.Count > 0)
+            {
+                StringBuilder columns = new StringBuilder();
+                JObject objColumns = array[0] as JObject;
+                //构造表头
+                foreach (JToken jkon in objColumns.AsEnumerable<JToken>())
+                {
+                    string name = ((JProperty)(jkon)).Name;
+                    columns.Append(name + ",");
+                    table.Columns.Add(name);
+                }
+                //向表中添加数据
+                for (int i = 0; i < array.Count; i++)
+                {
+                    DataRow row = table.NewRow();
+                    JObject obj = array[i] as JObject;
+                    foreach (JToken jkon in obj.AsEnumerable<JToken>())
+                    {
+
+                        string name = ((JProperty)(jkon)).Name;
+                        string value = ((JProperty)(jkon)).Value.ToString();
+                        row[name] = value;
+                    }
+                    table.Rows.Add(row);
+                }
+            }
+            byte[] filecontent = ExcelExportHelper.ExportExcel(table, "库存金额表（统计截止日期:"+enddate.ToString("yyyy-MM-dd")+")", false);
+            return File(filecontent,ExcelExportHelper.ExcelContentType,"金额表"+".xlsx");
+        }
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+
+
+    }
+}

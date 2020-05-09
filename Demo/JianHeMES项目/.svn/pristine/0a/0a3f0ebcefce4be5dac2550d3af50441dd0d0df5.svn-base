@@ -1,0 +1,602 @@
+﻿
+@{
+    ViewBag.Title = "Equipment_safety";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<style>
+    .container{
+        width:1264px;
+    }
+    .dangerNums{
+        display:inline-block;
+        width:100%;
+        height:100%;
+        color:white;
+        background-color:red;
+    }
+    .okayNums{
+        display:inline-block;
+        width:100%;
+        color:white;
+        height:100%;
+        background-color:palegreen;
+    }
+    .quiteOkayNums{
+        display:inline-block;
+        width:100%;
+        color:white;
+        height:100%;
+        background-color:green;
+    }
+    .el-dialog__body{
+        padding:0 !important;
+    }
+    .el-form-item{
+        margin-bottom:5px;
+    }
+    .el-table td{
+        padding:2px;
+    }
+    .el-table td .cell{
+        padding:2px;
+        text-align:center;
+        font-size:12px;
+    }
+    .el-table thead tr th{
+        text-align:center;
+    }
+    .footerOne,.footerTwo{
+        display:flex;
+        justify-content:space-around;
+        margin-top:15px;
+    }
+    .footerOne>div,.footerTwo>div{
+        width:33.333%;
+        display:flex;
+        justify-content:space-around;
+    }
+    .footerOne>div>b,.footerTwo>div>b{
+        width:135px;
+        text-align:right;
+    }
+    .footerOne>div>span,.footerTwo>div>span{
+        display:inline-block;
+        width:190px;
+        text-align:left;
+    }
+    .footerRemark>div{
+        width:63%;
+        margin-left:55px;
+        margin-top:8px;
+    }
+    .Equipment_safetyContentTop{
+        display:flex;
+        justify-content:center;
+    }
+    .Equipment_safetyContentTop .el-input{
+        width:180px;
+    }
+    .batvhInputEquipments_safety{
+        display:none;
+    }
+</style>
+<h2 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">安全库存清单</h2>
+<div id="app">
+    <p style="display:flex;justify-content:center;margin-top:10px;">
+        <a class="shebeitaizhang" href="/Equipment/First_equipment"><el-button type="primary" size="mini" plain>设备台账</el-button></a>
+        <a class="chechTimePlan" href="/Equipment/Equipment_MonthlyMaintenance_plan"><el-button type="primary" size="mini" plain>月保养计划</el-button></a>
+        <a class="checkTally" href="/Equipment/Equipment_Tally"><el-button type="primary" size="mini" plain>点检表记录表</el-button></a>
+        <a class="checkRepiabill" href="/Equipment/EquipmentRepairbill_Query"><el-button type="primary" size="mini" plain>仪器设备报修单</el-button></a>
+        <a class="checkRepiabill" href="/Equipment/Equipment_safety"><el-button type="primary" size="mini" plain>安全库存清单</el-button></a>
+        <a class="targetSumary" href="/Equipment/Equipment_Quality_target"><el-button type="primary" size="mini" plain>指标达成率</el-button></a>
+        @*<a class="checkLines" href="/Equipment/Index2"><el-button type="primary" size="mini" plain>产线查看</el-button></a>*@
+        @*<a class="batvhInputEquipments" href="/Equipment/BatchInputEquipment"><el-button type="primary" size="mini" plain>批量添加</el-button></a>*@
+    </p>
+    <div class="Equipment_safetyContentContainer">
+        <div class="Equipment_safetyContentTop">
+            <el-select v-model="selectVal5" size="small" clearable filterable placeholder="请选择使用部门">
+                <el-option v-for="item in options5"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectVal1" size="small" clearable filterable placeholder="请选择设备名称">
+                <el-option v-for="item in options1"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectVal2" size="small" clearable filterable placeholder="请选择物料料号">
+                <el-option v-for="item in options2"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectVal4" size="small" clearable filterable placeholder="请选择规格/型号">
+                <el-option v-for="item in options4"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="selectVal3" size="small" clearable filterable placeholder="请选择品名">
+                <el-option v-for="item in options3"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-button size="small" type="primary" v-on:click="search">查找</el-button>
+            <a class="batvhInputEquipments_safety eqpment_sfate_upload_all" href="/Equipment/BatchInputEquipment"><el-button type="primary" size="mini" plain>批量添加</el-button></a>
+        </div>
+        <div class="Equipment_safetyContentBttom">
+            <el-table v-bind:data="tableData"
+                      max-height="550"
+                      border
+                      highlight-current-row
+                      style="width: 100%">
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称"
+                                 width="80">
+                </el-table-column>
+                <el-table-column type="index"
+                                 label="序号"
+                                 width="60">
+                </el-table-column>
+                <el-table-column prop="Descrip"
+                                 width="124"
+                                 label="品名">
+                </el-table-column>
+                <el-table-column prop="Specifica"
+                                 label="规格/型号"
+                                 width="120">
+                </el-table-column>
+                <el-table-column label="料号"
+                                 width="100">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="primary" v-on:click="changedRowInfos(scope.row,scope.$index)">{{scope.row.Material}}</el-button>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Servicelife"
+                                 label="使用寿命"
+                                 width="100">
+                </el-table-column>
+                <el-table-column prop="Amount"
+                                 label="月平均用量"
+                                 width="95">
+                </el-table-column>
+                <el-table-column prop="Safety_stock"
+                                 label="安全库存量"
+                                 width="95">
+                </el-table-column>
+                <el-table-column prop="Existing_inventory"
+                                 label="仓库存量"
+                                 width="95">
+                    <template slot-scope="scope">
+                        <span v-show="parseInt(scope.row.Existing_inventory)<parseInt(scope.row.Safety_stock)" class="dangerNums">{{scope.row.Existing_inventory}}</span>
+                        <span v-show="parseInt(scope.row.Existing_inventory)==parseInt(scope.row.Safety_stock)" class="okayNums">{{scope.row.Existing_inventory}}</span>
+                        <span v-show="parseInt(scope.row.Existing_inventory)>parseInt(scope.row.Safety_stock)" class="quiteOkayNums">{{scope.row.Existing_inventory}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Purchasing_cycle"
+                                 label="采购周期"
+                                 width="80">
+                </el-table-column>
+                <el-table-column prop="Materused"
+                                 label="用途"
+                                 width="130">
+                </el-table-column>
+                <el-table-column prop="Remark"
+                                 label="备注"
+                                 width="154">
+                </el-table-column>
+            </el-table>
+        </div>
+        <div v-show="flag" class="footerRemark">
+            <div>
+                <strong>配件安全库存说明：</strong>
+                <p>1）建立配件安全库存目的是为保障公司设备、工具正常运作，提升嫁动率满足生产需求；</p>
+                <p>2）工具、配件、设备保养用品（各种设备保养专用油脂）为日常维修保养用必需用品；</p>
+                <p>3）各种精密设备内部空气过滤器、油雾过滤器的滤芯需每月保养、每年示脏污情况更换处理；</p>
+                <p>4）空压机按每个季度进行保养所产生更换配件技术部定期提前申请，并委托专业人员现场处理；</p>
+                <p>5) 各种叉车按每个季度、年度进行保养工作技术部定期提前给到使用部门申请配件，并委托专业人员现场处理；</p>
+            </div>
+        </div>
+        <div v-show="flag" class="footerOne">
+            <div><b>资料整理：</b><span>{{FinishingName}}/{{FinishingDate | YMD}}</span></div>
+            <div v-popover:popover2 v-on:click="checkOne(1)"><b>技术部审核：</b><span>{{Tec_Assessor}}/{{Tec_AssessedDate | YMD}}</span></div>
+            <div v-popover:popover3 v-on:click="checkOne(2)"><b>SMT1/2部确认：</b><span>{{SMTDepar}}/{{SMTDeparDate | YMD}}</span></div>
+        </div>
+        <div v-show="flag" class="footerTwo">
+            <div v-popover:popover4 v-on:click="checkOne(3)"><b>装配1/2部确认：</b><span>{{Assembling_depar}}/{{Assembling_deparDate | YMD}}</span></div>
+            <div v-popover:popover5 v-on:click="checkOne(4)"><b>制造中心总监审核：</b><span>{{Assessor}}/{{AssessedDate | YMD}}</span></div>
+            <div v-popover:popover6 v-on:click="checkOne(5)"><b>工厂厂长批准：</b><span>{{Approve}}/{{ApprovedDate | YMD}}</span></div>
+        </div>
+    </div>
+    @* popover-- 技术审核 *@
+    <el-popover ref="popover2"
+                placement="top-start"
+                title="技术审核"
+                width="200"
+                trigger="click">
+        <div v-if="(Tec_Assessor==null&&checkRoles(roles,'技术部审核库存清单'))?true:false">
+            <el-select size="mini" v-model="popoverVal" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div v-else>
+            <p>暂无权限或已确认</p>
+        </div>
+    </el-popover>
+    @* popover-- SMT部确认 *@
+    <el-popover ref="popover3"
+                placement="top-start"
+                title="SMT部确认"
+                width="200"
+                trigger="click">
+        <div v-if="(SMTDepar==null)&&(Tec_Assessor!=null)&&checkRoles(roles,'SMT部确认库存清单')?true:false">
+            <el-select size="mini" v-model="popoverVal" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div v-else>
+            <p>暂无权限或已确认</p>
+        </div>
+    </el-popover>
+    @* popover-- 装配1/2部确认 *@
+    <el-popover ref="popover4"
+                placement="top-start"
+                title="装配1/2部确认"
+                width="200"
+                trigger="click">
+        <div v-if="(SMTDepar!=null)&&(Assembling_depar==null)&&checkRoles(roles,'装配部确认库存清单')?true:false">
+            <el-select size="mini" v-model="popoverVal" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div v-else>
+            <p>暂无权限或已确认</p>
+        </div>
+    </el-popover>
+    @* popover-- 审核 *@
+    <el-popover ref="popover5"
+                placement="top-start"
+                title="审核"
+                width="200"
+                trigger="click">
+        <div v-if="(Assessor==null)&&(Assembling_depar!=null)&&checkRoles(roles,'制造中心总监审核库存清单')?true:false">
+            <el-select size="mini" v-model="popoverVal" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div v-else>
+            <p>暂无权限或已确认</p>
+        </div>
+    </el-popover>
+    @* popover-- 批准 *@
+    <el-popover ref="popover6"
+                placement="top-start"
+                title="批准"
+                width="200"
+                trigger="click">
+        <div v-if="(Assessor!=null)&&(Approve==null)&&checkRoles(roles,'工厂厂长批准库存清单')?true:false">
+            <el-select size="mini" v-model="popoverVal" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div v-else>
+            <p>暂无权限或已确认</p>
+        </div>
+    </el-popover>
+
+
+    @* 修改当行弹出框 *@
+    <el-dialog title="修改"
+               v-bind:visible.sync="dialogVisible"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div class="dialogContent">
+            <el-form v-bind:model="changeForm" label-width="140px">
+                <el-form-item label="设备名称" prop="EquipmentName">
+                    <el-input disabled v-model="changeForm.EquipmentName" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="品名" prop="Descrip">
+                    <el-input v-model="changeForm.Descrip" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="规格/型号" prop="Specifica">
+                    <el-input v-model="changeForm.Specifica" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="料号" prop="Material">
+                    <el-input disabled v-model="changeForm.Material" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="使用寿命" prop="Servicelife">
+                    <el-input v-model="changeForm.Servicelife" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="月平均用量" prop="Amount">
+                    <el-input v-model="changeForm.Amount" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="安全库存量" prop="Safety_stock">
+                    <el-input v-model="changeForm.Safety_stock" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="仓库存量" prop="Existing_inventory">
+                    <el-input v-model="changeForm.Existing_inventory" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="采购周期" prop="Purchasing_cycle">
+                    <el-input v-model="changeForm.Purchasing_cycle" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="用途" prop="Materused">
+                    <el-input v-model="changeForm.Materused" size="small"></el-input>
+                </el-form-item>
+                <el-form-item label="备注" prop="Remark">
+                    <el-input v-model="changeForm.Remark" size="small"></el-input>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="comfirmChanged()">确定修改</el-button>
+        </span>
+    </el-dialog>
+    @{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+</div>
+
+<script>
+
+    const app = new Vue({
+        el: "#app",
+        data: {
+            UserName:"@UserName",
+            dialogVisible:false,
+            flag:false,
+            options: [],
+            tableData: [],
+            options1: [],
+            options2: [],
+            options3: [],
+            options4: [],
+            options5: [],
+            selectVal1: null, //设备名称
+            selectVal2: null, //配料料号
+            selectVal3: null, //品名
+            selectVal4: null, //规格/型号
+            selectVal5: null, // 使用部门,
+            changeForm: {
+                EquipmentName: null,   // 设备名称
+                Descrip: null,   // 品名
+                Specifica: null,   //规格/型号
+                Material: null,   //料号
+                Servicelife: null, //使用寿命
+                Amount: null,   // 月平均用量
+                Safety_stock: null,  // 安全库存量
+                Existing_inventory: null,  // 仓库存量
+                Purchasing_cycle: null,  //采购周期
+                Materused:null,  //用途
+                Remark: null,   // 备注,
+            },
+            options: [
+                {label:"通过",value:"通过"},
+                {label:"不通过",value:"不通过"}
+            ],
+            popoverVal: null,
+            FinishingName: null,
+            FinishingDate: null,
+
+            Tec_Assessor: null,
+            Tec_AssessedDate: null,
+            SMTDepar: null,
+            SMTDeparDate: null,
+            Assembling_depar: null,
+            Assembling_deparDate: null,
+            Assessor: null,
+            AssessedDate: null,
+            Approve: null,
+            ApprovedDate:null,
+            Year: null,
+            Month:null,
+            nums:null
+        },
+        methods: {
+            // 通用获取查询选择框的列表
+            getSelectOptions(url, options) {
+                axios.post(url).then(res=> {
+                    //console.log(res.data)
+                    res.data.forEach(item=> {
+                        let obj = { value: item, label: item }
+                        options.push(obj)
+                    })
+                })
+            },
+            // 查找
+            search() {
+                if (this.selectVal1!=null||this.selectVal2!=null||this.selectVal3!=null||this.selectVal4!=null||this.selectVal5!=null) {
+                    axios.post("/Equipment/Safetyquery", { userdepartment: this.selectVal5, equipmentName: this.selectVal1, descrip: this.selectVal3, specifica: this.selectVal4, material: this.selectVal2}).then(res=> {
+                        console.log(res.data)
+                        if (res.data.length > 0) {
+                            this.tableData = res.data
+                            this.FinishingName = res.data[0].FinishingName
+                            this.FinishingDate = res.data[0].FinishingDate
+                            this.Year = res.data[0].Year
+                            this.Month = res.data[0].Month
+                            this.Tec_Assessor = res.data[0].Tec_Assessor
+                            this.Tec_AssessedDate = res.data[0].Tec_AssessedDate
+                            this.SMTDepar = res.data[0].SMTDepar
+                            this.SMTDeparDate = res.data[0].SMTDeparDate
+                            this.Assembling_depar = res.data[0].Assembling_depar
+                            this.Assembling_deparDate = res.data[0].Assembling_deparDate
+                            this.Assessor = res.data[0].Assessor
+                            this.AssessedDate = res.data[0].AssessedDate
+                            this.Approve = res.data[0].Approve
+                            this.ApprovedDate = res.data[0].ApprovedDate
+                            this.flag = true
+                        } else {
+                            this.tableData = []
+                            this.flag = false
+                            this.$notify({
+                                message: "查找不到相关信息",
+                                type: "warning"
+                            })
+                        }
+                        
+                    })
+                } else {
+                    this.$notify({
+                        message: "请选择查找信息",
+                        type:"warning"
+                    })
+                }
+            },
+            // 弹框关闭前执行
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            },
+            // 修改当行信息---点击显示弹框
+            changedRowInfos(row, index) {
+                if (checkRoles(roles, '修改安全库存清单') && this.Approve==null) {
+                    this.changeForm = row;
+                    this.dialogVisible = true;
+                } else {
+                    this.$notify({
+                        message: "暂无操作权限或已批准！",
+                        type: "warning"
+                    })
+                }
+                
+            },
+            // 确认修改保存
+            comfirmChanged() {
+                axios.post("/Equipment/Modifi_safety", { equipment_Safetystock: this.changeForm }).then(res=> {
+                    console.log(res.data)
+                    if (res.data == false) {
+                        this.$notify({
+                            message: "存在空数据，请补全",
+                            type:"warning"
+                        })
+                    } else if (res.data.Safety == true) {
+                        this.$notify({
+                            message: "操作成功!",
+                            type: "success"
+                        });
+                        this.dialogVisible = false;
+                        this.changeForm = {}
+                    } else if (res.data.Safety == false) {
+                        this.$notify({
+                            message: "保存失败",
+                            type: "warning"
+                        })
+                    }
+                })
+            },
+            // 审核
+            checkOne(index){
+                this.nums = index
+            },
+            // 审核2
+            checkOne2(index,selectVal) {
+                let postData = {
+                    userdepartment: this.selectVal5,
+                        year:this.Year,
+                        month:this.Month,
+                        tec_asse:null,
+                        assembl_depar:null,
+                        smtdepsr: null,
+                        assessor: null,
+                        approve: null
+                }
+                if (index == 1) {
+                    postData.tec_asse = this.UserName + '' + selectVal
+                } else if (index == 2) {
+                    postData.smtdepsr = this.UserName + '' + selectVal
+                } else if (index == 3) {
+                    postData.assembl_depar = this.UserName + '' + selectVal
+                } else if (index == 4) {
+                    postData.assessor = this.UserName + '' + selectVal
+                } else if (index == 5) {
+                    postData.approve = this.UserName + '' + selectVal
+                }
+                axios.post("/Equipment/Verification", postData).then(res=> {
+                    console.log(res.data)
+                    if (res.data.Safety == true) {
+                        this.$notify({
+                            message: "操作成功!",
+                            type: "success"
+                        });
+
+                        if (this.nums == 1) {
+                            this.Tec_Assessor = res.data.depar
+                            this.Tec_AssessedDate = new Date()
+                        } else if (this.nums == 2) {
+                            this.SMTDepar = res.data.depar
+                            this.SMTDeparDate = new Date()
+                        } else if (this.nums == 3) {
+                            this.Assembling_depar = res.data.depar
+                            this.Assembling_deparDate = new Date()
+                        } else if (this.nums == 4) {
+                            this.Assessor = res.data.depar
+                            this.AssessedDate = new Date()
+                        } else if (this.nums == 5) {
+                            this.Approve = res.data.depar
+                            this.ApprovedDate = new Date()
+                        }
+                    } else {
+                        this.$notify({
+                            message: "操作失败!",
+                            type: "warning"
+                        });
+                    }
+                })
+            }
+        },
+        mounted() {
+            let url1 = "/Equipment/Getsafety_equipmentName"
+            this.getSelectOptions(url1, this.options1)
+            let url2 = "/Equipment/Getsafety_material"
+            this.getSelectOptions(url2, this.options2)
+            let url3 = "/Equipment/Getsafety_descrip"
+            this.getSelectOptions(url3, this.options3)
+            let url4 = "/Equipment/Getsafety_specifica"
+            this.getSelectOptions(url4, this.options4)
+            let url5 = "/Equipment/Getsafety_department"
+            this.getSelectOptions(url5, this.options5)
+            this.selectVal1 = getUrlParam("equipmenName")
+            this.search();
+        },
+        watch: {
+            popoverVal() {
+                this.checkOne2(this.nums, this.popoverVal);
+            }
+        }
+    })
+
+</script>
+

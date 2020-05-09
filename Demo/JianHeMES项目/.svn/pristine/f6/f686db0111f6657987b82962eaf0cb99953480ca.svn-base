@@ -1,0 +1,137 @@
+﻿@*@{
+        ViewBag.Title = "物料查询";
+        Layout = "~/Views/Shared/_Layout.cshtml";
+    }*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    table .cell, table td {
+        text-align: center
+    }
+</style>
+<div id="app">
+    <h3 class="text-center">库存金额（统计截止日期:）</h3>
+    <div class="text-center">
+        订单录入日期：
+        <el-date-picker v-model="inputDate"
+                        type="date"
+                        placeholder="选择录入日期">
+        </el-date-picker>
+        订单结案日期：
+        <el-date-picker v-model="endDate"
+                        type="date"
+                        placeholder="选择结案日期">
+        </el-date-picker>
+        <el-button type="success" size="midel" v-on:click="selectInfo">查询</el-button>
+    </div>
+    <h4>开始计时:{{ count }}秒</h4>
+    <p>MC部未发料记录: @ViewBag.mcunissuerecordcount 条，财务明细记录: @ViewBag.financerecordcount 条。</p>
+    <el-table v-bind:data="tableData"
+              style="width: 100%">
+        <el-table-column prop="类别"
+                         label="类别"
+                         width="130">
+        </el-table-column>
+        <el-table-column prop="分类明细"
+                         label="分类明细"
+                         width="140">
+        </el-table-column>
+        <el-table-column prop=""
+                         label="库龄"
+                         width="180">
+            <el-table-column prop="1个月以内"
+                             label="1个月以内"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="2-3个月"
+                             label="2-3个月"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="4-6个月"
+                             label="4-6个月"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="7-12个月"
+                             label="7-12个月"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="1-2年"
+                             label="1-2年"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="2-3年"
+                             label="2-3年"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="3年以上"
+                             label="3年以上"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="合计金额"
+                             label="合计金额"
+                             width="100">
+            </el-table-column>
+        </el-table-column>
+        <el-table-column prop=""
+                         label="">
+            <el-table-column prop=""
+                             label="10月库存金额"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop=""
+                             label="差异"
+                             width="100">
+            </el-table-column>
+        </el-table-column>
+    </el-table>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            tableData: [],
+            inputDate: '',//录入日期
+            endDate:'',//结案日期
+            count: 0,
+            intervalId: null
+        },
+        methods: {
+            //查询
+            selectInfo() {
+                this.count = 0;
+                if (this.inputDate != '' && this.endDate != '') {
+                    if (this.intervalId != null) {// 计时器正在进行中，退出函数
+                        return
+                    };
+                    this.intervalId = setInterval(() => {// 计时器为空，操作
+                        this.count += 1
+                    }, 1000)
+                    axios.post('/Warehouse_Material/StockAmountCalculate', {
+                        inputdate: this.inputDate,//录入日期
+                        enddate: this.endDate//结案日期
+                    }).then(res => {
+                        console.log(res.data)
+                        this.tableData = res.data
+                        if (this.tableData.length > 0) {
+                            // 停止定时器
+                            clearInterval(this.intervalId)//清除计时器
+                            this.intervalId = null;//设置为null
+                        }
+                    }).catch(err => {
+                        console.warn("请求数据失败!")
+                    })
+                } else {
+                    this.$message({
+                        message: "请选择查询日期！",
+                        duration: 0,
+                        showClose: true,
+                        type: 'warning',
+                    });
+                }               
+            },
+        }
+    })
+</script>

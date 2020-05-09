@@ -1,0 +1,159 @@
+﻿@{
+    ViewBag.Title = "工序产能详情页";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<link href="~/Content/styleFile/processCapacity/indexStyle.css" rel="stylesheet" />
+<style>
+    .container, .body-content {
+        /*width: 90vw;*/
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                @*详细表*@
+                @RenderPage("_detailTable.cshtml")
+            </el-row>
+            <el-row class="text-center">
+                <chart-div :urldata="urlObj" :ispopover="false" idname="detail999"></chart-div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("_chart.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            urlObj: {},
+            tableList: [],
+            //权限列表 和 是否拥有权限
+            limitsList: {},
+            limitsRole: {},
+        },
+        created: function () {
+            this.loading = true;
+            try {
+                this.urlObj = this.GetUrlPara();
+            } catch (err) {
+                this.$alert("页面信息已丢失，请从工序产能首页重新打开页面！");
+                this.$notify.error({
+                    title: '提示',
+                    message: '页面信息已丢失，请从工序产能首页重新打开页面！',
+                    duration: 0,
+                    showClose: false,
+                    offset: 50
+                });
+                this.loading = false;
+            };
+
+            //获取权限
+            //1、新建平台 ，2、上传文件和编辑 ， 3、查看附表 ， 4、上传PDF和图片 ， 5、审核附表 ，6、批准附表 ，7、受控附表
+            this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            this.limitsRole = {
+                1: this.checkRoles("新建平台"),
+                2: this.checkRoles("上传文件和编辑"),
+                3: this.checkRoles("查看附表"),
+                4: this.checkRoles("上传PDF和图片"),
+                5: this.checkRoles("审核附表"),
+                6: this.checkRoles("批准附表"),
+                7: this.checkRoles("受控附表"),
+            };
+        },
+        computed: {
+            //单人生产每模组需求总工时(PCS/H)汇总累加
+            ModelNeedTimeForOneCount() {
+                let list = this.tableList, count = 0;
+                for (item of list) {
+                    count += (item.ModelNeedTimeForOne == '/') ? 0 : item.ModelNeedTimeForOne;
+                };
+                return count.toFixed(2);
+            },
+            //总人数(人)汇总累加
+            StandardTotalCount() {
+                let list = this.tableList, count = 0, maxmin = { ic1: 0, ic2: 0, light1: 0, light2: 0 };
+                for (item of list) {
+                    //最大最小贴片的值
+                    switch (item.name) {
+                        case 'IC最大': maxmin.ic1 = item['StandardTotal']; break;
+                        case 'IC最小': maxmin.ic2 = item['StandardTotal']; break;
+                        case '灯面最大': maxmin.light1 = item['StandardTotal']; break;
+                        case '灯面最大': maxmin.light2 = item['StandardTotal']; break;
+                    };
+                    count += (item.StandardTotal == '/') ? 0 : item.StandardTotal;
+                };
+                //最大最小贴片的值,2个值取其中一个值较小的
+                count -= (maxmin.ic1 >= maxmin.ic2) ? maxmin.ic1 : maxmin.ic2;
+                count -= (maxmin.light1 >= maxmin.light2) ? maxmin.light1 : maxmin.light2;
+                //判断显示的小数
+                let x = String(count).indexOf(".") + 1, length = String(count).length - x;
+                if (x > 0) {
+                    return count.toFixed(0);
+                } else {
+                    return count;
+                };
+            },
+        },
+        methods: {
+            //返回地址对象
+            GetUrlPara() {
+                let urlParaArr = document.location.toString().split("?")[1].split("&"), rt = {};
+                for (let i of urlParaArr) {
+                    let objArr = i.split("=");
+                    rt[objArr[0]] = decodeURI(objArr[1]);
+                };
+                return rt;
+            },
+            //总条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/Process_Capacity/Detailed', {
+                    Type: this.urlObj.Type,
+                    ProductPCBnumber: this.urlObj.ProductPCBnumber,
+                    Platform: this.urlObj.Platform,
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //权限筛选
+            checkRoles(roleName) {   //检测权限
+                let list = this.limitsList;
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //合并方法
+            arraySpanMethod({ row, column, rowIndex, columnIndex }) {
+                let length = this.tableList.length;
+                if (columnIndex === 9) {
+                    return [length, 1];
+                };
+                if (columnIndex === 10) {
+                    return [length, 1];
+                };
+                if (columnIndex === 11) {
+                    return [length, 1];
+                };
+            },
+        },
+        mounted: function () {
+            this.onQuerySubmit();
+        },
+    });
+</script>

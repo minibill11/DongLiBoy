@@ -1,0 +1,180 @@
+﻿@{
+    ViewBag.Title = "业务部";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    /*全局样式*/
+    *, body, .el-main, .el-header {
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-header {
+        height: auto !important;
+    }
+
+    .el-main {
+        min-height: 600px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .inputframe {
+        width: 340px;
+        text-align: left;
+        margin: 1px auto;
+        min-height: 44px;
+    }
+
+        .inputframe > span {
+            display: inline-block;
+            width: 106px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .el-input, .el-progress, .inputframe > div {
+            width: 230px;
+            display: inline-block;
+        }
+
+    .el-progress-bar {
+        margin-right: -60px;
+        width: 90%;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main>
+            <el-row>
+                <div class="inputframe">
+                    <span>订单号：</span>
+                    <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium" @@select-val="selectHandle"></select-input>
+                </div>
+            </el-row>
+            <el-row v-if="tablelist!=''" v-loading="loading">
+                <div class="inputframe">
+                    <span>{{tablelist.Estimated.name}}：</span>
+                    <div style="text-align:left;font-weight:600;font-size:16px;padding-left:10px;">{{tablelist.Estimated.value.split('T')[0]}}</div>
+                </div>
+                <template v-for="smtitem in tablelist.SMT">
+                    <div class="inputframe">
+                        <span>SMT-{{smtitem.name}}：</span>
+                        <el-progress :percentage="smtitem.value" :stroke-width="20" :color="bgcolor(smtitem.value)"></el-progress>
+                    </div>
+                </template>
+                <div class="inputframe">
+                    <span>{{tablelist.Model.name}}：</span>
+                    <el-progress :percentage="tablelist.Model.value" :stroke-width="20" :color="bgcolor(tablelist.Model.value)"></el-progress>
+                </div>
+                <div class="inputframe">
+                    <span>{{tablelist.Burnin.name}}：</span>
+                    <el-progress :percentage="tablelist.Burnin.value" :stroke-width="20" :color="bgcolor(tablelist.Burnin.value)"></el-progress>
+                </div>
+                <div class="inputframe">
+                    <span>{{tablelist.package.name}}：</span>
+                    <el-progress :percentage="tablelist.package.value" :stroke-width="20" :color="bgcolor(tablelist.package.value)" @*status="exception" color="#000"*@></el-progress>
+                </div>
+                <div class="inputframe">
+                    <span>{{tablelist.warehousejoin.name}}：</span>
+                    <el-progress :percentage="tablelist.warehousejoin.value" :stroke-width="20" :color="bgcolor(tablelist.warehousejoin.value)"></el-progress>
+                </div>
+                <div class="inputframe">
+                    <span>{{tablelist.warehouseout.name}}：</span>
+                    <el-progress :percentage="tablelist.warehouseout.value" :stroke-width="20" :color="bgcolor(tablelist.warehouseout.value)"></el-progress>
+                </div>
+                <div class="inputframe">
+                    <span>{{tablelist.Transportation.name}}：</span>
+                    <div style="text-align:left;font-weight:600;font-size:16px;padding-left:10px;">{{tablelist.Transportation.value}}</div>
+                </div>
+                <div class="inputframe">
+                    <span>{{tablelist.WarehouseOutDocuments.name}}：</span>
+                    <div style="text-align:left;font-weight:600;font-size:16px;padding-left:10px;">{{tablelist.WarehouseOutDocuments.value}}</div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            selectOptions: [],
+            selectVal: '',
+            tablelist: ''
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            //let localOrder = localStorage.getItem('Order');
+            //if (localOrder != null) {
+            //    this.selectVal = localOrder;
+            //    this.selectHandle(this.selectVal);
+            //};
+        },
+        methods: {
+            selectHandle: function (v) {
+                if (v != "") {
+                    this.loading = true;
+                    //localStorage.setItem('Order', v);
+                    axios.post('/OrderMgms/SelectOrderInfoFromBusiness', { ordernum: v }).then(res => {
+                        //console.log(res.data);
+                        //console.log(JSON.parse(JSON.stringify(res.data)));
+                        this.tablelist = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                        this.loading = false;
+                    });
+                };
+            },
+            bgcolor(n) {
+                if (n > 0 && n < 80) {
+                    return '#ffb630';
+                } else if (n >= 80 && n < 100) {
+                    return '#409EFF';
+                } else if (n == 100) {
+                    return '#18c100'
+                } else {
+                    return '';
+                };
+            }
+        },
+        watch: {
+            selectVal(v) {
+                this.tablelist = '';
+            }
+        }
+    });
+</script>

@@ -1,0 +1,139 @@
+﻿@*Dialog新建数据对话框*@
+<script type="text/template" id="addNeedNum">
+    <div>
+        <el-button type="primary" icon="el-icon-edit-outline" @@click="newDataVisible = true"  size="mini" class="miniBtn" round>录入模组</el-button>
+        @*<slot></slot>*@
+        <el-dialog title="新建数据"
+                   @@close="close('ruleForm')"
+                   :visible.sync="newDataVisible">
+            <div>
+                <el-form label-width="30%"
+                         label-position="right"
+                         ref="ruleForm"
+                         size="medium"
+                         :rules="rules"
+                         :model="newDataForm">
+                    <el-form-item label="粘贴excel内容">
+                        <el-input type="textarea"
+                                  :autosize="{ minRows: 1, maxRows: 1}"
+                                  placeholder="请粘贴内容"
+                                  v-model="pasteExcel"
+                                  resize="none">
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item label="型号" prop="type">
+                        <el-input v-model="newDataForm.type"></el-input>
+                    </el-form-item>
+                    <el-form-item label="平台" prop="platform">
+                        <el-input v-model="newDataForm.platform"></el-input>
+                    </el-form-item>
+                    <el-form-item label="产品PCB编号" prop="pcbnumber">
+                        <el-input type="textarea"
+                                  :autosize="{ minRows: 1, maxRows: 2}"
+                                  v-model="newDataForm.pcbnumber"
+                                  resize="none">
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button @@click="newDataVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
+        </el-dialog>
+    </div>
+</script>
+<script>
+
+    //新增整行数据框
+    Vue.component('add-neednum', {
+        template: document.getElementById("addNeedNum"),
+        data: function () {
+            return {
+                newDataForm: {
+                    type: "",
+                    pcbnumber: "",
+                    platform: ""
+                },
+                newDataVisible: false,
+                pasteExcel: "",
+                rules: {
+                    type: [{ required: true, message: '请填写型号', trigger: 'blur' }],
+                    platform: [{ required: true, message: '请填写平台', trigger: 'blur' }],
+                    pcbnumber: [{ required: true, message: '请填写产品PCB编号', trigger: 'blur' }]
+                }
+            }
+        },
+        methods: {
+            //新建总表记录
+            addNewData() {
+                this.newDataVisible = false;
+                app.loading = true;
+                axios.post('/Process_Capacity/AddTotalProcess_Capacity', {
+                    type: this.newDataForm.type,
+                    pcbnumber: this.newDataForm.pcbnumber,
+                    platform: this.newDataForm.platform,
+                }).then(res => {
+                    //console.log(res.data)
+                    if (res.data.content == null) {
+                        this.$message.error(res.data.message);
+                    } else {
+                        app.tableList.unshift(res.data.content);
+                        this.$message.success(res.data.message);
+                    };
+                    app.loading = false;
+                }).catch(err => {
+                    this.$message.error('新建失败！');
+                    app.loading = false;
+                });
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.addNewData();
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            }
+        },
+        watch: {
+            //粘贴型号平台和产品PCB编号
+            pasteExcel: function (val) {
+                if (val == "") {
+                    return false;
+                };
+                let rtArr = [];
+                //按\t切割
+                let cutT = val.split("\t");
+                //console.log(cutT);
+                //按\n切割
+                for (let t of cutT) {
+                    //console.log(t);
+                    if (t == "\n" || t == "") {
+                        continue;
+                    };
+                    let cutN = t.split("\n");
+                    for (let n of cutN) {
+                        //console.log(n);
+                        let rt = n.replace(/\"|\s|\(|\)|\（|\）/g, "");
+                        rtArr.push(rt);
+                        //console.log(rt);
+                    };
+                };
+                //console.log(rtArr);
+                this.newDataForm.type = rtArr[0]
+                this.newDataForm.platform = rtArr[1];
+                this.newDataForm.pcbnumber = rtArr[2] + "(" + rtArr[3] + ")";
+                //pasteQuantity.pop();
+                this.pasteExcel = "";
+            },
+        }
+    });
+</script>

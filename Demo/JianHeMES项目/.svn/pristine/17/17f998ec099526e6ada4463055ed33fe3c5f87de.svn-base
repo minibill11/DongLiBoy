@@ -1,0 +1,209 @@
+﻿@{
+    ViewBag.Title = "IC面生产看板";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/echarts.js"></script>
+<link href="~/Content/styleFile/SMT/smtContenInfo.css" rel="stylesheet" />
+<script src="~/Content/styleFile/SMT/smtContenInfo.js"></script>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <el-row class="text-center">
+                <a href="/SMT/DisplayICContenInfo"><el-button size="small">IC面生产看板</el-button></a>
+                <a href="/SMT/DisplayLightContenInfo"><el-button size="small">灯面生产看板</el-button></a>
+                <el-date-picker v-model="postTime"
+                                :picker-options="pickerOptions"
+                                placeholder="选择日期"
+                                value-format="yyyy-MM-dd"
+                                format="yyyy 年 MM 月 dd 日"
+                                align="right"
+                                size="small"
+                                type="date">
+                </el-date-picker>
+                <el-button v-on:click="getdata" type="primary" size="small">查找</el-button>
+                <h2>@ViewBag.Title</h2>
+            </el-row>
+        </el-header>
+        <el-main v-loading="loading" class="body-color">
+            <el-row :gutter="20">
+                <el-col :span="8" class="titleDiv-left">
+                    <div>
+                        计划达成率：{{dataList.ProductionYield}}<br />
+                        生产良率：{{dataList.achievementRate}}
+                    </div>
+                </el-col>
+                <el-col :span="8" class="titleDiv-center">
+                    <div id="efficiencyBar" style="height:200px;"></div>
+                </el-col>
+                <el-col :span="8" class="titleDiv-right">
+                    <div id="qualityBar" style="height:200px;"></div>
+                </el-col>
+                <el-col :span="24" style="margin-top:10px;">
+                    <el-table :data="dataList.content" ref="filterTable" max-height="500" border>
+                        <el-table-column prop="Line" label="线别" align="center">
+                            <template slot-scope="scope">
+                                {{scope.row.Line}}线
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="OrderNum" label="订单号" align="center">
+                        </el-table-column>
+                        <el-table-column prop="totalNum" label="总数" align="center">
+                        </el-table-column>
+                        <el-table-column prop="Statu" label="生产状态" align="center">
+                        </el-table-column>
+                        <el-table-column prop="targetNum" label="目标投入" align="center">
+                        </el-table-column>
+                        <el-table-column prop="actualNum" label="实际产出" align="center">
+                        </el-table-column>
+                        <el-table-column prop="accessRate" label="达成率" align="center">
+                        </el-table-column>
+                        <el-table-column prop="AbnormalCount" label="不良数" align="center">
+                        </el-table-column>
+                        <el-table-column prop="PassRate" label="良率" align="center">
+                        </el-table-column>
+                    </el-table>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<script src="~/Scripts/filterMethod/tableFilter.js"></script>
+<script>
+    var app = new Vue({
+        el: "#app",
+        mixins: [tableFilterMixin],
+        data: {
+            loading: false,
+            dataList: {},
+            postTime: "",
+            pickerOptions: {
+                disabledDate(time) {
+                    return time.getTime() > Date.now();
+                },
+                shortcuts: [{
+                    text: '今天',
+                    onClick(picker) {
+                        picker.$emit('pick', new Date());
+                    }
+                }, {
+                    text: '昨天',
+                    onClick(picker) {
+                        const date = new Date();
+                        date.setTime(date.getTime() - 3600 * 1000 * 24);
+                        picker.$emit('pick', date);
+                    }
+                }, {
+                    text: '一周前',
+                    onClick(picker) {
+                        const date = new Date();
+                        date.setTime(date.getTime() - 3600 * 1000 * 24 * 7);
+                        picker.$emit('pick', date);
+                    }
+                }]
+            },
+        },
+        created: function () {
+            this.getdata();
+        },
+        mounted: function () {
+
+        },
+        methods: {
+            getdata: function () {
+                this.loading = true;
+                axios.post("/SMT/DisplayICContenInfo", {
+                    time: this.postTime,
+                }).then(res => {
+                    console.log(res.data);
+                    this.dataList = res.data;
+
+                    LineChart.setOption({
+                        title: { subtext: '请选择年份' },
+                        series: [{ data: res.data.efficiency }]
+                    });
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            }
+        },
+    });
+
+
+    //echart折线图配置
+    var LineChart = echarts.init(document.getElementById('efficiencyBar'));
+    //LineChart.showLoading();
+    //LineChart.hideLoading();
+    var lineOption = {
+        title: {
+            left: 'center',
+            text: '效率未达标线别 - TOP3',
+        },
+        tooltip: {
+            trigger: 'axis',
+        },
+        xAxis: {
+            type: 'category',
+            data: ['1', '2', '3']
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                formatter: '{value} %'
+            }
+        },
+        series: [{
+            name: "平均流失率(%)",
+            type: 'line',
+            toolbox: {
+                show: true,
+                feature: {
+                    dataZoom: {
+                        yAxisIndex: 'none'
+                    },
+                    dataView: { readOnly: false },
+                    magicType: { type: ['line', 'bar'] },
+                    restore: {},
+                    saveAsImage: {}
+                }
+            },
+            itemStyle: {
+                normal: {
+                    label: {
+                        show: true, //开启显示
+                        position: 'top', //在上方显示
+                        textStyle: { //数值样式
+                            color: 'black',
+                            fontSize: 12
+                        },
+                        formatter: "{c}%"
+                    }
+                }
+            },
+            //markLine: {
+            //    data: [
+            //        { type: 'average', name: '平均值' },
+            //        [{
+            //            symbol: 'none',
+            //            x: '90%',
+            //            yAxis: 'max'
+            //        }, {
+            //            symbol: 'circle',
+            //            label: {
+            //                normal: {
+            //                    position: 'start',
+            //                    formatter: '最大值'
+            //                }
+            //            },
+            //            type: 'max',
+            //            name: '最高点'
+            //        }]
+            //    ]
+            //}
+        }]
+    };
+    LineChart.setOption(lineOption);
+</script>

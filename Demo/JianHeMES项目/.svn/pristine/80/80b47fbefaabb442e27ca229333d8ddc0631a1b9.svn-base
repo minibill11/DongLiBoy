@@ -1,0 +1,416 @@
+﻿@model JianHeMES.Models.EquipmentBasicInfo
+
+@{
+    ViewBag.Title = "批量添加设备信息";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*<h2>BatchInputEquipment</h2>*@
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<style>
+    .inputtext22{
+        display:flex;
+        justify-content:center;
+    }
+    .red{
+        color:red;
+    }
+    .green{
+        color:aquamarine;
+    }
+     .container{
+        padding:0;
+    }
+    .color2{
+        color:red;
+        font-size:16px;
+    }
+    .has-gutter tr th .cell,.el-table__row td .cell{
+        text-align:center;
+    }
+    .el-table__header tr,
+    .el-table__header th {
+        font-size:13px;
+        padding: 0;
+        height: 30px;
+    }
+
+    .el-table__body tr,
+    .el-table__body td {
+        padding: 0;
+        font-size:12px;
+        height: 30px;
+    }
+    textarea{
+        height:30px;
+        width:15%;
+    }
+   h4{
+       width:75%;
+       font-size:20px;
+       text-align:center;
+   }
+   .bottomInfo{
+       display:flex;
+       justify-content:space-between;
+   }
+   .pone{
+       align-self:flex-end;
+       font-size:14px;
+   }
+   .inputtext2{
+       display:flex;
+       justify-content:center;
+   }
+</style>
+<h1 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">批量添加</h1>
+<div id="app">
+    
+    <div v-if="is_index">
+        <p style="display:flex;justify-content:center;margin-top:10px;">
+            <a class="eqindex" href="/Equipment/Index"><el-button type="primary" size="mini" plain>设备台账</el-button></a>
+        </p>
+        <div class="inputtext2" style="display:none;">
+            <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+        </div>
+        <el-table v-if="is_index" v-bind:data="tableData" style="width: 100%" max-height="690" border stripe>
+            <el-table-column prop="SerialNumber" label="序号" width="52">
+            </el-table-column>
+            <el-table-column prop="EquipmentNumber" label="设备编号" width="85">
+            </el-table-column>
+            <el-table-column prop="AssetNumber" label="资产编号" width="78">
+            </el-table-column>
+            <el-table-column prop="EquipmentName" label="设备名称" width="78">
+            </el-table-column>
+            <el-table-column prop="Brand" label="品牌" width="82">
+            </el-table-column>
+            <el-table-column prop="ModelSpecification" label="型号/规格" width="82">
+            </el-table-column>
+            <el-table-column prop="ManufacturingNumber" label="出厂编号" width="91">
+            </el-table-column>
+            <el-table-column prop="Quantity" label="数量" width="51">
+            </el-table-column>
+            <el-table-column prop="ActionDate" label="启用时间" width="83">
+            </el-table-column>
+            <el-table-column prop="DepreciableLife" label="折旧年限（月）" width="86">
+            </el-table-column>
+            <el-table-column prop="UserDepartment" label="使用部门" width="93">
+            </el-table-column>
+            <el-table-column prop="StoragePlace" label="存放地点" width="75">
+            </el-table-column>
+            <el-table-column prop="Status" label="使用状态" width="80">
+            </el-table-column>
+            <el-table-column prop="Remark" label="备注" width="100">
+            </el-table-column>
+            <el-table-column label="操作" width="53">
+                <template slot-scope="scope">
+                    <el-button v-bind:class="scope.row.color==200?'red':''" v-on:click.native.prevent="deleteRow(scope.$index, tableData)"
+                               type="text"
+                               size="small">
+                        移除
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+    <div v-else>
+        
+        <div class="inputtext22">
+            <textarea v-model="inputtext22" placeholder="表格粘贴处..."></textarea>
+            <el-select clearable filterable size="mini" v-model="userdepartment" placeholder="请选择使用部门">
+                <el-option v-for="item in deparOpions"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-date-picker v-model="selectTime_safte"
+                            type="month"
+                            size="mini"
+                            placeholder="选择年月">
+            </el-date-picker>
+            <el-button size="mini" v-on:click="goback2">返回</el-button>
+        </div>
+
+        <el-table v-bind:data="tableData2"
+          max-height="550"
+          border stripe
+          style="width: 100%">
+    <el-table-column prop="EquipmentName"
+                     label="设备名称"
+                     width="80">
+    </el-table-column>
+    <el-table-column prop="Index"
+                     label="序号"
+                     width="60">
+    </el-table-column>
+    <el-table-column prop="Descrip"
+                     width="120"
+                     label="品名">
+    </el-table-column>
+    <el-table-column prop="Specifica"
+                     label="规格/型号"
+                     width="120">
+    </el-table-column>
+    <el-table-column prop="Material"
+                     label="料号"
+                     width="100">
+    </el-table-column>
+    <el-table-column prop="Servicelife"
+                     label="使用寿命"
+                     width="100">
+    </el-table-column>
+    <el-table-column prop="Amount"
+                     label="月平均用量"
+                     width="90">
+    </el-table-column>
+    <el-table-column prop="Safety_stock"
+                     label="安全库存量"
+                     width="90">
+    </el-table-column>
+    <el-table-column prop="Purchasing_cycle"
+                     label="采购周期"
+                     width="80">
+    </el-table-column>
+    <el-table-column prop="Materused"
+                     label="用途"
+                     width="130">
+    </el-table-column>
+    <el-table-column prop="Remark"
+                     label="备注"
+                     width="145">
+    </el-table-column>
+    <el-table-column label="操作" width="53">
+        <template slot-scope="scope">
+            <el-button v-bind:class="scope.row.color==200?'red':''" v-on:click.native.prevent="deleteRow2(scope.$index, tableData)"
+                       type="text"
+                       size="small">
+                移除
+            </el-button>
+        </template>
+    </el-table-column>
+</el-table>
+</div>
+
+
+    <div class="bottomInfo" v-if="flag">
+        <p class="pone">本次共提交<span style="color:red;font-size:18px;">{{count}}</span>条数据！<span v-if="flags">存在重复数据，请移除其中一项并点击上传！</span></p>
+        <p>
+            <el-button v-on:click="postdata" type="primary" size="mini">上传<i class="el-icon-upload el-icon--right"></i></el-button>
+            <el-button v-on:click="delated" type="primary" size="mini">清空<i class="el-icon-delete el-icon--right"></i></el-button>
+        </p>
+    </div>
+    @*<div>
+        <el-button type="primary" size="mini" plain><span>@Html.ActionLink("返回", "Index")</span></el-button>
+    </div>*@
+</div>
+
+
+
+
+
+
+<script>
+    function goback2() {
+        window.history.back();
+    }
+    let vm = new Vue({
+        el: "#app",
+        data: {
+            inputInfo: null,
+            inputtext22:null,
+            flag: false,
+            flags: false,
+            count: null,
+            is_index:true,
+            tableData: [],
+            tableData2: [],
+            deparOpions: [],
+            userdepartment: null,
+            selectTime_safte:null
+        },
+        methods: {
+            postdata() {
+                if (this.is_index) {
+                    if (this.tableData.length >= 1) {
+                        axios.post("/Equipment/BatchInputEquipment", { inputList: this.tableData }).then(res=> {
+                            if ('repeat' in res.data) {
+                                let arr = res.data.repeat.split(",");
+                                arr.pop()
+                                for (let i = 0; i < arr.length; i++) {
+                                    this.tableData.forEach(item=> {
+                                        if (arr[i] == item.EquipmentNumber) {
+                                            item.color = 200
+                                        }
+                                    })
+                                }
+                                this.$message({
+                                    message: "已存在相同数据",
+                                    type: "warning"
+                                })
+                            } else if ('success' in res.data) {
+                                this.$message({
+                                    message: res.data.success,
+                                    type: "success"
+                                });
+                                this.delated();
+                            } else if ('fail' in res.data) {
+                                this.$message({
+                                    message: res.data.fail,
+                                    type: "warning"
+                                })
+                            }
+                        }).catch(err=> {
+                            this.$message({
+                                message: "连接服务器失败！",
+                                type: "warning"
+                            })
+                        })
+
+
+                    } else {
+                        this.$message({
+                            message: "请导入数据再上传!",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    if (this.tableData2.length > 0) {
+                        if (this.userdepartment != null && this.selectTime_safte != null) {
+                            let dd = new Date(this.selectTime_safte)
+                            let year = dd.getFullYear()
+                            let month = dd.getMonth() + 1
+                            axios.post("/Equipment/ADDsafestock", { inputList: this.tableData2, year, month, userdepartment: this.userdepartment }).then(res=> {
+                                console.log(res.data)
+                                if (res.data == true) {
+                                    this.$message({
+                                        message: "上传成功！",
+                                        type: "success"
+                                    });
+                                    this.delated();
+                                } else if(res.data==false) {
+                                    this.$message({
+                                        message: "上传失败！",
+                                        type: "warning"
+                                    });
+                                } else {  // 注意：此时给表格的数据增加一个color属性并不会触发视图重新渲染；新增的属性无法触发，但是修改原有属性的值却是可以触发渲染的
+                                          // 所以在初次给表格赋值的时候就需要添加上xolor属性
+                                    for (let i = 0; i < res.data.length; i++) {
+                                        this.tableData2.forEach(item=> {
+                                            if (res.data[i] == item.EquipmentName) {
+                                                item.color = 200
+                                            }
+                                        })
+
+                                    }
+                                    this.$message({
+                                        message: "存在重复信息，请手动删除！",
+                                        type: "warning"
+                                    });
+                                }
+                            }).catch(err=> {
+                                this.$message({
+                                    message: "连接服务器失败！",
+                                    type: "warning"
+                                })
+                            })
+                        } else {
+                            this.$message({
+                                message: "请选择年月跟使用部门!",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$message({
+                            message: "请导入数据再上传!",
+                            type: "warning"
+                        })
+                    }
+                }
+            },
+            delated() {
+                this.inputInfo = null;
+                this.tableData = [];
+                this.inputtext22 = null;
+                this.tableData2 = [];
+                this.count = null
+            },
+            deleteRow(index) {
+                this.tableData.splice(index, 1);
+                this.count--;
+            },
+            deleteRow2(index) {
+                this.tableData2.splice(index, 1);
+                this.count--;
+            },
+            getDeparList() {
+                axios.post("/Equipment/Getsafety_department").then(res=> {
+
+                    res.data.forEach(item=> {
+                        let obj = {
+                            value: item,
+                            label: item
+                        };
+                        this.deparOpions.push(obj);
+                    })
+                })
+            },
+
+        },
+        watch: {
+            inputInfo(val) {
+                //console.log(this.inputInfo)
+                if (this.inputInfo == null) { this.flag = false } else { this.flag = true }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                initDatas.forEach(item=> {
+                    let obj = {
+                        SerialNumber: item[0], EquipmentNumber: item[1], AssetNumber: item[2], EquipmentName: item[3], Brand: item[4], ModelSpecification: item[5],
+                        ManufacturingNumber: item[6], Quantity: item[7], ActionDate: item[8], DepreciableLife: item[9], UserDepartment: item[10],
+                        StoragePlace: item[11], Status: item[12], Remark: item[13],color:202
+                    };
+                    this.tableData.push(obj);
+                })
+                this.count = this.tableData.length;
+                //console.log(initDatas)
+            },
+            inputtext22(val) {
+                if (this.inputtext22 == null) { this.flag = false } else { this.flag = true }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                initDatas.forEach(item=> {
+                    let obj = {
+                        EquipmentName: item[0], Index: item[1], Descrip: item[2], Specifica: item[3], Material: item[4], Servicelife: item[5], Amount: item[6],
+                        Safety_stock: item[7], Purchasing_cycle: item[8], Materused: item[9], Remark: item[10],color:202
+                    };
+                    this.tableData2.push(obj);
+                });
+                this.count = this.tableData2.length;
+            },
+        },
+        mounted() {
+            // 判断页面跳转来源分别显示不同模板表格
+            let lastUrl = document.referrer;
+            if (lastUrl.indexOf("First_equipment") != -1) {
+                this.is_index = true
+            } else {
+                this.is_index = false
+            };
+            this.getDeparList()
+        }
+    })
+
+</script>

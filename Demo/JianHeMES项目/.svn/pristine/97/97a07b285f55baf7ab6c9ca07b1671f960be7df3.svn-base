@@ -1,0 +1,436 @@
+﻿@{
+    ViewBag.Title = "录入包装箱基本信息";
+}
+
+@*  <summary>
+    1.录入包装箱基本信息操作页
+    2.选择订单后可以看见该订单已有信息，
+    3.若包装还未进行，则可以修改信息
+    4.若包装已完成，则不能修改已有记录的包装箱类型的数据，但可以新增类型
+    5.可以选择是否有分屏
+    6.可以选择是否有分批
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 10px 0 0;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+
+    .el-table--medium td, .el-table .cell, .el-table--border td:first-child .cell {
+        padding: 0;
+    }
+
+    .el-table--medium th {
+        padding: 5px 0;
+    }
+
+    .blue {
+        color: #3e8cf0;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <div class="adiv" href="/Packagings/inputPackaging"><el-button size="small" type="primary" plain disabled style="cursor:default">录入包装箱基本信息</el-button></div>
+                <a href="/Packagings/RuleEnter"><el-button size="small">录入模组号规则</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <div href="/Packagings/inputPackaging"><el-dropdown-item disabled>录入包装箱基本信息</el-dropdown-item></div>
+                        <a href="/Packagings/RuleEnter"><el-dropdown-item>录入模组号规则</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main>
+            <el-row class="text-center">
+                <span>
+                    订单号：
+                    <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium">
+                        <el-option v-for="item in selectOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </span>
+                <el-switch v-model="isBatch"
+                           active-text="分批"
+                           inactive-text="不分批"
+                           :disabled="canScreen"
+                           style="margin-left:18px">
+                </el-switch>
+                <el-switch v-model="isSeparate"
+                           active-text="分屏"
+                           inactive-text="不分屏"
+                           :disabled="canScreen"
+                           style="margin-left:18px">
+                </el-switch>
+            </el-row>
+            <el-row>
+                <el-table :data="dataVal"
+                          max-height="600"
+                          size="medium"
+                          align="center"
+                          style="margin:5px 0;"
+                          border>
+                    <el-table-column prop="packingType" label="包装箱类型" align="center" width="150">
+                        <template slot-scope="scope">
+                            @*<el-input placeholder="请输入内容"
+                                :value="scope.row.itemNum>0?'1装'+scope.row.itemNum:''"
+                                clearable
+                                size="mini"
+                                :disabled="true"></el-input>*@
+                            <span>{{scope.row.itemNum>0?'1装'+scope.row.itemNum:''}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="itemNum" label="每箱数量" align="center">
+                        <template slot-scope="scope">
+                            <el-input-number size="mini" :min="0" v-model="scope.row.itemNum" :disabled="scope.row.update=='false'"></el-input-number>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Num" label="包装箱件数" align="center">
+                        <template slot-scope="scope">
+                            <el-input-number size="mini" :min="scope.row.min" v-model="scope.row.Num"></el-input-number>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="screenNum" label="屏序" align="center">
+                        <template slot-scope="scope">
+                            <el-input-number v-show="isSeparate" size="mini" :min="1" v-model="scope.row.screenNum" :disabled="scope.row.update=='false'"></el-input-number>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="batch" label="批次" align="center">
+                        <template slot-scope="scope">
+                            <el-input-number v-show="isBatch" size="mini" :min="1" v-model="scope.row.batch" :disabled="scope.row.update=='false'"></el-input-number>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="min" label="" align="center">
+                        <template slot-scope="scope">
+                            <div v-show="scope.row.update=='false'" class="blue">此包装箱已打印{{scope.row.min}}件</div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+            <el-row class="changedright text-center">
+                <el-button size="medium" @@click="addrow">添加行</el-button>
+                <el-button size="medium" @@click="reset">重置</el-button>
+                <el-button size="medium" @@click="postSubmit">提交</el-button>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 获取用户的用户名 *@
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectOptions: [],//订单号下拉列表
+            selectVal: '',//订单号值
+            dataVal:[],//订单表格数据
+            userName: "@UserName",//用户名
+            screenSize: document.body.clientWidth,//屏幕宽度
+            isSeparate: false,//分屏开关
+            isBatch: false,//分批开关
+        },
+        computed: {
+            //若已有不能更改的记录，则分屏按钮不可按
+            canScreen: function () {
+                let val = this.dataVal;
+                for (let i in val) {
+                    if (val[i].update == "false") {
+                        return true;
+                    };
+                };
+                return false;
+            }
+        },
+        methods: {
+            //记录填写好的数据方法
+            postSubmit: function () {
+                let tableData = this.dataVal,
+                    order = this.selectVal,
+                    user = this.userName,
+                    separate = this.isSeparate,
+                    batch = this.isBatch,
+                    packinginfo = [],
+                    oknum=0;
+                for (let i in tableData) {
+                    if (tableData[i].itemNum >0) {
+                        packinginfo.push({
+                            OrderNum: order,
+                            Type: "1装"+tableData[i].itemNum,
+                            screenNum: separate == false ? 1 : (typeof (tableData[i].screenNum) == "undefined" ? 1 : tableData[i].screenNum),//这里要改
+                            Batch: batch == false ? 1 : (typeof (tableData[i].Batch) == "undefined" ? 1 : tableData[i].Batch),
+                            OuterBoxCapacity: tableData[i].itemNum,
+                            Quantity: tableData[i].Num,
+                            Creator: user,
+                            CreateDate: new Date(),
+                            Remark: "",
+                            IsSeparate: separate,
+                            isBatch: batch,
+                        });
+                        oknum++;
+                    };
+                };
+                if (order != "") {
+                    if (oknum != 0) {
+                        axios.post('/Packagings/CreatePacking', packinginfo).then(res => {
+                            if (res.data == "ok") {
+                                this.$alert('录入成功！', {
+                                    confirmButtonText: '确定',
+                                    closeOnClickModal: true,
+                                    closeOnPressEscape: true,
+                                    type: "success",
+                                    callback: () => {
+                                        this.reset();
+                                    }
+                                });
+                            } else {
+                                this.$alert('录入失败！', {
+                                    confirmButtonText: '确定',
+                                    type: "error",
+                                });
+                            };
+                        }).catch(err => {
+                            this.$alert('录入失败！', {
+                                confirmButtonText: '确定',
+                                type: "error",
+                            });
+                        });
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            duration:5000,
+                            message: '每箱数量不能全为空！',
+                            type: 'error'
+                        });
+                    };
+                } else {
+                    this.$message({
+                        showClose: true,
+                        duration: 5000,
+                        message: '订单号不能为空',
+                        type: 'error'
+                    });
+                };
+            },
+            //表格添加行方法
+            addrow: function () {
+                this.$prompt('请输入需要添加行数', '添加行', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputPattern: /^[1-9]\d*$/,
+                    inputErrorMessage: '只能输入数字'
+                }).then(({ value }) => {
+                    let l = this.dataVal.length;
+                    if (this.selectVal != "") {
+                        axios.post('/Packagings/GetValueFromOrderNum', { ordernum: this.selectVal }).then(res => {
+                            if (Object.keys(res.data).length == 0) {
+                                for (let i = 0; i < value; i++) {
+                                    this.dataVal.push({
+                                        packingType: "",
+                                        itemNum: 0,
+                                        Num: 0,
+                                        update: "true",
+                                        min: 0,
+                                        screenNum: l + i + 1,
+                                        batch:1
+                                    });
+                                };
+                            } else {
+                                for (let i = 0; i < value; i++) {
+                                    this.dataVal.push({
+                                        packingType: "",
+                                        itemNum: 0,
+                                        Num: 0,
+                                        update: "true",
+                                        min: 0,
+                                    });
+                                };
+                            }
+                        }).catch(err => {
+                            console.warn("获取值失败")
+                        });
+                    } else {
+                        for (let i = 0; i < value; i++) {
+                            this.dataVal.push({
+                                packingType: "",
+                                itemNum: 0,
+                                Num: 0,
+                                update: "true",
+                                min: 0,
+                                screenNum: l + i + 1,
+                                batch:1
+                            });
+                        };
+                    };
+                }).catch(() => {
+                    console.log("取消添加");
+                });
+            },
+            //重置按钮
+            reset: function () {
+                if (this.selectVal == "") {
+                    this.initial();
+                } else {
+                    this.set();
+                };
+            },
+            //根据订单号设置表格初始数据
+            set: function () {
+                if (this.selectVal != "") {
+                    axios.post('/Packagings/GetValueFromOrderNum', { ordernum: this.selectVal }).then(res => {
+                        console.log(res.data);
+                        let rtdata = res.data, thisrtdata = [];
+                        if (Object.keys(rtdata).length > 0) {
+                            this.isSeparate = rtdata[0].isSeparate;
+                            this.isBatch = rtdata[0].isBatch;
+                        };
+                        if (Object.keys(rtdata).length >= 6) {
+                            for (let i in rtdata) {
+                                //console.log(rtdata[i]);
+                                thisrtdata.push({
+                                    packingType: rtdata[i].packingType,
+                                    screenNum: rtdata[i].screenNum,
+                                    itemNum: rtdata[i].itemNum,
+                                    Num: rtdata[i].Num,
+                                    update: rtdata[i].update,
+                                    min: rtdata[i].min,
+                                    batch: rtdata[i].batch
+                                });
+                            };
+                            this.dataVal = thisrtdata;
+                        } else if (Object.keys(rtdata).length == 0) {
+                            this.initial();
+                        }else {
+                            let DVal = 6 - Object.keys(rtdata).length;
+                            for (let i in rtdata) {
+                                thisrtdata.push({
+                                    packingType: rtdata[i].packingType,
+                                    screenNum: rtdata[i].screenNum,
+                                    itemNum: rtdata[i].itemNum,
+                                    Num: rtdata[i].Num,
+                                    update: rtdata[i].update,
+                                    min: rtdata[i].min,
+                                    batch: rtdata[i].batch
+                                });
+                            };
+                            for (let i = 0; i < DVal; i++) {
+                                thisrtdata.push({
+                                    packingType: "",
+                                    itemNum: 0,
+                                    Num: 0,
+                                    update: "true",
+                                    min: 0,
+                                });
+                            };
+                            //console.log(Object.keys(rtdata).length);
+                            this.dataVal = thisrtdata;
+                        };
+                    }).catch(err => {
+                        console.warn("获取值失败")
+                    });
+                };
+            },
+            //初始化空表
+            initial: function () {
+                this.dataVal = [];
+                for (let i = 0; i < 6;i++) {
+                    this.dataVal.push({
+                        packingType: "",
+                        itemNum: 0,
+                        Num: 0,
+                        update: "true",
+                        min: 0,
+                        screenNum: i + 1,
+                        batch: 1
+                    });
+                };
+                //this.isSeparate = false;
+                //this.isBatch = false;
+            },
+            //检测权限
+            checkRoles(roleName) {
+                //获取浏览器本地存储的权限列表
+                let list = JSON.parse(localStorage.getItem("rigths"));
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+        },
+        created: function () {
+            //获取订单号选择框下拉清单
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+                });
+            //获取屏幕大小，并存储在app.screenSize上
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            //初始化
+            this.initial();
+        },
+        mounted: function () {
+            //获取浏览器本地存储的订单号
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+            };
+            //检查权限，若存在‘包装箱信息录入修改’权限，则显示操作按钮
+            if (this.checkRoles('包装箱信息录入修改')) {
+                $('.changedright').show()
+            } else {
+                $('.changedright').hide()
+            }
+        },
+        watch: {
+            //监听订单号
+            selectVal: function (v) {
+                localStorage.setItem('Order', v);
+                this.set();
+            },
+        },
+    });
+</script>

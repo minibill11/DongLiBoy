@@ -1,0 +1,170 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+
+namespace JianHeMES.Controllers
+{
+    public class Customer_ComplaintsController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController comm = new CommonalityController();
+
+        // GET: Customer_Complaints
+        public ActionResult Index()
+        {
+            return View(db.Customer_Complaints.ToList());
+        }
+        #region---上传图片(订单客诉处理表)
+        [HttpPost]
+        public bool UploadFile_Abnormal(List<string> pictureFile, string orderNum,DateTime complaintsDate,string complaintscode)
+        {
+          //  var diff_materialNumber = MaterialNumber.Split('-');//将物料号分隔
+            if (Request.Files.Count > 0)
+            {
+                if (Directory.Exists(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\") == false)//判断总路径是否存在
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\");//创建总路径
+                };
+                if (Directory.Exists(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\" + complaintsDate + "\\") == false)//判断图片路径是否存在
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\" + complaintsDate + "\\");//创建图片路径
+                }
+                foreach (var item in pictureFile)
+                {
+                    HttpPostedFileBase file = Request.Files["UploadFile_Abnormal" + pictureFile.IndexOf(item)];
+                    var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
+                    List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\" + complaintsDate + "\\");//遍历文件夹中的个数
+                    if (fileType == ".jpg")//判断文件后缀
+                    {
+                        int jpg_count = filesInfo.Where(c => c.Name.StartsWith(complaintscode + "_") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").Count();
+                        file.SaveAs(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\" + complaintsDate + "\\" + complaintscode + "_" + (jpg_count + 1) + fileType);//文件追加命名
+                    }
+                    else if (fileType == ".pdf")
+                    {
+                        int pdf_count = filesInfo.Where(c => c.Name.StartsWith(complaintscode + "_") && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").Count();
+                        file.SaveAs(@"D:\MES_Data\Customer_Complaints\" + orderNum + "\\" + complaintsDate + "\\" + complaintscode + "_" + (pdf_count + 1) + fileType);//文件追加命名
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+        #endregion
+
+
+
+
+        #region---其他
+        // GET: Customer_Complaints/Details/5
+        public ActionResult Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Customer_Complaints customer_Complaints = db.Customer_Complaints.Find(id);
+            if (customer_Complaints == null)
+            {
+                return HttpNotFound();
+            }
+            return View(customer_Complaints);
+        }
+
+        // GET: Customer_Complaints/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Customer_Complaints/Create
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Create([Bind(Include = "Id,ComplaintNumber,CustomerName,OrderNum,ModuleNumber,RequiredArea,ProductModel,DeliveryDate,ComplaintsDate,ScreenArea,Control,Complaint_Content,Abnormal_Describe,Cause_Analysis,Interim_Disposal,Longterm_Treatment,Liability,Final_Result,Remark,SettlementDate,ResponDepartment,ResponDate,EngineDepartment,EngineDate,QualityDepartment,QualityDate,Quality_TechDepartment,QualityTechDate,Operation,OperationDate,VicePresident,VicePresDate,General_Manager,GeneralDate,Creator,CreateDate,Modifier,ModifyTime")] Customer_Complaints customer_Complaints)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Customer_Complaints.Add(customer_Complaints);
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+
+            return View(customer_Complaints);
+        }
+
+        // GET: Customer_Complaints/Edit/5
+        public ActionResult Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Customer_Complaints customer_Complaints = db.Customer_Complaints.Find(id);
+            if (customer_Complaints == null)
+            {
+                return HttpNotFound();
+            }
+            return View(customer_Complaints);
+        }
+
+        // POST: Customer_Complaints/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Edit([Bind(Include = "Id,ComplaintNumber,CustomerName,OrderNum,ModuleNumber,RequiredArea,ProductModel,DeliveryDate,ComplaintsDate,ScreenArea,Control,Complaint_Content,Abnormal_Describe,Cause_Analysis,Interim_Disposal,Longterm_Treatment,Liability,Final_Result,Remark,SettlementDate,ResponDepartment,ResponDate,EngineDepartment,EngineDate,QualityDepartment,QualityDate,Quality_TechDepartment,QualityTechDate,Operation,OperationDate,VicePresident,VicePresDate,General_Manager,GeneralDate,Creator,CreateDate,Modifier,ModifyTime")] Customer_Complaints customer_Complaints)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(customer_Complaints).State = EntityState.Modified;
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+            return View(customer_Complaints);
+        }
+
+        // GET: Customer_Complaints/Delete/5
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Customer_Complaints customer_Complaints = db.Customer_Complaints.Find(id);
+            if (customer_Complaints == null)
+            {
+                return HttpNotFound();
+            }
+            return View(customer_Complaints);
+        }
+
+        // POST: Customer_Complaints/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            Customer_Complaints customer_Complaints = db.Customer_Complaints.Find(id);
+            db.Customer_Complaints.Remove(customer_Complaints);
+            db.SaveChanges();
+            return RedirectToAction("Index");
+        }
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

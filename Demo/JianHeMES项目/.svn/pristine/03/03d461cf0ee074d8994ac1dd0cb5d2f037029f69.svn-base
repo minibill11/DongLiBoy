@@ -1,0 +1,252 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace JianHeMES.Controllers
+{
+    public class Warehouse_MaterialController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        // GET: Warehouse_Material
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        #region----MC部仓库物料管理
+
+        #region ---- 查询物料信息页
+        [HttpPost]
+        public ActionResult QueryMaterial(string material)
+        {
+            var security = db.Equipment_Safetystock.Where(c => c.Material == material).ToList();//获取数据
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());//根据物料编号到ERP里查找数据
+            return Content(JsonConvert.SerializeObject(querylist));
+        }
+        #endregion
+
+        #region ----修改库位号
+        public ActionResult ModifyLocation(string material, string position)
+        {
+            JObject table = new JObject();
+            var savecount = 0;
+            var security = db.Equipment_Safetystock.Where(c => c.Material == material).ToList();//获取数据
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(security.Select(c => c.Material).ToList());//根据物料编号到ERP里查找数据
+            foreach (var item in querylist)//循环querlist
+            {
+                if (db.Warehouse_Modify_WarehouseNum.Count(c => c.MaterialNumber == item.img01) == 0)
+                {
+                    var rede = new Warehouse_Modify_WarehouseNum() { MaterialNumber = material, MaterialBacrcode = null, OldWarehouseNum = item.img03, NewWarehouseNum = position, Modifier = ((Users)Session["user"]).UserName, ModifyTime = DateTime.Now };
+                    db.Warehouse_Modify_WarehouseNum.Add(rede);
+                    savecount = db.SaveChanges();//保存到数据库
+                }
+            }
+            if (savecount > 0)//判断savecount是否大于0
+            {
+                table.Add("Position", position);//把库位号add到table里面
+                table.Add("Site", true);
+            }
+            else//等于0 
+            {
+                table.Add("Site", false);
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+        #endregion
+
+        #region ----显示修改库位号清单
+        public ActionResult LocationQuery()
+        {
+            var locationlist = db.Warehouse_Modify_WarehouseNum.Select(c => new { c.ID, c.MaterialNumber, c.MaterialBacrcode, c.OldWarehouseNum, c.NewWarehouseNum }).ToList();
+            return Content(JsonConvert.SerializeObject(locationlist));
+        }
+        #endregion
+
+        #region ----如果ERP里的库位号已经修改过来，就把MES里的记录删除
+        public ActionResult DeleteLocation(int id)
+        {
+            JObject table = new JObject();
+            var locationlist = db.Warehouse_Modify_WarehouseNum.Select(c => new { c.MaterialNumber, c.OldWarehouseNum, c.NewWarehouseNum });
+            var querylist = CommonERPDB.ERP_Query_SafetyStock(locationlist.Select(c => c.MaterialNumber).ToList());//根据物料编号到ERP里查找数据
+            foreach (var item in querylist)
+            {
+                if (item.img03 == locationlist.Select(c => c.NewWarehouseNum).FirstOrDefault())
+                {
+                    var record = db.Warehouse_Modify_WarehouseNum.Where(c => c.ID == id).FirstOrDefault();//根据ID表里查询数据
+                    UserOperateLog operaterecord = new UserOperateLog();
+                    operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
+                    operaterecord.Operator = ((Users)Session["User"]).UserName;//添加删除操作人
+                    //添加操作记录（如：张三在2020年2月27日删除设备管理邮件抄送人为李四的记录）
+                    operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除库位号" + record.Modifier + "的记录。";
+                    db.Warehouse_Modify_WarehouseNum.Remove(record);//删除对应的数据
+                    db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
+                    int count = db.SaveChanges();//保存到数据库
+                    if (count > 0)//判断count是否大于0（有没有把数据保存到数据库）
+                    {
+                        table.Add("table", true);
+                        table.Add("ware", "删除成功");
+                        return Content(JsonConvert.SerializeObject(table));
+                    }
+                    else //等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        table.Add("table", false);
+                        table.Add("ware", "删除失败");
+                        return Content(JsonConvert.SerializeObject(table));
+                    }
+                }
+                else
+                {
+                    table.Add("table", false);
+                    table.Add("ware", "库位号不一致");
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+        #endregion
+
+        #endregion
+
+        #region ---其他方法
+        // GET: Warehouse_Material/Details/5
+        public ActionResult Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: Warehouse_Material/Create
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Create([Bind(Include = "ID,ManufactorNum,ManufactorName,MaterialNumber,ProductName,Specifications,Type,VarietyType")] Warehouse_Material_BaseInfo warehouse_Material_BaseInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Warehouse_Material_BaseInfo.Add(warehouse_Material_BaseInfo);
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Edit/5
+        public ActionResult Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // POST: Warehouse_Material/Edit/5
+        // 为了防止“过多发布”攻击，请启用要绑定到的特定属性，有关 
+        // 详细信息，请参阅 https://go.microsoft.com/fwlink/?LinkId=317598。
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Edit([Bind(Include = "ID,ManufactorNum,ManufactorName,MaterialNumber,ProductName,Specifications,Type,VarietyType")] Warehouse_Material_BaseInfo warehouse_Material_BaseInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(warehouse_Material_BaseInfo).State = EntityState.Modified;
+                db.SaveChanges();
+                return RedirectToAction("Index");
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // GET: Warehouse_Material/Delete/5
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            if (warehouse_Material_BaseInfo == null)
+            {
+                return HttpNotFound();
+            }
+            return View(warehouse_Material_BaseInfo);
+        }
+
+        // POST: Warehouse_Material/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            Warehouse_Material_BaseInfo warehouse_Material_BaseInfo = db.Warehouse_Material_BaseInfo.Find(id);
+            db.Warehouse_Material_BaseInfo.Remove(warehouse_Material_BaseInfo);
+            db.SaveChanges();
+            return RedirectToAction("Index");
+        }
+        #endregion
+
+
+        #region------库存金额查询
+
+        public class StockAmountCal: CommonERPDB.cxcr006
+        {
+
+
+        }
+
+        public ActionResult StockAmountCalculate()
+        {
+            var financedata = CommonERPDB.ERP_FinanceDetialsQuery();
+            var mc_unissuedata = CommonERPDB.ERP_MC_NuIssueDetialsQuery();
+
+            return View();
+        }
+
+
+        public StockAmountCal StockAmountData()
+        {
+            var financedata = CommonERPDB.ERP_FinanceDetialsQuery();
+            var mc_unissuedata = CommonERPDB.ERP_MC_NuIssueDetialsQuery();
+            StockAmountCal results = new StockAmountCal();
+            return results;
+        }
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

@@ -1,0 +1,198 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using System.Drawing;
+using System.IO;
+
+namespace JianHeMES.Controllers
+{
+    public class ModuleManagementController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        #region------模块看板
+        //模块看板首页
+        public async Task<ActionResult> Index()
+        {
+
+
+            return View();
+        }
+        #endregion
+
+        #region------各工序功能
+
+        #region------后焊工序
+        //后焊工序
+        // GET: ModuleManagement/AfterWeldingCreate
+        public ActionResult AfterWeldingCreate()
+        {
+            return View();
+        }
+
+        // POST: ModuleManagement/AfterWeldingCreate
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> AfterWeldingCreate(AfterWelding afterWelding)
+        {
+            if (ModelState.IsValid)
+            {
+                db.AfterWelding.Add(afterWelding);
+                await db.SaveChangesAsync();
+                return RedirectToAction("AfterWeldingCreate");
+            }
+            return View(afterWelding);
+        }
+        #endregion
+
+        #region------灌胶前电检工序
+        //灌胶前电检工序
+        // GET: ModuleManagement/ElectricInspectionBeforeGlueFillingCreate
+        public ActionResult ElectricInspectionBeforeGlueFillingCreate()
+        {
+            return View();
+        }
+
+        // POST: ModuleManagement/ElectricInspectionBeforeGlueFillingCreate
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ElectricInspectionBeforeGlueFillingCreate(ElectricInspection electricInspectionBeforeGlueFilling)
+        {
+            if (ModelState.IsValid)
+            {
+                db.ElectricInspection.Add(electricInspectionBeforeGlueFilling);
+                await db.SaveChangesAsync();
+                return RedirectToAction("ElectricInspectionBeforeGlueFillingCreate");
+            }
+            return View(electricInspectionBeforeGlueFilling);
+        }
+        #endregion
+
+        #region------灌胶后电检工序
+        //灌胶后电检工序
+        // GET: ModuleManagement/ElectricInspectionAfterGlueFillingCreate
+        public ActionResult ElectricInspectionAfterGlueFillingCreate()
+        {
+            return View();
+        }
+
+        // POST: ModuleManagement/ElectricInspectionAfterGlueFillingCreate
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ElectricInspectionAfterGlueFillingCreate(ElectricInspection electricInspectionAfterGlueFilling)
+        {
+            if (ModelState.IsValid)
+            {
+                db.ElectricInspection.Add(electricInspectionAfterGlueFilling);
+                await db.SaveChangesAsync();
+                return RedirectToAction("ElectricInspectionAfterGlueFillingCreate");
+            }
+            return View(electricInspectionAfterGlueFilling);
+        }
+        #endregion
+
+        #endregion
+
+
+        #region 内箱标签打印
+        /// <summary>
+        /// 后台绘图后打印方法
+        /// </summary>
+        /// <param name="pagecount"></param>
+        /// <param name="barcode"></param>
+        /// <param name="modulenum"></param>
+        /// <param name="concentration">浓度</param>
+
+        /// <returns></returns>
+        [HttpPost]
+        public ActionResult InsideBoxLablePrint(int pagecount, string barcode = "", string modulenum = "", string ip = "", int port = 0, int concentration = 5, bool testswitch = false)
+        {
+            //开始绘制图片
+            int initialWidth = 600, initialHeight = 250;//宽2高1
+            Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
+            Graphics theGraphics = Graphics.FromImage(theBitmap);
+            Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
+            //呈现质量
+            theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            //背景色
+            theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+
+            Pen pen = new Pen(Color.Black, 3);
+            theGraphics.DrawRectangle(pen, 50, 50, 640, 890);
+            //横线
+            theGraphics.DrawLine(pen, 5, 5, 590, 5);
+            theGraphics.DrawLine(pen, 5, 30, 590, 30);
+            theGraphics.DrawLine(pen, 5, 55, 590, 55);
+            theGraphics.DrawLine(pen, 50, 400, 690, 400);
+            theGraphics.DrawLine(pen, 50, 460, 690, 460);
+            //竖线
+            theGraphics.DrawLine(pen, 250, 280, 250, 460);
+            theGraphics.DrawLine(pen, 400, 280, 400, 460);
+            theGraphics.DrawLine(pen, 570, 280, 570, 460);
+
+            //引入模组号
+            StringFormat geshi = new StringFormat();
+            geshi.Alignment = StringAlignment.Center; //居中
+
+            if (modulenum.Length > 6)
+            {
+                System.Drawing.Font myFont_modulenum;
+                myFont_modulenum = new System.Drawing.Font("Microsoft YaHei UI", 60, FontStyle.Bold);//OCR-B//宋体
+                theGraphics.DrawString(modulenum, myFont_modulenum, bush, 300, 20, geshi);
+            }
+            else
+            {
+                System.Drawing.Font myFont_modulenum;
+                myFont_modulenum = new System.Drawing.Font("Microsoft YaHei UI", 80, FontStyle.Bold);//OCR-B//宋体
+                theGraphics.DrawString(modulenum, myFont_modulenum, bush, 260, 10, geshi);
+            }
+
+            //引入条码
+            Bitmap bmp_barcode = BarCodeLablePrint.BarCodeToImg(barcode, 380, 30);
+            //double beishuhege = 0.99;
+            theGraphics.DrawImage(bmp_barcode, 80, 150, (float)(bmp_barcode.Width), (float)(bmp_barcode.Height));
+
+            //引入条码号
+            System.Drawing.Font myFont_modulebarcodenum;
+            myFont_modulebarcodenum = new System.Drawing.Font("Malgun Gothic", 13, FontStyle.Regular);
+            StringFormat geshi1 = new StringFormat();
+            geshi1.Alignment = StringAlignment.Center; //居中
+            theGraphics.DrawString(barcode, myFont_modulebarcodenum, bush, 270, 180, geshi);
+            //结束图片绘制以上都是绘制图片的代码
+
+            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
+            Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));//图形转二值
+
+            //string ip = "172.16.99.240";//打印机IP地址
+            //int port = 9101;//打印机端口
+
+            if (testswitch == true)
+            {
+                MemoryStream ms = new MemoryStream();
+                theBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                theBitmap.Dispose();
+                return File(ms.ToArray(), "image/Png");
+            }
+            else
+            {
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,0^FO150,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return Content(result);
+            }
+        }
+        #endregion
+
+
+    }
+}

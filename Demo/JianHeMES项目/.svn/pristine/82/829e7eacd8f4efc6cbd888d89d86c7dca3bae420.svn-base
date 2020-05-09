@@ -1,0 +1,250 @@
+﻿@{
+    ViewBag.Title = "后焊工序";
+}
+
+@*  <summary>
+    1.后焊工序
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2 style="margin:5px 0;">@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="main">
+                <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
+                    @RenderPage("_main.cshtml")
+                    <div class="el-form-item el-form-item--medium">
+                        <div class="el-form-item__content" style="margin-left:25%;">
+                            @*<el-button size="medium">重置</el-button>*@
+                            <el-button type="primary" size="small" @@click="postConfirm" :disabled="!isok">确认</el-button>
+                            <el-button size="small" @@click="printClick(false)" v-show="disabledState">打印</el-button>
+                        </div>
+                    </div>
+                    <print-component v-show="isok || disabledState" v-model="printInfo"></print-component>
+                    @Html.ActionLink("返回", "Index")
+                </el-col>
+                <el-col :xs="24" :sm="24" :md="16" :lg="16" :xl="16">
+                    <barcode-state-component v-show="!IsAbnormal" v-model="barcodeListState"></barcode-state-component>
+                    <abnormal-component v-show="IsAbnormal" v-model="AbnormalResult"></abnormal-component>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+@*  引入组件  *@
+@RenderPage("_print.cshtml")
+@RenderPage("_barcodeStatusList.cshtml")
+@RenderPage("_abnormalList.cshtml")
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<script src="~/Content/styleFile/less.min.js"></script>
+<script src="~/Content/styleFile/moduleManagement/module.js"></script>
+<script>
+    //通过mixins将代码注入vue实例
+    var app = new Vue({
+        el: "#app",
+        mixins: [mixin],
+        data: {
+            barcodeListState: {},
+            message: "",
+            period: [],
+            IsAbnormal: false,
+            AbnormalResult: [],
+            Remark: "",
+            isok: false,
+        },
+        created: function () {
+            this.getOrdernumList(true);
+        },
+        //页面加载完后执行
+        mounted: function () {
+            this.$refs.barcodeRef.focus();
+        },
+        methods: {
+            //选择订单号
+            selectOrdernum(v) {
+                if (v.value != '') {
+                    localStorage.setItem('Order', v.value);
+                    this.getBarcodeStateList(v.value);
+                };
+            },
+            //确认完成
+            postConfirm() {
+                //验证不能为空，不打印的提示要正确
+                if (this.checkPostInfo()) {
+                    return;
+                };
+                this.loading = true;
+                let afterWelding = {
+                    Department: this.Department,
+                    Group: this.Group,
+                    Ordernum: this.Ordernum,
+                    ModuleBarcode: this.ModuleBarcode,
+                    IsAbnormal: this.IsAbnormal,
+                    AbnormalResultMessage: this.IsAbnormal ? this.AbnormalResult : "正常",
+                    Remark: this.Remark,
+                };
+                axios.post('/ModuleManagement/AfterWeldingCreate', {
+                    afterWelding: afterWelding
+                }).then(res => {
+                    if (res.data.result == true) {
+                        this.printClick(true);
+                        this.getBarcodeStateList(this.Ordernum);
+                    } else {
+                        if (res.data.mes == "该条码已有后焊记录") {
+                            //this.$message.info(res.data.mes + "，可重新打印");
+                            this.message = res.data.mes + "，可重新打印条码";
+                            this.disabledState = true;
+                            this.isok = false;
+                        } else {
+                            this.$alert(res.data.mes, '未完成', {
+                                confirmButtonText: '确定',
+                                type: 'error'
+                            });
+                        };
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //扫码
+            scanKeyup(v) {
+                if (v.target.value == "") {
+                    return;
+                };
+                this.loading = true;
+                this.isok = false;
+                this.disabledState = false;
+                this.period = [];
+                this.message = "";
+                this.IsAbnormal = false;
+                this.AbnormalResult = [];
+                axios.post('/ModuleManagement/AfterWeldingCheckBarcode', {
+                    orderNum: this.Ordernum,
+                    barcode: v.target.value
+                }).then(res => {
+                    console.log(res)
+                    if (res.data.result == true) {
+                        this.isok = true;
+                        this.period = res.data.period;
+                    } else {
+                        this.message = res.data.message;
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //打印
+            printClick(fromresult) {
+                this.loading = true;
+                let info = this.printInfo;
+                info['barcode'] = this.ModuleBarcode;
+                info['modulenum'] = [this.ModuleBarcode];
+                axios.post('/ModuleManagement/ModuleBarcodePrinting', info).then(res => {
+                    if (fromresult) {
+                        this.$message.success("录入成功！");
+                        this.reset(true);
+                        this.ModuleBarcode = "";
+                    } else {
+                        if (res.data == '打印成功！') {
+                            this.$message.success(res.data);
+                        } else {
+                            this.$message.warning(res.data);
+                        };
+                    };
+                    this.loading = false;
+                    this.$refs.barcodeRef.select();
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //获取条码状态清单
+            getBarcodeStateList(v) {
+                axios.post('/ModuleManagement/Checklist', {
+                    orderNum: v,
+                    statue: '后焊'
+                }).then(res => {
+                    this.barcodeListState = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            //重置信息
+            reset(abnormalhave) {
+                this.disabledState = false;
+                this.message = "";
+                this.period = [];
+                this.isok = false;
+                if (abnormalhave) {
+                    this.IsAbnormal = false;
+                    this.AbnormalResult = [];
+                    this.Remark = "";
+                };
+            },
+            //检查信息完整
+            checkPostInfo() {
+                let errormes = "",
+                    nooknum = 0;
+                if (this.Department == "") {
+                    errormes = errormes + (nooknum + 1) + "、部门不能为空<br/>";
+                    nooknum++;
+                };
+                if (this.Group == "") {
+                    errormes = errormes + (nooknum + 1) + "、班组不能为空<br/>";
+                    nooknum++;
+                };
+                if (this.Ordernum == "") {
+                    errormes = errormes + (nooknum + 1) + "、订单号不能为空<br/>";
+                    nooknum++;
+                };
+                if (this.ModuleBarcode == "") {
+                    errormes = errormes + (nooknum + 1) + "、条码号不能为空<br/>";
+                    nooknum++;
+                };
+
+                if (this.IsAbnormal) {
+                    if (this.AbnormalResult.length == 0) {
+                        errormes = errormes + (nooknum + 1) + "、若为异常，异常列表不能为空<br/>";
+                        nooknum++;
+                    };
+                };
+                if (nooknum > 0) {
+                    this.$alert(errormes, "数据不合格", {
+                        confirmButtonText: '确定',
+                        closeOnClickModal: true,
+                        closeOnPressEscape: true,
+                        dangerouslyUseHTMLString: true,
+                        type: "error",
+                    });
+                    return true;
+                } else {
+                    return false;
+                };
+            }
+        },
+        watch: {
+            ModuleBarcode(v) {
+                this.reset(false);
+            },
+            Ordernum(v) {
+                this.reset(true);
+            },
+            IsAbnormal(v) {
+                if (!v) {
+                    this.AbnormalResult = [];
+                }
+            }
+        },
+    });
+</script>

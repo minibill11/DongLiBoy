@@ -1,0 +1,328 @@
+﻿
+@{
+    ViewBag.Title = "Personnel_Contrast";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .el-table thead tr th,.el-table tbody tr td{
+        padding:0;
+
+    }
+    .cell{
+        text-align:center;
+        padding:2px;
+    }
+    textarea {
+        width: 150px;
+        height: 36px;
+      }
+    .red{
+        color:red;
+    }
+</style>
+<h4 style="text-align:center;">指标模板</h4>
+
+<div id="app">
+    <div class="btnContainer">
+        <el-button size="mini" type="primary" v-on:click="addRecords">批量添加</el-button>
+        @*<a href="/Personnel_Quality_objectives/Personnel_Actual" class="Personnel_Actual"><el-button size="mini">批量添加各部门实际条件</el-button></a>*@
+        <el-button size="mini" v-on:click="goback">返回</el-button>
+    </div>
+    <div class="tableContaienr">
+        <el-table v-bind:data="tableData"
+                  max-height="550"
+                  style="width: 100%">
+            <el-table-column type="index"
+                             label="序号"
+                             sortable
+                             width="80">
+            </el-table-column>
+            <el-table-column prop="AssetDepartment"
+                             label="部门"
+                             sortable
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="DP_Group"
+                             sortable
+                             label="班组">
+            </el-table-column>
+            <el-table-column prop="Project"
+                             label="项目"
+                             sortable
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="IndexName"
+                             label="指标名称"
+                             sortable
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="finalTarget"
+                             label="目标值"
+                             sortable
+                             width="180">
+            </el-table-column>
+            <el-table-column label="操作"
+                             width="100">
+                <template slot-scope="scope">
+                    <el-button size="mini" type="primary" v-on:click="changeRow(scope.row,scope.$index)">修改</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+
+    @* 修改当行弹框 *@
+    <el-dialog title="修改"
+               center
+               v-bind:visible.sync="dialogVisible"
+               width="30%"
+               v-bind:before-close="handleClose">
+        <div class="changeRowcONTENT">
+            <el-form label-width="100px" v-bind:model="formLabelAlign">
+                <el-form-item label="部门">
+                    <el-input v-model="formLabelAlign.AssetDepartment" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="班组">
+                    <el-input v-model="formLabelAlign.DP_Group" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="项目">
+                    <el-input v-model="formLabelAlign.Project" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="指标名称">
+                    <el-input v-model="formLabelAlign.IndexName" size="mini"></el-input>
+                </el-form-item>
+                <el-form-item label="目标值">
+                    <el-select style="width:80px;" size="mini" v-model="formLabelAlign.Target" placeholder="请选择比较符">
+                        <el-option label="≧" value="≧"></el-option>
+                        <el-option label="≤" value="≤"></el-option>
+                        <el-option label="≦" value="≦"></el-option>
+                    </el-select>
+                    <el-input-number style="width:90px;" v-model="formLabelAlign.Target_value" min="1" max="1000" size="mini" label="描述文字"></el-input-number>
+                    <el-select style="width:90px;" size="mini" v-model="formLabelAlign.Target2" placeholder="请选择单位">
+                        <el-option label="%" value="%"></el-option>
+                        <el-option label="个订单" value="个订单"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="comfirmChanged">确定修改</el-button>
+        </span>
+    </el-dialog>
+    @* 批量添加弹框 *@
+    <el-dialog title="批量添加"
+               center
+               v-bind:visible.sync="showAddRecords"
+               width="1170px"
+               v-bind:before-close="handleClose">
+        <div class="changeRowcONTENT2">
+            <el-input type="textarea" placeholder="粘贴区域" v-model="textarea2"></el-input>
+
+            <el-table v-bind:data="tableDataAdd"
+                      max-height="350"
+                      style="width: 100%">
+                <el-table-column type="index"
+                                 label="序号"
+                                 sortable
+                                 width="80">
+                </el-table-column>
+                <el-table-column prop="AssetDepartment"
+                                 label="部门"
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="DP_Group"
+                                 label="班组">
+                </el-table-column>
+                <el-table-column prop="Project"
+                                 label="项目"
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="IndexName"
+                                 label="指标名称"
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="finalTarget"
+                                 label="目标值"
+                                 width="180">
+                </el-table-column>
+                <el-table-column label="操作"
+                                 width="100">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="primary" v-bind:type="scope.row.color==200?'danger':'primary'" v-on:click="removeRow(scope.row,scope.$index)">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="showAddRecords = false">取 消</el-button>
+            <el-button type="danger" v-on:click="clearaddrecords">清空</el-button>
+            <el-button type="primary" v-on:click="comfirmAddRecords">确定上传</el-button>
+        </span>
+    </el-dialog>
+</div>
+
+<script>
+
+    const app = new Vue({
+        el: "#app",
+        data: {
+            tableData: [],
+            textarea2: "",
+            tableDataAdd: [],
+            dialogVisible: false,
+            showAddRecords: false,
+            formLabelAlign: {},
+            flag: false,
+            count: null
+        },
+        methods: {
+            // 修改当行数据
+            changeRow(row, index) {
+                this.dialogVisible = true;
+                this.formLabelAlign = row;
+            },
+            // 批量添加
+            addRecords() {
+                this.showAddRecords = true;
+            },
+            //确认批量添加
+            comfirmAddRecords() {
+                axios.post("/Personnel_Quality_objectives/BatchContrast", { targetList: this.tableDataAdd }).then(res=> {
+                    console.log(res.data)
+                    if (res.data == true) {
+                        this.clearaddrecords()
+                        this.showAddRecords = false;
+                        this.$message({
+                            message: "操作成功",
+                            type: "success"
+                        });
+                    } else if (res.data.Repat == false) {
+                        res.data.Target.forEach(item=> {
+                            this.tableDataAdd.forEach(items=> {
+                                if (item.AssetDepartment == items.AssetDepartment && item.DP_Group == items.DP_Group && item.IndexName == items.IndexName && item.Project == items.Project) {
+                                    items.color = 200
+                                }
+                            });
+                        });
+                        this.$message({
+                            message: "存在重复数据，请手动删除",
+                            type: "warning"
+                        })
+                    } else if (res.data == false) {
+                        this.$message({
+                            message: "操作失败",
+                            type: "warning"
+                        })
+                    }
+                });
+            },
+            // 删除行
+            removeRow(row, index) {
+                this.tableDataAdd.splice(index,1)
+            },
+            // 确认修改
+            comfirmChanged() {
+                if (this.formLabelAlign.AssetDepartment != null && this.formLabelAlign.DP_Group != null && this.formLabelAlign.Project != null && this.formLabelAlign.IndexName != null && this.formLabelAlign.Target_value != null) {
+                    axios.post("/Personnel_Quality_objectives/EditQuality", { personnel_Contrast_Target: this.formLabelAlign }).then(res=> {
+                        // console.log(res.data)
+                        if (res.data == false) {
+                            this.$message({
+                                message: "操作失败",
+                                type: "warning"
+                            })
+                        } else if (res.data.Quality == true) {
+                            this.$message({
+                                message: "操作成功",
+                                type: "success"
+                            });
+                            this.dialogVisible = false;
+                            this.formLabelAlign = {}
+                        } else if (res.data.Quality == false) {
+                            this.$message({
+                                message: "操作失败",
+                                type: "warning"
+                            })
+                        }
+                    })
+                } else {
+                    this.$message({
+                        message: "请补全信息",
+                        type: "warning"
+                    })
+                }
+            },
+            //清空
+            clearaddrecords() {
+                this.tableDataAdd = [];
+                this.textarea2 = ""
+            },
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => { });
+            },
+            // 返回
+            goback() {
+                window.history.back();
+            }
+        },
+        watch: {
+            textarea2(val) {
+                if (this.textarea2 == null) {
+                    this.flag = false
+                } else {
+                    this.flag = true
+                }
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                initDatas.forEach(item => {
+                    let Target = null
+                    let reg = /\d+(.\d)?/
+                    let Target_value = item[5].match(reg)[0]
+                    let Target2 = null
+                    if (item[5].indexOf("≦") != -1) {
+                        Target = "≦"
+                    } else if (item[5].indexOf("≧") != -1) {
+                        Target = "≧"
+                    } else {
+                        Target = null
+                    }
+                    if (item[5].indexOf("个订单") != -1) {
+                        Target2 = "个订单"
+                    } else if (item[5].indexOf("个物料") != -1) {
+                        Target2 = "个物料"
+                    } else if (item[5].indexOf("%") != -1) {
+                        Target2 = "%"
+                    }
+
+                    let obj = {
+                        AssetDepartment: item[1], DP_Group: item[2], Project: item[3], IndexName: item[4], finalTarget: item[5], Target, Target_value, Target2, color:202
+                        };
+                    this.tableDataAdd.push(obj);
+                });
+                console.log(this.tableDataAdd)
+                this.count = this.tableDataAdd.length;
+            }
+        },
+        mounted() {
+            axios.post("/Personnel_Quality_objectives/Contrast").then(res=> {
+                console.log(res.data)
+                res.data.forEach(item=> {
+                    item.finalTarget = item.Target + item.Target_value + item.Target2
+                });
+                this.tableData = res.data
+            })
+        }
+    });
+
+</script>

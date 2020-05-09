@@ -1,0 +1,344 @@
+﻿@{
+    ViewBag.Title = "锡膏入冰柜";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/SMT_Sulderpaster/mcBoard"><el-button size="small">MC看板</el-button></a>
+                <a href="/SMT_Sulderpaster/smtBoard"><el-button size="small">SMT看板</el-button></a>
+                <a class="luru" href="/SMT_Sulderpaster/AddWarehouse_Material"><el-button size="small">录入物料信息</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">锡膏入库</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-button size="small">锡膏入冰柜</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/outWarehouseFreezer"><el-button size="small">锡膏出库</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/printBarcode"><el-button size="small">重新打印条码</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/SMT_Sulderpaster/mcBoard"><el-dropdown-item>MC看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/smtBoard"><el-dropdown-item>SMT看板</el-dropdown-item></a>
+                        <a class="luru" href="/SMT_Sulderpaster/AddWarehouse_Material"><el-dropdown-item>录入物料信息</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-dropdown-item>锡膏入库</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-dropdown-item>锡膏入冰柜</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/outWarehouseFreezer"><el-dropdown-item>锡膏出库</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/printBarcode"><el-dropdown-item>重新打印条码</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="inputframe">
+                    <span class="inputtext">班组：</span>
+                    <group-select></group-select>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">锡膏条码：</span>
+                    <div class="el-input el-input--medium el-input--suffix">
+                        <input type="text"
+                               v-model.trim="solderpasterBarcode"
+                               autocomplete="off"
+                               v-on:keyup.enter="barcodescan"
+                               placeholder="请输入锡膏条码"
+                               autofocus="autofocus"
+                               class="el-input__inner">
+                    </div>
+                </div>
+                @*<div class="inputframe">
+                        <span class="inputtext">仓库号：</span>
+                        <el-input placeholder="请输入仓库号"
+                                  v-model.trim="warehouseNum"
+                                  size="medium"
+                                  clearable>
+                        </el-input>
+                    </div>*@
+                <div class="inputframe">
+                    <div class="divframe">
+                        <el-table :data="barcodetable"
+                                  height="280"
+                                  :row-class-name="tableRowClassName"
+                                  border>
+                            <el-table-column prop="barcode"
+                                             label="条码清单"
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column prop="Tips"
+                                             label="状态">
+                            </el-table-column>
+                            <el-table-column prop="edit"
+                                             label=""
+                                             width="40">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,barcodetable)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        <span v-if="barcodetable.length!=0">条码数量：{{barcodetable.length}}</span>
+                    </div>
+                    <el-button size="medium" @@click="checkList">检查清单</el-button>
+                    <el-button size="medium" @@click="confirm" :disabled="!isok||warehouseNum==''">确认入冰柜</el-button>
+                </div>
+            </el-row>
+            <el-row style="margin-top:15px;">
+                <div class="inputframe" style="text-align:center;padding:5px 0;">
+                    <span class="blue">查找料号入冰柜情况</span>
+                </div>
+                <div class="inputframe">
+                    <span>料件编号：</span>
+                    <el-select v-model="lhVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in lhOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>生产日期：</span>
+                    <el-select v-model="sjVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in sjOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe" @*v-show="exceptList.length>0"*@>
+                    <div class="green">已入冰柜数量： {{having}} 个</div>
+                    <div class="red">未入冰柜数量： {{except}} 个</div>
+                    <div class="divframe">
+                        <el-table :data="exceptList"
+                                  max-height="180"
+                                  border>
+                            <el-table-column prop="barcode"
+                                             label="未入冰柜条码清单">
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+@*  引入组件：
+    1/_groupSelect，班组下拉选择框组件
+*@
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            //入冰柜入 smt冰柜 回温 搅拌 使用 回收
+            solderpasterBarcode: "",
+            barcodeList: [],
+            barcodetable: [],
+            isok: false,
+            warehouseNum: "冰柜1",
+            lhOptions: [],
+            lhVal: '',
+            sjOptions: [],
+            sjVal: '',
+            except: 0,
+            having: 0,
+            exceptList: []
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            axios.post('/SMT_Sulderpaster/GetPrintAgainMaterialNumberList').then(res => {
+                this.lhOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('lh');
+            if (localOrder != null) {
+                this.lhVal = localOrder;
+            };
+        },
+        methods: {
+            //检查
+            checkList: function () {
+                if (this.barcodeList == "") {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "清单不能为空！"
+                    });
+                    return;
+                };
+                this.loading = true;
+                axios.post('/SMT_Sulderpaster/CheckSMTFreezer', {
+                    smt_FreezerList: this.barcodeList,
+                    statu: "仓库",
+                }).then(res => {
+                    //console.log(res.data);
+                    this.barcodetable = res.data;
+                    let rtd = res.data, isokNum = 0;
+                    for (let i in rtd) {
+                        if (rtd[i].Tips == "正常" || rtd[i].Tips == "将过期" || rtd[i].Tips == "已过期") {
+                            isokNum++;
+                        };
+                    };
+                    if (isokNum == rtd.length) {
+                        this.isok = true;
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //确认
+            confirm: function () {
+                this.isok = false;
+                this.loading = true;
+                if ($("#banzuGroup").val() == "") {
+                    this.$message.warning("请选择班组");
+                    this.loading = false;
+                    return;
+                };
+                axios.post('/SMT_Sulderpaster/AddWarehouseFreezerAsync', {
+                    warehouse_FreezerList: this.barcodeList,
+                    warehouseNum: this.warehouseNum,
+                    group: $("#banzuGroup").val()
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data == "True") {
+                        this.$confirm('入冰柜成功，是否进行下一组录入?', "录入成功", {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'success',
+                            center: true,
+                        }).then(() => {
+                            this.clear();
+                        }).catch(() => {
+                        });
+                        this.loading = false;
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '录入失败！',
+                            type: 'error'
+                        });
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+                this.barcodeList.splice(index, 1);
+                this.isok = false;
+            },
+            //清空
+            clear: function () {
+                this.solderpasterBarcode = "";
+                this.barcodeList = [];
+                this.barcodetable = [];
+                this.isok = false;
+                this.warehouseNum = "冰柜1";
+
+                this.$message({
+                    showClose: true,
+                    message: '已清空！'
+                });
+            },
+            //加入清单
+            barcodescan: function () {
+                let thisdata = this.solderpasterBarcode;
+                if (thisdata != "") {
+                    //检查重复
+                    let listcheck = this.barcodetable;
+                    for (let i in listcheck) {
+                        if (listcheck[i].barcode == thisdata) {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                message: '已有重复条码！',
+                                type: 'warning'
+                            });
+                            this.solderpasterBarcode = '';
+                            return;
+                        };
+                    };
+                    this.barcodetable.push({
+                        barcode: thisdata,
+                        Tips: ""
+                    });
+                    this.barcodeList.push(thisdata);
+                    this.isok = false;
+                    this.solderpasterBarcode = "";
+                } else {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "请输入条码！"
+                    });
+                };
+            },
+            //行颜色
+            tableRowClassName({ row, rowIndex }) {
+                if (row.Tips == "正常") {
+                    return 'success-row';
+                } else if (row.Tips != "") {
+                    return 'warning-row';
+                };
+                return '';
+            },
+        },
+        watch: {
+            lhVal: function (v) {
+                this.sjVal = "";
+                this.sjOptions = [];
+                this.exceptList = [];
+                localStorage.setItem('lh', v);
+                axios.post('/SMT_Sulderpaster/GetPrintAgainLeaveFactoryTimeList', { materialNumber: v }).then(res => {
+                    this.sjOptions = res.data;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+            sjVal: function (v) {
+                this.exceptList = [];
+                if (this.lhVal != "" && v != "") {
+                    axios.post('/SMT_Sulderpaster/DisplayBarcode', { materialNumber: this.lhVal, leaveFactoryTime: v }).then(res => {
+                        this.except = res.data.except;
+                        this.having = res.data.having;
+
+                        let List = JSON.parse(res.data.exceptList), rtdList = [];
+                        for (let i of List) {
+                            rtdList.push({
+                                barcode: i,
+                            });
+                        };
+                        this.exceptList = rtdList;
+                    }).catch(err => {
+                        console.warn("出错")
+                    });
+                };
+            },
+        },
+    });
+</script>

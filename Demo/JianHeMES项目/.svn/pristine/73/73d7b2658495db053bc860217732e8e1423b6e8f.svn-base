@@ -1,0 +1,308 @@
+﻿@{
+    ViewBag.Title = "工序产能首页";
+}
+
+@*  <summary>
+    1.工序产能首页
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<link href="~/Content/styleFile/processCapacity/indexStyle.css" rel="stylesheet" />@*工序产能公共样式文件*@
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+
+    .el-table tbody tr td {
+        padding: 5px 0;
+    }
+
+    .fontsizelie {
+        font-size: 16px;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center">
+                <el-form :inline="true" :model="queryTable" size="small">
+                    <el-form-item label="筛选平台">
+                        <select-input v-model.trim="queryTable.proplatform" :disabled="false" @@watchval="watchPlatform($event)" :appendbody="false" :options="options.proplatform" :isfocus="true" :ismultiple="true" size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                    <el-form-item label="筛选型号">
+                        <select-input v-model.trim="queryTable.protype" :disabled="false" @@watchval="watchType($event)" :appendbody="false" :options="options.protype" :isfocus="true" :ismultiple="true" size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+
+                <el-table :data="filterResult"
+                          max-height="600"
+                          size="medium"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号" width="40">
+                        <template slot-scope="scope">
+                            <span style="font-size:16px;">{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="platfrom"
+                                     @*width="85"*@
+                                     @*fixed*@
+                                     sortable
+                                     label="平台">
+                        <template slot-scope="scope">
+                            <el-link :href="`/Process_Capacity/index2?Type=${scope.row.type}&ProductPCBnumber=${scope.row.PCB}&Platform=${scope.row.platfrom}`"
+                                     target="_blank"
+                                     class="fontsizelie"
+                                     style="color:#409EFF"
+                                     :underline="false">{{scope.row.platfrom}}</el-link>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="type"
+                                     sortable
+                                     label="型号">
+                        <template slot-scope="scope">
+                            <span class="fontsizelie">{{scope.row.type}}</span>
+                        </template>
+                    </el-table-column>
+                    @*<el-table-column prop="PCB"
+                                         sortable
+                                         label="PCB">
+                            <template slot-scope="scope">
+                                <span class="fontsizelie">{{scope.row.PCB}}</span>
+                            </template>
+                        </el-table-column>*@
+                    <el-table-column prop="PlatformModul"
+                                     sortable
+                                     label="平台模块">
+                        <template slot-scope="scope">
+                            <span class="fontsizelie">{{scope.row.PlatformModul}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="每小时产能">
+                        <template slot-scope="scope">
+                            <span v-if="scope.row.conten.length>0">
+                                {{scope.row.conten[scope.row.moduleNameIndex].capacityPerHour}}
+                            </span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="所需人数">
+                        <template slot-scope="scope">
+                            <span v-if="scope.row.conten.length>0">
+                                {{scope.row.conten[scope.row.moduleNameIndex].person}}
+                            </span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="加工费用">
+                        <template slot-scope="scope">
+                            <span v-if="scope.row.conten.length>0">
+                                {{scope.row.conten[scope.row.moduleNameIndex].processingFee}}
+                            </span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组名称">
+                        <template slot-scope="scope">
+                            <el-select @@change="scope.row.moduleNameIndex=$event"
+                                       size="medium">
+                                <el-option v-for="(item,index) in scope.row.list"
+                                           :key="index"
+                                           @*:label="item"*@
+                                           :value="index">
+                                    {{item}}
+                                </el-option>
+                            </el-select>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组单位"
+                                     prop="ModuleUnits">
+                    </el-table-column>
+                </el-table>
+
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            filterResult: [],//存储筛选总数据后的结果
+            /** 选择框的值
+                queryTable.protype 筛选型号
+                queryTable.proplatform 筛选平台
+                */
+            queryTable: {
+                protype: "",
+                proplatform: "",
+            },
+            /** 选择框的下拉列表
+                options.protype 筛选型号下拉列表
+                options.proplatform 筛选平台下拉列表
+                */
+            options: {
+                protype: [],
+                proplatform: [],
+            },
+            limitsList: {},//用来存储用户所有的权限列表
+            limitsRole: {},//用来存储用户与工序产能相关的权限列表
+            pollingTimer: "",//定时器，控制页面定时刷新
+        },
+        //页面打开时执行
+        created: function () {
+            //获取登陆时存储在浏览器的权限列表
+            //this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            //获取下拉型号列表
+            this.getProtype();
+            //获取下拉平台列表
+            this.getPlatfrom();
+
+            /** 获取与工序产能相关的权限对象列表，包括如下
+             *  1、新建平台 ，2、上传文件和编辑 ， 3、查看附表 ， 4、上传PDF和图片 ， 5、审核附表 ，6、批准附表 ，7、受控附表
+             *  对应的结果用函数checkRoles判断   例：存在“新建平台”权限，则权限1为true，不存在则为false
+             */
+            //this.limitsRole = {
+            //    1: this.checkRoles("新建平台"),
+            //    2: this.checkRoles("上传文件和编辑"),
+            //    3: this.checkRoles("查看附表"),
+            //    4: this.checkRoles("上传PDF和图片"),
+            //    5: this.checkRoles("审核附表"),
+            //    6: this.checkRoles("批准附表"),
+            //    7: this.checkRoles("受控附表"),
+            //};
+        },
+        //函数方法
+        methods: {
+            //总表数据轮询
+            getTableData() {
+                axios.post('/Process_Capacity/GetInfoByModule', {
+                    type: this.options.protype,
+                    plafrom: this.options.proplatform
+                }).then(res => {
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    //存储返回值
+                    this.tableList = res.data;
+                    //执行条件过滤方法
+                    this.filterList();
+                }).catch(err => {
+                    console.warn("获取数据失败")
+                });
+            },
+            //总表条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/Process_Capacity/GetInfoByModule', {
+                    type: this.options.protype,
+                    plafrom: this.options.proplatform
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    this.filterResult = res.data;
+                    this.loading = false;
+                    this.$message.success('查询成功！');
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //型号下拉列表获取方法
+            getProtype() {
+                axios.post('/Process_Capacity/TypeList').then(res => {
+                    //console.log(res.data);
+                    this.options.protype = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //平台下拉列表获取方法
+            getPlatfrom() {
+                axios.post('/Process_Capacity/DisplayPlatfromFromType', { type: '' }).then(res => {
+                    //console.log(res.data);
+                    this.options.proplatform = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            /**
+             * @@param roleName 参数为权限名称 例：‘新建平台’
+             * 传入参数，在该用户权限列表中遍历查找该权限名称，若存在该权限，返回true，否则返回false
+             */
+            checkRoles(roleName) {   //检测权限
+                let list = this.limitsList;
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //轮询计时方法，每30秒自动更新页面数据
+            monitorTimer() {
+                this.pollingTimer = setInterval(() => {
+                    this.getTableData();
+                }, 30000);
+            },
+            //监听平台选择，调用筛选方法，即时更新筛选后的表格
+            watchPlatform(v) {
+                this.filterList();
+            },
+            //监听型号选择，调用筛选方法，即时更新筛选后的表格
+            watchType(v) {
+                this.filterList();
+            },
+            //筛选方法，
+            filterList() {
+                let array = this.tableList,//所有数据
+                    arr1 = this.queryTable.proplatform,//下拉列表选择的平台值
+                    arr2 = this.queryTable.protype,//下拉列表选择的型号值
+                    thisArr1, thisArr2;
+                //过滤平台值，筛选出过滤后的列表 存为thisArr1
+                thisArr1 = array.filter(function (val) {
+                    if (arr1 == null || arr1 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr1) {
+                            if (val.platfrom.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                //在thisArr1筛选后，继续过滤型号值
+                thisArr2 = thisArr1.filter(function (val) {
+                    if (arr2 == null || arr2 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr2) {
+                            if (val.type.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                this.filterResult = thisArr2;//存储筛选后的数据
+            }
+        },
+        //页面加载完后执行
+        mounted: function () {
+            this.onQuerySubmit();//页面加载完后 调用方法获取表格数据
+            //this.monitorTimer();//启动轮询计时器
+        }
+    });
+</script>

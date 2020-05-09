@@ -1,0 +1,236 @@
+﻿
+@{
+    ViewBag.Title = "Equipment_MonthTotalQuery";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<script src="~/Scripts/echarts.js"></script>
+<style>
+    h2{
+        text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;
+    }
+    .cell{
+        text-align:center;
+        padding:0;
+        margin:0;
+    }
+    .el-table tbody tr td,.el-table thead tr th{
+        margin:2px;
+        padding:2px;
+    }
+</style>
+<h2>各部门保养汇总</h2>
+
+<div id="app">
+    <div id="main" style="width: 100%;height:400px;"></div>
+    <div class="tableContainer">
+        <el-table v-bind:data="tableData"
+                  border
+                  style="width: 100%">
+            <el-table-column prop="UserDepartment"
+                             label="使用部门"
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="all"
+                             label="设备总数(台)"
+                             width="120">
+            </el-table-column>
+            <el-table-column prop="one"
+                             label="到期未保养(台)"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="two"
+                             label="未到期未保养(台)"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="three"
+                             label="当前需保养(台)"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="four"
+                             label="提前已保养(台)"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="five"
+                             label="延迟已保养(台)"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="six"
+                             label="准时保养(台)"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="name"
+                             label="操作">
+                <template slot-scope="scope">
+                    @*<el-button size="mini" type="primary" @@clcik="goDetials(scope.row)">详细</el-button>*@
+                    <a v-bind:href="'/Equipment/Equipment_MonthlyMaintenance_plan?dates=' + encodeURI(`${year}-${month}`) + '&depar=' + encodeURI(scope.row.UserDepartment)" target="_blank"><el-button size="mini" type="primary">详细</el-button></a>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+
+<script>
+    const app = new Vue({
+        el: "#app",
+        data: {
+            departmentList: [],
+            tableData: [{
+                date: '2016-05-02',
+                name: '王小虎',
+                address: '上海市普陀区金沙江路 1518 弄'
+            }, {
+                date: '2016-05-04',
+                name: '王小虎',
+                address: '上海市普陀区金沙江路 1517 弄'
+            }, {
+                date: '2016-05-01',
+                name: '王小虎',
+                address: '上海市普陀区金沙江路 1519 弄'
+            }, {
+                date: '2016-05-03',
+                name: '王小虎',
+                address: '上海市普陀区金沙江路 1516 弄'
+            }],
+            year: new Date().getFullYear(),
+            month:new Date().getMonth() + 1
+
+        },
+        methods: {
+            //获取汇总数据
+            getData() {
+                axios.post("/Equipment/Month_TotalQuery", { date: new Date() }).then(res=> {
+                    console.log(res.data)
+                    if (res.data.length > 0) {
+                        
+                        // 处理数据
+                        let arrX = ['product', '到期未保养', '未到期未保养', '当前需保养', '提前保养', '延迟保养', '准时保养'];
+                        let finalArr = []
+                        let tableData = [];
+                        finalArr.push(arrX);
+                        res.data.forEach(item=> {
+                            let arrDepatFirst = []
+                            arrDepatFirst.push(item.UserDepartment)
+                            
+
+                            let itemTotalUnms = 0;   // 定义每个部门的总设备台数
+                            itemTotalUnms += item.Datum.Advance.length;
+                            itemTotalUnms += item.Datum.Late.length;
+                            itemTotalUnms += item.Datum.Ontime.length;
+                            itemTotalUnms += item.Datum.Nomaintenance[0].Before.length;
+                            itemTotalUnms += item.Datum.Nomaintenance[0].Current.length;
+                            itemTotalUnms += item.Datum.Nomaintenance[0].Late_late.length;
+
+                            let shouldBoButNot = ((item.Datum.Nomaintenance[0].Late_late.length / itemTotalUnms)*100).toFixed(2)  // 计算到期未保养
+                            let notTimeNotdo = ((item.Datum.Nomaintenance[0].Before.length / itemTotalUnms)*100).toFixed(2)  // 计算未到期未保养
+                            let needDoNoew = ((item.Datum.Nomaintenance[0].Current.length / itemTotalUnms)*100).toFixed(2)  // 计算当前需保养
+                            let doneBeforeDate = ((item.Datum.Advance.length / itemTotalUnms)*100).toFixed(2)  // 计算提前保养
+                            let lateButDone = ((item.Datum.Late.length / itemTotalUnms)*100).toFixed(2) // 计算延迟保养
+                            let onTime = ((item.Datum.Ontime.length / itemTotalUnms)*100).toFixed(2)  // 计算准时保养
+                            
+                            let obj = {
+                                UserDepartment: item.UserDepartment,
+                                all:itemTotalUnms,
+                                one: item.Datum.Nomaintenance[0].Late_late.length == '0' ? '/' : item.Datum.Nomaintenance[0].Late_late.length,
+                                two: item.Datum.Nomaintenance[0].Before.length == '0' ? '/' : item.Datum.Nomaintenance[0].Before.length,
+                                three: item.Datum.Nomaintenance[0].Current.length == '0' ? '/' : item.Datum.Nomaintenance[0].Current.length,
+                                four: item.Datum.Advance.length == '0' ? '/' : item.Datum.Advance.length,
+                                five: item.Datum.Late.length == '0' ? '/' : item.Datum.Late.length,
+                                six: item.Datum.Ontime.length == '0' ? '/' : item.Datum.Ontime.length
+                            }
+                            tableData.push(obj)
+                            arrDepatFirst.push(shouldBoButNot)
+                            arrDepatFirst.push(notTimeNotdo)
+                            arrDepatFirst.push(needDoNoew)
+                            arrDepatFirst.push(doneBeforeDate)
+                            arrDepatFirst.push(lateButDone)
+                            arrDepatFirst.push(onTime)
+                            finalArr.push(arrDepatFirst)
+                        });
+                        this.tableData = tableData;
+                        var myChart = echarts.init(document.getElementById('main'));
+                        var option = {
+                            title: {
+                                text: '',
+                                textAlign:'auto'
+                            },
+                            tooltip: {
+                                formatter: function (params) {
+                                    
+                                    console.log(params);
+                                    let cahrtArr = params
+                                    let finalsArr = []
+                                    cahrtArr.forEach(item=> {
+                                        if (item.data != undefined) {
+                                            finalsArr.push(item)
+                                        }
+                                    });
+                                    let resulr = ""
+                                    for (let i = 0; i < finalsArr.length; i++) {
+                                        resulr += `<div style="display:flex;justify-content:space-around;width:auto;margin:2px;padding:0;height:2px;"><strong>${finalsArr[i].seriesName}</strong>:<span>${finalsArr[i].data[i+1]}%</span></div><hr style="height:2px;border:none;background-color:${finalsArr[i].color}">`
+                                    }
+                                    return `<div><span>${cahrtArr[0].name}</span><hr>${resulr}</div>`
+                                },
+                                trigger: 'axis'
+                            },
+                            legend: {
+                                show:true
+                            },
+                            xAxis: {
+                                type: 'category',
+                                //data: app.departmentList,
+                                name: "部门",
+                                shadowColor: 'rgba(0, 0, 0, 0.5)',
+                                shadowBlur: 10,
+                                shadowOffsetX:15
+                            },
+                            yAxis: {
+                                type: 'value',
+                                axisLabel: {
+                                    formatter: '{value} %'
+                                }
+                            },
+                            toolbox: {
+                                feature: {
+                                    magicType: { type: ['line', 'bar'] },
+                                    //restore: {},
+                                    saveAsImage: {}
+                                },
+                                right: 60,
+                                top: 30,
+                            },
+                            dataset: {
+                                // 提供一份数据。
+                                source: finalArr
+                            },
+                            series: [
+                                { type: 'bar' },
+                                { type: 'bar' },
+                                { type: 'bar' },
+                                { type: 'bar' },
+                                { type: 'bar' },
+                                { type: 'bar' }
+                            ]
+                        };
+                        myChart.setOption(option);
+                    } else {
+                        alert("没有数据返回")
+                    }
+                }).catch(err=> {
+
+                })
+            },
+            // 跳转到首页
+            goDetials(item) {
+
+            }
+        },
+        mounted() {
+            this.getData();
+        }
+    });
+    
+</script>

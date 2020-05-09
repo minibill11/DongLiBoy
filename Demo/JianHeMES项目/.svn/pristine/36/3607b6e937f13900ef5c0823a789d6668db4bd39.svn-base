@@ -1,0 +1,215 @@
+﻿@{
+    ViewBag.Title = "模组号信息查看";
+}
+
+@*  <summary>
+    1.模组号信息查看页
+    2.输入订单号可以查询该订单的所有条码号的模组情况（包括条码表/校正/电检）
+    3.可以修改条码的模组号 （可单个修改，也可批量修改）
+    </summary>*@
+
+@* 引用elemetui 插件 *@
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    /*表格单元格样式*/
+    .cell {
+        padding: 0 !important;
+    }
+</style>
+
+<div id="app">
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-row class="text-center">
+            @* 输入框 *@
+            <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium"></select-input>
+            <el-button @@click="getTableData" size="medium">查询</el-button>
+            @* 表格 *@
+            <el-table :data="tableList"
+                      size="mini"
+                      v-loading="loading"
+                      :max-height="screenSize<768?450:600"
+                      style="margin-top:10px;">
+                <el-table-column prop="barcode"
+                                 label="条码号"
+                                 :width="role?(screenSize<768?70:''):''"
+                                 align="center"
+                                 sortable>
+                </el-table-column>
+                <el-table-column v-if="role"
+                                 align="center">
+                    <template slot="header" slot-scope="scope">
+                        <div>操作</div>
+                        <el-button v-if="!allEditShow" @@click="allEditOnOff(true)" type="text" size="mini">批量修改</el-button>
+                        <div v-else>
+                            <el-button @@click="allEditOnOff(false)" type="text" size="mini">取消</el-button>
+                            <el-button @@click="allEditPost" type="text" size="mini">确认</el-button>
+                        </div>
+                    </template>
+                    <template slot-scope="scope">
+                        <template v-if="allEditShow">
+                            <el-input v-model.trim="scope.row.newData" size="mini"></el-input>
+                        </template>
+                        <template v-else>
+                            <el-button v-if="!scope.row.editShow" @@click="scope.row.editShow=true" type="text" size="mini">修改</el-button>
+                            <div v-else>
+                                <el-button @@click="scope.row.editShow=false" type="text" size="mini">取消</el-button>
+                                <el-button @@click="editModule(scope.row.barcode,scope.row.newData,scope.row)" type="text" size="mini">确认</el-button>
+                                <el-input v-model.trim="scope.row.newData" size="mini"></el-input>
+                            </div>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column label="模组号"
+                                 align="center">
+                    <el-table-column prop="barcodeModule"
+                                     label="条码"
+                                     :width="screenSize<768?60:''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                    <el-table-column prop="calibtationModule"
+                                     label="校正"
+                                     :width="screenSize<768?60:''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                    <el-table-column prop="appearanModule"
+                                     label="电检"
+                                     :width="screenSize<768?60:''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                </el-table-column>
+            </el-table>
+        </el-row>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectVal: '',//输入框值
+            selectOptions: [],//输入框的下拉列表
+            tableList: [],//表格数据
+            loading: false,
+            screenSize: document.body.clientWidth,//存放屏幕宽度大小
+            role: false,//权限
+            allEditShow: false,//批量编辑开关
+        },
+        created: function () {
+            //获取订单号选择框下拉清单
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn('获取列表失败')
+            });
+            //获取屏幕大小，并存储在app.screenSize上
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        methods: {
+            //获取订单数据方法
+            getTableData() {
+                this.loading = true;
+                axios.post('/Appearances/DisplayTotalModule', {
+                    ordernum: this.selectVal
+                }).then(res => {
+                    if (res.data == '') {
+                        this.$message('此订单没有数据');
+                        this.tableList = [];
+                    } else {
+                        let addInput = res.data;
+                        for (let i of addInput) {
+                            i['newData'] = '';
+                            i['editShow'] = false;
+                        };
+                        this.tableList = addInput;
+                    };
+                    this.allEditShow = false;
+                    this.loading = false;
+                }).catch(err => {
+                    this.loading = false;
+                    console.warn('获取数据失败')
+                });
+            },
+            //修改单个模组号方法
+            editModule(barcode, module, row) {
+                axios.post('/Appearances/UpdateTotalModule', {
+                    barcode: barcode,
+                    module: module
+                }).then(res => {
+                    if (res.data === 'True') {
+                        //row.barcodeModule = module;
+                        //row.calibtationModule = module;
+                        //row.appearanModule = module;
+                        //row.editShow = false;
+                        //row.newData = '';
+                        this.getTableData();
+                        this.$message.success('修改成功');
+                    } else {
+                        this.$message.error('修改失败');
+                    };
+                }).catch(err => {
+                    console.warn('修改数据失败')
+                });
+            },
+            //权限筛选方法
+            checkRoles(roleName) {   //检测权限
+                let list = JSON.parse(localStorage.getItem("rigths"));
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //批量编辑输入框开关方法
+            allEditOnOff(v) {
+                this.allEditShow = v;
+                for (let i of this.tableList) {
+                    i.editShow = v;
+                };
+            },
+            //批量修改模组号方法
+            allEditPost() {
+                this.loading = true;
+                let listArr = [], thistable = this.tableList;
+                for (let item of thistable) {
+                    if (item.newData != '') {
+                        listArr.push({
+                            barcode: item.barcode,
+                            module: item.newData
+                        });
+                    }
+                };
+                axios.post('/Appearances/BatchUpdatTotalModule', {
+                    ListMessage: JSON.stringify(listArr),
+                }).then(res => {
+                    this.getTableData();
+                    this.$message.success('修改成功');
+                }).catch(err => {
+                    this.allEditShow = false;
+                    this.loading = false;
+                    this.$message.success('修改数据失败');
+                });
+            }
+        },
+        mounted: function () {
+            this.role = this.checkRoles("模组号信息修改");//验证是否存在‘模组号信息修改’权限
+            //this.role = true;
+            //this.selectVal = '2017-TEST-1';
+            //this.getTableData();
+        }
+    });
+</script>

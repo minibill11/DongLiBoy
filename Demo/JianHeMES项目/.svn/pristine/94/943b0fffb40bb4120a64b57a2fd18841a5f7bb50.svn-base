@@ -1,0 +1,134 @@
+﻿@* 复制模态框 *@
+<script type="text/template" id="copyBtn">
+    <div>
+        <el-button size="mini" @@click="copyVisible = true" class="miniBtn" type="info" plain round>复制</el-button>
+        @*<slot></slot>*@
+        <el-dialog @@close="close('ruleForm')"
+                   :append-to-body="true"
+                   title="复制平台内容"
+                   :visible.sync="copyVisible"
+                   center>
+            @*<div slot="title"></div>*@
+            <el-form label-width="30%"
+                     label-position="right"
+                     ref="ruleForm"
+                     size="medium"
+                     :rules="rules"
+                     :model="copyForm">
+                <el-form-item label="需要复制的数据" prop="list">
+                    <el-checkbox-group v-model="copyForm.list">
+                        <el-checkbox v-for="i in infoList" :label="i.id" name="list">{{i.name}}</el-checkbox>
+                    </el-checkbox-group>
+                </el-form-item>
+                <el-form-item label="平台" prop="platform">
+                    <el-input v-model="copyForm.platform"></el-input>
+                </el-form-item>
+                <el-form-item label="型号" prop="type">
+                    <el-input v-model="copyForm.type"></el-input>
+                </el-form-item>
+                <el-form-item label="平台模块" prop="platformModul">
+                    <el-input v-model="copyForm.platformModul"></el-input>
+                </el-form-item>
+                <el-form-item label="产品PCB编号" prop="productPCBnumber">
+                    <el-input v-model="copyForm.productPCBnumber"></el-input>
+                </el-form-item>
+                <el-form-item label="维护方式" prop="maintenance">
+                    <el-select v-model="copyForm.maintenance" placeholder="请选择维护方式">
+                        <el-option label="前维护" value="前维护"></el-option>
+                        <el-option label="后维护" value="后维护"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-button @@click="copyVisible = false">取 消</el-button>
+                    <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                </el-form-item>
+            </el-form>
+        </el-dialog>
+    </div>
+</script>
+<script>
+    Vue.component('copy-dialog', {
+        template: document.getElementById("copyBtn"),
+        props: ['thisrow', 'thisitem', 'statu'],
+        data: function () {
+            return {
+                copyForm: {
+                    list: [],
+                    type: "",
+                    productPCBnumber: "",
+                    platform: "",
+                    platformModul: "",
+                    maintenance: ""
+                },
+                copyVisible: false,
+                rules: {
+                    list: [{ type: 'array', required: true, message: '请至少选择一项', trigger: 'change' }],
+                    type: [{ required: true, message: '请填写型号', trigger: 'blur' }],
+                    platform: [{ required: true, message: '请填写平台', trigger: 'blur' }],
+                    platformModul: [{ required: true, message: '请填写平台模块', trigger: 'blur' }],
+                    maintenance: [{ required: true, message: '请选择维护方式', trigger: 'change' }],
+                    productPCBnumber: [{ required: true, message: '请填写产品PCB编号', trigger: 'blur' }],
+                },
+                address: '',
+                infoList: [],
+            }
+        },
+        mounted: function () {
+            let section = this.statu;
+            if (section === '插件' || section === '三防' || section === '打底壳' || section === '灌胶' || section === '锁面罩' || section === '气密' || section === '喷墨' || section === '老化') {
+                this.address = "ProcessPartToNewPlatform";
+            } else {
+                this.address = "ProcessBalanceTableCopeToNewPlatform";
+            };
+            let nameinfo = app.getSectionInfo(section), item = this.thisitem;
+            if (section === 'SMT') {
+                this.infoList.push({
+                    id: this.thisrow[nameinfo.idName],
+                    name: nameinfo.name,
+                });
+            } else {
+                for (let i of item) {
+                    this.infoList.push({
+                        id: i[nameinfo.idName],
+                        name: i[nameinfo.name],
+                    });
+                };
+            };
+        },
+        methods: {
+            //复制数据
+            copyData() {
+                app.loading = true;
+                axios.post(`/Process_Capacity/${this.address}`, this.copyForm).then(res => {
+                    //console.log(res.data);
+                    if (res.data.isok) {
+                        this.$message.success(res.data.message);
+                        this.copyVisible = false;
+                    } else {
+                        this.$message.error(res.data.message);
+                    };
+                    app.loading = false;
+                }).catch(err => {
+                    this.$message.error('复制失败！');
+                    app.loading = false;
+                    this.copyVisible = false;
+                });
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.copyData();
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            }
+        }
+    });
+</script>

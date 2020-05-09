@@ -1,0 +1,1186 @@
+﻿@{
+    ViewBag.Title = "工序产能首页";
+}
+
+@*  <summary>
+    1.工序产能首页
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<link href="~/Content/styleFile/processCapacity/indexStyle.css" rel="stylesheet" />@*工序产能公共样式文件*@
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+
+    .el-table tbody tr td {
+        padding: 0;
+    }
+
+    .fontsizelie {
+        font-size: 16px;
+    }
+
+    .ulli {
+        margin: 0;
+        line-height: 16px;
+        text-align: left;
+        padding-left: 15px;
+    }
+
+        .ulli li {
+            margin-bottom: 5px;
+        }
+
+    .el-table__expanded-cell[class*="cell"] {
+        padding: 10px 20px;
+        background-color: #fff4f4;
+    }
+
+    .el-table__body tr:hover > td[class="el-table__expanded-cell"] {
+        background-color: #fff4f4 !important;
+    }
+
+    .el-table__body tr:hover > td {
+        background-color: #30BCF242 !important;
+    }
+
+    .areaDiv {
+        margin: 5px auto;
+        width: 800px;
+    }
+
+        .areaDiv .el-input, .areaDiv el-button {
+            display: inline-block;
+            max-width: 180px;
+        }
+
+    .shebeiDiv {
+        height: 28px;
+        line-height: 28px;
+    }
+
+    .danwei {
+        font-size: 12px;
+        height: 12px;
+        line-height: 12px;
+    }
+
+    .jieguo {
+        font-size: 19px;
+        color: #1539f7;
+        max-width: 500px;
+        padding-left: 10px;
+    }
+
+    .el-table .smtbgcolor {
+        background: #f9f9eb;
+    }
+
+    .el-table .mzbgcolor {
+        background: #fff4f4;
+    }
+
+    .el-table .mkbgcolor {
+        background: #f0f9eb;
+    }
+
+    .detailTable > thead > tr > td, .detailTable > tbody > tr > td {
+        text-align: center;
+        vertical-align: middle;
+        overflow: hidden;
+        padding: 3px 0;
+    }
+
+    .detailTable > thead > tr > td {
+        color: #909399;
+        font-weight: bold;
+        padding: 10px 0;
+    }
+
+    .trParent > tr > td {
+        min-width: 65px;
+    }
+
+    .trParent tr td:first-child {
+        width: 130px;
+    }
+
+    .bpstyle {
+        background-color: #ededed !important;
+    }
+
+    .sbstyle {
+        background-color: #ebf4f9 !important;
+    }
+
+    .phbsstyle {
+        background-color: #fcfba3 !important;
+    }
+
+    .phstyle {
+        background-color: #fff5ec !important;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center">
+                <el-form :inline="true" :model="queryTable" size="small">
+                    <el-form-item label="筛选平台">
+                        <select-input v-model.trim="queryTable.proplatform" :disabled="false" @@watchval="watchPlatform($event)" :appendbody="false" :options="options.proplatform" :isfocus="true" @*:ismultiple="true"*@ size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                    <el-form-item label="筛选型号">
+                        <select-input v-model.trim="queryTable.protype" :disabled="false" @@watchval="watchType($event)" :appendbody="false" :options="options.protype" :isfocus="true" @*:ismultiple="true"*@ size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                    <el-button type="primary" @@click="onQuerySubmit" size="medium">查找</el-button>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="filterResult"
+                          max-height="700"
+                          size="medium"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          ref="thistable"
+                          border>
+                    <el-table-column type="expand" width="1">
+                        <template slot-scope="props">
+                            <div v-if="props.row.info!=''">
+                                @*<div>PCB编号：<b>{{ props.row.PCB }}</b></div>*@
+                                <div class="areaDiv">
+                                    <el-input v-model="props.row.area"
+                                              ref="computeInput"
+                                              v-on:keyup.enter.native="areaCompute(props.row,props.row.area)"
+                                              placeholder="请输入面积"></el-input>
+                                    <el-button type="success" :loading="props.row.btnloading" @@click="areaCompute(props.row,props.row.area)">计 算</el-button>
+                                    <span class="jieguo">{{props.row.info.resultMes}}</span>
+                                    <br /><span class="danwei">单位：㎡(平方米)</span>
+                                </div>
+                                <table class="el-table el-table--border detailTable">
+                                    <thead class="el-table__header-wrapper trParent">
+                                        <tr>
+                                            <td>详细表</td>
+                                            <td v-for="(item,index) in detailList.name">{{item}}</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="el-table__body-wrapper trParent">
+                                        <tr>
+                                                <td>每小时产能</td>
+                                                <td v-for="(item,index) in detailList.capacityPerHour">{{item}}</td>
+                                            </tr>
+                                        <tr>
+                                            <td>模组需求数</td>
+                                            <td v-for="(item,index) in detailList.moduleNeed">{{item}}</td>
+                                        </tr>
+                                        <tr class="bpstyle">
+                                            <td>标配人数</td>
+                                            <td v-for="(item,index) in detailList.person">{{item}}</td>
+                                        </tr>
+                                        <tr class="bpstyle">
+                                            <td>标准产能</td>
+                                            <td v-for="(item,index) in detailList.capacity">{{item}}</td>
+                                        </tr>
+                                        <tr class="sbstyle">
+                                            <td>设备名字</td>
+                                            <td v-for="(item,index) in detailList.equipmentName">{{item}}</td>
+                                        </tr>
+                                        <tr class="sbstyle">
+                                            <td>设备数量</td>
+                                            <td v-for="(item,index) in detailList.equipmentNum">{{item}}</td>
+                                        </tr>
+                                        <tr class="sbstyle">
+                                            <td>设备产能</td>
+                                            <td v-for="(item,index) in detailList.equipmentCapacity">{{item}}</td>
+                                        </tr>
+                                        <tr class="phbsstyle">
+                                            <td>平衡后倍数</td>
+                                            <td v-for="(item,index) in detailList.balanceMultiple">{{item}}</td>
+                                        </tr>
+                                        <tr class="phstyle">
+                                            <td>平衡后产能</td>
+                                            <td v-for="(item,index) in detailList.balanceCapacity">{{item}}</td>
+                                        </tr>
+                                        <tr class="phstyle">
+                                            <td>平衡后人数</td>
+                                            <td v-for="(item,index) in detailList.balancePerson">{{item}}</td>
+                                        </tr>
+                                        <tr class="phstyle">
+                                            <td>平衡后设备需求数</td>
+                                            <td v-for="(item,index) in detailList.balanceEquipmentNum">{{item}}</td>
+                                        </tr>
+                                        <tr class="phstyle">
+                                            <td>平衡率</td>
+                                            <td v-for="(item,index) in detailList.balanceRate">{{item}}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                @*<el-table :data="detailList"
+                                              :row-class-name="tableRowClassName"
+                                              :cell-style="cellStyle"
+                                              style="width: 100%"
+                                              stripe>
+                                        <el-table-column prop="name"
+                                                         label="工序名称"
+                                                         width="110">
+                                        </el-table-column>
+                                        <el-table-column prop="moduleNeed"
+                                                         label="模组需求数量"
+                                                         width="100">
+                                        </el-table-column>
+                                        <el-table-column prop="equipmentName"
+                                                         label="设备名称"
+                                                         width="110">
+                                            <template slot-scope="scope">
+                                                <div v-if="scope.row.equipmentName==''">/</div>
+                                                <template v-else v-for="(item,index) in scope.row.equipmentName">
+                                                    <div class="shebeiDiv">{{item}}</div>
+                                                    <el-divider v-if="index<(scope.row.equipmentName.length-1)"></el-divider>
+                                                </template>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="equipmentNum"
+                                                         label="设备数量(台)">
+                                            <template slot-scope="scope">
+                                                <div v-if="scope.row.equipmentNum==''">/</div>
+                                                <template v-else v-for="(item,index) in scope.row.equipmentNum">
+                                                    <div class="shebeiDiv">{{item}}</div>
+                                                    <el-divider v-if="index<(scope.row.equipmentNum.length-1)"></el-divider>
+                                                </template>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column label="工段平衡倍数"
+                                                         width="130">
+                                            <template slot-scope="scope">
+                                                <el-input-number v-model="scope.row.balance" :precision="1" :step="0.1" :min="0" size="mini"></el-input-number>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="person"
+                                                         label="标配人数"
+                                                         min-width="80">
+                                        </el-table-column>
+                                        <el-table-column prop="balancePeople"
+                                                         label="平衡后人数">
+                                            <template slot-scope="scope">
+                                                {{Math.ceil(scope.row.person*scope.row.balance)}}
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="capacity"
+                                                         label="标准产能(PCS/H)"
+                                                         min-width="110">
+                                        </el-table-column>
+                                        <el-table-column prop="equipmentCapacity"
+                                                         label="设备产能(PCS/H)"
+                                                         min-width="110">
+                                            <template slot-scope="scope">
+                                                <div v-if="scope.row.equipmentCapacity==''">/</div>
+                                                <template v-else v-for="(item,index) in scope.row.equipmentCapacity">
+                                                    <div class="shebeiDiv">{{item}}</div>
+                                                    <el-divider v-if="index<(scope.row.equipmentCapacity.length-1)"></el-divider>
+                                                </template>
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="balanceCapacity"
+                                                         label="平衡后产能(PCS/H)">
+                                            <template slot="header" slot-scope="scope">
+                                                平衡后产能
+                                                <br />(PCS/H)
+                                            </template>
+                                            <template slot-scope="scope">
+                                                {{Number.isInteger(scope.row.capacity*scope.row.balance)?(scope.row.capacity*scope.row.balance):(scope.row.capacity*scope.row.balance).toFixed(2)}}
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="balanceRate"
+                                                         label="平衡率">
+                                            <template slot-scope="scope">
+                                                {{rateCompute(scope.row)}}%
+                                            </template>
+                                        </el-table-column>
+                                        <el-table-column prop="balanceNum"
+                                                         label="平衡后设备需求(台)">
+                                            <template slot-scope="scope">
+                                                <div v-if="scope.row.equipmentName==''">/</div>
+                                                <template v-else v-for="(item,index) in needNumCompute(scope.row)">
+                                                    <div class="shebeiDiv">{{item}}</div>
+                                                    <el-divider v-if="index<(scope.row.equipmentName.length-1)"></el-divider>
+                                                </template>
+                                            </template>
+                                        </el-table-column>
+                                    </el-table>*@
+                            </div>
+                            <div v-else class="text-center">暂无数据</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column type="index" label="序号" width="40">
+                        <template slot-scope="scope">
+                            <span style="font-size:16px;">{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="platfrom"
+                                     min-width="80"
+                                     @*fixed*@
+                                     sortable
+                                     label="平台">
+                        <template slot-scope="scope">
+                            @*<el-link :href="`/Process_Capacity/index2?Type=${scope.row.type}&ProductPCBnumber=${scope.row.PCB}&Platform=${scope.row.platfrom}`"
+                                target="_blank"
+                                class="fontsizelie"
+                                style="color:#409EFF"
+                                :underline="false">{{scope.row.platfrom}}</el-link>*@
+                            <span class="fontsizelie">{{scope.row.platfrom}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="type"
+                                     sortable
+                                     min-width="80"
+                                     label="型号">
+                        <template slot-scope="scope">
+                            <span class="fontsizelie">{{scope.row.type}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="PlatformModul"
+                                     label="平台模块"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.platformModule.length>0">
+                                <div v-if="scope.row.platformModule.length>1">
+                                    <el-select v-model="scope.row.ptmkVal" @@change="ptmkselect($event,scope.row)" placeholder="请选择">
+                                        <el-option v-for="item in scope.row.platformModule"
+                                                   :key="item.PlatformModul"
+                                                   :label="item.PlatformModul"
+                                                   :value="item.PlatformModul">
+                                        </el-option>
+                                    </el-select>
+                                </div>
+                                <div v-else class="fontsizelie">{{scope.row.ptmkVal}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Maintenance"
+                                     label="维护方式"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.platformModule.length>0">
+                                <div v-if="scope.row.platformModule[scope.row.ptmkIndex].Maintenance.length>1">
+                                    <el-select v-model="scope.row.whVal" @@change="whselect(scope.row)" placeholder="请选择">
+                                        <el-option v-for="item in scope.row.platformModule[scope.row.ptmkIndex].Maintenance"
+                                                   :key="item"
+                                                   :label="item"
+                                                   :value="item">
+                                        </el-option>
+                                    </el-select>
+                                </div>
+                                <div v-else class="fontsizelie">{{scope.row.whVal}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组单位"
+                                     min-width="65"
+                                     prop="ModuleUnits">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.platformModule.length>0">
+                                {{scope.row.platformModule[scope.row.ptmkIndex].ModuleUnits}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模块"
+                                     min-width="140">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.sgOption.length>1">
+                                <el-select v-model="scope.row.sgID" @@change="sgselect(scope.row)" placeholder="请选择">
+                                    <el-option v-for="item in scope.row.sgOption"
+                                               :key="item.threeid+item.guleid"
+                                               :label="sglabel(item.threename,item.gulename)"
+                                               :value="item.threeid+'+'+item.guleid">
+                                    </el-option>
+                                </el-select>
+                            </div>
+                            <div v-else>
+                                <div v-if="sglabel(scope.row.sgVal.split('+')[0],scope.row.sgVal.split('+')[1]).split('+').length>1">
+                                    <ul class="ulli">
+                                        <li v-for="i in sglabel(scope.row.sgVal.split('+')[0],scope.row.sgVal.split('+')[1]).split('+')">
+                                            {{i}}
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-else>{{sglabel(scope.row.sgVal.split('+')[0],scope.row.sgVal.split('+')[1])}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组">
+                        <el-table-column label="出货方式"
+                                         min-width="90">
+                            <template slot-scope="scope">
+                                <div v-if="scope.row.wayOption.length>1">
+                                    <el-select v-model="scope.row.wayVal" @@change="wayselect(scope.row,$event)" placeholder="请选择">
+                                        <el-option v-for="item in scope.row.wayOption"
+                                                   :key="item"
+                                                   :label="item"
+                                                   :value="item">
+                                        </el-option>
+                                    </el-select>
+                                </div>
+                                <div v-else>
+                                    {{scope.row.wayVal}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="模组类别"
+                                         min-width="100">
+                            <template slot-scope="scope">
+                                <template v-if="scope.row.wayVal!=''">
+                                    <div v-if="scope.row.categoryOption.length>1">
+                                        <el-select v-model="scope.row.categoryVal" @@change="categoryselect(scope.row,$event)" placeholder="请选择">
+                                            <el-option v-for="item in scope.row.categoryOption"
+                                                       :key="item"
+                                                       :label="item"
+                                                       :value="item">
+                                            </el-option>
+                                        </el-select>
+                                    </div>
+                                    <div v-else>
+                                        {{scope.row.categoryVal}}
+                                    </div>
+                                </template>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="箱体尺寸"
+                                         min-width="110">
+                            <template slot-scope="scope">
+                                <template v-if="scope.row.categoryVal!=''">
+                                    <div v-if="scope.row.sizeOption.length>1">
+                                        <el-select v-model="scope.row.sizeVal" @@change="sizeselect(scope.row,$event)" placeholder="请选择">
+                                            <el-option v-for="item in scope.row.sizeOption"
+                                                       :key="item"
+                                                       :label="item"
+                                                       :value="item">
+                                            </el-option>
+                                        </el-select>
+                                    </div>
+                                    <div v-else>
+                                        {{scope.row.sizeVal}}
+                                    </div>
+                                </template>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="包装"
+                                     min-width="130">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.bzOption.length>1">
+                                <el-select v-model="scope.row.bzID" @@change="bzselect(scope.row)" placeholder="请选择">
+                                    <el-option v-for="item in scope.row.bzOption"
+                                               :key="item.id"
+                                               :label="item.name"
+                                               :value="item.id">
+                                    </el-option>
+                                </el-select>
+                            </div>
+                            <div v-else>
+                                <div v-if="scope.row.bzVal.split('+').length>1">
+                                    <ul class="ulli">
+                                        <li v-for="i in scope.row.bzVal.split('+')">
+                                            {{i}}
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-else>{{scope.row.bzVal}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组生产总工时(H)"
+                                     min-width="75">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.info!=''">
+                                {{scope.row.info.totalcapacityPerHour}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="所需人数"
+                                     min-width="65">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.info!=''">
+                                {{scope.row.info.totalperson}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="加工费用"
+                                     min-width="65">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.info!=''">
+                                {{scope.row.info.processingFee}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="详细信息"
+                                     width="65">
+                        <template slot-scope="scope">
+                            <el-button type="text" size="medium" @@click="toogleExpand(scope.row)">查看</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            filterResult: [],//存储筛选总数据后的结果
+            queryTable: {
+                protype: '',
+                proplatform: 'FS',
+            },
+            options: {
+                protype: [],
+                proplatform: [],
+            },
+            detailList: []
+        },
+        //页面打开时执行
+        created: function () {
+            //获取下拉型号列表
+            this.getProtype();
+            //获取下拉平台列表
+            this.getPlatfrom();
+        },
+        //函数方法
+        methods: {
+            //总表条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/Process_Capacity/GetInfoByModule1', {
+                    type: this.queryTable.protype,
+                    Platform: this.queryTable.proplatform
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    //for (let option of res.data) {
+                    //    option['ptmkIndex'] = 0;
+                    //    option['moduleNameVal'] = [];
+                    //    if (option.list != '') {
+                    //        option.moduleNameVal = option.list[0];
+                    //        option.list = this.cascaderArr(option.list);
+                    //    }
+                    //};
+                    let rtd = this.handleRTD(res.data);
+                    this.tableList = rtd;
+                    this.filterResult = rtd;
+                    this.loading = false;
+                    this.$message.success('查询成功！');
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //型号下拉列表获取方法
+            getProtype() {
+                axios.post('/Process_Capacity/TypeList').then(res => {
+                    //console.log(res.data);
+                    this.options.protype = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //平台下拉列表获取方法
+            getPlatfrom() {
+                axios.post('/Process_Capacity/DisplayPlatfromFromType', { type: '' }).then(res => {
+                    //console.log(res.data);
+                    this.options.proplatform = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //监听平台选择，调用筛选方法，即时更新筛选后的表格
+            watchPlatform(v) {
+                //this.filterList();
+            },
+            //监听型号选择，调用筛选方法，即时更新筛选后的表格
+            watchType(v) {
+                //this.filterList();
+            },
+            //筛选方法，
+            filterList() {
+                let array = this.tableList,//所有数据
+                    arr1 = this.queryTable.proplatform,//下拉列表选择的平台值
+                    arr2 = this.queryTable.protype,//下拉列表选择的型号值
+                    thisArr1, thisArr2;
+                //过滤平台值，筛选出过滤后的列表 存为thisArr1
+                thisArr1 = array.filter(function (val) {
+                    if (arr1 == null || arr1 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr1) {
+                            //if (val.platfrom.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                            //    return val;
+                            //};
+                            if (val.platfrom.toLowerCase() == i.toLowerCase()) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                //在thisArr1筛选后，继续过滤型号值
+                thisArr2 = thisArr1.filter(function (val) {
+                    if (arr2 == null || arr2 == "") {
+                        return val;
+                    } else {
+                        for (let i of arr2) {
+                            //if (val.type.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                            //    return val;
+                            //};
+                            if (val.type.toLowerCase() == i.toLowerCase()) {
+                                return val;
+                            };
+                        };
+                    };
+                });
+                this.filterResult = thisArr2;//存储筛选后的数据
+            },
+            //处理联级数组
+            cascaderArr(arr) {
+                let rtd = [],//返回的数组
+                    exitArr = [];//记录已存在的根节点数组
+                //判断传入的数组长度，大于1代表还有子节点需要处理
+                if (arr.length > 1) {
+                    for (let item of arr) {
+                        //从记录的根节点数组上 找是否存在此次遍历的二维数组的第一个值
+                        if (exitArr.indexOf(item[0]) >= 0) {
+                            continue;//若存在，说明此节点已经生成树，需要跳过
+                        } else {
+                            exitArr.push(item[0]);//否则把此次新值添加进根节点数组
+                        };
+                        let thisFirst = item[0],//存此次根节点值
+                            remainArr = [];//用来存，除去根节点外的剩余数组
+                        for (let i of arr) {
+                            //循环二维数组，找到与此次根节点相同的子数组
+                            if (thisFirst == i[0]) {
+                                if (i.length > 1) {
+                                    //若子数组的长度大于1，说明还存在剩余数组，把第一个值去掉后，加进remainArr
+                                    remainArr.push(i.slice(1));
+                                } else {
+                                    //否则直接作为树节点存入
+                                    rtd.push({
+                                        value: thisFirst,
+                                        label: thisFirst
+                                    });
+                                };
+                            };
+                        };
+                        //剩余数组不为空，则递归下去
+                        if (remainArr.length > 0) {
+                            rtd.push({
+                                value: thisFirst,
+                                label: thisFirst,
+                                children: this.cascaderArr(remainArr)
+                            });
+                        };
+                    };
+                    return rtd;
+                } else {
+                    //若传入的数组长度为1，则判断此子数组数量是不是大于1，大于1则往后添加子节点
+                    if (arr[0].length > 1) {
+                        rtd.push({
+                            value: arr[0][0],
+                            label: arr[0][0],
+                            children: this.cascaderArr([arr[0].slice(1)])
+                        });
+                    } else {
+                        //否则直接作为树节点存入
+                        rtd.push({
+                            value: arr[0][0],
+                            label: arr[0][0]
+                        });
+                    };
+                    return rtd;
+                };
+            },
+            handleRTD(rtd) {
+                for (let item of rtd) {
+                    if (item.platformModule.length > 0) {
+                        //平台模块部分
+                        item['ptmkVal'] = item.platformModule[0].PlatformModul;
+                        item['ptmkIndex'] = 0;
+                        //维护方式部分
+                        item['whVal'] = '';
+                        this.ptmkselect(item.ptmkVal, item);
+                        //三防+灌胶部分
+                        item['sgID'] = '';
+                        item['sgVal'] = '';
+                        item['sgOption'] = [];
+                        //模组部分
+                        item['mzID'] = '';
+                        item['mzVal'] = '';
+                        item['mzOption'] = [];
+                        //分三段
+                        item['mzall'] = [];
+                        item['wayVal'] = '';
+                        item['wayOption'] = [];
+                        item['categoryVal'] = '';
+                        item['categoryOption'] = [];
+                        item['sizeVal'] = '';
+                        item['sizeOption'] = [];
+                        //包装部分
+                        item['bzID'] = '';
+                        item['bzVal'] = '';
+                        item['bzOption'] = [];
+                        //汇总信息
+                        item['info'] = '';
+                        item['area'] = '';
+                        item['btnloading'] = false;
+                    };
+                };
+                return rtd;
+            },
+            //重置数据
+            clear(row, from) {
+                this.detailList = [];
+                row.info = '';
+                //if (from == "ptmk" || from == "wh" || from == "sg" || from == "way" || from == "category" || from == "size" || from == "bz") {
+                //};
+                if (from == "ptmk" || from == "wh" || from == "sg" || from == "way" || from == "category" || from == "size") {
+                    row.bzID = '';
+                    row.bzVal = '';
+                    row.bzOption = [];
+                };
+                if (from == "ptmk" || from == "wh" || from == "sg" || from == "way" || from == "category") {
+                    row.sizeVal = '';
+                    row.sizeOption = [];
+                };
+                if (from == "ptmk" || from == "wh" || from == "sg" || from == "way") {
+                    row.categoryVal = '';
+                    row.categoryOption = [];
+                };
+                if (from == "ptmk" || from == "wh" || from == "sg") {
+                    row.mzID = '';
+                    row.mzVal = '';
+                    row.mzOption = [];
+                    row.mzall = '';
+                    row.wayVal = '';
+                    row.wayOption = [];
+                };
+                if (from == "ptmk" || from == "wh") {
+                    row.sgID = '';
+                    row.sgVal = '';
+                    row.sgOption = [];
+                };
+                if (from == "ptmk") {
+                    row.whVal = '';
+                };
+            },
+            //选择平台模块
+            ptmkselect(value, row) {
+                this.clear(row, "ptmk");
+                for (let i in row.platformModule) {
+                    if (value == row.platformModule[i].PlatformModul) {
+                        row.ptmkIndex = i;
+                        if (row.platformModule[i].Maintenance.length <= 1) {
+                            row.whVal = row.platformModule[i].Maintenance[0];
+                            this.whselect(row);
+                        };
+                    };
+                };
+            },
+            whselect(row) {
+                this.clear(row, "wh");
+                axios.post('/Process_Capacity/GetThreeList', {
+                    type: row.type,
+                    Platform: row.platfrom,
+                    modulelist: row.ptmkVal,
+                    Maintenance: row.whVal
+                }).then(res => {
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    if (res.data.length > 1) {
+                        row.sgOption = res.data;
+                    } else {
+                        row.sgID = res.data[0].threeid + '+' + res.data[0].guleid;
+                        row.sgVal = res.data[0].threename + '+' + res.data[0].gulename;
+                        this.sgselect(row);
+                    };
+                }).catch(err => {
+                    console.log(err);
+                });
+            },
+            //三防灌胶显示
+            sglabel(s, g) {
+                let rtlabel = ''
+                if (s != '' && s != null && s != 'null') {
+                    let san = s.split('➵');
+                    if (san.length > 1) {
+                        for (let i in san) {
+                            rtlabel += san[i];
+                            if (i < (san.length - 1)) {
+                                rtlabel += '+';
+                            };
+                        };
+                    } else {
+                        rtlabel += s;
+                    };
+                };
+                if (s != "" && s != null && s != 'null' && g != "" && g != null && g != 'null') {
+                    rtlabel += '+';
+                };
+                if (g != '' && g != null && g != 'null') {
+                    let guan = g.split('➵');
+                    if (guan.length > 1) {
+                        for (let i in guan) {
+                            rtlabel += guan[i];
+                            if (i < (guan.length - 1)) {
+                                rtlabel += '+';
+                            };
+                        };
+                    } else {
+                        rtlabel += g;
+                    };
+                };
+                return rtlabel;
+            },
+            //选择三防+灌胶
+            sgselect(row) {
+                this.clear(row, "sg");
+                let id = row.sgID.split("+");
+                axios.post('/Process_Capacity/GetMoudleList', {
+                    type: row.type,
+                    Platform: row.platfrom,
+                    modulelist: row.ptmkVal,
+                    Maintenance: row.whVal,
+                    threeid: id[0],
+                    guleid: id[1]
+                }).then(res => {
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    //select存储
+                    row.mzall = res.data;
+                    //模组
+                    if (res.data.idArry.length > 1) {
+                        row.mzOption = res.data.idArry;
+                    } else {
+                        row.mzID = res.data.idArry[0].id;
+                        row.mzVal = res.data.idArry[0].name;
+                    };
+                    //出货方式
+                    if (Array.isArray(row.mzall.selectOption.way)) {
+                        if (row.mzall.selectOption.way.length > 1) {
+                            row.wayOption = [...new Set(row.mzall.selectOption.way)];
+                        } else {
+                            row.wayVal = row.mzall.selectOption.way[0];
+                            this.wayselect(row, row.wayVal);
+                        };
+                    } else {
+                        row.wayVal = row.mzall.selectOption.way;
+                        this.wayselect(row, row.wayVal);
+                    };
+                }).catch(err => {
+                    console.log(err);
+                });
+            },
+            wayselect(row, value) {
+                this.clear(row, "way");
+                if (row.mzOption.length > 1) {
+                    for (let i of row.mzOption) {
+                        let way = i.name.split("➸");
+                        if (way.length == 3) {
+                            if (way[0] == value) {
+                                row.categoryOption.push(way[1]);
+                            };
+                        } else {
+
+                        };
+                    };
+
+                    row.categoryOption = [...new Set(row.categoryOption)];
+                    if (row.categoryOption.length <= 1) {
+                        row.categoryVal = row.categoryOption[0];
+                        this.categoryselect(row, row.categoryVal);
+                    };
+                    //暂时赋值
+                    //row.categoryVal = row.categoryOption[0];
+                    //this.categoryselect(row, row.categoryVal);
+                } else {
+                    row.categoryVal = row.mzVal.split("➸")[1];
+                    this.categoryselect(row, row.categoryVal);
+                };
+            },
+            categoryselect(row, value) {
+                this.clear(row, "category");
+                if (row.mzOption.length > 1) {
+                    for (let i of row.mzOption) {
+                        let category = i.name.split("➸");
+                        if (category.length == 3) {
+                            if (row.wayVal == category[0] && category[1] == value) {
+                                row.sizeOption.push(category[2]);
+                            };
+                        } else {
+
+                        };
+                    };
+
+                    row.sizeOption = [...new Set(row.sizeOption)];
+                    if (row.sizeOption.length <= 1) {
+                        row.sizeVal = row.sizeOption[0];
+                        this.sizeselect(row, row.sizeVal);
+                    };
+                    //暂时赋值
+                    //row.sizeVal = row.sizeOption[0];
+                    //this.sizeselect(row, row.sizeVal);
+                } else {
+                    row.sizeVal = row.mzVal.split("➸")[2];
+                    this.sizeselect(row, row.sizeVal);
+                };
+            },
+            sizeselect(row, value) {
+                this.clear(row, "size");
+                let id = row.sgID.split("+");
+
+                if (row.mzOption.length > 1) {
+                    for (let i of row.mzOption) {
+                        let size = i.name.split("➸");
+                        if (row.wayVal == size[0] && row.categoryVal == size[1] && row.sizeVal == size[2]) {
+                            row.mzID = i.id;
+                        };
+                    };
+                } else {
+                    row.mzID = row.mzID;
+                };
+                axios.post('/Process_Capacity/GetPackList', {
+                    type: row.type,
+                    Platform: row.platfrom,
+                    modulelist: row.ptmkVal,
+                    Maintenance: row.whVal,
+                    threeid: id[0],
+                    guleid: id[1],
+                    moduleid: row.mzID
+                }).then(res => {
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    if (res.data.length > 1) {
+                        row.bzOption = res.data;
+                        //暂时赋值
+                        //row.bzID = res.data[0].id;
+                        //row.bzVal = res.data[0].name;
+                        //this.bzselect(row);
+                    } else {
+                        row.bzID = res.data[0].id;
+                        row.bzVal = res.data[0].name;
+                        this.bzselect(row);
+                    };
+                }).catch(err => {
+                    console.log(err);
+                });
+            },
+            //选择包装
+            bzselect(row) {
+                this.clear(row, "bz");
+                let id = row.sgID.split("+");
+                axios.post('/Process_Capacity/GetCapHouse', {
+                    type: row.type,
+                    Platform: row.platfrom,
+                    modulelist: row.ptmkVal,
+                    Maintenance: row.whVal,
+                    threeid: id[0],
+                    guleid: id[1],
+                    moduleid: row.mzID,
+                    packid: row.bzID
+                }).then(res => {
+                    //console.log(JSON.parse(JSON.stringify(res.data)));
+                    row.info = {
+                        totalperson: res.data.totalperson,
+                        processingFee: res.data.processingFee,
+                        totalcapacityPerHour: res.data.totalcapacityPerHour,
+                        resultMes: ''
+                    };
+                    this.detailList = res.data.detail;
+                    //this.setDetailList(res.data.detail);
+                }).catch(err => {
+                    console.log(err);
+                });
+            },
+            //详细表赋值
+            setDetailList(list) {
+                let rtd = {
+                    name: [],
+                };
+                for (let i of list) {
+                    rtd.name.push(i.name);
+                };
+                this.detailList = rtd;
+
+                //isEquipment 为true是设备,false 是标准     Referencecapacity  瓶颈参考值
+            },
+            //详细展开切换
+            toogleExpand(row, event, column) {
+                //切换展开状态清空值
+                this.clear(row, 'qh');
+                let $table = this.$refs.thistable;
+                this.filterResult.map((item) => {
+                    if (row.platfrom != item.platfrom || row.type != item.type || row.PCB != item.PCB) {
+                        $table.toggleRowExpansion(item, false);
+                    };
+                });
+                $table.toggleRowExpansion(row);
+                //若该行值不为空，详细表取值
+                if (row.type != '' && row.platfrom != '' && row.ptmkVal != '' && row.whVal != '' && row.sgID != '' && row.mzID != '' && row.bzID != '') {
+                    this.bzselect(row);
+                };
+                this.$nextTick(_ => {
+                    let refs = this.$refs.computeInput;
+                    if (refs) {
+                        refs.focus();
+                    };
+                });
+            },
+            areaCompute(row, areaVal) {
+                row.info.resultMes = "";
+                if (!Number(areaVal)) {
+                    //this.$message.warning("请输入有效面积");
+                    row.info.resultMes = "请输入有效面积";
+                    return;
+                };
+                if (!row.btnloading) {
+                    row.btnloading = true;
+                    setTimeout(function () {
+                        let mozSize = row.sizeVal.split('*'),//切割模组
+                            mozCount = 0;
+                        if (mozSize.length == 2) {
+                            mozCount = areaVal / ((Number(mozSize[0]) * Number(mozSize[1])) / 1000 / 1000);//模组数量
+                        } else {
+                            //this.$message.warning("箱体尺寸格式有误");
+                            row.info.resultMes = "箱体尺寸格式有误";
+                            row.btnloading = false;
+                            return;
+                        };
+                        row.info.resultMes = `生产${areaVal}㎡总工时：${app.resultCount(mozCount)}(H)`;
+                        //控制显示
+                        row.btnloading = false;
+                    }, 500);
+                };
+            },
+            resultCount(mzNumVal) {
+                return 0;
+                //let list = this.detailList, rtd = 0;
+                //let smtTimeVal = [], mkTimeVal = [], mzTimeVal = [];
+                //for (let i of list) {
+                //    if (i.capacity != 0) {
+                //        if (i.name == 'IC' || i.name == '灯面' || i.name == '插件' || i.name == '后焊') {
+                //            //smt
+                //            smtTimeVal.push((mzNumVal * i.moduleNeed) / (i.capacity * i.balance));
+                //        } else if (i.name == '模组装配' || i.name == '拼屏' || i.name == '拆屏' || i.name == '包装') {
+                //            //模组
+                //            mzTimeVal.push((mzNumVal * i.moduleNeed) / (i.capacity * i.balance));
+                //        } else {
+                //            //模块
+                //            mkTimeVal.push((mzNumVal * i.moduleNeed) / (i.capacity * i.balance));
+                //        };
+                //    };
+                //};
+                //rtd += Math.max(...smtTimeVal);
+                //rtd += Math.max(...mkTimeVal);
+                //for (let mz of mzTimeVal) {
+                //    rtd += mz;
+                //};
+                //return rtd.toFixed(2);
+            },
+            detailInfoComputed() {
+                let list = this.detailList;
+                let rtd = {
+                    maxSMT: '',
+                    minSMT: '',
+                    maxMZ: '',
+                    minMZ: '',
+                    maxMK: '',
+                    minMK: '',
+                }, smtVal = [], mkVal = [], mzVal = [];
+                for (let i of list) {
+                    if (i.capacity != 0) {
+                        if (i.name == 'IC' || i.name == '灯面' || i.name == '插件' || i.name == '后焊') {
+                            //smt
+                            smtVal.push(i.capacity * i.balance);
+                        } else if (i.name == '模组装配' || i.name == '拼屏' || i.name == '拆屏' || i.name == '包装') {
+                            //模组
+                            mzVal.push(i.capacity * i.balance);
+                        } else {
+                            //模块
+                            mkVal.push(i.capacity * i.balance);
+                        };
+                    };
+                };
+                rtd.maxSMT = Math.max(...smtVal);
+                rtd.minSMT = Math.min(...smtVal);
+                rtd.maxMZ = Math.max(...mzVal);
+                rtd.minMZ = Math.min(...mzVal);
+                rtd.maxMK = Math.max(...mkVal);
+                rtd.minMK = Math.min(...mkVal);
+                return rtd;
+            },
+            rateCompute(row) {
+                let capacityData = this.detailInfoComputed(), rtd = '';
+                if (row.name == 'IC' || row.name == '灯面' || row.name == '插件' || row.name == '后焊') {
+                    //smt
+                    rtd = (row.balance * row.capacity) / capacityData.maxSMT;
+                } else if (row.name == '模组装配' || row.name == '拼屏' || row.name == '拆屏' || row.name == '包装') {
+                    //模组
+                    rtd = (row.balance * row.capacity) / (row.balance * row.capacity);
+                } else {
+                    //模块
+                    rtd = (row.balance * row.capacity) / capacityData.maxMK;
+                };
+                return (rtd * 100).toFixed(1);
+            },
+            needNumCompute(row) {
+                let capacityData = this.detailInfoComputed(), rtd = [];
+                if (row.name == 'IC' || row.name == '灯面' || row.name == '插件' || row.name == '后焊') {
+                    //smt
+                    for (let i of row.equipmentCapacity) {
+                        rtd.push((capacityData.minSMT / i).toFixed(1));
+                    };
+                } else if (row.name == '模组装配' || row.name == '拼屏' || row.name == '拆屏' || row.name == '包装') {
+                    //模组
+                    for (let i of row.equipmentCapacity) {
+                        rtd.push((capacityData.minMZ / i).toFixed(1));
+                    };
+                } else {
+                    //模块
+                    for (let i of row.equipmentCapacity) {
+                        rtd.push((capacityData.minMK / i).toFixed(1));
+                    };
+                };
+                return rtd;
+            },
+            tableRowClassName({ row, rowIndex }) {
+                if (row.name == 'IC' || row.name == '灯面' || row.name == '插件' || row.name == '后焊') {
+                    //smt
+                    return 'smtbgcolor';
+                } else if (row.name == '模组装配' || row.name == '拼屏' || row.name == '拆屏' || row.name == '包装') {
+                    //模组
+                    return 'mzbgcolor';
+                } else {
+                    //模块
+                    return 'mkbgcolor';
+                };
+            },
+            cellStyle({ row, column, rowIndex, columnIndex }) {
+                if (columnIndex == 10) {
+                    if (this.rateCompute(row) < 85) {
+                        return "color: red";
+                    }
+                }
+            }
+        },
+        //页面加载完后执行
+        mounted: function () {
+            //页面加载完后 调用方法获取表格数据
+            this.onQuerySubmit();
+        },
+    });
+</script>

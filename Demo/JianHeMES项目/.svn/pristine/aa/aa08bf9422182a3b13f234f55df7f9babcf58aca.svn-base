@@ -1,0 +1,151 @@
+﻿@{
+    ViewBag.Title = "工序产能首页";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    .container, .body-content {
+        width: 90vw;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                @*查询框*@
+                @RenderPage("_mainQuery.cshtml")
+            </el-row>
+            <el-row>
+                <file-statu-table ref="statuRef" :statu="queryTable.statu" :ispower="limitsRole[3]"></file-statu-table>
+            </el-row>
+            <el-row class="text-center">
+                @*主表*@
+                @RenderPage("_summaryTable.cshtml")
+            </el-row>
+            <el-row class="text-center">
+                @*图表*@
+                @RenderPage("_chart.cshtml")
+            </el-row>
+            <el-row class="text-center">
+                @*详细表*@
+                @RenderPage("_detailTable.cshtml")
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("_fileStatuTable.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            tableList: [],
+            queryTable: {
+                protype: "",
+                proplatform: "",
+                statu: ""
+            },
+            options: {
+                protype: [],
+                proplatform: [],
+                statu: [{ value: '未审核' }, { value: '审核未通过' }, { value: '审核通过' }, { value: '未批准' }, { value: '批准未通过' }, { value: '批准通过' },]
+            },
+            //权限列表 和 是否拥有权限
+            limitsList: {},
+            limitsRole: {},
+            //定时器
+            pollingTimer: "",
+        },
+        created: function () {
+            this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            this.getProtype();
+            this.getPlatfrom();
+            this.monitorTimer();
+            this.onQuerySubmit();
+
+            //获取权限
+            //1、新建平台 ，2、上传文件和编辑 ， 3、查看附表 ， 4、上传PDF和图片 ， 5、审核附表 ，6、批准附表 ，7、受控附表
+            this.limitsRole = {
+                1: this.checkRoles("新建平台"),
+                2: this.checkRoles("上传文件和编辑"),
+                3: this.checkRoles("查看附表"),
+                4: this.checkRoles("上传PDF和图片"),
+                5: this.checkRoles("审核附表"),
+                6: this.checkRoles("批准附表"),
+                7: this.checkRoles("受控附表"),
+            };
+        },
+        methods: {
+            //总表数据轮询
+            getTableData() {
+                //axios.post('/Process_Capacity/TotalProcess_Capacity', {
+                //    protype: this.queryTable.protype.toUpperCase(),
+                //    proplatform: this.queryTable.proplatform
+                //}).then(res => {
+                //    //console.log(JSON.parse(JSON.stringify(res.data)));
+                //    this.tableList = res.data;
+                //}).catch(err => {
+                //    //console.warn("获取数据失败")
+                //});
+            },
+            //总表条件查询
+            onQuerySubmit() {
+                //this.loading = true;
+                //axios.post('/Process_Capacity/TotalProcess_Capacity', {
+                //    protype: this.queryTable.protype.toUpperCase(),
+                //    proplatform: this.queryTable.proplatform == "" ? [] : this.queryTable.proplatform
+                //}).then(res => {
+                //    //console.log(JSON.parse(JSON.stringify(res.data)));
+                //    this.tableList = res.data;
+                //    this.loading = false;
+                //    this.$message.success('查询成功！');
+                //}).catch(err => {
+                //    console.warn("查询数据失败");
+                //    this.loading = false;
+                //});
+            },
+            //型号下拉列表
+            getProtype() {
+                axios.post('/Process_Capacity/TypeList').then(res => {
+                    //console.log(res.data);
+                    this.options.protype = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //平台下拉列表
+            getPlatfrom() {
+                axios.post('/Process_Capacity/DisplayPlatfromFromType', { type: '' }).then(res => {
+                    //console.log(res.data);
+                    this.options.proplatform = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //权限筛选
+            checkRoles(roleName) {   //检测权限
+                let list = this.limitsList;
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //计时器
+            monitorTimer() {
+                //this.pollingTimer = setInterval(() => {
+                //    this.getTableData();
+                //}, 3000);
+            },
+        },
+        mounted: function () {
+            this.queryTable.statu = '未审核';
+        },
+    });
+</script>

@@ -1,0 +1,365 @@
+﻿@{
+    ViewBag.Title = "直通率看板";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+
+    .el-main {
+        padding-top: 0;
+    }
+
+    .el-divider--horizontal {
+        margin: 3px 0;
+    }
+
+    .queryDiv {
+        display: flex;
+        flex-flow: row wrap;
+        align-items: flex-end;
+        justify-content: center;
+        text-align: left;
+        margin: 0 0 10px 30px;
+    }
+
+    .queryText {
+        color: cadetblue;
+        font-size: 13px;
+    }
+
+    .smtTdDiv {
+        display: flex;
+        flex-flow: row wrap;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+        .smtTdDiv > div:first-child {
+            width: 30%;
+        }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center queryDiv">
+                <div>
+                    <span class="queryText">按平台查询:</span><br />
+                    <el-select v-model="queryTable.type" filterable clearable placeholder="请选择平台" size="small">
+                        <el-option v-for="item in options.type"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div>
+                    <span class="queryText">按时间范围:</span><br />
+                    <el-select v-model="queryTable.show" placeholder="请选择" style="width:100px;" size="small">
+                        <el-option v-for="item in options.show"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div v-show="queryTable.show=='y'">
+                    <el-date-picker v-model="queryTable.year"
+                                    type="year"
+                                    size="small"
+                                    placeholder="选择年">
+                    </el-date-picker>
+                </div>
+                <div v-show="queryTable.show=='m'">
+                    <el-date-picker v-model="queryTable.mouth"
+                                    type="month"
+                                    size="small"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                </div>
+                <div v-show="queryTable.show=='w'">
+                    <el-date-picker v-model="queryTable.week"
+                                    type="week"
+                                    size="small"
+                                    format="yyyy 第 WW 周"
+                                    placeholder="选择周">
+                    </el-date-picker>
+                </div>
+                <div v-show="queryTable.show=='d'">
+                    <el-date-picker v-model="queryTable.day"
+                                    type="date"
+                                    size="small"
+                                    placeholder="选择日期">
+                    </el-date-picker>
+                </div>
+                <div>
+                    <el-button type="primary" @@click="onQuerySubmit" size="small">查询</el-button>
+                </div>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="medium"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="smtPassThrough"
+                                     label="SMT"
+                                     min-width="180"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <template v-if="scope.row.smtPassThrough==''">
+                                --
+                            </template>
+                            <template v-else v-for="(item,index) in scope.row.smtPassThrough">
+                                <div class="smtTdDiv">
+                                    <div>{{item.jobconten}}</div>
+                                    <div>
+                                        <div>直通率：{{item.PassThrough}}</div>
+                                        <div>异常率：{{item.Abnormal}}</div>
+                                    </div>
+                                </div>
+                                <el-divider v-if="index<(scope.row.smtPassThrough.length-1)"></el-divider>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="afterPassThrough"
+                                     label="后焊直通率"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column label="组装"
+                                     align="center">
+                        <el-table-column prop="assemblessPassThrough"
+                                         label="直通率"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="assemblessAbnormal"
+                                         label="异常率"
+                                         align="center">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="FQC"
+                                     align="center">
+                        <el-table-column prop="FQCPassThrough"
+                                         label="直通率"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="FQCAbnormal"
+                                         label="异常率"
+                                         align="center">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="老化"
+                                     align="center">
+                        <el-table-column prop="burnPassThrough"
+                                         label="直通率"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="burnAbnormal"
+                                         label="异常率"
+                                         align="center">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="校正"
+                                     align="center">
+                        <el-table-column prop="calibPassThrough"
+                                         label="直通率"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="calibAbnormal"
+                                         label="异常率"
+                                         align="center">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="外观"
+                                     align="center">
+                        <el-table-column prop="appearanPassThrough"
+                                         label="直通率"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="appearanAbnormal"
+                                         label="异常率"
+                                         align="center">
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            queryTable: {
+                type: "",
+                year: "",
+                mouth: "",
+                week: "",
+                day: "",
+                show: ""
+            },
+            options: {
+                type: [],
+                week: [],
+                day: [],
+                show: []
+            },
+        },
+        //页面打开时执行
+        created: function () {
+            //获取订单列表
+            this.getType();
+            this.options.show = [
+                { label: "全部", value: "" },
+                { label: "年", value: "y" },
+                { label: "月", value: "m" },
+                { label: "周", value: "w" },
+                { label: "日", value: "d" }
+            ];
+        },
+        //页面加载完后执行
+        mounted: function () {
+
+        },
+        //函数方法
+        methods: {
+            //总表条件查询
+            onQuerySubmit() {
+                this.loading = true;
+                let parm = this.getParm();
+                if (!parm.pass) {
+                    this.$message.warning(parm.mes);
+                    this.loading = false;
+                    return;
+                };
+                axios.post('/KPI/GetPassThrough', parm.parm).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    this.loading = false;
+                    this.$message.success('查询成功！');
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            //处理查询参数
+            getParm() {
+                //初始值
+                let rtd = {
+                    pass: false,
+                    parm: {
+                        type: '',
+                        year: 0,
+                        mouth: 0,
+                        day: 0,
+                        week: false
+                    },
+                    mes: ''
+                }, query = this.queryTable;
+                //类型为空
+                //if (query.type == '') {
+                //};
+                //选择全部
+                if (query.show == '') {
+                    rtd.pass = true;
+                };
+                //选择年
+                if (query.show == 'y') {
+                    if (query.year) {
+                        rtd.parm.year = query.year.getFullYear();
+                        rtd.pass = true;
+                    } else {
+                        rtd.mes = '请选择年';
+                    };
+                };
+                //选择月
+                if (query.show == 'm') {
+                    if (query.mouth) {
+                        rtd.parm.year = query.mouth.getFullYear();
+                        rtd.parm.mouth = query.mouth.getMonth() + 1;
+                        rtd.pass = true;
+                    } else {
+                        rtd.mes = '请选择月';
+                    };
+                };
+                //选择周
+                if (query.show == 'w') {
+                    rtd.parm.week = true;
+                    if (query.week) {
+                        rtd.parm.year = query.week.getFullYear();
+                        rtd.parm.mouth = query.week.getMonth() + 1;
+                        rtd.parm.day = query.week.getDate();
+                        rtd.pass = true;
+                    } else {
+                        rtd.mes = '请选择周';
+                    };
+                };
+                //选择日
+                if (query.show == 'd') {
+                    if (query.day) {
+                        rtd.parm.year = query.day.getFullYear();
+                        rtd.parm.mouth = query.day.getMonth() + 1;
+                        rtd.parm.day = query.day.getDate();
+                        rtd.pass = true;
+                    } else {
+                        rtd.mes = '请选择日';
+                    };
+                };
+                //类型
+                rtd.parm.type = query.type;
+                //返回
+                return rtd;
+            },
+            //获取订单号选择框下拉清单
+            getType() {
+                axios.post('/KPI/GetPassThroughType').then(res => {
+                    this.options.type = res.data;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //获取周选择框下拉清单
+            //GetWeek() {
+            //    axios.post('/KPI/GetPassThroughType', {
+            //        year: this.queryTable.year,
+            //        mouth: this.queryTable.mouth
+            //    }).then(res => {
+            //        this.options.week = res.data;
+            //    }).catch(err => {
+            //        console.warn("型号列表获取失败");
+            //    });
+            //},
+            queryDateClear() {
+                this.queryTable.year = '';
+                this.queryTable.mouth = '';
+                this.queryTable.week = '';
+                this.queryTable.day = '';
+            }
+        },
+        watch: {
+            "queryTable.show"(v) {
+                this.queryDateClear();
+            }
+        }
+    });
+</script>

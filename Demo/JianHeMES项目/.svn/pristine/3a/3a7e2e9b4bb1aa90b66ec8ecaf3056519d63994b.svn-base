@@ -1,0 +1,175 @@
+﻿
+@{
+    ViewBag.Title = "物料基本信息录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    textarea {
+        height: 36px;
+        width: 150px;       
+        margin-top:15px;      
+    }
+    .table .cell,
+    .el-table th,
+    .el-table td {
+        text-align: center;
+        padding: 8px;
+        font-size: 13px;
+    }
+    @@media screen and (max-width:1125px) {
+        .onediv {
+            display: inline-flex;         
+            margin-bottom: 5px
+        }
+    }
+    @@media screen and (min-width:1125px) {
+        .onediv {
+            display: inline-flex;
+            margin-left: 72px !important;
+            margin-bottom: 5px
+        }
+    }
+</style>
+<div id="app">
+    <div style="text-align: center;height:0px">
+        <h3>@ViewBag.Title</h3>
+    </div>
+    <div class="text-center" style="margin-top:35px">
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint" style="margin-left:2px"><el-button size="small" type="primary" plain>打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px">备料确认</el-button></a>
+    </div>
+    <div  class="onediv">
+        <textarea v-model="importIfor" placeholder="表格粘贴处..."></textarea>
+        <el-select v-model="orderNum" placeholder="请选择订单号" size="medium" allow-create filterable clearable style="margin-top:15px;margin-left:5px">
+            <el-option v-for="item in options"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+    </div>
+    <div class="text-center" >
+        <el-aside width="1126px" style="margin: 0 auto;">
+            <el-table v-bind:data="tableData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="550px">
+                <el-table-column prop="Material_Name" label="物品名称" width="160"></el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料编号" width="160"></el-table-column>
+                <el-table-column prop="Specification_Description" label="规格描述" width="495"></el-table-column>
+                <el-table-column prop="Quantity" label="数量" width="90"></el-table-column>
+                <el-table-column prop="SPC_Material_Type" label="类型" width="90"></el-table-column>
+                <el-table-column prop="option" label="操作" width="130">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="danger" v-on:click="remove(scope.$index, scope.row)" style="padding:5px">移除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-aside>
+        <div style="text-align: left;margin-left:52px">
+            <p v-if="tableData.length>0?'visiUpload = true':''">本次共提交<span style="color:red">{{tableData.length}}</span>条数据！</p>
+            <el-button size="mini" type="primary" v-on:click="upload" v-if="tableData.length>0?'visiUpload = true':''">上传</el-button>
+            <el-button size="mini" type="primary" v-on:click="empty" v-if="tableData.length>0?'visiUpload = true':''">清空</el-button>
+        </div>
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            importIfor: '',
+            tableData: [],
+            total: '',
+            visiUpload: false,
+            orderNum: '',
+            options:[],
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });           
+        },
+        methods: {
+            upload() {              
+                if (this.tableData.length > 0 && this.orderNum != '') {
+                    axios.post("/Packagings/SPC_Addbasic_information", {
+                        inputList: this.tableData,
+                        orderNumber:this.orderNum
+                    }).then(res => {                       
+                        if (res.data.length<=0) {
+                            this.$message({
+                                message: "数据上传成功",
+                                type: 'success',
+                            });
+                            this.tableData = [];
+                            this.visiUpload = false;
+                            this.orderNum = '';
+                        }
+                        else if (res.data == "false") {
+                            this.$message({
+                                message: "数据上传失败",
+                                type: 'warning',
+                            });
+                        }
+                        else {
+                            this.$message({
+                                message: "物料号为"+res.data + "的保存失败",
+                                type: 'warning',
+                            });
+                        }                                      
+                    }).catch(err => {
+                        console.log("请求数据失败")
+                    })
+                } else {
+                    this.$message({
+                        message: "请选择订单号，在上传",
+                        type: 'warning',
+                    });
+                }
+            },
+            empty() {
+                this.tableData = []
+            },
+            remove(index, row) {
+                for (let i = 0; i < this.tableData.length; i++) {
+                    if (this.tableData[i].MaterialNumber == row.MaterialNumber) {
+                        this.tableData.splice(i, 1)                       
+                    }
+                }
+            },
+        },
+        watch: {
+            importIfor(val) {
+                if (this.inputInfo == '') { } else {
+                    var valPaste = val.split("\n")
+                    valPaste.pop();
+                    var initData = [];
+                    valPaste.forEach((item, i) => {
+                        var items = item.split("\t");
+                        initData.push(items)
+                    })
+                    initData.forEach(item => {
+                        let obj = {
+                            Material_Name: item[0],
+                            MaterialNumber: item[1],
+                            Specification_Description: item[2], 
+                            Quantity: item[3],
+                            SPC_Material_Type: item[4],                                                       
+                        }
+                        this.tableData.push(obj)
+                        this.importIfor = "";
+                        console.log(this.tableData)
+                    })
+                }
+            },
+        }
+    })
+</script>
+

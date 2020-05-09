@@ -1,0 +1,235 @@
+﻿
+@{
+    ViewBag.Title = "Equipment_Rateof_grain";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<script src="~/Scripts/echarts4.0.4.min.js"></script>
+
+<style>
+    h2{
+        text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;
+    }
+    .topEcharts{
+        display:flex;
+    }
+    .middelCharts{
+        width:85%;
+        margin:14px auto;
+        display:flex;
+        flex-wrap:wrap;
+        text-align:center;
+        justify-content:space-around;
+        box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1)
+    }
+    .totalInfos{
+        display:flex;justify-content:center;
+        margin:10px auto;
+    }
+    .totalInfos div{
+        margin-left:20px;
+    }
+</style>
+<h2>设备稼动率</h2>
+
+<div id="app">
+    <div class="totalInfos">
+        <div> <strong>设备总数</strong> :{{totalInfos.Mainttotal + totalInfos.Runtotal + totalInfos.Stoptotal}}</div>
+        <div><strong>运行总数</strong>:{{totalInfos.Runpercentage}}&nbsp;/&nbsp;{{totalInfos.Runtotal}}</div>
+        <div><strong>停机总数</strong>:{{totalInfos.Stoppercentage}}&nbsp;/&nbsp;{{totalInfos.Stoptotal}}</div>
+        <div><strong>维修总数</strong>:{{totalInfos.Maintpercentage}}&nbsp;/&nbsp;{{totalInfos.Mainttotal}}</div>
+    </div>
+    <div class="topEcharts">
+        <div id="all" style="width: 600px;height:300px;"></div>
+        <div id="months" style="width: 600px;height:300px;"></div>
+    </div>
+    <div v-show="showMiddelCharts" class="middelCharts">
+        <div style="width: 350px;height:250px;" v-for="(item,index) in leftData" v-bind:id=`middelCharts${index}`>{{index}}</div>
+    </div>
+</div>
+
+<script>
+    let app = new Vue({
+        el: "#app",
+        data: {
+            leftChartData: [],
+            showMiddelCharts: false,
+            leftData: [],
+            totalInfos:{}
+        },
+        mounted() {
+            this.getDataLeft();
+            this.getDataRight();
+        },
+        methods: {
+            // 获取数据
+            getDataLeft() {
+                axios.post("/Equipment/Equipment_Thecurrent").then(res=> {
+                    //console.log(res.status);
+                    console.log(res.data)
+                    if (res.status == 200) {
+                        this.totalInfos.Maintpercentage = res.data.Maintpercentage;
+                        this.totalInfos.Mainttotal = res.data.Mainttotal;
+                        this.totalInfos.Runpercentage = res.data.Runpercentage;
+                        this.totalInfos.Runtotal = res.data.Runtotal;
+                        this.totalInfos.Stoppercentage = res.data.Stoppercentage;
+                        this.totalInfos.Stoptotal = res.data.Stoptotal;
+
+                        this.leftData = res.data.Factory_current;
+                        let Maintnumber = 0
+                        let Runnumber = 0
+                        let Stopnumber = 0
+                        res.data.Factory_current.forEach(item=> {
+                            let obj = { value: item.Shuju.Maintnumber }
+                            Maintnumber += item.Shuju.Maintnumber;
+                            Runnumber += item.Shuju.Runnumber;
+                            Stopnumber += item.Shuju.Stopnumber;
+                        });
+                        let dataArr = [
+                            { value: Maintnumber, name: "维修",addadata:"1" },
+                            { value: Runnumber, name: "运行", addadata: "2" },
+                            { value: Stopnumber, name: "停机" ,addadata:"3"}
+                        ];
+                        this.leftChartData = dataArr;
+                        var myChart = echarts.init(document.getElementById('all'));
+                        myChart.setOption({
+                            tooltip: {
+                                trigger: "item",
+                                formatter: "{a} <br/>{b}: {d}%/{c}台"
+                            },
+                            
+                            legend: {
+                                show: true
+                            },
+                            series: [
+                                {
+                                    name: '设备状态',
+                                    type: 'pie',    // 设置图表类型为饼图
+                                    radius: '55%',  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                    data: app.leftChartData,// 数据数组，name 为数据项名称，value 为数据项值
+                                }
+                            ]
+                        });
+                        myChart.on("click", function (params) {
+                            app.showMiddelCharts = true;
+                            app.leftData.forEach((item, index) =>{
+                                //在这里分配各个小饼图的数据
+                                let data = [
+                                    { value: item.Shuju.Maintnumber, name: "维修", datas: item.UserDepartment },
+                                    { value: item.Shuju.Runnumber, name: "运行", datas: item.UserDepartment },
+                                    { value: item.Shuju.Stopnumber, name: "停机", datas: item.UserDepartment },
+                                ]
+                                let charts = echarts.init(document.getElementById(`middelCharts${index}`));
+                                charts.setOption({
+                                    tooltip: {
+                                        trigger: "item",
+                                        formatter: "{a} <br/>{b}: {d}%/{c}台"
+                                    },
+                                    title: {
+                                        subtext: item.UserDepartment,
+                                        textVerticalAlign: 'auto'
+                                    },
+                                    legend: {
+                                        show: true
+                                    },
+                                    series: [
+                                        {
+                                            name: '设备状态',
+                                            type: 'pie',    // 设置图表类型为饼图
+                                            radius: '55%',  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                            data: data,// 数据数组，name 为数据项名称，value 为数据项值
+                                        }
+                                    ]
+                                });
+                                charts.on('click', function (params) {
+                                    window.open(encodeURI(`/Equipment/Index/?depar=${params.data.datas}`))
+                                })
+                                //console.log(charts)
+                            })
+                        })
+                    } else {
+                        this.$message({
+                            message: "网络错误",
+                            type: "warning"
+                        })
+                    }
+                }).catch(err=> {
+                    console.log(err)
+                })
+            },
+            // 获取月保养数据
+            getDataRight() {
+                axios.post("/Equipment/Month_TotalQuery", { date: new Date() }).then(res=> {
+                    if (res.status == 200) {
+                        //console.log(res.data);
+                        if (res.data.length > 0) {
+                            let shouldBoButNot = 0  // 计算到期未保养
+                            let notTimeNotdo = 0  // 计算未到期未保养
+                            let needDoNoew = 0  // 计算当前需保养
+                            let doneBeforeDate = 0  // 计算提前保养
+                            let lateButDone = 0 // 计算延迟保养
+                            let onTime = 0  // 计算准时保养
+                            res.data.forEach(item=> {
+                                shouldBoButNot += item.Datum.Nomaintenance[0].Late_late.length
+                                notTimeNotdo += item.Datum.Nomaintenance[0].Before.length
+                                needDoNoew += item.Datum.Nomaintenance[0].Current.length
+                                doneBeforeDate += item.Datum.Advance.length
+                                lateButDone += item.Datum.Late.length
+                                onTime += item.Datum.Ontime.length
+                            });
+                            let dats = [
+                                { value: shouldBoButNot, name: "到期未保养" },
+                                { value: notTimeNotdo, name: "未到期未保养" },
+                                { value: needDoNoew, name: "当前需保养" },
+                                { value: doneBeforeDate, name: "提前保养" },
+                                { value: lateButDone, name: "延迟保养" },
+                                { value: onTime, name: "准时保养" }
+                            ];
+
+                            var myChartRight = echarts.init(document.getElementById('months'));
+                            myChartRight.setOption({
+                                tooltip: {
+                                    trigger: "item",
+                                    formatter: "{a} <br/>{b}: {d}%/{c}台"
+                                },
+                                legend: {
+                                    show: true
+                                },
+                                series: [
+                                    {
+                                        name: '当月保养',
+                                        type: 'pie',    // 设置图表类型为饼图
+                                        radius: '55%',  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                        data: dats,// 数据数组，name 为数据项名称，value 为数据项值
+                                    }
+                                ]
+                            });
+                            myChartRight.on("click", function (params) {
+                                window.open("/Equipment/Equipment_MonthTotalQuery")
+                            })
+
+                        } else {
+                            this.$message({
+                                message: "无数据",
+                                type: "warning"
+                            })
+                        }
+                    } else {
+                        this.$message({
+                            message: "网络错误",
+                            type: "warning"
+                        })
+                    }
+                })
+            }
+        }
+    });
+    window.onload = function () {
+        console.log(app.leftChartData)
+        
+    }
+</script>
+

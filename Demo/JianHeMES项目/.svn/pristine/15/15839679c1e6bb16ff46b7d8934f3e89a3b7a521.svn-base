@@ -1,0 +1,167 @@
+
+@{
+    ViewBag.Title = "SOP";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+<style>
+    h3{
+        text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;
+    }
+    /*.cell{
+        text-align:center;
+    }*/
+    .el-table td {
+        padding :5px;
+    }
+    .tableContainer{
+        width:58%;
+        margin :5px auto;
+    }
+    .selectContainer{
+        display:flex;
+        justify-content:center;
+        margin-top:10px;
+    }
+</style>
+
+
+
+<div id="app">
+    <h3 v-show="flag" style="text-align:center;">工艺流程</h3>
+    <h3 v-show="!flag" style="text-align:center;">作业指导书</h3>
+    <div style="text-align:center"><el-switch v-model="flag">
+</el-switch></div>
+    <div class="selectContainer">
+        <el-select style="width:200px;margin-right:15px;" v-model="indexSelectplatform" size="small" clearable allow-create filterable placeholder="请选择目录">
+            <el-option v-for="item in options1"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select style="width:200px;" v-model="searchValue" size="small" clearable allow-create filterable placeholder="请选择文件">
+            <el-option v-for="item in searchList"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+    </div>
+    <div class="tableContainer">
+        <el-table v-bind:data="tableData"
+                   max-height="700"
+                  style="width: 100%">
+            <el-table-column prop="OriginalPath"
+                             width="650"
+                             label="SOP文件">
+            </el-table-column>
+            <el-table-column label="操作">
+                <template slot-scope="scope">
+                    <el-button @@click="detials(scope.row)" type="primary" size="mini">详细</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+
+<script>
+    const app = new Vue({
+        el: "#app",
+        data: {
+            indexSelectplatform: null,
+            options1: [],
+            tableData:[],
+            flag: true,
+            searchValue: "",
+            searchList: [],
+            originDara:[]
+        },
+        methods: {
+            // 获取目录清单
+            getSelectList() {
+                axios.post("/SOP/GetShareFolderInDirectory", { folder: this.flag?'A':'B' }).then(res => {  //folder = A / B     A代表“A 工艺流程”,B代表“B 作业指导书”
+                    console.log(res.data)
+                    let arr = []
+                    if (res.data.length > 0) {
+                        res.data.forEach(item=> {
+                            let obj = { value: item.OriginalPath, label: item.OriginalPath }
+                            arr.push(obj)
+                        })
+                    };
+                    this.options1 = arr;
+                }).catch(err=> {
+
+                })
+            },
+            // 获取文件列表
+            getPDFList(data) {
+                axios.post("/SOP/GetShareFilesInDirectory", { folder: this.flag ? 'A' : 'B', subdirectory: data }).then(res => {  //folder = A / B     A代表“A 工艺流程”,B代表“B 作业指导书”
+                    if (res.data.length > 0) {
+                        this.searchList = [];
+                        console.log(res.data)
+                        res.data.forEach(item=> {
+                            let obj = { value: item.OriginalPath, label: item.OriginalPath };
+                            this.searchList.push(obj);
+                        })
+                        this.tableData = res.data;
+                        this.originDara = res.data;
+                    } else {
+                        this.$message({
+                            message: "暂无对应文件",
+                            type:"warning"
+                        })
+                    }
+                    
+                }).catch(err=> {
+
+                })
+            },
+            //详细按钮
+            detials(row) {
+                console.log(row)
+                axios.post("/SOP/Index", { folder: this.flag ? 'A' : 'B', subdirectory: "", filename: "" }).then(res => {  //folder = A / B     A代表“A 工艺流程”,B代表“B 作业指导书”
+                    window.open(`${res.data}`)
+                }).catch(err=> {
+
+                })
+            }
+        },
+        mounted() {
+            this.getSelectList();
+        },
+        watch: {
+            indexSelectplatform() {
+                if (this.indexSelectplatform == null || this.indexSelectplatform == '') {
+                    this.options1 = [];
+                    this.tableData = [];
+                } else {
+                    this.getPDFList(this.indexSelectplatform);
+                }
+            },
+            flag() {
+                this.options1 = [];
+                this.tableData = [];
+                this.indexSelectplatform = null
+                this.getSelectList();
+            },
+            searchValue() {
+                if (this.searchValue != "") {
+                    this.tableData.forEach(item=> {
+                        if (item.OriginalPath == this.searchValue) {
+                            this.tableData = []
+                            this.tableData.push(item);
+                            return false;
+                        }
+                    })
+                } else {
+                    this.tableData = this.originDara;
+                }
+            }
+        }
+    })
+</script>

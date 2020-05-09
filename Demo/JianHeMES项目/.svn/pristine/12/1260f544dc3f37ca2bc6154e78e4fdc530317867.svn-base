@@ -1,0 +1,269 @@
+﻿@model IEnumerable<JianHeMES.Models.Warehouse_SparePartsAndComponents_Out>
+
+@{
+    ViewBag.Title = "修改包装信息";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是删除已装箱的信息；往已有的外箱中添加物料信息。
+    1.1.根据订单号查询出该订单号所有物料信息，通过点击表格中对应的删除按钮，即可删除该物料号已绑定的外箱信息
+    1.2.通过点击表格中物料号对应的添加按钮，会弹出一个弹框，填写完信息点击保存按钮，即可往已有的外箱中添加物料信息
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;
+        padding: 6px;
+        font-size: 14px;
+    }
+</style>
+<div id="app">
+    <el-header class="text-center">
+        <h3>@ViewBag.Title</h3>
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Packaging"><el-button size="small" class="cret" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px">备料确认</el-button></a>
+    </el-header>
+    <el-main>
+        <div class="text-center">
+            <el-select v-model="orderNnm" placeholder="请选择订单号" size="medium" allow-create filterable clearable>
+                <el-option v-for="item in orderNnmOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-button size="medium" type="primary" v-on:click="gettableData">查询</el-button>
+        </div>
+        <div class="text-center" style="width:1091px;margin-left:50px">
+            @* 表格数据 *@
+            <el-table v-bind:data="tableData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="500px" style="margin-top:10px;">
+                <el-table-column prop="OrderNum" label="订单号" width="190">
+                </el-table-column>
+                <el-table-column prop="SPC_OuterBoxBarcode" label="外箱箱号" width="190">
+                </el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料号" width="190">
+                </el-table-column>
+                <el-table-column prop="Quantity" label="数量" width="120">
+                </el-table-column>
+                <el-table-column prop="ScreenNum" label="屏序" width="100">
+                </el-table-column>
+                <el-table-column prop="SNTN" label="件号/数" width="100">
+                </el-table-column>
+                <el-table-column property="Batch" label="批次" width="80">
+                </el-table-column>
+                <el-table-column prop="option" label="操作" width="120">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="primary" v-show="scope.row.SPC_OuterBoxBarcode==null" v-on:click="add(scope.$index, scope.row)" style="padding:5px">添加</el-button>
+                        <el-button size="mini" type="danger" v-show="scope.row.SPC_OuterBoxBarcode!=null" v-on:click="deleteOuter(scope.$index, scope.row)" style="padding:5px">删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+        @* 往已有外箱号添加物料信息的弹框*@
+        <el-dialog title="提示" v-bind:visible.sync="addVisible" width="360px">
+            <span slot="title">
+                <h4 style="text-align:center;">添加</h4>
+                <el-form label-position="labelPosition" label-width="80px" style="margin-top:20px">
+                    <el-form-item label="订单号">
+                        <el-select v-model="OrderNum" size="small" allow-create filterable clearable placeholder="选择订单" style="width:210px">
+                            <el-option v-for="item in OrderNumOptions"
+                                       v-bind:key="item.value"
+                                       v-bind:label="item.label"
+                                       v-bind:value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="外箱号">
+                        <el-select v-model="SPC_OuterBoxBarcode" size="small" allow-create filterable clearable placeholder="选择外箱号" style="width:210px">
+                            <el-option v-for="item in SPC_OuterBoxBarcodeOptions"
+                                       v-bind:key="item"
+                                       v-bind:value="item">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="物料号">
+                        <el-select v-model="MaterialNumber" size="small" allow-create filterable clearable placeholder="选择物料编号" style="width:210px">
+                            <el-option v-for="item in MaterialNumberOptions"
+                                       v-bind:key="item"
+                                       v-bind:value="item">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="屏序">
+                        <el-select v-model="ScreenNum" size="small" allow-create filterable clearable placeholder="选择屏序" style="width:210px">
+                            <el-option v-for="item in ScreenNumOptions"
+                                       v-bind:key="item"
+                                       v-bind:value="item">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="数量">
+                        <el-select v-model="Quantity" size="small" allow-create filterable clearable placeholder="选择数量" style="width:210px">
+                            <el-option v-for="item in QuantityOptions"
+                                       v-bind:key="item.value"
+                                       v-bind:label="item.label"
+                                       v-bind:value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="件号/数">
+                        <el-input v-model="SNTN" size="small" placeholder="请输入件号/数" style="width:210px"></el-input>
+                    </el-form-item>
+                </el-form>
+            </span>
+            <span slot="footer" style="text-align:center">
+                <el-button v-on:click="cancelAdd" size="small">取 消</el-button>
+                <el-button type="primary" v-on:click="addInfo" size="small">添 加</el-button>
+            </span>
+        </el-dialog>
+    </el-main>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            orderNnmOptions: [],//订单号选项框
+            orderNnm: '',  //订单号选项框的值
+            tableData: [],  //表格数据
+            addVisible: false, //控制添加物料信息到外箱弹框
+            OrderNum: '',  //弹框中订单号选项的值
+            OrderNumOptions: [], //弹框中订单号选项
+            SPC_OuterBoxBarcode: '',//弹框中外箱号选项的值
+            SPC_OuterBoxBarcodeOptions: [],//弹框中外箱号选项
+            MaterialNumber: '',//弹框中物料号选项的值
+            MaterialNumberOptions: [],//弹框中物料号选项
+            Quantity: '',//弹框中数量选项的值
+            QuantityOptions: [],//弹框中数量选项
+            SNTN: '', //弹框中件号/数 的值
+            ScreenNum: '',// 弹框中屏序号选项的值
+            ScreenNumOptions: [],//弹框中屏序号选项
+
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.orderNnmOptions = res.data;
+                this.OrderNumOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+
+        },
+        methods: {
+            //弹框中取消方法
+            cancelAdd() {
+                this.addVisible = false;
+                this.OrderNum = this.SPC_OuterBoxBarcode = this.MaterialNumber = this.Quantity = this.SNTN = '';
+            },
+            //表格中添加按钮方法
+            add(index, row) {
+                //改变弹框状态   显示弹框
+                this.addVisible = true
+                //订单号
+                this.OrderNum = row.OrderNum
+                //物料号
+                this.MaterialNumber = row.MaterialNumber
+                //数量
+                this.Quantity = row.Quantity
+            },
+            //弹框中的添加按钮（往已有的外箱号添加物料号）
+            addInfo() {
+                if (this.OrderNum != '' && this.SPC_OuterBoxBarcode != '' && this.MaterialNumber != '' && this.Quantity != '' && this.SNTN != '' && this.ScreenNum != '') {
+                    let obj = { OrderNum: this.OrderNum, SPC_OuterBoxBarcode: this.SPC_OuterBoxBarcode, MaterialNumber: this.MaterialNumber, Quantity: this.Quantity, SNTN: this.SNTN, ScreenNum: this.ScreenNum }
+                    let arr = [];
+                    arr.push(obj)
+                    axios.post('/Packagings/SPC_Packaging_Add', { spc_list: arr }).then(res => {
+                        console.log(res.data)
+                        if (res.data == true) {
+                            this.$message({
+                                message: '添加成功!',
+                                type: 'success'
+                            });
+                            this.addVisible = false;
+                            this.gettableData()
+                        } else {
+                            this.$message({
+                                message: '添加失败!',
+                                type: 'warning'
+                            });
+                            this.addVisible = false;
+                        }
+                    })
+                }
+            },
+            //获取表格信息
+            gettableData() {
+                if (this.orderNnm != '') {
+                    axios.post("/Packagings/SPC_Packaging_Modify", {
+                        ordernumber: this.orderNnm
+                    }).then(res => {
+                        console.log(res.data)
+                        this.tableData = res.data;
+                    })
+                } else {
+                    this.$message({
+                        message: '请选择查询条件',
+                        type: 'warning'
+                    });
+                }
+            },
+            //删除物料已绑定的外箱号
+            deleteOuter(index, row) {
+                var comfirm = confirm(`确认删除外箱号为${row.SPC_OuterBoxBarcode}这条信息吗？`)
+                if (comfirm) {
+                    let obj = { OrderNum: row.OrderNum, SPC_OuterBoxBarcode: row.SPC_OuterBoxBarcode, MaterialNumber: row.MaterialNumber, Quantity: row.Quantity, ScreenNum: row.ScreenNum, SNTN: row.SNTN }
+                    let arr = [];
+                    arr.push(obj)
+                    axios.post("/Packagings/SPC_Packaging_Delete", { spc_list: arr }).then(res => {
+                        if (res.data == "false") {
+                            this.$message({ message: '删除失败!', type: 'warning' });
+                        } else {
+                            this.$message({ message: res.data, type: 'success' });
+                            this.gettableData()
+                        }
+                    })
+                }
+            },
+        },
+        watch: {
+            //监听订单号，获取外箱号
+            OrderNum() {
+                if (this.OrderNum != '') {
+                    axios.post("/Packagings/GetSPC_OuterBoxBarcode", {
+                        ordernumber: this.OrderNum
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data != []) {
+                            //将获取到数据赋值给弹框中外箱号选项
+                            this.SPC_OuterBoxBarcodeOptions = res.data
+                        }
+                    })
+                }
+            },
+            //监听弹框中外箱号，获取屏序号选项值
+            SPC_OuterBoxBarcode() {
+                if (this.SPC_OuterBoxBarcode != '') {
+                    axios.post("/Packagings/GetSPC_ScreenNum", {
+                        spc_OuterBoxBarcode: this.SPC_OuterBoxBarcode
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data != []) {
+                            this.ScreenNumOptions = res.data
+
+                        }
+                    })
+                }
+            }
+        }
+    })
+</script>
+
+
+

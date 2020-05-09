@@ -1,0 +1,104 @@
+﻿<script src="~/Scripts/echarts.js"></script>
+<script type="text/template" id="chartDiv">
+    <div>
+        <template v-if="ispopover">
+            <el-popover placement="top-start"
+                        width="600"
+                        @@show="show"
+                        trigger="click">
+                <div :id="'char'+idname" style="width: 600px;height:400px;" v-loading="chartLoading"></div>
+                <el-button slot="reference" type="text">查看</el-button>
+            </el-popover>
+        </template>
+        <template v-else>
+            <div :id="'char'+idname" style="width: 100%;height:400px;margin:10px 0 0;" v-loading="chartLoading"></div>
+        </template>
+    </div>
+</script>
+<script>
+    Vue.component('chart-div', {
+        template: document.getElementById("chartDiv"),
+        props: ['urldata', 'ispopover', 'idname'],
+        data: function () {
+            return {
+                chartLoading: false,
+                phxsChart: "",
+                //echart折线图配置
+                chartOption: {
+                    title: {
+                        left: 'center',
+                        text: '工段平衡系数 (组装为1)'
+                    },
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    grid: {
+                        top: '8%',
+                        left: '3%',
+                        right: '3%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        axisLabel: {
+                            interval: 0,
+                            rotate: 40
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: {
+                            formatter: '{value}'
+                        }
+                    },
+                    series: [{
+                        name: "工段平衡系数",
+                        type: 'bar',
+                        label: {
+                            normal: {
+                                show: true,
+                                position: 'top',
+                                formatter: '{c}',
+                            }
+                        },
+                    }]
+                }
+            }
+        },
+        mounted: function () {
+            //this.phxsChart.dispose();
+            setTimeout(() => {
+                //echart初始化
+                this.phxsChart = echarts.init(document.getElementById('char' + this.idname));
+                this.phxsChart.setOption(this.chartOption);
+                !this.ispopover && this.getdata();
+            }, 0);
+        },
+        methods: {
+            getdata: function () {
+                this.chartLoading = true;
+                axios.post("/ProCess_Capacity/Icon", this.urldata).then(res => {
+                    //console.log(res.data);
+                    let name = [], value = [];
+                    for (i of res.data) {
+                        name.push(i.name);
+                        value.push(i.BalanceRate);
+                    };
+                    //图表数据
+                    this.phxsChart.setOption({
+                        series: [{ data: value }],
+                        xAxis: { data: name }
+                    });
+                    this.chartLoading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.chartLoading = false;
+                });
+            },
+            show() {
+                this.getdata();
+            }
+        },
+    });
+</script>

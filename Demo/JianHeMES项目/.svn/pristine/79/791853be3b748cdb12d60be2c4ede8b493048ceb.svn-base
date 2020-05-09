@@ -1,0 +1,488 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class SOPController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController comm = new CommonalityController();
+
+        public ActionResult Index()
+        {
+            return View();
+        }
+        public ActionResult SOP_Query()//查询PDF页
+        {
+            return View();
+        }
+        [HttpPost]
+
+        #region---客户端读取共享目录
+        public ActionResult Index(string ordernum = "", string section = "")
+        {
+            bool status = false;
+            string add = "";
+            //连接共享文件夹
+            status = connectState(@"\\172.16.2.9\技术部\01_工艺文件汇总\00_技术部工艺文件电子档存放(对外)\三阶文件\A_工艺流程\01_325x365平台_V系列", "15043", "h15043");
+            if (status)
+            {
+                DirectoryInfo theFolder = new DirectoryInfo(@"\\172.16.2.9\技术部\01_工艺文件汇总\00_技术部工艺文件电子档存放(对外)\三阶文件\A_工艺流程\01_325x365平台_V系列");
+
+                //先测试读文件，把目录路径与文件名连接
+                string filename = theFolder.ToString() + "\\JA001E00G001A_325x365平台_V系列_前维护_线材组生产工艺流程图(MRV220&LRV220).pdf";
+                add = "\\\\172.16.2.9\\技术部\\01_工艺文件汇总\\00_技术部工艺文件电子档存放(对外)\\三阶文件\\A_工艺流程\\01_325x365平台_V系列\\JA001E00G001A_325x365平台_V系列_前维护_线材组生产工艺流程图(MRV220&LRV220).pdf";
+                ReadFiles(filename);
+
+                ////测试写文件，拼出完整的路径
+                //filename = theFolder.ToString() + "\\bad.txt";
+                //WriteFiles(filename);
+
+                ////遍历共享文件夹，把共享文件夹下的文件列表列到listbox
+                //foreach (FileInfo nextFile in theFolder.GetFiles())
+                //{
+
+                //}
+            }
+            return Content(add);
+        }
+        public static bool connectState(string path, string userName, string passWord)
+        {
+            bool Flag = false;
+            Process proc = new Process();
+            try
+            {
+                proc.StartInfo.FileName = "cmd.exe";
+                proc.StartInfo.UseShellExecute = false;
+                proc.StartInfo.RedirectStandardInput = true;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.RedirectStandardError = true;
+                proc.StartInfo.CreateNoWindow = true;
+                proc.Start();
+                string dosLine = @"net use " + path + " /user:" + userName + " " + passWord /*+ " /PERSISTENT:YES"*/;
+                proc.StandardInput.WriteLine(dosLine);
+                proc.StandardInput.WriteLine("exit");
+                while (!proc.HasExited)
+                {
+                    proc.WaitForExit(1000);
+                }
+                string errormsg = proc.StandardError.ReadToEnd();
+                proc.StandardError.Close();
+                if (string.IsNullOrEmpty(errormsg))
+                {
+                    Flag = true;
+                }
+                else
+                {
+                    throw new Exception(errormsg);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            finally
+            {
+                proc.Close();
+                proc.Dispose();
+            }
+            return Flag;
+        }
+        //读文件
+        public static void ReadFiles(string path)
+        {
+            try
+            {
+                // Create an instance of StreamReader to read from a file.
+                // The using statement also closes the StreamReader.
+                using (StreamReader sr = new StreamReader(path))
+                {
+                    String line;
+                    // Read and display lines from the file until the end of 
+                    // the file is reached.
+                    while ((line = sr.ReadLine()) != null)
+                    {
+                        Console.WriteLine(line);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                // Let the user know what went wrong.
+                Console.WriteLine("The file could not be read:");
+                Console.WriteLine(e.Message);
+            }
+        }
+        //写入文件
+        public static void WriteFiles(string path)
+        {
+            try
+            {
+                // Create an instance of StreamWriter to write text to a file.
+                // The using statement also closes the StreamWriter.
+                using (StreamWriter sw = new StreamWriter(path))
+                {
+                    // Add some text to the file.
+                    sw.Write("This is the ");
+                    sw.WriteLine("header for the file.");
+                    sw.WriteLine("-------------------");
+                    // Arbitrary objects can also be written to the file.
+                    sw.Write("The date is: ");
+                    sw.WriteLine(DateTime.Now);
+                }
+            }
+            catch (Exception e)
+            {
+                // Let the user know what went wrong.
+                Console.WriteLine("The file could not be read:");
+                Console.WriteLine(e.Message);
+            }
+        }
+
+        #endregion
+
+        #region --------------------GetOrderNumList_SOP()检索订单号
+        public ActionResult GetOrderNumList_SOP()
+        {
+            var ordernum = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).Distinct();
+            return Content(JsonConvert.SerializeObject(ordernum));
+        }
+        #endregion
+
+        #region----上传SOP PDF文档 A_工艺流程图
+        public bool UploadFile_SOP(string platform, string statss, string flowchart, string ordernumber)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["UploadFile_SOP"];
+                var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
+                if (ordernumber == "null")
+                {
+                    if (Directory.Exists(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + statss + "\\") == false)//如果不存在就创建订单文件夹
+                    {
+                        Directory.CreateDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + statss + "\\");
+                    }
+                    if (fileType == ".pdf")
+                    {
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + statss + "\\" + flowchart);
+                    }
+                    else
+                    {
+                        List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + statss + "\\");
+                        int pdf_count = fileInfos.Where(c => c.Name.StartsWith(platform.ToString()) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + statss + "\\" + (pdf_count + 1) + fileType);
+                    }
+                }
+                else
+                {
+                    if (Directory.Exists(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\") == false)//如果不存在就创建订单文件夹
+                    {
+                        Directory.CreateDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\");
+                    }
+                    if (fileType == ".pdf")
+                    {
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\" + flowchart);
+                    }
+                    else
+                    {
+                        List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\");
+                        int pdf_count = fileInfos.Where(c => c.Name.StartsWith(platform.ToString()) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\" + flowchart + (pdf_count + 1) + fileType);
+                    }
+                }
+                if (ordernumber != "null" && !String.IsNullOrEmpty(platform) && !String.IsNullOrEmpty(flowchart) && !String.IsNullOrEmpty(statss))
+                {
+                    SOPoperating soplist = new SOPoperating() { OrderNum = ordernumber, Platform = platform, Processflow_chart = flowchart, SectionName = statss };
+                    db.SOPoperating.Add(soplist);
+                    db.SaveChanges();
+                }
+                if (!String.IsNullOrEmpty(platform) && !String.IsNullOrEmpty(flowchart) && !String.IsNullOrEmpty(statss) && ordernumber == "null")
+                {
+                    SOPoperating soplist1 = new SOPoperating() { Platform = platform, Processflow_chart = flowchart, SectionName = statss };
+                    db.SOPoperating.Add(soplist1);
+                    db.SaveChanges();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        #endregion
+
+        #region----上传SOP PDF文档 B_作业指导书
+        public bool UploadFileSOP_B(string platform, string statss, string flowchart, string ordernumber)
+        {
+            if (Request.Files.Count > 0)
+            {
+                HttpPostedFileBase file = Request.Files["UploadFileSOP_B"];
+                var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
+                if (ordernumber == "null")
+                {
+                    if (Directory.Exists(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + statss + "\\") == false)//如果不存在就创建订单文件夹
+                    {
+                        Directory.CreateDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + statss + "\\");
+                    }
+                    if (fileType == ".pdf")
+                    {
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + statss + "\\" + flowchart);
+                    }
+                    else
+                    {
+                        List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + statss + "\\");
+                        int pdf_count = fileInfos.Where(c => c.Name.StartsWith(platform.ToString()) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + statss + "\\" + (pdf_count + 1) + fileType);
+                    }
+                }
+                else
+                {
+                    if (Directory.Exists(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\") == false)//如果不存在就创建订单文件夹
+                    {
+                        Directory.CreateDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\");
+                    }
+                    if (fileType == ".pdf")
+                    {
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\" + flowchart);
+                    }
+                    else
+                    {
+                        List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\");
+                        int pdf_count = fileInfos.Where(c => c.Name.StartsWith(platform.ToString()) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+                        file.SaveAs(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\" + flowchart + (pdf_count + 1) + fileType);
+                    }
+                }
+                if (ordernumber != "null" && !String.IsNullOrEmpty(platform) && !String.IsNullOrEmpty(flowchart) && !String.IsNullOrEmpty(statss))
+                {
+                    SOPoperating soplist = new SOPoperating() { OrderNum = ordernumber, Platform = platform, SOPreference_document = flowchart, SectionName = statss };
+                    db.SOPoperating.Add(soplist);
+                    db.SaveChanges();
+                }
+                if (!String.IsNullOrEmpty(platform) && !String.IsNullOrEmpty(flowchart) && !String.IsNullOrEmpty(statss) && ordernumber == "null")
+                {
+                    SOPoperating soplist1 = new SOPoperating() { Platform = platform, SOPreference_document = flowchart, SectionName = statss };
+                    db.SOPoperating.Add(soplist1);
+                    db.SaveChanges();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        #endregion
+
+        #region -----查看SOP PDF文档 
+        public ActionResult Previewpdf_SOP(string platform, string flowchart, string ordernumber, string statss)
+        {
+            JArray result = new JArray();
+            JObject flow = new JObject();
+            JObject trform = new JObject();
+            var pintai = db.SOPoperating.ToList();
+            if (pintai.Count > 0)
+            {
+                if (!String.IsNullOrEmpty(platform))//平台
+                {
+                    pintai = pintai.Where(c => c.Platform == platform).ToList();
+                }
+                if (!String.IsNullOrEmpty(statss))//工段
+                {
+                    pintai = pintai.Where(c => c.SectionName == statss).ToList();
+                }
+                if (!String.IsNullOrEmpty(ordernumber))//订单
+                {
+                    pintai = pintai.Where(c => c.OrderNum == ordernumber).ToList();
+                }
+                if (!String.IsNullOrEmpty(flowchart))//文件名
+                {
+                    pintai = pintai.Where(c => c.Processflow_chart == flowchart || c.SOPreference_document == flowchart).ToList();
+                }
+                foreach (var item in pintai)
+                {
+                    if (item.OrderNum != null && item.Processflow_chart != null)
+                    {
+                        List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + item.Platform + "\\" + item.OrderNum + "\\" + item.SectionName + "\\");
+                        filesInfo = filesInfo.Where(c => c.Name.StartsWith(item.Processflow_chart) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                        if (filesInfo.Count() > 0)
+                        {
+                            string plat = @"/MES_Data/技术部/工艺文件汇总/A_工艺流程图/" + item.Platform + "/" + item.OrderNum + "/" + item.SectionName + "/" + item.Processflow_chart;
+                            flow.Add("PDFType", "A_工艺流程图");
+                            flow.Add("Platform", item.Platform);
+                            flow.Add("OrderNum", item.OrderNum);
+                            flow.Add("SectionName", item.SectionName);
+                            flow.Add("Pilename", item.Processflow_chart);
+                            flow.Add("Plat", plat);
+                            result.Add(flow);
+                            flow = new JObject();
+                        }
+                    }
+                    if (item.OrderNum != null && item.SOPreference_document != null)
+                    {
+                        List<FileInfo> filesInfo1 = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + item.Platform + "\\" + item.OrderNum + "\\" + item.SectionName + "\\");
+                        filesInfo1 = filesInfo1.Where(c => c.Name.StartsWith(item.SOPreference_document) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                        if (filesInfo1.Count() > 0)
+                        {
+                            string plat1 = @"/MES_Data/技术部/工艺文件汇总/B_作业指导书/" + item.Platform + "/" + item.OrderNum + "/" + item.SectionName + "/" + item.SOPreference_document;
+                            trform.Add("PDFType", "B_作业指导书");
+                            trform.Add("Platform", item.Platform);
+                            trform.Add("OrderNum", item.OrderNum);
+                            trform.Add("SectionName", item.SectionName);
+                            trform.Add("Pilename", item.SOPreference_document);
+                            trform.Add("Plat", plat1);
+                            result.Add( trform);
+                            trform = new JObject();
+                        }
+                    }
+                    if (item.OrderNum == null && item.Processflow_chart != null)
+                    {
+                        List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + item.Platform + "\\" + item.SectionName + "\\");
+                        filesInfo = filesInfo.Where(c => c.Name.StartsWith(item.Processflow_chart) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                        if (filesInfo.Count() > 0)
+                        {
+                            string plat = @"/MES_Data/技术部/工艺文件汇总/A_工艺流程图/" + item.Platform + "/" + item.SectionName + "/" + item.Processflow_chart;
+                            flow.Add("PDFType", "A_工艺流程图");
+                            flow.Add("Platform", item.Platform);
+                            flow.Add("SectionName", item.SectionName);
+                            flow.Add("Pilename", item.Processflow_chart);
+                            flow.Add("Plat", plat);
+                            result.Add(flow);
+                            flow = new JObject();
+                        }
+                    }
+                    if (item.OrderNum == null && item.SOPreference_document != null)
+                    {
+                        List<FileInfo> filesInfo1 = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + item.Platform + "\\" + item.SectionName + "\\");
+                        filesInfo1 = filesInfo1.Where(c => c.Name.StartsWith(item.SOPreference_document) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                        if (filesInfo1.Count() > 0)
+                        {
+                            string plat1 = @"/MES_Data/技术部/工艺文件汇总/B_作业指导书/" + item.Platform + "/" + item.SectionName + "/" + item.SOPreference_document;
+                            trform.Add("PDFType", "B_作业指导书");
+                            trform.Add("Platform", item.Platform);
+                            trform.Add("SectionName", item.SectionName);
+                            trform.Add("Pilename", item.SOPreference_document);
+                            trform.Add("Plat", plat1);
+                            result.Add(trform);
+                            trform = new JObject();
+                        }
+                    }
+                }
+                return Content(JsonConvert.SerializeObject(result));
+            }
+            return Content("false");
+        }
+        #endregion
+
+        #region---更新SOP文档
+        public ActionResult UpdateSOP_document()
+        {
+
+            return View();
+        }
+
+        #endregion
+
+        #region---检索数据库有数据的平台，工段，文件名，订单号
+        public ActionResult Getplatform_SOP()//平台
+        {
+            var platf = db.SOPoperating.OrderByDescending(m => m.Id).Select(m => m.Platform).Distinct();
+            return Content(JsonConvert.SerializeObject(platf));
+        }
+        public ActionResult GetSectionname_SOP()//工段
+        {
+            var section = db.SOPoperating.OrderByDescending(m => m.Id).Select(m => m.SectionName).Distinct();
+            return Content(JsonConvert.SerializeObject(section));
+        }
+        public ActionResult GetProcess_SOP()//文件名
+        {
+            JArray soplist = new JArray();
+            var flow = db.SOPoperating.OrderByDescending(m => m.Id).Select(m => m.Processflow_chart).Distinct();//工艺流程图
+            var feren = db.SOPoperating.OrderByDescending(m => m.Id).Select(m => m.SOPreference_document).Distinct();//作业指导书
+            soplist.Add(flow);
+            soplist.Add(feren);
+            return Content(JsonConvert.SerializeObject(soplist));
+        }
+        public ActionResult Getorder_SOP()//订单号
+        {
+            var order = db.SOPoperating.OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();
+            return Content(JsonConvert.SerializeObject(order));
+        }
+        #endregion
+
+        #region-----是否有PDF文档
+        public bool IsHavingPDF(string platform, string statss, string flowchart, string ordernumber)
+        {
+            if (ordernumber == null)
+            {
+                List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + statss + "\\");
+                filesInfo = filesInfo.Where(c => c.Name.StartsWith(flowchart) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                if (filesInfo.Count > 0)
+                    return true;
+                else
+                    return false;
+            }
+            else
+            {
+                List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\B_作业指导书\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\");
+                filesInfo = filesInfo.Where(c => c.Name.StartsWith(flowchart) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                if (filesInfo.Count > 0)
+                    return true;
+                else
+                    return false;
+            }
+        }
+
+        public bool IsBPDF(string platform, string statss, string flowchart, string ordernumber)
+        {
+            if (ordernumber == null)
+            {
+                List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + statss + "\\");
+                filesInfo = filesInfo.Where(c => c.Name.StartsWith(flowchart) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                if (filesInfo.Count > 0)
+                    return true;
+                else
+                    return false;
+            }
+            else
+            {
+                List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\技术部\工艺文件汇总\A_工艺流程图\" + platform.ToString() + "\\" + ordernumber + "\\" + statss + "\\");
+                filesInfo = filesInfo.Where(c => c.Name.StartsWith(flowchart) && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").ToList();
+                if (filesInfo.Count > 0)
+                    return true;
+                else
+                    return false;
+            }
+        }
+        #endregion
+
+        #region --------------------返回指定目录下所有文件信息
+        /// <summary>  
+        /// 返回指定目录下所有文件信息  
+        /// </summary>  
+        /// <param name="strDirectory">目录字符串</param>  
+        /// <returns></returns>  
+        public List<FileInfo> GetAllFilesInDirectory(string strDirectory)
+        {
+            List<FileInfo> listFiles = new List<FileInfo>(); //保存所有的文件信息  
+            DirectoryInfo directory = new DirectoryInfo(strDirectory);
+            DirectoryInfo[] directoryArray = directory.GetDirectories();
+            FileInfo[] fileInfoArray = directory.GetFiles();
+            if (fileInfoArray.Length > 0) listFiles.AddRange(fileInfoArray);
+            foreach (DirectoryInfo _directoryInfo in directoryArray)
+            {
+                DirectoryInfo directoryA = new DirectoryInfo(_directoryInfo.FullName);
+                DirectoryInfo[] directoryArrayA = directoryA.GetDirectories();
+                FileInfo[] fileInfoArrayA = directoryA.GetFiles();
+                if (fileInfoArrayA.Length > 0) listFiles.AddRange(fileInfoArrayA);
+                GetAllFilesInDirectory(_directoryInfo.FullName);//递归遍历  
+            }
+            return listFiles;
+        }
+        #endregion
+
+    }
+}

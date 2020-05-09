@@ -1,0 +1,156 @@
+﻿
+@{
+    ViewBag.Title = "SPC_storage";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+
+    .el-input {
+        width: 210px
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>备品配件入库确认</h3>
+    </div>
+    <div v-loading="loading">
+        <div class="query">
+            班组：
+            <group-select></group-select>
+        </div>
+        <div class="query">
+            <span>条码号：</span>
+            <el-input placeholder="请输入条码号"
+                      v-model.trim="barcode"
+                      style="text-align:right;display:inline-block;"
+                      v-on:keyup.enter.native="barScan($event)"
+                      size="medium"
+                      autofocus
+                      clearable class="el-input">
+            </el-input>
+        </div>
+        <div class="query">
+            <span>库位号：</span>
+            <el-input v-model="SeatNumber"
+                      size="medium"
+                      placeholder="请输入库位号"
+                      clearable>
+            </el-input>
+        </div>
+        <div class="query">
+            <el-button size="mini" type="primary" plain v-on:click="confirm" :disabled="flag==false">确认</el-button>
+        </div>
+        <div class="text-center">
+            <div id="img"></div>
+        </div>
+    </div>
+</div>
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            barcode: '',
+            SeatNumber: '',
+            flag: false,
+            loading: false,
+        },
+        methods: {
+            barScan(event) {
+                $("#img").empty();
+                if (event.target.value != '') {
+                    app.loading = true
+                    axios.post('/Packagings/SPC_storageConfirm', {
+                        outerBarcode: event.target.value
+                    }, {
+                            responseType: "arraybuffer",
+                        }).then(function (response) {
+                            if (response.data.byteLength == 33) {
+                                return "找不到此条码!"
+                            } else if (response.data.byteLength == 32) {
+                                return "此条码已入库"
+                            } else {
+                                return 'data:image/png;base64,' + btoa(
+                                    new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+                            }
+                        }).then(function (data) {
+                            if (data == "找不到此条码!") {
+                                app.flag = false
+                                app.$message({
+                                    message: data,
+                                    type: 'warning'
+                                });
+                                app.loading = false
+                            } else if (data == "此条码已入库") {
+                                app.$message({
+                                    message: data,
+                                    type: 'warning'
+                                });
+                                app.flag = false
+                                app.loading = false
+                            } else {
+                                let imag = new Image();
+                                imag.src = data;
+                                document.getElementById("img").appendChild(imag)
+                                app.flag = true
+                                app.loading = false
+                            }
+                            console.log(data)
+                        }).catch(err => {
+                            console.warn("请求出错！")
+                            app.loading = false
+                        })
+                } else {
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: "请输入条码！"
+                    });
+                }
+            },
+            //确认入库方法
+            confirm: function () {
+                this.loading = true;
+                if ($("#banzuGroup").val() == "") {
+                    this.$message.warning("请选择班组");
+                    this.loading = false;
+                    return;
+                };
+                axios.post('/Packagings/SPC_Confirm', {
+                    outherboxbarcode: this.barcode,
+                    warehouseNum: this.SeatNumber,
+                    Department: $("#banzuDepartment").val(),
+                    Group: $("#banzuGroup").val()
+                }).then(res => {                 
+                    if (res.data == "入库成功!") {
+                        this.$message({
+                            message: res.data,
+                            type: 'success',
+                            duration: 4000,
+                        });
+                        this.flag = false
+                        $("#img").empty();
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            type: 'warning',
+                            message: res.data
+                        });
+                    }
+                    this.loading = false;                  
+                }).catch(err => {
+                    console.warn("请求失败！")
+                    this.loading = false;
+                });
+            },
+        }
+    })
+</script>

@@ -1,0 +1,230 @@
+﻿@{
+    ViewBag.Title = "条码打印";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/SMT_Sulderpaster/mcBoard"><el-button size="small">MC看板</el-button></a>
+                <a href="/SMT_Sulderpaster/smtBoard"><el-button size="small">SMT看板</el-button></a>
+                <a class="luru" href="/SMT_Sulderpaster/AddWarehouse_Material"><el-button size="small">录入物料信息</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small">锡膏入库</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-button size="small">锡膏入冰柜</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/outWarehouseFreezer"><el-button size="small">锡膏出库</el-button></a>
+                <a class="cangkucaozuo" href="/SMT_Sulderpaster/printBarcode"><el-button size="small">重新打印条码</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/SMT_Sulderpaster/mcBoard"><el-dropdown-item>MC看板</el-dropdown-item></a>
+                        <a href="/SMT_Sulderpaster/smtBoard"><el-dropdown-item>SMT看板</el-dropdown-item></a>
+                        <a class="luru" href="/SMT_Sulderpaster/AddWarehouse_Material"><el-dropdown-item>录入物料信息</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-dropdown-item>锡膏入库</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/AddWarehouseFreezer"><el-dropdown-item>锡膏入冰柜</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/outWarehouseFreezer"><el-dropdown-item>锡膏出库</el-dropdown-item></a>
+                        <a class="cangkucaozuo" href="/SMT_Sulderpaster/printBarcode"><el-dropdown-item>重新打印条码</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading" element-loading-text="打印中，请稍等...">
+            <el-row>
+                <div class="inputframe">
+                    <span>料件编号：</span>
+                    <el-select v-model="lhVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in lhOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>生产日期：</span>
+                    <el-select v-model="sjVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in sjOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>选打印机：</span>
+                    <el-select v-model="printSelect" clearable placeholder="选择打印机" size="medium">
+                        <el-option v-for="item in printOptions"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                    <span>打印浓度：</span>
+                    <el-slider :max="30"
+                               :min="-30"
+                               v-model="nongDu"></el-slider>
+                </div>
+                <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                    <span>打印数量：</span>
+                    <el-input-number v-model.trim="pageCount"
+                                     size="medium"
+                                     :min="1"
+                                     :max="5"
+                                     style="width:220px"
+                                     clearable>
+                    </el-input-number>
+                </div>
+                <div class="inputframe">
+                    <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small" type="primary" class="el-icon-back" plain>返回</el-button></a>
+                    <el-button v-on:click="printBarcode" size="medium">打印选中条码</el-button>
+                </div>
+                <div class="inputframe" v-show="checkboxList.length!=0">
+                    <div class="divframe" style="text-align:center;min-height:0;">
+                        <el-checkbox @@change="handleCheckAllChange" size="mini" border style="padding:1px 3px;height:22px;margin:1px">全选</el-checkbox>
+                        <span style="color:#409EFF">条码清单：</span>
+                        <div style="max-height:200px;overflow:auto">
+                            <template v-for="item in checkboxList">
+                                <el-checkbox v-model="item.statu" size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item.value}}</el-checkbox>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            lhOptions: [],
+            lhVal: '',
+            sjOptions: [],
+            sjVal: '',
+            loading: false,
+            screenSize: document.body.clientWidth,
+            pageCount: 1,
+            nongDu: 30,
+            printOptions: printIpAddress,
+            printSelect: '',
+            checkboxList: [],
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            axios.post('/SMT_Sulderpaster/GetPrintAgainMaterialNumberList').then(res => {
+                this.lhOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('lh');
+            if (localOrder != null) {
+                this.lhVal = localOrder;
+            };
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printSelect = printIP;
+            };
+            let localpage = localStorage.getItem('printPageCount');
+            if (localpage != null) {
+                this.pageCount = localpage;
+            };
+            let localnongdu = localStorage.getItem('printNongDuCount');
+            if (localnongdu != null) {
+                this.nongDu = +localnongdu;
+            };
+        },
+        methods: {
+            printBarcode: function () {
+                this.loading = true;
+                let printList = [], thisList = this.checkboxList;
+                for (let i in thisList) {
+                    if (thisList[i].statu == true) {
+                        printList.push(thisList[i].value);
+                    };
+                };
+                localStorage.setItem('printPageCount', this.pageCount);
+                localStorage.setItem('printNongDuCount', this.nongDu);
+
+                if (printList.length == 0) {
+                    app.$message({
+                        showClose: true,
+                        message: "没有选中条码！",
+                        type: 'warning'
+                    });
+                    this.loading = false;
+                    return;
+                };
+
+                axios.post('/SMT_Sulderpaster/InsideBoxLable_Print', {
+                    barcodelist: printList,
+                    pagecount: this.pageCount,
+                    concentration: this.nongDu,
+                    ip: this.printSelect,
+                    port: 9101,
+                }).then(function (res) {
+                    console.log(res.data)
+                    let rtm = res.data[0].message;
+                    //成功存储和打印
+                    app.$message({
+                        showClose: true,
+                        message: rtm,
+                        type: 'success'
+                    });
+                    app.loading = false;
+                }).catch(err => {
+                    console.warn("打印出错");
+                    this.loading = false;
+                });
+            },
+            handleCheckAllChange: function (v) {
+                //console.log(v)
+                let checkList = this.checkboxList;
+                for (let i in checkList) {
+                    checkList[i].statu = v;
+                };
+            }
+        },
+        watch: {
+            printSelect: (v) => {
+                localStorage.setItem('printIP', v);
+            },
+            lhVal: function (v) {
+                this.sjVal = "";
+                this.sjOptions = [];
+                localStorage.setItem('lh', v);
+                axios.post('/SMT_Sulderpaster/GetPrintAgainLeaveFactoryTimeList', { materialNumber: v }).then(res => {
+                    this.sjOptions = res.data;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+            sjVal: function (v) {
+                this.checkboxList = [];
+                axios.post('/SMT_Sulderpaster/DisplayPrintAgainBarcode', { materialNumber: this.lhVal, leaveFactoryTime: v }).then(res => {
+                    let rtd = res.data, LH = this.checkboxList;
+                    for (let i in rtd) {
+                        LH.push({
+                            value: rtd[i],
+                            statu: false
+                        });
+                    };
+                }).catch(err => {
+                    console.warn("出错")
+                });
+            },
+        }
+    });
+</script>

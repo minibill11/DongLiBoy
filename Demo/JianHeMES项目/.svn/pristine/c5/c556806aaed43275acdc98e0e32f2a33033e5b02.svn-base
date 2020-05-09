@@ -1,0 +1,351 @@
+﻿
+@{
+    ViewBag.Title = "设备运行时长汇总";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+<script src="~/Scripts/echarts4.0.4.min.js"></script>
+
+<style>
+    h2 {
+        text-align: center;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        font-size: 20px;
+    }
+     .selectContainer {
+        display: flex;
+        justify-content: center;
+    }
+     .middelChartContainer{
+         display:flex;
+         width:110%;
+         margin: 0 auto;
+         justify-content:space-around;
+         flex-wrap:wrap;
+         /*border:1px solid red;*/
+     }
+     table tbody tr td {
+        padding: 4px !important;
+    }
+
+    .cell {
+        text-align: center;
+    }
+    .bottomTableContainer{
+        width: 73%;
+        margin: 5px auto;
+    }
+    .detialTable{
+        width: 83%;
+        margin: 15px auto;
+    }
+
+</style>
+<h2>设备运行时长汇总</h2>
+<div id="app">
+    <div class="selectContainer">
+        <el-date-picker v-model="year"
+                        align="right"
+                        style="width:150px;margin-right:10px;"
+                        size="mini"
+                        v-bind:disabled="flags"
+                        type="year"
+                        placeholder="选择年">
+        </el-date-picker>
+        <el-date-picker v-model="yearMonth"
+                        v-bind:disabled="flags2"
+                        style="width:150px;"
+                        type="month"
+                        size="mini"
+                        placeholder="选择月">
+        </el-date-picker>
+    </div>
+    <div id="main" style="width: 600px;height:250px;margin:12px auto;"></div>
+    <div v-show="showmideel" class="middelChartContainer">
+        <div style="width:300px;height:200px;" v-bind:id=`charts${index}` v-for="(item,index) in middelData"></div>
+    </div>
+    <div class="bottomTableContainer">
+        <el-table v-bind:data="tableData"
+                  style="width: 100%">
+            <el-table-column prop="UserDepartment"
+                             label="使用部门"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="runTime"
+                             label="运行时长"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="runTimeRate"
+                             width="110"
+                             label="运行占比">
+            </el-table-column>
+            <el-table-column prop="stopTime"
+                             label="停机时长"
+                             width="120">
+            </el-table-column>
+            <el-table-column prop="stopTimeRate"
+                             label="停机占比"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="maintTime"
+                             label="维修时长"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="maintTimeRate"
+                             label="维修占比"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="name"
+                             label="操作"
+                             width="100">
+                <template slot-scope="scope">
+                    <el-button v-show="scope.row.flag" size="mini" type="primary" @@click="showDetials(scope.row)">详细</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+    <div v-show="showBottomTable" class="detialTable">
+        <el-table v-bind:data="tableData2"
+                  max-height="450"
+                  style="width: 100%">
+            <el-table-column prop="UserDepartment"
+                             label="使用部门"
+                             width="130">
+            </el-table-column>
+            <el-table-column prop="equipmentName"
+                             label="设备名称"
+                             width="150">
+            </el-table-column>
+            <el-table-column prop="equipmentNums"
+                             width="110"
+                             label="设备编号">
+            </el-table-column>
+            <el-table-column prop="stopTime"
+                             label="运行时长"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="stopTimeRate"
+                             label="运行占比"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="stopTime"
+                             label="停机时长"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="stopTimeRate"
+                             label="停机占比"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="maintTime"
+                             label="维修时长"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="maintTimeRate"
+                             label="维修占比"
+                             width="110">
+            </el-table-column>
+            @*<el-table-column prop="name"
+                             label="操作"
+                             width="110">
+                <template slot-scope="scope">
+                    <el-button v-show="scope.row.flag" size="mini" type="primary" @@click="goDetails(scope.row)">详细</el-button>
+                </template>
+            </el-table-column>*@
+        </el-table>
+    </div>
+</div>
+
+<script>
+    let app = new Vue({
+        el: "#app",
+        data: {
+            year: "",
+            yearMonth: "",
+            flags: false,
+            flags2: false,
+            middelData: [],
+            tableData: [],
+            showmideel: false,
+            showBottomTable: false,
+            originData: null,
+            tableData2:[]
+        },
+        mounted() {
+            let dd = new Date();
+            let year = dd.getFullYear();
+            let month = dd.getMonth() + 1;
+            this.yearMonth = `${year}-${month}`
+            //this.getData(year, month + 1);
+        },
+        methods: {
+            // 获取数据
+            getData(year, month) {
+                this.showmideel = false
+                this.showBottomTable = false
+                this.tableData = []
+                this.originData = null;
+                this.tableData2 = []
+                axios.post("/Equipment/Equipment_DeviceTime", { year, month: null }).then(res=> {
+                    if (JSON.stringify(res.data) == "{}") {
+                        
+                        this.$notify({
+                            message: "暂无数据",
+                            type:"warning"
+                        })
+                    }else{
+                        
+                        this.originData = res.data;
+                        // 初始表格数据
+                        let obj = {
+                            UserDepartment: "全厂设备", runTime: parseInt(res.data.RuntotalDevice), runTimeRate: res.data.Runpercentage_Device,
+                            maintTime: res.data.MainttotalDevice, maintTimeRate: res.data.Maintpercentage_Device,
+                            stopTime: res.data.StoptotalDevice, stopTimeRate: res.data.Stoppercentage_Device,flag:false
+                        }
+                        app.tableData.push(obj);
+
+                        let dataArr = [
+                                { value: parseInt(res.data.MainttotalDevice), name: "维修", addadata: "1" },
+                                { value: parseInt(res.data.RuntotalDevice), name: "运行", addadata: "2" },
+                                { value: parseInt(res.data.StoptotalDevice), name: "停机", addadata: "3" }
+                        ];
+                        var myChart = echarts.init(document.getElementById('main'));
+                        myChart.setOption({
+                            tooltip: {
+                                trigger: "item",
+                                formatter: "{a} <br/>{b}: {d}% / {c}小时"
+                            },
+                            title:{
+                                subtext:"全厂运行时长"
+                            },
+                            legend: {
+                                show: true
+                            },
+                            series: [
+                                {
+                                    name: '全厂设备运行时长',
+                                    type: 'pie',    // 设置图表类型为饼图
+                                    radius: '55%',  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                    data: dataArr,// 数据数组，name 为数据项名称，value 为数据项值
+                                    itemStyle: {
+                                        normal: {
+                                            color: function (params) {
+                                                //自定义颜色
+                                                var colorList = [
+                                                        '#F56C6C', '#67C23A', '#ebb563', '#FCCE10', '#E87C25', '#27727B',
+                                                        '#FE8463', '#9BCA63', '#FAD860', '#F3A43B', '#60C0DD',
+                                                        '#D7504B', '#C6E579', '#F4E001', '#F0805A', '#26C0C0'
+                                                ];
+                                                return colorList[params.dataIndex]
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        });
+                        app.middelData = res.data.current;
+                        myChart.on("click", function (params) {
+                            app.showmideel = true;
+                            app.tableData = []
+                            res.data.current.forEach((item, index) => {
+                                console.log(item)
+                                let obj = {
+                                    UserDepartment: item.UserDepartment, runTime: parseInt(item.RunnDevice), runTimeRate: item.RunDepar_Device,
+                                    maintTime: item.MaintDevice, maintTimeRate: item.MaintDepar_Device,
+                                    stopTime: item.StopnDevice, stopTimeRate: item.StopDepar_Device,flag:true
+                                }
+                                app.tableData.push(obj);
+                                let dataArr2 = [
+                                { value: parseInt(item.MaintDevice), name: "维修", addadata: "1" },
+                                { value: parseInt(item.RunnDevice), name: "运行", addadata: "2" },
+                                { value: parseInt(item.StopnDevice), name: "停机", addadata: "3" }
+                                ];
+                                let charts = echarts.init(document.getElementById(`charts${index}`))
+                                charts.setOption({
+                                    tooltip: {
+                                        trigger: "item",
+                                        formatter: "{a} <br/>{b}: {d}% / {c}小时"
+                                    },
+                                    title: {
+                                        subtext: item.UserDepartment
+                                    },
+                                    legend: {
+                                        show: true
+                                    },
+                                    series: [
+                                        {
+                                            name: '部门设备运行时长',
+                                            type: 'pie',    // 设置图表类型为饼图
+                                            radius: '55%',  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                            data: dataArr2,// 数据数组，name 为数据项名称，value 为数据项值
+                                            itemStyle: {
+                                                normal: {
+                                                    color: function (params) {
+                                                        //自定义颜色
+                                                        var colorList = [
+                                                                '#F56C6C', '#67C23A', '#ebb563', '#FCCE10', '#E87C25', '#27727B',
+                                                                '#FE8463', '#9BCA63', '#FAD860', '#F3A43B', '#60C0DD',
+                                                                '#D7504B', '#C6E579', '#F4E001', '#F0805A', '#26C0C0'
+                                                        ];
+                                                        return colorList[params.dataIndex]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                });
+                            })
+                        })}
+                }).catch(err=> {
+
+                })
+        
+            },
+            // 展示部门详细设备列表
+            showDetials(item, index) {
+                this.tableData2 = []
+                this.originData.current.forEach(items=> {
+                    if (items.UserDepartment == item.UserDepartment) {
+                        items.Table.forEach(items2=> {
+                            let obj = {
+                                UserDepartment: item.UserDepartment, runTime: items2.Devicetime[0].Runtime, runTimeRate: items2.Devicetime[0].Runtime_percen,
+                                maintTime: items2.Devicetime[0].Maintentime, maintTimeRate: items2.Devicetime[0].Maintentime_percen,
+                                stopTime: items2.Devicetime[0].Downtime, stopTimeRate: items2.Devicetime[0].Stop_percen, equipmentName: items2.EquipmentName, equipmentNums: items2.EquipmentNumber
+                            }
+                            this.tableData2.push(obj);
+                        })
+                    }
+                });
+                this.showBottomTable = true;
+            }
+
+        },
+        watch: {
+            year() {
+                if (this.year != '' && this.year != null) {
+                    this.getData(this.year,null)
+                    this.flags2 = true
+                } else {
+                    this.flags = false
+                    this.flags2 = false
+                }
+            },
+            yearMonth() {
+                if (this.yearMonth != '' && this.yearMonth != null) {
+                    this.flags = true
+                    let dd = new Date(this.yearMonth)
+                    let year = dd.getFullYear();
+                    let month = dd.getMonth()+1;
+                    console.log(month)
+                    this.getData(year, month)
+                } else {
+                    this.flags = false
+                    this.flags2 = false
+                }
+            }
+        }
+    })
+</script>

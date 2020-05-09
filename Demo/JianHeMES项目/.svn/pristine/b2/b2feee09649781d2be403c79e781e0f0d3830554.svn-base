@@ -1,0 +1,1211 @@
+﻿
+@{
+    ViewBag.Title = "Equipment_Quality_target";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+
+
+<style>
+    .container {
+        width: 1270px;
+    }
+
+    textarea {
+        max-width: 1500px;
+    }
+
+    .cell {
+        padding: 2px !important;
+        text-align: center;
+    }
+
+    table > thead > tr > th, table > tbody > tr > td {
+        padding: 2px !important;
+        text-align: center;
+    }
+    /*table>tbody>tr>td:nth-child(5){
+        font-size:11px;
+    }
+    table>tbody>tr>td:nth-child(3){
+        font-size:13px;
+    }
+    table>tbody>tr>td:nth-child(7){
+        font-size:11px;
+    }*/
+    /*table>tbody>tr>td:nth-child(16),table>tbody>tr>td:nth-child(2),table>tbody>tr>td:nth-child(8),table>tbody>tr>td:nth-child(9),table>tbody>tr>td:nth-child(10),table>tbody>tr>td:nth-child(11),table>tbody>tr>td:nth-child(12),table>tbody>tr>td:nth-child(13),table>tbody>tr>td:nth-child(14),table>tbody>tr>td:nth-child(15),table>tbody>tr>td:nth-child(17),table>tbody>tr>td:nth-child(18),table>tbody>tr>td:nth-child(19){
+        font-size:11px;
+    }*/
+    .selectContainer {
+        display: flex;
+        justify-content: center;
+    }
+
+    .lastContainer {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-around;
+    }
+
+        .lastContainer > div {
+            width: 33.333%;
+        }
+
+    .lastIner {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .remark {
+        margin-top: 8px;
+        margin-left: 21px;
+    }
+
+    .addnewrecordcontainer .el-input {
+        width: 19%;
+    }
+
+    .innerselect .el-input {
+        width: 100%;
+    }
+</style>
+<div id="app">
+    @*<h4 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">{{years + '年'}}{{months + '月'}}技术部提供生产部设备周保养质量目标达成状况统计表</h4>*@
+    <h4 style="text-align:center;margin-top:15px;margin-bottom:5px;font-size:21px;">{{inTrYear | YYYY}}年技术部设备月保养质量目标达成状况统计表</h4>
+    <p style="display:flex;justify-content:center;margin-top:10px;">
+        <a class="shebeitaizhang" href="/Equipment/First_equipment"><el-button type="primary" size="mini" plain>设备台账</el-button></a>
+        <a class="chechTimePlan" href="/Equipment/Equipment_MonthlyMaintenance_plan"><el-button type="primary" size="mini" plain>月保养计划</el-button></a>
+        <a class="checkTally" href="/Equipment/Equipment_Tally"><el-button type="primary" size="mini" plain>点检表记录表</el-button></a>
+        <a class="checkRepiabill" href="/Equipment/EquipmentRepairbill_Query"><el-button type="primary" size="mini" plain>仪器设备报修单</el-button></a>
+        <a class="checkRepiabill" href="/Equipment/Equipment_safety"><el-button type="primary" size="mini" plain>安全库存清单</el-button></a>
+        <a class="targetSumary" href="/Equipment/Equipment_Quality_target"><el-button type="primary" size="mini" plain>指标达成率</el-button></a>
+        @*<a class="checkLines" href="/Equipment/Index2"><el-button type="primary" size="mini" plain>产线查看</el-button></a>*@
+        @*<a class="batvhInputEquipments" href="/Equipment/BatchInputEquipment"><el-button type="primary" size="mini" plain>批量添加</el-button></a>*@
+    </p>
+    <div class="selectContainer">
+
+        <el-button v-show="true" size="mini" v-on:click="addNewRecord" type="success">新增</el-button>
+    </div>
+
+    <el-table v-bind:data="tableData"
+              v-loading="loading"
+              max-height="550"
+              v-bind:span-method="objectSpanMethod"
+              style="width: 100%">
+        <el-table-column label="序号"
+                         type="index"
+                         width="50">
+        </el-table-column>
+        <el-table-column prop="LiaDepartment"
+                         label="担责部门"
+                         width="160">
+        </el-table-column>
+        <el-table-column prop="UserDepartment"
+                         label="使用部门"
+                         width="160">
+        </el-table-column>
+        <el-table-column prop="Quality_objec"
+                         label="质量目标"
+                         width="130">
+        </el-table-column>
+        <el-table-column prop="Target_value"
+                         label="目标值"
+                         width="100">
+        </el-table-column>
+        <el-table-column prop="Formulas"
+                         style="font-size:12px;"
+                         label="计算公式"
+                         width="210">
+        </el-table-column>
+        <el-table-column prop="Statistical"
+                         label="统计周期"
+                         width="80">
+            <template slot-scope="scope">
+                <el-button size="mini" type="success" v-on:click="changeLineInfos(scope.row)">{{scope.row.Statistical}}</el-button>
+            </template>
+        </el-table-column>
+        <el-table-column>
+            <template slot-scope="scope" slot="header">
+                <div style="display:flex;justify-content:center">
+                    <el-date-picker style="width:120px;" v-model="inTrYear"
+                                    type="year"
+                                    size="mini"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                    <span>年{{selectMonth}}月目标统计</span>
+                </div>
+            </template>
+            <el-table-column prop="projects"
+                             label="项目"
+                             width="167">
+            </el-table-column>
+            <el-table-column width="181" prop="actualValue">
+                <template slot-scope="scope" slot="header">
+                    <el-select size="mini" v-model="selectMonth" placeholder="请选择月份">
+                        <el-option v-for="item in 12"
+                                   v-bind:key="item"
+                                   v-bind:label="item"
+                                   v-bind:value="item">
+                        </el-option>
+                    </el-select>
+                </template>
+            </el-table-column>
+        </el-table-column>
+    </el-table>
+    <div class="remarkContainer" v-show="flags">
+        <div class="remark">
+            <p class="innerP" v-for="(item,index) in remark" v-on:click="changeRamark(item,index)">{{item}}</p>
+        </div>
+        <div class="lastContainer">
+            <div class="lastIner">
+                <div style="width:30%;text-align:center">编制/日期:</div>
+                <div style="width:70%;">{{PrepareName}}&nbsp;&nbsp;{{PrepareTime | YMD}}</div>
+            </div>
+            <div class="lastIner">
+                <div v-popover:popover1 style="width:30%;text-align:center">审核/日期:</div>
+                <div v-popover:popover1 style="width:70%">{{Assessor==null?'未审核':Assessor}}&nbsp;&nbsp;{{AssessedDate | YMD}}</div>
+            </div>
+            <div class="lastIner">
+                <div v-popover:popover2 style="width:30%;text-align:center">批准/日期:</div>
+                <div v-popover:popover2 style="width:70%;">{{Approve==null?'未审批':Approve}}&nbsp;&nbsp;{{ApprovedDate | YMD}}</div>
+            </div>
+        </div>
+    </div>
+    @* 修改质量目标信息 *@
+    <el-dialog title="修改质量目标信息"
+               v-bind:visible.sync="showChangeLineInfos"
+               width="25%"
+               v-bind:before-close="handleClose">
+        <div style="display:flex;flex-direction:column;justify-content:space-around;padding:21px;height:450px;">
+            <span class="innerselect">
+                <el-select v-model="changeData.liadepartment" disabled filterable placeholder="请选择">
+                    <el-option v-for="item in deparlist"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </span>
+            <el-input v-model="changeData.quality_objec" placeholder="质量目标"></el-input>
+            <el-input v-model="changeData.target_value" placeholder="目标值"></el-input>
+            <el-input v-model="changeData.formulas" placeholder="计算公式"></el-input>
+            <el-input v-model="changeData.statistical" placeholder="统计周期"></el-input>
+            <el-input v-model="changeData.required_maintain" disabled></el-input>
+            <el-input v-model="changeData.planned_maintenance" disabled></el-input>
+            <el-input v-model="changeData.with_efficiency" disabled></el-input>
+        </div>
+
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="showChangeLineInfos = false">取 消</el-button>
+            <el-button type="success" v-on:click="comformChangeLineInfos">保存修改</el-button>
+        </span>
+    </el-dialog>
+
+    @* 修改备注弹框 *@
+    <el-dialog title="修改&新增备注项"
+               v-bind:visible.sync="showChangeRemark"
+               width="35%"
+               v-bind:before-close="handleClose">
+        <el-dialog width="30%"
+                   title="新增备注项目"
+                   v-bind:visible.sync="innerAddRemark"
+                   append-to-body>
+            <p>tips:开头不需要加'*'号，需要标明备注序号。</p>
+            <el-input type="textarea" autosize v-model="addRemarkInfos"></el-input>
+            <span slot="footer" class="dialog-footer">
+                <el-button v-on:click="innerAddRemark = false">取 消</el-button>
+                <el-button type="success" v-on:click="addRemarkComfirm">保存新增</el-button>
+            </span>
+        </el-dialog>
+        <el-input type="textarea" autosize v-model="selectRemark"></el-input>
+        <span slot="footer" class="dialog-footer">
+            <el-button type="primary" v-on:click="addRemrk">新增备注</el-button>
+            <el-button v-on:click="showChangeRemark = false">取 消</el-button>
+            <el-button type="success" v-on:click="comformChangeRemark">保存修改</el-button>
+        </span>
+    </el-dialog>
+    @* 新增记录弹框 *@
+    <el-dialog v-bind:title=`${years}年${months}月新增质量目标`
+               v-bind:visible.sync="showAddRemark"
+               width="75%"
+               v-bind:before-close="handleClose">
+        <el-date-picker v-model="selectTime"
+                        type="month"
+                        style="width:168px;margin-bottom:8px;"
+                        size="mini"
+                        placeholder="选择月">
+        </el-date-picker>
+        <div v-for="(item,index) in addRecordData" class="addnewrecordcontainer">
+            <span class="innerselect">
+                <el-select v-model="item.UserDepartment" size="mini" v-on:change="addNewSelectChanged" filterable placeholder="请选择">
+                    <el-option v-for="item in deparlist"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </span>
+            <span style="width:80px"><strong>质量目标：</strong>{{item.Quality_objec}}</span>
+            <span style="width:50px"><strong>目标值：</strong>{{item.Target_value}}</span>
+            <span style="width:120px"><strong>计算公式：</strong>{{item.Formulas}}</span>
+            <span style="width:50px"><strong>统计周期：</strong>{{item.Statistical}}</span>
+            @*<el-input v-model="item.Quality_objec" placeholder="质量目标"></el-input>
+                <el-input v-model="item.Target_value" placeholder="目标值"></el-input>
+                <el-input v-model="item.Formulas" placeholder="计算公式"></el-input>
+                <el-input v-model="item.Statistical" placeholder="统计周期"></el-input>*@
+            <el-button v-show="item.color==true?true:false" type="danger" size="mini" v-on:click="removeaddRecordData(item,index)">移除</el-button>
+        </div>
+        <div class="addremark">
+            <hr />
+            <div v-for="(item,index) in addremarklist">
+                备注{{index +1}}：
+                <el-input type="textarea" autosize v-model="item.remark"></el-input>
+            </div>
+            <span v-on:click="addremarlline">增加备注</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <span v-on:click="cnaceladdremarlline">回退</span>
+        </div>
+
+        <span slot="footer" class="dialog-footer">
+            <el-button type="primary" v-on:click="addOne">增加一条</el-button>
+            <el-button type="warning" v-on:click="deleteOne">回退删除</el-button>
+            <el-button v-on:click="showAddRemark = false">取 消</el-button>
+            <el-button v-show="selectTime==null?false:true" type="success" v-on:click="comformAddRemark">保存新增</el-button>
+        </span>
+    </el-dialog>
+    @* 审核弹出框部分 *@
+    <el-popover ref="popover1"
+                placement="bottom"
+                title="质量目标审核"
+                width="200"
+                trigger="click"
+                content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+        <div v-if="shenheRoles &&Assessor==null ">
+            <el-select v-model="Assessor" size="mini" v-on:change="shenheChanged" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <p v-else>无对应权限</p>
+    </el-popover>
+    <el-popover ref="popover2"
+                placement="bottom"
+                title="质量目标批准"
+                width="200"
+                trigger="click"
+                content="这是一段内容,这是一段内容,这是一段内容,这是一段内容。">
+        <div v-if="shenpiRoles &&Approve==null && Assessor!=null">
+            <el-select v-model="Approve" size="mini" v-on:change="shenpiChanged" placeholder="请选择">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <p v-else>无对应权限或未审核</p>
+    </el-popover>
+    @*<el-button v-show="true" size="mini" v-on:click="postMonthData" type="success">test</el-button>*@
+</div>
+@{var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;}
+
+<div>
+    <script>
+        // 获取按照当前表格数据而得到的合并信息
+function getSpan(arrs) {
+    let contactDot = 0;
+    arrs.forEach((item, index) => {
+        
+                if (index === 0) {
+                    app.spanArr.push(1)
+                } else {
+                    if (item.LiaDepartment.trim() === arrs[index - 1].LiaDepartment.trim()) {
+                        app.spanArr[contactDot] += 1;
+                        app.spanArr.push(0)
+                    } else {
+                        contactDot = index
+                        app.spanArr.push(1)
+                    }
+                }
+    });
+    let contactDot2 = 0;
+    arrs.forEach((item, index) => {
+        
+                if (index === 0) {
+                    app.spanArr2.push(1)
+                } else {
+                    if (item.UserDepartment === arrs[index - 1].UserDepartment) {
+                        app.spanArr2[contactDot2] += 1;
+                        app.spanArr2.push(0)
+                    } else {
+                        contactDot2 = index
+                        app.spanArr2.push(1)
+                    }
+                }
+    });
+    let contactDot3 = 0;
+    arrs.forEach((item, index) => {
+        
+                if (index === 0) {
+                    app.spanArr3.push(1)
+                } else {
+                    if (item.Quality_objec.trim() === arrs[index - 1].Quality_objec.trim()) {
+                        app.spanArr3[contactDot3] += 1;
+                        app.spanArr3.push(0)
+                    } else {
+                        contactDot3 = index
+                        app.spanArr3.push(1)
+                    }
+                }
+    });
+    let contactDot4 = 0;
+    arrs.forEach((item, index) => {
+        
+                if (index === 0) {
+                    app.spanArr4.push(1)
+                } else {
+                    if (item.Target_value.trim() === arrs[index - 1].Target_value.trim()) {
+                        app.spanArr4[contactDot4] += 1;
+                        app.spanArr4.push(0)
+                    } else {
+                        contactDot4 = index
+                        app.spanArr4.push(1)
+                    }
+                }
+    });
+    let contactDot5 = 0;
+    arrs.forEach((item, index) => {
+        
+                if (index === 0) {
+                    app.spanArr5.push(1)
+                } else {
+                    if (item.Formulas.trim() === arrs[index - 1].Formulas.trim()) {
+                        app.spanArr5[contactDot5] += 1;
+                        app.spanArr5.push(0)
+                    } else {
+                        contactDot5 = index
+                        app.spanArr5.push(1)
+                    }
+                }
+    });
+    let contactDot6 = 0;
+    arrs.forEach((item, index) => {
+        
+                if (index === 0) {
+                    app.spanArr6.push(1)
+                } else {
+                    if (item.Statistical.trim() === arrs[index - 1].Statistical.trim()) {
+                        app.spanArr6[contactDot6] += 1;
+                        app.spanArr6.push(0)
+                    } else {
+                        contactDot6 = index
+                        app.spanArr6.push(1)
+                    }
+                }
+            });
+        }
+        function checkRoles(list, roleName) {   //检测权限
+            var flag = false
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        flag = true
+                    }
+                }
+            }
+            return flag
+        }
+        let app = new Vue({
+            el: "#app",
+            data: {
+                selectMonth:null,
+                inTrYear:null,   // 表头里的年选择器
+                addremarklist:[
+                    {
+                        rmark:null
+                    }
+                ],
+                UserName:"@UserName",
+                tableData: [],
+                loading:false,
+                selectTime: null,
+                years:'',
+                months:'',
+                spanArr:[],
+                spanArr2:[],
+                spanArr3:[],
+                spanArr4:[],
+                spanArr5:[],
+                spanArr6:[],
+                remark:[],     // 备注
+                remarkStr:"",
+                PrepareName:null,  // 编制人
+                PrepareTime:null,// 编制日期
+                Assessor:null,  // 审核人
+                AssessedDate:null,  // 审核日期
+                Approve:null,  // 批准人
+                ApprovedDate:null,   // 批准时间,
+
+                showChangeRemark:false,
+                selectRemark:null,
+                selectRemarkIndex:null,
+                innerAddRemark:false,
+                addRemarkInfos:null,
+
+                options: [{
+                    value: '通过',
+                    label: '通过'
+                }, {
+                    value: '未通过',
+                    label: '未通过'
+                }],
+                shenheRoles:false,
+                shenpiRoles:false,
+                flags:false,
+                showaddnew:false,   // 需要调整为false
+                showAddRemark:false,
+                addRecordData:[
+                    {
+                        LiaDepartment:"技术部",  //担责部门
+                        UserDepartment:null,
+                        Quality_objec:"设备保养有效率",  //质量目标
+                        Target_value:"≥98%",   //目标值
+                        Formulas:"设备按规定要求保养台数/计划保养总台数 ×100%",        //计算公式
+                        Statistical:"每月/次",   //统计周期
+                        Required_maintain:"设备按规定要求保养台数", //按规定要求保养台天次
+                        Planned_maintenance:"计划保养总台数",  //计划保养总台天次
+                        With_efficiency:"有效率",    // 有效率,
+                        color:false
+                    }
+                ],
+                addRemark:null,
+                deparlist:[],
+                showChangeLineInfos:false,
+                changeData:{
+                    year:null,
+                    month:null,
+                    liadepartment:null,
+                    UserDepartment:null,
+                    quality_objec:null,
+                    target_value:null,
+                    formulas:null,
+                    statistical:null,
+                    required_maintain:null,
+                    planned_maintenance:null,
+                    with_efficiency:null
+                },
+                originTableData:null
+            },
+            methods: {
+                // 新增数据时选择部门
+                addNewSelectChanged(val){
+                    //if(val!=null){
+                    //    axios.post("/Equipment/",{}).then(res=>{
+                    //        let obj = {}
+                    //    })
+                    //}
+                },
+                // 移除重复的新增信息
+                removeaddRecordData(item,index){
+                    this.addRecordData.splice(index,1);
+                    if(this.addRecordData.length>0){
+
+                    }else{
+                        //this.showAddRemark = false;
+                    }
+                },
+                //增加备注文本域
+                addremarlline(){
+                    let obj = {remark:null}
+                    this.addremarklist.push(obj)
+                },
+                cnaceladdremarlline(){
+                    this.addremarklist.pop()
+                },
+                // 修改信息
+                changeLineInfos(item){
+                    if(checkRoles(roles,"修改左边质量目标数据") && this.Approve==null){
+                        this.showChangeLineInfos = true;
+                        this.changeData.liadepartment = item.LiaDepartment
+                        this.changeData.UserDepartment = item.UserDepartment
+                        this.changeData.quality_objec = item.Quality_objec
+                        this.changeData.target_value = item.Target_value
+                        this.changeData.formulas = item.Formulas
+                        this.changeData.statistical = item.Statistical
+                        this.changeData.required_maintain = "设备按规定要求保养台数"
+                        this.changeData.planned_maintenance = "计划保养总台数"
+                        this.changeData.with_efficiency = "有效率"
+                    }else{
+                        this.$notify({
+                            message:"无操作权限或已审核，不可修改",
+                            type:"warning"
+                        });
+                    }
+                },
+                //确认修改行信息
+                comformChangeLineInfos(){
+                    let flag = true;
+
+                    if(this.changeData.liadepartment==null ||this.changeData.liadepartment==''){
+                        flag = false;
+                    }
+                    if(this.changeData.quality_objec==null ||this.changeData.quality_objec==''){
+                        flag = false;
+                    }
+                    if(this.changeData.target_value==null ||this.changeData.target_value==''){
+                        flag = false;
+                    }
+                    if(this.changeData.formulas==null ||this.changeData.formulas==''){
+                        flag = false;
+                    }
+                    if(this.changeData.statistical==null ||this.changeData.statistical==''){
+                        flag = false;
+                    }
+                    let dd = new Date(this.inTrYear);
+                    let yy = dd.getFullYear()
+                    let mm = this.selectMonth;
+                    this.changeData.year = yy
+                    this.changeData.month = mm
+                    if(flag){
+                        axios.post("/Equipment/Modifi_Equipment_Quality/", this.changeData).then(res=>{
+                            if(res.data.mes){
+                                this.$notify({
+                                    message:"修改成功",
+                                    type:"success"
+                                });
+                                this.showChangeLineInfos = false;
+                                //this.inTrYear = localStorage.getItem("equiquanlityselecttime")
+                                let dd = new Date(this.inTrYear);
+                                let year = dd.getFullYear()
+                                //let month = dd.getMonth() +1
+                                this.getTableInfos(year,this.selectMonth)
+                            }else{
+                                this.$notify({
+                                    message:"修改失败",
+                                    type:"warning"
+                                });
+                            }
+                        })
+                    }else{
+                        this.$notify({
+                            message:"请补全信息",
+                            type:"warning"
+                        });
+                    }
+                },
+                //新增按钮
+                addNewRecord(){
+                    if(checkRoles(roles,"添加左边质量目标数据")){
+                        this.showAddRemark = true;
+                    }else{
+                        this.$notify({
+                            message:"无操作权限",
+                            type:"warning"
+                        });
+                    }
+
+                },
+                // 确认新增质量指标
+                comformAddRemark(){
+                    let flag = true
+                    this.addRecordData.forEach(item=>{
+                        if(item.UserDepartment==null||item.UserDepartment==''){
+                            flag = false
+                        }
+                        if(item.Quality_objec==null||item.Quality_objec==''){
+                            flag = false
+                        }
+                        if(item.Target_value==null||item.Target_value==''){
+                            flag = false
+                        }
+                        if(item.Formulas==null||item.Formulas==''){
+                            flag = false
+                        }
+                        if(item.Statistical==null||item.Statistical==''){
+                            flag = false
+                        }
+                        
+                    });
+                    console.log(flag)
+                    if(flag){
+                        let dd = new Date(this.selectTime);
+                        let year = dd.getFullYear()
+                        let month = dd.getMonth() + 1;
+                        let postremark = ''
+                        this.addremarklist.forEach((item,index)=>{
+                            postremark+='*'+ (index+1)+ '.' + item.remark
+                        })
+                        axios.post("/Equipment/Equipment_QualityADD/", { inputList:this.addRecordData,remark: postremark,year,month}).then(res=>{
+                            console.log(res.data)
+                            if(res.data==true){
+                                this.$notify({
+                                message:"新增成功",
+                                type:"success"
+                                });
+                                window.location.reload()
+                                this.showAddRemark = false;
+                                let obj = {LiaDepartment:null,Quality_objec:null,Target_value:null,Formulas:null,Statistical:null,Required_maintain:"按规定要求保养台天次",Planned_maintenance:"计划保养总台天次",With_efficiency:"有效率"};
+                                this.addRecordData = []
+                                this.addRecordData.push(obj)
+                            }else{
+                                this.addRecordData.forEach(item=>{
+                                    res.data.Depar.forEach(items=>{
+                                        if(item.UserDepartment == items.UserDepartment){
+                                            item.color = true;
+                                        }
+                                    });
+                                });
+                                console.log(this.addRecordData)
+                                this.$notify({
+                                    message:"新增失败,存在重复数据",
+                                    type:"warning"
+                                });
+
+                            }
+                        })
+                    }else{
+                        this.$notify({
+                            message:"请补全数据",
+                            type:"warning"
+                        })
+                    }
+                },
+                // 获取部门信息
+                getDeparList(){
+                    axios.post("/Equipment/Userdepartment_list", { exce:new Date() }).then(res=>{
+                        //console.log(res.data)
+
+                        res.data.forEach(item=>{
+                            let obj = {label:item,value:item}
+                            this.deparlist.push(obj)
+                        })
+                    })
+                },
+                // 新增一条输入框
+                addOne(){
+                    let obj = {LiaDepartment:"技术部",Quality_objec:null,UserDepartment:null,
+                        Quality_objec:"设备保养有效率",
+                        Target_value:"≥98%",
+                        Formulas:"设备按规定要求保养台数/计划保养总台数 ×100%",
+                        Statistical:"每月/次",
+                        Required_maintain:"设备按规定要求保养台数",
+                        Planned_maintenance:"计划保养总台数",
+                        color:false,
+                        With_efficiency:"有效率"};
+                    this.addRecordData.push(obj)
+                },
+                // 删除最后一条输入框
+                deleteOne(){
+                    if(this.addRecordData.length>1){
+                        this.addRecordData.pop()
+                    }else{
+                        this.$notify({
+                            message:"手动新增项已全部删除",
+                            type:"warning"
+                        })
+                    }
+                },
+                // 获取表格信息
+                getTableInfos(year, month) {
+                    this.loading = true
+                    
+                    axios.post("/Equipment/Equipment_Quality_statistical/", { year, month }).then(res=> {
+                        app.tableData = []
+                        console.log(res.data)
+                        let obj1 = {}
+                        let obj2 = {}
+                        let obj3 = {}
+                        if("quality_list" in res.data){
+                            let testarr = []
+                            res.data.quality_list.forEach(item=>{
+                                obj1 = {
+                                    UserDepartment: item.UserDepartment,  // 部门
+                                    LiaDepartment:item.LiaDepartment,
+                                    Quality_objec: item.Quality_objec,   // 质量目标
+                                    Target_value: item.Target_value,   // 目标值
+                                    Formulas: item.Formulas,   // 计算公式
+                                    Statistical: item.Statistical,   //统计周期
+                                    projects: item.Required_maintain,  // 项目一
+                                    actualValue:item.Required
+                                }
+                                obj2 = {
+                                    UserDepartment: item.UserDepartment,  // 部门
+                                    LiaDepartment:item.LiaDepartment,
+                                    Quality_objec: item.Quality_objec,   // 质量目标
+                                    Target_value: item.Target_value,   // 目标值
+                                    Formulas: item.Formulas,   // 计算公式
+                                    Statistical: item.Statistical,   //统计周期
+                                    projects: item.Planned_maintenance,  // 项目二
+                                    actualValue:item.Planned
+                                }
+                                obj3 = {
+                                    UserDepartment: item.UserDepartment,  // 部门
+                                    LiaDepartment:item.LiaDepartment,
+                                    Quality_objec: item.Quality_objec,   // 质量目标
+                                    Target_value: item.Target_value,   // 目标值
+                                    Formulas: item.Formulas,   // 计算公式
+                                    Statistical: item.Statistical,   //统计周期
+                                    projects: item.With_efficiency,  // 项目三
+                                    actualValue:item.efficiency + '%'
+                                }
+                                testarr.push(obj1,obj2,obj3)
+                            });
+                            //console.log(this.spanArr)
+                            //console.log(this.spanArr2)
+                            //console.log(this.spanArr3)
+                            this.remarkStr = res.data.Remark
+                                if(res.data.Remark!==null){
+                                    let remark = res.data.Remark.split("*")
+                                    remark.shift()
+                                    this.remark = remark
+                                    this.flags = true
+                                }else{
+                                    this.remark = null
+                                    this.flags = false
+                                }
+                                this.PrepareName = res.data.PrepareName
+                                this.PrepareTime = res.data.PrepareTime
+                                this.Assessor = res.data.Assessor
+                                this.AssessedDate = res.data.AssessedDate
+                                this.Approve = res.data.Approve
+                                this.ApprovedDate = res.data.ApprovedDate
+                                let originTableData = res.data.quality_list
+                                this.originTableData = originTableData
+                            this.tableData = testarr
+                        }else{
+                            this.$notify({
+                                title: "无对应数据,可新增",
+                                message: "所选时间无对应数据",
+                                type: "warning"
+                            });
+                            this.loading = false;
+                            this.flags = false
+                        }
+                        //let arr = ["Required_maintain","Planned_maintenance","With_efficiency"]
+                        //if(res.data.quality_list.length>0){
+                        //    res.data.quality_list.forEach(item=>{
+                        //        let obj = {
+                        //            UserDepartment: item.UserDepartment,  // 部门
+                        //            LiaDepartment:item.LiaDepartment,
+                        //            Quality_objec: item.Quality_objec,   // 质量目标
+                        //            Target_value: item.Target_value,   // 目标值
+                        //            Formulas: item.Formulas,   // 计算公式
+                        //            Statistical: item.Statistical   //统计周期
+                        //            //projects: item.Required_maintain,  // 项目一
+                        //        }
+                        //        //console.log(item["Required_maintain"])
+                        //        //console.log(item["Planned_maintenance"])
+                        //        //console.log(item["With_efficiency"])
+                        //        this.tableData.push(obj)
+                        //        //for(let i=0;i<arr.length;i++){
+                        //        //    obj.projects = item[`${arr[i]}`]
+                        //        //    console.log(item[`${arr[i]}`])
+                        //        //    this.tableData.push(obj)
+                        //        //    console.log(this.tableData)
+                        //        //}
+                                
+                        //    })
+                        //}
+                        //if(res.data.quality_list.length>0){
+                        //    let originTableData = res.data.quality_list
+                        //    originTableData.forEach((item,index)=>{
+                        //        let assDataArr = item.ass
+                        //        for(let i=0;i<assDataArr.length;i++){
+                        //            if(assDataArr[i].Month==this.months){
+                        //                item.Required = assDataArr[i].Required
+                        //                item.Planned = assDataArr[i].Planned
+                        //                item.efficiency = assDataArr[i].efficiency
+                        //            }else{
+                        //                item.Required = null
+                        //                item.Planned = null
+                        //                item.efficiency = null
+                        //            }
+                        //        }
+                        //    });
+                        //    this.originTableData = originTableData
+                        //    
+
+                        //    let reversTableData = []
+                            //res.data.quality_list.forEach(item=> {
+                                
+                                //let arr = [obj1, obj2, obj3]
+                            //    //for (let i = 0; i < item.ass.length; i++) {
+                            //    //    arr[0][`${item.ass[i].Month}`] = item.ass[i].Required
+                            //    //    arr[1][`${item.ass[i].Month}`] = item.ass[i].Planned
+                            //    //    arr[2][`${item.ass[i].Month}`] = item.ass[i].efficiency + '%'
+                            //    //}
+                            //    reversTableData.push(obj1,obj2,obj3)
+
+                            //});
+                            //let finalData = []
+                            //for (let i = 0; i < reversTableData.length; i++) {
+                            //    for (let j = 0; j < reversTableData[i].length; j++) {
+                            //        finalData.push(reversTableData[i][j])
+                            //    }
+                            //}
+                            //this.tableData = finalData
+                        //    this.loading = false;
+                        //    //console.log(finalData)
+                        //}else{
+                        //    this.$notify({
+                        //        title: "无对应数据,可新增",
+                        //        message: "所选时间无对应数据",
+                        //        type: "warning"
+                        //    })
+                            this.loading = false;
+                            //this.showaddnew = true
+                            
+                        //}
+
+                    }).catch(err=> {
+                        this.$notify({
+                            title: "网络错误",
+                            message: "获取表格信息连接失败",
+                            type: "warning"
+                        })
+                        this.loading = false;
+                        this.flags = false
+                    })
+                },
+                // 修改备注
+                changeRamark(item,index){
+                    if(checkRoles(roles, '质量目标编制人')&& (this.Approve==null||this.Approve=='')){
+                        this.showChangeRemark = true;
+                        this.selectRemark = item
+                        this.selectRemarkIndex = index
+                    }else{
+                        this.$notify({
+                            message: "无操作权限或已批准",
+                            type: "warning"
+                        })
+                    }
+                },
+                // 确认修改备注--弹框确认
+                comformChangeRemark(){
+                    this.remark[this.selectRemarkIndex] = this.selectRemark;
+                    let str = ''
+                    for(let i=0;i<this.remark.length;i++){
+                        str += '*'+ this.remark[i]
+                    }
+                    //console.log(str)
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear()
+                    let month = dd.getMonth() + 1
+                    axios.post("/Equipment/Editequipment_Quality/", { year, month:this.selectMonth,remark:str }).then(res=>{
+                        //console.log(res.data)
+                        if(res.data.mes){
+                            this.showChangeRemark = false;
+                            this.$notify({
+                            title: "修改成功",
+                            message: "修改备注信息成功",
+                            type: "success"
+                    })
+                    }else{
+                            this.$notify({
+                        message: "修改失败",
+                        type: "warning"
+                    })
+                    }
+                    }).catch(err=>{
+                        this.$notify({
+                        title: "连接失败",
+                        message: "修改备注信息时连接失败",
+                        type: "warning"
+                    })
+                    })
+                    },
+                // 新增备注
+                addRemrk(){
+                    this.innerAddRemark = true;
+                    },
+                // 新增备注确认
+                addRemarkComfirm(){
+
+                    this.remark.push(this.addRemarkInfos)
+                    let str = ''
+                    for(let i=0;i<this.remark.length;i++){
+                        str += '*'+ this.remark[i]
+                    }
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear()
+                    let month = dd.getMonth() + 1
+                    axios.post("/Equipment/Editequipment_Quality/", { year, month:this.selectMonth,remark:str }).then(res=>{
+                        if(res.data.mes){
+                            this.innerAddRemark = false;
+                            this.$notify({
+                            title: "新增修改成功",
+                            message: "新增修改备注信息成功",
+                            type: "success"
+                    })
+                    }else{
+                            this.$notify({
+                        message: "新增修改失败",
+                        type: "warning"
+                    })
+                    }
+                    }).catch(err=>{
+                        this.$notify({
+                        title: "连接失败",
+                        message: "修改备注信息时连接失败",
+                        type: "warning"
+                    })
+                    })
+                    },
+                // 审核人选择框改变
+                shenheChanged(val){
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear()
+                    let month = dd.getMonth() + 1
+                    let target = this.UserName + '/' + val;
+                    let time = new Date()
+                    axios.post("/Equipment/Editequipment_Quality/", { year, month:this.selectMonth,assessor:target }).then(res=>{
+                        //console.log(res.data)
+                        if(res.data.mes){
+                            this.Assessor = res.data.quality
+                            this.AssessedDate = res.data.date
+                            this.$notify({
+                                title: "审核操作成功",
+                                type: "success"
+                            });
+                            this.postMonthData(target)
+                        }else{
+                            this.Assessor = null
+                            this.$notify({
+                                message: "审核操作失败",
+                                type: "warning"
+                            })
+                        }
+                    }).catch(err=>{
+                        this.$notify({
+                            message: "连接失败",
+                            type: "warning"
+                        })
+                    })
+                },
+                // 审核成功上传本月所有数据
+                postMonthData(target){
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear()
+                    let month = dd.getMonth() + 1
+                    axios.post("/Equipment/ADDequipment_quality/", { Quality_target:this.originTableData,year,month:this.selectMonth,remark:this.remarkStr,assessor:target }).then(res=>{
+                        this.$message({message:"保存审核数据成功",type:"success"});
+                        window.location.reload();
+                    })
+                    },
+                shenpiChanged(val){
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear()
+                    let month = dd.getMonth() + 1
+                    let target = this.UserName + '/' + val;
+                    let time = new Date()
+                    axios.post("/Equipment/Editequipment_Quality/", { year, month:this.selectMonth,approve:target}).then(res=>{
+                       //console.log(res.data)
+                       if(res.data.mes){
+                           this.Approve = res.data.quality
+                           this.ApprovedDate = res.data.date
+                           this.$notify({
+                        title: "审核操作成功",
+                        type: "success"
+                    });
+
+                    }else{
+                           this.Approve = null
+                           this.$notify({
+                        message: "审核操作失败",
+                        type: "warning"
+                    })
+                    }
+                    }).catch(err=>{
+                        this.$notify({
+                        message: "连接失败",
+                        type: "warning"
+                        })
+                    })
+                },
+                handleClose(done) {
+                    this.$confirm('确认关闭？')
+                      .then(_ => {
+                          done();
+                      })
+                      .catch(_ => {});
+                },
+                objectSpanMethod({ row, column, rowIndex, columnIndex }) {
+                    //console.log(this.spanArr)
+                    if (columnIndex === 0) {
+                        if (app.spanArr[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                    if (columnIndex === 1) {
+                        if (app.spanArr[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                    if (columnIndex === 2) {
+                        if (app.spanArr2[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr2[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                    if (columnIndex === 3) {
+                        if (app.spanArr2[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr2[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                    if (columnIndex === 4) {
+                        if (app.spanArr2[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr2[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                    if (columnIndex === 5) {
+                        if (app.spanArr2[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr2[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                    if (columnIndex === 6) {
+                        if (app.spanArr2[rowIndex]) { // [3,0,0,2,0,3,0,0]
+                            return {
+                                rowspan: app.spanArr2[rowIndex],
+                                colspan: 1
+                            }
+                        } else {
+                            return {
+                                rowspan: 0,
+                                colspan: 0
+                            }
+                        }
+                    }
+                },
+        },
+        watch: {
+            selectTime() {
+                this.tableData = []
+                this.remark = null
+                this.flags = false
+
+                if (this.selectTime != null) {
+                    this.showaddnew = true;
+                    //let dd = new Date(this.selectTime)
+                    //let year = dd.getFullYear()
+                    //this.years = year
+                    //let month = dd.getMonth() + 1
+                    //this.months = month
+                    //this.getTableInfos(year,month)
+                    //localStorage.setItem("equiquanlityselecttime",this.selectTime)
+                }else{
+                    this.showaddnew = false;
+                }
+            },
+            inTrYear(){
+                if(this.inTrYear !=""){
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear();
+                    if(this.selectMonth!=""){
+                        this.getTableInfos(year,this.selectMonth)
+                    }else{
+                        this.getTableInfos(year,1);
+                        this.selectMonth = 1
+                    }
+                    localStorage.setItem("equiquanlityselecttime",this.inTrYear)
+                }else{
+                    //this.selectMonth = null
+                }
+            },
+            selectMonth(){
+                if(this.inTrYear !=""){
+                    let dd = new Date(this.inTrYear)
+                    let year = dd.getFullYear();
+                    this.getTableInfos(year,this.selectMonth)
+                    
+                }else{
+
+                }
+                localStorage.setItem("equiquanlityselecttime_selectMonths",this.selectMonth)
+            },
+            tableData(){
+                app.spanArr = []
+                app.spanArr2 = []
+                app.spanArr3 = []
+                app.spanArr4 = []
+                app.spanArr5 = []
+                app.spanArr6 = []
+                if(this.tableData.length>0){
+                    if(this.Assessor==null){
+                        this.showaddnew = true;
+                    }else{
+                        this.showaddnew = false;
+                    }
+                    getSpan(this.tableData)
+                }else{
+                }
+            }
+        },
+        mounted(){
+
+            var roles = JSON.parse(localStorage.getItem("rigths"));
+            this.getDeparList()
+            this.shenheRoles = checkRoles(roles, '审核质量目标');
+            this.shenpiRoles = checkRoles(roles, '批准质量目标');
+            this.inTrYear = localStorage.getItem("equiquanlityselecttime",'');
+            this.selectMonth = localStorage.getItem("equiquanlityselecttime_selectMonths",'');
+            //console.log(this.selectTime)
+            //console.log(JSON.parse(localStorage.getItem("equiquanlityselecttime",'')))
+
+
+
+        }
+        })
+    </script>
+</div>

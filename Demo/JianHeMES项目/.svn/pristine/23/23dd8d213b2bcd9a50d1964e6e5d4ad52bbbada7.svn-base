@@ -1,0 +1,443 @@
+﻿
+@{
+    ViewBag.Title = "物料基本信息录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是：批量导入物料基本信息；覆盖数据库表中已有的信息
+    1.1.将excel表中数据复制，粘贴到页面“表格粘贴处...”,届时表格下方会显示“上传”、“清空”的按钮，通过点击上传按钮即可将数据导入到数据库
+    1.2.可将表中已有信息覆盖（如需将上次导入的数据修改，可从新将数据上传，后端会通过订单号及物料号找出记录，直接覆盖原先上传的数据）
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    textarea {
+        height: 36px;
+        width: 150px;
+        margin-top: 15px;
+    }
+
+    .table .cell,
+    .el-table th,
+    .el-table td {
+        text-align: center;
+        padding: 8px;
+        font-size: 13px;
+    }
+
+    @@media screen and (max-width:850px) {
+        .onediv {
+            display: inline-flex;
+            margin-bottom: 5px
+        }
+
+        .bt {
+            margin: 0;
+            word-break: keep-all;
+        }
+
+        .upload-demo {
+            display: inline-flex;
+            word-break: keep-all
+        }
+    }
+
+    @@media screen and (min-width:1125px) {
+        .onediv {
+            display: inline-flex;
+            margin-left: 72px !important;
+            margin-bottom: 5px
+        }
+
+        .bt {
+            margin-left: 465px;
+            margin-top: 28px;
+            margin-bottom: 10px;
+        }
+
+        .upload-demo {
+            margin-top: 2px;
+            margin-left: 365px;
+        }
+
+        .el-upload-list {
+            max-width: 200px;
+            margin-top: 2px;
+        }
+
+        .elbt {
+            margin-top: 5px
+        }
+
+        .el-upload-list__item:first-child {
+            margin-top: 0px;
+        }
+    }
+
+    .el-upload__input {
+        display: none !important;
+    }
+</style>
+<div id="app">
+    <div style="display:flex">
+        <h2 class="bt">@ViewBag.Title</h2>
+        <el-upload class="upload-demo"
+                   v-bind:on-change="testchange"
+                   ref="upload"
+                   action="Create"
+                   accept=".xlsx,.xls"
+                   v-bind:on-preview="handlePreview"
+                   v-bind:on-remove="handleRemove"
+                   v-bind:file-list="fileList"
+                   v-bind:limit="1"
+                   v-bind:on-exceed="handleExceed"
+                   v-bind:auto-upload="false" style="float:left">
+            <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+            <el-button class="elbt" size="small" type="success" v-on:click="submitUpload">上传</el-button>
+        </el-upload>
+    </div>
+    <div class="text-center">
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint" style="margin-left:2px"><el-button size="small" type="primary" plain>打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px">备料确认</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain>打印外箱标签</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+    </div>
+    <div class="onediv">
+        <el-select v-model="orderNum" placeholder="请选择订单号" size="medium" allow-create filterable clearable style="margin-top:15px;margin-left:5px">
+            <el-option v-for="item in options"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        <el-input size="medium" style="width: 200px;margin-top:15px;" v-model="ScreenNum" placeholder="请输入屏序" clearable></el-input>
+        <el-input size="medium" style="width: 200px;margin-top:15px;" v-model="Batch" placeholder="请输入批次" clearable></el-input>
+        <el-input size="medium" style="width: 200px;margin-top:15px;" v-model="TableNumber" placeholder="请输入表序" clearable></el-input>
+    </div>
+    <el-button class="elbt" size="small" type="success" v-on:click="selectData">查询</el-button>
+    <el-button class="elbt" size="small" type="danger" v-on:click="deleteData" v-show="visidelete">删除</el-button>
+    <div class="text-center">
+        <el-aside width="1111px" style="margin: 0 auto;">
+            <el-table v-bind:data="tableData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="550px">
+                <el-table-column prop="OrderNum" label="订单号" width="150"></el-table-column>
+                <el-table-column prop="Material_Name" label="物品名称" width="120"></el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料编号" width="120">
+                    <template slot-scope="scope">
+                        <span class="spcolor" type="text" size="middle" v-on:click="modify(scope.row)">{{scope.row.MaterialNumber}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Specification_Description" label="规格描述" width="400"></el-table-column>
+                <el-table-column prop="Quantity" label="数量" width="80"></el-table-column>
+                <el-table-column prop="Unit" label="单位" width="80"></el-table-column>
+                <el-table-column prop="ScreenNum" label="屏序" width="80"></el-table-column>
+                <el-table-column prop="Batch" label="批次" width="80"></el-table-column>
+            </el-table>
+        </el-aside>
+    </div>
+    <el-button size="mini" style="margin-left:80px" type="primary" v-on:click="uploadData" v-show="visiUpload">保存</el-button>
+    <!--修改规格描述-->
+    <el-dialog v-bind:visible.sync="dialogVisible" width="600px">
+        <el-form model="uploadForm" ref="numberValidateForm" label-width="100px" class="demo-ruleForm">
+            <el-form-item label="订单号">
+                <el-input v-model="orderNumber" style="width:600px;height:40px;"></el-input>
+            </el-form-item>
+            <el-form-item label="物料编号">
+                <el-input v-model="materialNumber" style="width:600px;height:40px;"></el-input>
+            </el-form-item>
+            <el-form-item label="物品名称">
+                <textarea v-model="material_Name" style="width:600px;height:60px;max-width:400px;"></textarea>
+            </el-form-item>
+            <el-form-item label="规格描述">
+                <textarea v-model="specification_Description" style="width:600px;height:150px;max-width:400px;"></textarea>
+            </el-form-item>
+            <el-form-item label="数量">
+                <el-input v-model="quantity" style="width:600px;height:40px;"></el-input>
+            </el-form-item>
+            <el-form-item label="单位">
+                <el-input v-model="unit" style="width:600px;height:40px;"></el-input>
+            </el-form-item>
+            <el-form-item label="屏序">
+                <el-input v-model="screenNum" style="width:600px;height:40px;"></el-input>
+            </el-form-item>
+            <el-form-item label="批次">
+                <el-input v-model="batch" style="width:600px;height:40px;"></el-input>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="saveModifyInfo">保存</el-button>
+        </span>
+    </el-dialog>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            tableData: [],//存储导入数据
+            total: '',
+            orderNum: '',//订单号选项框的值
+            options: [],//订单号选项框
+            fileList: [],
+            file: null,
+            Batch: '',//批次
+            ScreenNum: '',//屏序
+            visiUpload: false,//控制上传、清空按钮显示
+            TableNumber: '',//表序
+            visidelete: false,//控制删除按钮显示
+            dialogVisible: false,//控制弹窗显示
+            //弹窗字段
+            orderNumber: '',
+            material_Name: '',
+            materialNumber: '',
+            specification_Description: '',
+            quantity: '',
+            unit: '',
+            screenNum: '',
+            batch: '',
+            id: '',
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        methods: {
+            //修改方法
+            modify(item) {
+                this.dialogVisible = true //显示弹框
+                this.orderNumber = item.OrderNum
+                this.material_Name = item.Material_Name
+                this.materialNumber = item.MaterialNumber
+                this.specification_Description = item.Specification_Description
+                this.quantity = item.Quantity
+                this.unit = item.Unit
+                this.screenNum = item.ScreenNum
+                this.batch = item.Batch
+                this.id = item.Id
+            },
+            //保存修改信息
+            saveModifyInfo() {
+                let obj = {
+                    OrderNum: this.orderNumber, Material_Name: this.material_Name, MaterialNumber: this.materialNumber, Specification_Description: this.specification_Description,
+                    Quantity: this.quantity, Unit: this.unit, ScreenNum: this.screenNum, Batch: this.batch, Id: this.id
+                }
+                let arr = []
+                arr.push(obj)
+                axios.post("/Packagings/SPC_Addbasic_information_modify", { newlist: arr }).then(res => {
+                    console.log(res.data)
+                    if (res.data == "传进来的数据为空!" || res.data == 0) {
+                        this.dialogVisible = false;
+                        this.$message({
+                            message: '修改失败！',
+                            type: 'warning'
+                        });
+                    } else if (res.data > 0) {
+                        this.dialogVisible = false;
+                        this.$message({
+                            message: '修改成功！',
+                            type: 'success'
+                        });
+                        this.tableData =[]
+                        this.orderNumber = this.material_Name = this.materialNumber = this.specification_Description = this.quantity = this.unit = this.screenNum = this.batch = this.id = '';
+                    }
+                })
+            },
+            //删除方法
+            deleteData() {
+                if (this.TableNumber != '') {
+                    var comfirm = confirm(`确认删除订单号为${this.orderNum}、屏序为${this.ScreenNum}、批次为${this.Batch}、表序为${this.TableNumber}的所有物料信息吗？`)
+                    if (comfirm) {
+                        axios.post('/Packagings/SPC_Addbasic_information_delete', {
+                            ordernumber: this.orderNum,
+                            screennumber: this.ScreenNum,
+                            batch: this.Batch,
+                            tableNumber: this.TableNumber
+                        }).then(res => {
+                            if (res.data == "删除成功！") {
+                                this.$message({
+                                    message: res.data,
+                                    duration: 4000,
+                                    type: 'success',
+                                });
+                                this.tableData = []
+                                this.visidelete = false
+                            } else {
+                                this.$message({
+                                    message: res.data,
+                                    duration: 0,
+                                    showClose: true,
+                                    type: 'warning',
+                                });
+                            }
+                        }).catch(err => {
+                            console.warn("获取选择列表失败")
+                        });
+                    }
+                } else {
+                    var comfirm = confirm(`确认删除订单号为${this.orderNum}、屏序为${this.ScreenNum}、批次为${this.Batch}的所有物料信息吗？`)
+                    if (comfirm) {
+                        axios.post('/Packagings/SPC_Addbasic_information_delete', {
+                            ordernumber: this.orderNum,
+                            screennumber: this.ScreenNum,
+                            batch: this.Batch,
+                            tableNumber: this.TableNumber
+                        }).then(res => {
+                            console.log(res.data)
+                            if (res.data == "删除成功！") {
+                                this.$message({
+                                    message: res.data,
+                                    duration: 4000,
+                                    type: 'success',
+                                });
+                                this.tableData = []
+                                this.visidelete = false
+                            } else {
+                                this.$message({
+                                    message: res.data,
+                                    duration: 0,
+                                    showClose: true,
+                                    type: 'warning',
+                                });
+                            }
+                        }).catch(err => {
+                            console.warn("获取选择列表失败")
+                        });
+                    }
+                }
+            },
+            //查询方法
+            selectData() {
+                if (this.orderNum == '' && this.ScreenNum == '' && this.Batch == '' && this.TableNumber == '') {
+                    this.$message({
+                        message: "请输入查询条件！",
+                        duration: 0,
+                        showClose: true,
+                        type: 'warning',
+                    });
+                } else {
+                    axios.post('/Packagings/SPC_Addbasic_information_select', {
+                        ordernumber: this.orderNum,
+                        screennumber: this.ScreenNum,
+                        batch: this.Batch,
+                        tableNumber: this.TableNumber
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "没有记录！") {
+                            this.$message({
+                                message: res.data,
+                                duration: 0,
+                                showClose: true,
+                                type: 'warning',
+                            });
+                        } else {
+                            this.tableData = res.data
+                            this.visiUpload = false
+                            this.visidelete = true
+                        }
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    });
+                }
+
+            },
+            //选文件
+            testchange(file, fileList) {
+                console.log(fileList)
+                this.file = file.raw
+            },
+            //文件上传方法
+            submitUpload() {
+                if (this.orderNum != '' && this.ScreenNum != '' && this.Batch != '') {
+                    let form = new FormData();
+                    form.append("fileup", this.file)
+                    form.append("ordernum", this.orderNum)//订单号
+                    form.append("ScreenNum", this.ScreenNum)//屏序
+                    form.append("Batch", this.Batch)//批次
+                    //form.get("fileup");
+                    axios.post('/Packagings/SPC_Addbasic_information_updatafile', form).then(res => {
+                        console.log(res.data)
+                        if (res.data == "文件上传失败！") {
+                            this.$message({
+                                message: res.data,
+                                duration: 0,
+                                showClose: true,
+                                type: 'warning',
+                            });
+                        };
+                        if (res.data == "未读取到excel文件") {
+                            this.$message({
+                                message: res.data,
+                                duration: 0,
+                                showClose: true,
+                                type: 'warning',
+                            });
+                        } else {
+                            this.tableData = res.data
+                            this.visiUpload = true
+                        }
+                    }).catch(err => {
+                        this.$message.error('文件上传失败');
+                    })
+                }
+                else {
+                    this.$message({
+                        message: "订单号、屏序、批次不能为空",
+                        duration: 0,
+                        showClose: true,
+                        type: 'warning',
+                    });
+                }
+            },
+            handlePreview(file) {
+                console.log(file)
+            },
+            //移除文件
+            handleRemove(file, fileList) {
+                //console.log(file, fileList);
+            },
+            //限制选择文件个数
+            handleExceed(ile, fileList) {
+                this.$message.warning(`当前限制选择1个文件,请删除从选`)
+            },
+            ////保存表格数据方法
+            uploadData() {
+                console.log(this.tableData)
+                if (this.tableData.length > 0) {
+                    axios.post('/Packagings/SaveListing', { list: this.tableData }).then(res => {
+                        if (res.data.length <= 0) {
+                            this.$message({
+                                message: "数据上传成功",
+                                type: 'success',
+                            });
+                            this.orderNum = this.ScreenNum = this.Batch = '';
+                            this.tableData = [];
+                        } else {
+                            this.$message({
+                                message: "物料号为" + res.data + "的保存失败",
+                                type: 'warning',
+                            });
+                        }
+                        if (res.data == "保存失败") {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                            });
+                        }
+                    }).catch(err => {
+                        this.$message.error('连接出错');
+                    })
+                }
+            },
+        }
+    })
+</script>
+

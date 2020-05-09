@@ -1,0 +1,254 @@
+﻿@{
+    ViewBag.Title = "部门设备使用率";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+
+<style>
+    h2 {
+        text-align: center;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        font-size: 22px;
+    }
+
+    .topContainer {
+        margin-top: 15px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+    }
+
+    .timelistL, .timelistR {
+        display: inline-block;
+    }
+
+    .timelistL {
+        width: 48%;
+        text-align: right;
+    }
+
+    .timelistR {
+        width: 50%;
+        text-align: left;
+    }
+
+    .el-divider--horizontal {
+        margin: 0;
+    }
+
+    .timeListTd .cell {
+        padding: 0 !important;
+    }
+
+    @@media (max-width:992px) {
+        .timelistL, .timelistR {
+            width: 100%;
+            text-align:left;
+        }
+    }
+</style>
+<h2>@ViewBag.Title</h2>
+
+<div id="app">
+    <div class="topContainer">
+        <el-select clearable filterable size="small" v-model="equipmentnumber" placeholder="请输入设备号" multiple collapse-tags>
+            <el-option v-for="item in equipmentnumberoptions"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-select clearable filterable size="small" v-model="userdepartment" placeholder="请选择使用部门">
+            <el-option v-for="item in deparOpions"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-date-picker v-model="Year"
+                        align="right"
+                        type="year"
+                        size="small"
+                        placeholder="选择年份">
+        </el-date-picker>
+        <el-select clearable filterable size="small" v-model="Month" placeholder="请选择月份">
+            <el-option v-for="i in 12"
+                       v-bind:key="i"
+                       v-bind:label="i"
+                       v-bind:value="i">
+            </el-option>
+        </el-select>
+        <el-button id="search" style="margin-left:10px;" type="primary" v-on:click="search" size="small">查询</el-button>
+    </div>
+    <div class="bottomContainer">
+        <el-table :data="tableList"
+                  v-loading="loading"
+                  max-height="600"
+                  size="mini"
+                  align="center"
+                  cell-class-name="cellParent"
+                  style="margin-top:10px;"
+                  stripe
+                  border>
+            <el-table-column type="index" label="序号"
+                             align="center">
+                <template slot-scope="scope">
+                    <span>{{scope.$index+1}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Userdeparment"
+                             label="使用部门"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="EquipmentNumber"
+                             label="设备号"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="Year"
+                             label="年份"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="Month"
+                             label="月份"
+                             align="center">
+            </el-table-column>
+            <el-table-column prop="timeList"
+                             label="使用情况"
+                             class-name="timeListTd"
+                             align="center">
+                <template slot-scope="scope">
+                    <div v-if="scope.row.timeList==''">暂无记录</div>
+                    <template v-else v-for="(item,index) in scope.row.timeList">
+                        <div class="timelistL">{{item.name}}：</div>
+                        <div class="timelistR">{{item.value}}</div>
+                        <el-divider v-if="index<(scope.row.timeList.length-1)"></el-divider>
+                    </template>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+
+<script>
+    let app = new Vue({
+        el: "#app",
+        data: {
+            deparOpions: [],  // 使用部门列表
+            equipmentnumberoptions: [],  // 所有设备编号,
+            equipmentnumber: [],
+            userdepartment: '',
+            Year: null,
+            Month: null,
+            tableList: [],
+            loading: false
+        },
+        mounted() {
+            this.getDeparList();
+            this.getequipmentnumberoptions();
+        },
+        methods: {
+            // 获取设备使用部门
+            getDeparList() {
+                axios.post("/Equipment/Userdepartment_list").then(res => {
+                    res.data.forEach(item => {
+                        this.deparOpions.push({
+                            value: item,
+                            label: item
+                        });
+                    });
+                })
+            },
+            // 获取设备编号
+            getequipmentnumberoptions() {
+                this.equipmentnumber = [];
+                this.equipmentnumberoptions = [];
+                axios.post("/Equipment/EQNumberList").then(res => {
+                    //console.log(res.data)
+                    let arr = [];
+                    res.data.forEach(item => {
+                        arr.push({ label: item, value: item });
+                    });
+                    this.equipmentnumberoptions = arr;
+                });
+            },
+            // 根据部门获取部门中所有设备编号
+            getSomeEQNumber(depar) {
+                this.equipmentnumber = [];
+                this.equipmentnumberoptions = [];
+                axios.post("/Equipment/Number_List", { userdepartment: depar }).then(res => {
+                    let arr = [];
+                    res.data.forEach(item => {
+                        arr.push({ label: item, value: item });
+                    });
+                    this.equipmentnumberoptions = arr;
+                });
+            },
+            // 查询按钮
+            search() {
+                if (this.Year != null && this.Year != '') {
+                    if ((this.equipmentnumber != null && this.equipmentnumber != '') || (this.userdepartment != null && this.userdepartment != '')) {
+                        this.tableList = [];
+                        let equipmentlist = [];
+                        if (this.equipmentnumber != null && this.equipmentnumber != '') {
+                            equipmentlist = this.equipmentnumber;
+                        } else {
+                            for (let i of this.equipmentnumberoptions) {
+                                equipmentlist.push(i.value);
+                            };
+                        };
+                        this.getInfos(equipmentlist, this.userdepartment, this.Year.getFullYear(), this.Month);
+                    } else {
+                        this.$notify({
+                            message: "请选择部门或设备编号",
+                            type: "warning"
+                        });
+                    };
+                } else {
+                    this.$notify({
+                        message: "请选择年份",
+                        type: "warning"
+                    });
+                };
+            },
+            // 共用查找方法
+            getInfos(equipmentNumber, userDepartment, year, month) {
+                this.loading = true;
+                axios.post("/Equipment/Equipment_Timeusage", {
+                    equipmentNumber: equipmentNumber,
+                    userDepartment: userDepartment,
+                    year: year,
+                    month: month
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data.length > 0) {
+                        this.$notify({
+                            message: "获取数据成功!",
+                            type: "success"
+                        });
+                        this.tableList = res.data;
+                        this.loading = false;
+                    } else {
+                        this.$notify({
+                            message: "查无数据",
+                            type: "warning"
+                        });
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    this.loading = false;
+                });
+            }
+        },
+        watch: {
+            userdepartment(v) {
+                if (v != null && v != '') {
+                    this.getSomeEQNumber(v);
+                } else {
+                    this.getequipmentnumberoptions();
+                }
+            }
+        }
+    })
+</script>

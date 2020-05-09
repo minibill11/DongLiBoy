@@ -1,0 +1,300 @@
+﻿@* 设备模态框 *@
+<script type="text/template" id="equipmentBtn">
+    <div>
+        <el-button size="mini" @@click="equipmentVisible = true" class="miniBtn" type="danger" plain round>设备</el-button>
+        @*<slot></slot>*@
+        <el-dialog @@open="open"
+                   @@close="close('ruleForm')"
+                   title="设备内容"
+                   :visible.sync="equipmentVisible"
+                   :append-to-body="true">
+            @*<div slot="title"></div>*@
+            <el-table :data="shebeiList">
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称">
+                </el-table-column>
+                <el-table-column prop="EquipmentNum"
+                                 label="设备数量">
+                </el-table-column>
+                <el-table-column prop="EquipmentCapacity"
+                                 label="设备产能">
+                </el-table-column>
+                <el-table-column prop="PersonEquipmentNum"
+                                 label="">
+                    <template slot="header" slot-scope="scope">
+                        一人能看设备台数
+                        <br />或 人力人数
+                    </template>
+                    <template slot-scope="scope">
+                        {{scope.row.PersonEquipmentNum}}
+                        <span v-text="scope.row.Statue=='人力'?'(人)':'(台)'"></span>
+                    </template>
+                </el-table-column>
+                @*<el-table-column prop="Statue"
+                                     label="人力或设备">
+                    </el-table-column>*@
+                <el-table-column label="操作">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="danger" @@click="shebeiDelete(scope.row)">删除</el-button>
+                        <el-button size="mini" type="primary" @@click="formOpen(scope.row)">修改</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-form label-width="30%"
+                     label-position="right"
+                     ref="ruleForm"
+                     size="medium"
+                     style="border:1px solid #333;padding-top:10px;margin-top:10px;"
+                     v-show="formAddShow || formEditShow"
+                     :rules="rules"
+                     :model="equipmentForm">
+                <el-form-item label="选择录入设备或人力">
+                    <el-switch v-model="formStatue"
+                               active-text="人力"
+                               inactive-text="设备">
+                    </el-switch>
+                </el-form-item>
+                <el-form-item :label="formStatue?'人力名称':'设备名称'" prop="EquipmentName">
+                    <el-input v-if="formStatue" v-model="equipmentForm.EquipmentName"></el-input>
+                    <el-select v-else v-model="equipmentForm.EquipmentName" placeholder="请选择设备">
+                        <el-option label="喷三防机" value="喷三防机"></el-option>
+                        <el-option label="点三防机" value="点三防机"></el-option>
+                        <el-option label="螺丝机" value="螺丝机"></el-option>
+                        <el-option label="灌胶机" value="灌胶机"></el-option>
+                        <el-option label="气密测试机" value="气密测试机"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item v-show="!formStatue" label="设备配置数量(台)" prop="EquipmentNum">
+                    <el-input-number v-model="equipmentForm.EquipmentNum" :min="0"></el-input-number>
+                </el-form-item>
+                <el-form-item :label="formStatue?'人力产能(PCS/H)':'设备单机产能(PCS/H)'" prop="EquipmentCapacity">
+                    <el-input v-model="equipmentForm.EquipmentCapacity"></el-input>
+                </el-form-item>
+                <el-form-item :label="formStatue?'人力人数':'一人能看设备台数'" prop="PersonEquipmentNum">
+                    <el-input v-model="equipmentForm.PersonEquipmentNum"></el-input>
+                </el-form-item>
+                @*<el-form-item label="人力或设备" prop="Statue">
+                        <el-input v-model="equipmentForm.Statue"></el-input>
+                    </el-form-item>*@
+                <el-form-item>
+                    <el-button @@click="formHide">取 消</el-button>
+                    <el-button type="success" @@click="submitForm('ruleForm','添加')" v-show="formAddShow">确定添加</el-button>
+                    <el-button type="primary" @@click="submitForm('ruleForm','修改')" v-show="formEditShow">确定修改</el-button>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button type="success" @@click="formEditShow = false;formAddShow = true;" v-show="!formAddShow">添 加</el-button>
+                <el-button @@click="equipmentVisible = false">关 闭</el-button>
+            </span>
+        </el-dialog>
+    </div>
+</script>
+<script>
+    Vue.component('equipment-dialog', {
+        template: document.getElementById("equipmentBtn"),
+        props: ['thisrow', 'thisitem', 'statu'],
+        data: function () {
+            return {
+                equipmentForm: {
+                    id: "",
+                    EquipmentName: "",
+                    EquipmentNum: "",
+                    EquipmentCapacity: "",
+                    PersonEquipmentNum: "",
+                    Statue: "设备",
+                },
+                equipmentVisible: false,
+                rules: {},
+                shebeiList: [],
+                thisid: [],
+                formAddShow: false,
+                formEditShow: false,
+                formStatue: false
+            }
+        },
+        mounted: function () {
+            let nameinfo = app.getSectionInfo(this.statu);
+            if (this.statu === 'SMT') {
+                this.thisid = this.thisrow[nameinfo.idName];
+            } else {
+                this.thisid = this.thisitem[nameinfo.idName];
+            };
+            //验证规则
+            let checkFloat = (rule, value, callback) => {
+                if (value == undefined || value == '') { callback() };
+                let reg = /^(0|([1-9]\d*))(\.\d{0,2})?$/g;
+                if (reg.test(value)) {
+                    callback();
+                } else {
+                    callback(new Error('请输入正确的数值，数值最多为2位小数'));
+                };
+            };
+            this.rules = {
+                EquipmentName: [{ required: true, message: '名称不能为空', trigger: 'change' }],
+                EquipmentNum: [
+                    { required: true, message: '设备数量不能为空', trigger: 'blur' },
+                    { type: 'number', message: '必须为数字值' }
+                ],
+                EquipmentCapacity: [
+                    { required: true, message: '产能不能为空', trigger: 'blur' },
+                    { validator: checkFloat, trigger: 'blur' }
+                ],
+                PersonEquipmentNum: [
+                    { required: true, message: '一人能看设备台数 或 人力人数不能为空', trigger: 'blur' },
+                    { validator: checkFloat, trigger: 'blur' }
+                ],
+                //Statue: [
+                //    { required: true, message: '人力或设备不能为空', trigger: 'change' },
+                //],
+            };
+        },
+        methods: {
+            //设备数据 增删改
+            equipmentData(statu, deleteval) {
+                app.loading = true;
+                let Form = {
+                    Type: this.thisrow.Type,
+                    Platform: this.thisrow.Platform,
+                    ProductPCBnumber: this.thisrow.PCB,
+                    PlatformModul: this.thisrow.PlatformModul,
+                    Maintenance: this.thisrow.Maintenance,
+                    Seaction: this.statu,
+                    SeactionID: this.thisid,
+                };
+                if (statu == '删除') {
+                    Form['Id'] = deleteval.id;
+                    Form['EquipmentName'] = deleteval.EquipmentName;
+                    Form['EquipmentNum'] = deleteval.EquipmentNum;
+                    Form['EquipmentCapacity'] = deleteval.EquipmentCapacity;
+                    Form['PersonEquipmentNum'] = deleteval.PersonEquipmentNum;
+                    Form['Statue'] = deleteval.Statue;
+                } else {
+                    Form['EquipmentName'] = this.equipmentForm.EquipmentName;
+                    Form['EquipmentNum'] = this.equipmentForm.EquipmentNum;
+                    Form['EquipmentCapacity'] = this.equipmentForm.EquipmentCapacity;
+                    Form['PersonEquipmentNum'] = this.equipmentForm.PersonEquipmentNum;
+                    Form['Statue'] = this.equipmentForm.Statue;
+                    if (statu == '修改') {
+                        Form['Id'] = this.equipmentForm.id;
+                    };
+                };
+                axios.post('/Process_Capacity/AddEquipment', {
+                    Process_Capacity_Equipment: Form,
+                    statu: statu
+                }).then(res => {
+                    //console.log(res.data);
+                    if (res.data) {
+                        this.$message.success(statu + "成功！");
+                        //this.shebeiList = [];
+                        this.displayEquipment();
+                        this.formAddShow = false;
+                        this.formEditShow = false;
+                        this.equipmentForm = {
+                            id: "",
+                            EquipmentName: "",
+                            EquipmentNum: "",
+                            EquipmentCapacity: "",
+                            PersonEquipmentNum: "",
+                            Statue: this.formStatue ? '人力' : '设备'
+                        };
+                    } else {
+                        this.$message.error(statu + "失败！");
+                    };
+                    app.loading = false;
+                }).catch(err => {
+                    this.$message.error('操作失败！');
+                    this.equipmentVisible = false;
+                    app.loading = false;
+                });
+            },
+            //获取设备信息
+            displayEquipment() {
+                axios.post('/Process_Capacity/DisplayEquipment', {
+                    type: this.thisrow.Type,
+                    pcbnumber: this.thisrow.PCB,
+                    platform: this.thisrow.Platform,
+                    plafromodule: this.thisrow.PlatformModul,
+                    Maintenance: this.thisrow.Maintenance,
+                    seaction: this.statu,
+                    id: this.thisid
+                }).then(res => {
+                    this.shebeiList = res.data;
+                }).catch(err => {
+                    this.$message.error('读取设备信息失败！');
+                });
+            },
+            //打开模态框
+            open() {
+                this.displayEquipment();
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+                this.shebeiList = [];
+            },
+            //验证值
+            submitForm(formName, statu) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.equipmentData(statu);
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            },
+            formOpen(row) {
+                this.formAddShow = false;
+                this.equipmentForm = {
+                    id: row.id,
+                    EquipmentName: row.EquipmentName,
+                    EquipmentNum: row.EquipmentNum,
+                    EquipmentCapacity: row.EquipmentCapacity,
+                    PersonEquipmentNum: row.PersonEquipmentNum,
+                    Statue: row.Statue ? row.Statue : (this.formStatue ? '人力' : '设备')
+                };
+                this.formEditShow = true;
+            },
+            shebeiDelete(row) {
+                this.$confirm('确认删除此设备?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    this.equipmentData('删除', row);
+                }).catch(() => {
+
+                });
+            },
+            formHide() {
+                this.equipmentForm = {
+                    id: "",
+                    EquipmentName: "",
+                    EquipmentNum: "",
+                    EquipmentCapacity: "",
+                    PersonEquipmentNum: "",
+                    Statue: this.formStatue ? '人力' : '设备'
+                };
+                this.formAddShow = false;
+                this.formEditShow = false;
+            },
+            statueClear() {
+                this.equipmentForm.EquipmentName = '';
+                this.equipmentForm.EquipmentNum = 0;
+                this.equipmentForm.EquipmentCapacity = '';
+                this.equipmentForm.PersonEquipmentNum = '';
+            }
+        },
+        watch: {
+            formStatue(v) {
+                if (v) {
+                    this.equipmentForm.Statue = '人力';
+                    this.statueClear();
+                } else {
+                    this.equipmentForm.Statue = '设备';
+                    this.statueClear();
+                };
+            }
+        }
+    });
+</script>
