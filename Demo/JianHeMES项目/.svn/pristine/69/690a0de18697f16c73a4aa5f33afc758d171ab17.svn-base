@@ -1,0 +1,221 @@
+﻿@model IEnumerable<JianHeMES.Models.Warehouse_SparePartsAndComponents_Out>
+
+@{
+    ViewBag.Title = "修改包装信息";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@*  <summary>
+    1.该页面的主要功能是删除已装箱的信息；往已有的外箱中添加物料信息。
+    1.1.根据订单号查询出该订单号所有物料信息，通过点击表格中对应的删除按钮，即可删除该物料号已绑定的外箱信息
+    1.2.通过点击表格中物料号对应的添加按钮，会弹出一个弹框，填写完信息点击保存按钮，即可往已有的外箱中添加物料信息
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .table .cell, .el-table th, .el-table td {
+        text-align: center;
+        padding: 6px;
+        font-size: 14px;
+    }
+
+    .el-form-item {
+        margin-bottom: 8px;
+    }
+
+    .spcolor {
+        color: cornflowerblue
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3>@ViewBag.Title</h3>
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px" v-show="materialPreparation">物料备料</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="packingMaterial">备品配件检验</el-button></a>
+        <a href="/Packagings/SPC_PrintOuterBoxLable" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="printOutsibox">打印外箱标签</el-button></a>
+    </div>
+    <div>
+        <div class="text-center">
+            <el-select v-model="orderNnm" placeholder="请选择订单号" size="medium" allow-create filterable clearable>
+                <el-option v-for="item in orderNnmOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-button size="medium" type="primary" v-on:click="gettableData">查询</el-button>
+        </div>
+        <div style="width:1270px;">
+            @* 表格数据 *@
+            <el-table v-bind:data="tableData" border v-bind:header-cell-style="{background:'#F0F8FF'}" max-height="600px" style="margin-top:10px;">
+                <el-table-column prop="Id" label="Id" width="80">
+                </el-table-column>
+                <el-table-column prop="OrderNum" label="订单号" width="138">
+                </el-table-column>
+                <el-table-column prop="SPC_OuterBoxBarcode" label="外箱箱号" width="180">
+                    <template slot-scope="scope">
+                        <span class="spcolor" type="text" size="middle" v-on:click="packingMaterial==true?addMaterial(scope.row):''">{{scope.row.SPC_OuterBoxBarcode}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="SNTN" label="件号/数" width="100">
+                </el-table-column>
+                <el-table-column prop="MaterialNumber" label="物料号" width="130">
+                </el-table-column>
+                <el-table-column prop="Material_Name" label="物品名称" width="190">
+                </el-table-column>
+                <el-table-column prop="Quantity" label="数量" width="110">
+                </el-table-column>
+                <el-table-column prop="ScreenNum" label="屏序" width="70">
+                </el-table-column>
+                <el-table-column property="Batch" label="批次" width="70">
+                </el-table-column>
+                <el-table-column property="SPC_Material_Type" label="物品类型" width="90">
+                </el-table-column>
+                <el-table-column property="SPC_OuterBox_Type" label="外箱类型" width="110">
+                </el-table-column>
+                @*<el-table-column prop="option" label="操作" width="80">
+            @*<template slot-scope="scope">
+                <el-button size="mini" type="danger" v-show="scope.row.SPC_OuterBoxBarcode!=null&&deletPackingMaterial==true" v-on:click="deleteOuter(scope.$index, scope.row)" style="padding:5px">删除</el-button>
+            </template>
+        </el-table-column>*@
+            </el-table>
+        </div>
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            orderNnmOptions: [],//订单号选项框
+            orderNnm: '',  //订单号选项框的值
+            tableData: [],  //表格数据
+            Material_Name: '',//物料名称
+            Batch: '',//批次
+            SPC_Material_Type: '',//类别
+            id: '',
+            G_Weight: '',//净重
+            N_Weight: '', //毛重
+            SPC_OuterBox_Type: '',//外箱类型
+            materialPreparation: false,//备料权限
+            packingMaterial: false,//物料装箱权限
+            deletPackingMaterial: false,//删除已装箱物料权限
+            printOutsibox: false,//打印外箱标签权限
+            edit: true,
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.orderNnmOptions = res.data;
+                this.OrderNumOptions = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '物料备料')) {
+                this.materialPreparation = true
+            } else {
+                this.materialPreparation = false
+            }
+            if (checkRoles(roles, '物料装箱')) {
+                this.packingMaterial = true
+            } else {
+                this.packingMaterial = false
+            }
+            if (checkRoles(roles, '删除装箱物料')) {
+                this.deletPackingMaterial = true
+            } else {
+                this.deletPackingMaterial = false
+            };
+            if (checkRoles(roles, '打印外箱标签')) {
+                this.printOutsibox = true
+            } else {
+                this.printOutsibox = false
+            };
+        },
+        methods: {
+            addMaterial(item) {
+                window.open("/Packagings/SPC_Packaging?" + "outMaterialCode=" + item.SPC_OuterBoxBarcode + "&orderNum=" + item.OrderNum + "&ScreenNum=" + item.ScreenNum + "&Batch=" + item.Batch + "&SPCOuterBoxType=" + encodeURI(item.SPC_OuterBox_Type) + "&state=" + encodeURI("无") + "&SNTN=" + item.SNTN);
+            },
+            //获取表格数据
+            gettableData() {
+                this.tableData = []
+                if (this.orderNnm != '') {
+                    axios.post("/Packagings/SPC_Packaging_Modify", {
+                        ordernumber: this.orderNnm
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data.length > 0) {
+                            this.tableData = res.data;
+                        } else {
+                            this.$message({
+                                message: '未查询到对应记录！',
+                                type: 'warning',
+                                duration: 8000,
+                            });
+                        }
+                    })
+                } else {
+                    this.$message({
+                        message: '请输入查询条件',
+                        type: 'warning'
+                    });
+                }
+            },
+            //删除物料已绑定的外箱号
+            deleteOuter(index, row) {
+                var comfirm = confirm(`确认删除外箱号为${row.SPC_OuterBoxBarcode}这条信息吗？`)
+                if (comfirm) {
+                    //let obj = {
+                    //    OrderNum: row.OrderNum, SPC_OuterBoxBarcode: row.SPC_OuterBoxBarcode, MaterialNumber: row.MaterialNumber, Quantity: row.Quantity, ScreenNum: row.ScreenNum,
+                    //    SNTN: row.SNTN, Batch: row.Batch, id: row.Id, G_Weight: row.G_Weight, N_Weight: row.N_Weight, SPC_OuterBox_Type: row.SPC_OuterBox_Type
+                    //}
+                    //let arr = [];
+                    //arr.push(obj)
+                    axios.post("/Packagings/SPC_Packaging_Delete", { id: row.id }).then(res => {
+                        if (res.data == false) {
+                            this.$message({
+                                message: '删除失败!',
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        } else if (res.data == "不是尾箱，无法删除！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'success',
+                                duration: 6000,
+                            });
+                            this.gettableData()
+                        }
+                    })
+                }
+            },
+        },
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>
+
+
+

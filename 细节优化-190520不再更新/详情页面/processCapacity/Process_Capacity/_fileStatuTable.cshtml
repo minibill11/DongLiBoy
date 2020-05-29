@@ -1,0 +1,71 @@
+﻿@*  <summary>
+    1.文件状态表格组件 引用方法为 @RenderPage("~/Views/Process_Capacity/_fileStatuTable.cshtml")
+    2.用来显示 未审核列表的集合，方便查看不同状态的文件列表
+    3.可以点击跳转至文件附表 （需要‘查看附表’权限）
+    </summary>*@
+<script type="text/template" id="statuTable">
+    <div>
+        <el-collapse accordion v-loading="statuLoading" style="max-width:1200px;margin:0 auto;">
+            <el-collapse-item>
+                <div slot="title" style="width:100%;text-align:center;">
+                    <span v-if="statu==''">请选择文件状态</span>
+                    <span v-else style="font-size:18px;">{{statu}} 列表({{statuList.length}})</span>
+                </div>
+                <el-table :data="statuList" border stripe size="medium" cell-class-name="statu-table-style">
+                    <el-table-column prop="Title" label="名称" width="350">
+                        <template slot-scope="scope">
+                            <el-link v-if="ispower" :href="hrefname(scope.row)" type="primary" target="_blank" :underline="false">{{scope.row.Title}}</el-link>
+                            <span v-else>{{scope.row.Title}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Section" label="工段">
+                    </el-table-column>
+                    <el-table-column prop="Type" label="型号">
+                    </el-table-column>
+                    <el-table-column prop="Platform" label="平台">
+                    </el-table-column>
+                    <el-table-column prop="ProductPCBnumber" label="PCB">
+                    </el-table-column>
+                </el-table>
+            </el-collapse-item>
+        </el-collapse>
+    </div>
+</script>
+<script>
+    Vue.component('file-statu-table', {
+        props: ['statu', 'ispower'],
+        template: document.getElementById("statuTable"),
+        data: function () {
+            return {
+                statuList: [],
+                statuLoading: false
+            }
+        },
+        methods: {
+            //地址
+            hrefname(row) {
+                if (row.Section === "SMT") {
+                    return `/Process_Capacity/StandardCapacity?type=${row.Type}&PCBNumber=${row.ProductPCBnumber}&platform=${row.Platform}&Section=${encodeURI(row.Section)}&title=${encodeURI(row.Section)}`;
+                } else {
+                    return `/Process_Capacity/ProcessBalanceCard?type=${row.Type}&PCBNumber=${row.ProductPCBnumber}&platform=${row.Platform}&Section=${encodeURI(row.Section)}&title=${encodeURI(row.Title)}`;
+                };
+            },
+            //获取文件列表
+            getFileStatu(v) {
+                this.statuLoading = true;
+                axios.post('/Process_Capacity/DisplayStatuMessage', { statu: v }).then(res => {
+                    this.statuList = res.data;
+                    this.statuLoading = false;
+                }).catch(err => {
+                    console.warn("获取列表失败");
+                    this.statuLoading = false;
+                });
+            },
+        },
+        watch: {
+            statu(v) {
+                v === '' ? this.statuList = [] : this.getFileStatu(v);
+            }
+        }
+    });
+</script>

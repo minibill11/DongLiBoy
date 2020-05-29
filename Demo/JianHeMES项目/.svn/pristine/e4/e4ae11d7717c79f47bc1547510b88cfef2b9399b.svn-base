@@ -1,0 +1,225 @@
+﻿@{
+    ViewBag.Title = "后焊抽检";
+}
+
+@*  <summary>
+    1.后焊抽检
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header>
+            @*菜单*@
+            <module-menu-component name="AfterWeldingSampling" title="@ViewBag.Title" :limit="limitsRole"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="main">
+                <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
+                    @RenderPage("_main.cshtml")
+                    <div class="el-form-item el-form-item--medium">
+                        <div class="el-form-item__content" style="margin-left:25%;">
+                            @*<el-button size="medium">重置</el-button>*@
+                            <el-button type="primary" size="small" @@click="postConfirm" :disabled="!isok">确认</el-button>
+                        </div>
+                    </div>
+                    @Html.ActionLink("返回", "Index")
+                </el-col>
+                <el-col :xs="24" :sm="24" :md="16" :lg="16" :xl="16">
+                    @*<abnormal-component v-show="IsAbnormal" v-model="AbnormalResult"></abnormal-component>*@
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+@*  引入组件  *@
+@RenderPage("_moduleMenu.cshtml")
+@*@RenderPage("_abnormalList.cshtml")*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<script src="~/Content/styleFile/less.min.js"></script>
+<script src="~/Content/styleFile/moduleManagement/module.js"></script>
+<script>
+    //通过mixins将代码注入vue实例
+    var app = new Vue({
+        el: "#app",
+        mixins: [mixin],
+        data: {
+            message: "",
+            period: [],
+            IsAbnormal: false,
+            AbnormalResult: [],
+            Remark: "",
+            isok: false,
+            speak: ""
+        },
+        //页面加载完后执行
+        mounted: function () {
+            this.speak = new SpeechSynthesisUtterance();
+            this.$refs.barcodeRef.focus();
+        },
+        methods: {
+            //选择订单号
+            selectOrdernum(v) {
+                if (v.value != '') {
+                    localStorage.setItem('Order', v.value);
+                };
+            },
+            //确认完成
+            postConfirm() {
+                //验证不能为空，不打印的提示要正确
+                if (this.checkPostInfo()) {
+                    this.speakInfo("请核对信息");
+                    this.$refs.barcodeRef.select();
+                    return;
+                };
+                this.loading = true;
+                let afterWelding = {
+                    Department: this.Department,
+                    Group: this.Group,
+                    barcode: this.ModuleBarcode,
+                    isAbnormal: this.IsAbnormal,
+                    Abnormal: this.IsAbnormal ? this.AbnormalResult.toString() : "正常",
+                    remak: this.Remark,
+                };
+                axios.post('/ModuleManagement/AfterWeldingSampling', afterWelding).then(res => {
+                    if (res.data.result == true) {
+                        this.speakInfo("扫码成功");
+                        this.$message.success("录入成功！");
+                        this.reset(true);
+                        this.ModuleBarcode = "";
+                        this.loading = false;
+                        this.$refs.barcodeRef.focus();
+                    } else {
+                        //this.$alert(res.data.mes, '未完成', {
+                        //    confirmButtonText: '确定',
+                        //    type: 'error'
+                        //});
+                        this.$message.error(res.data.mes);
+                        this.speakInfo(res.data.mes);
+                        this.loading = false;
+                        this.$refs.barcodeRef.select();
+                    };
+                }).catch(err => {
+                    this.speakInfo("记录失败");
+                    console.warn(err);
+                    this.loading = false;
+                    this.$refs.barcodeRef.select();
+                });
+            },
+            //扫码
+            scanKeyup(v) {
+                if (v.target.value == "") {
+                    this.$refs.barcodeRef.focus();
+                    return;
+                };
+                this.loading = true;
+                this.isok = false;
+                this.disabledState = false;
+                this.period = [];
+                this.message = "";
+                this.IsAbnormal = false;
+                this.AbnormalResult = [];
+                axios.post('/ModuleManagement/CheckSampling', {
+                    orderNum: this.Ordernum,
+                    barcode: v.target.value,
+                    statue: "后焊"
+                }).then(res => {
+                    //console.log(res)
+                    if (res.data.result == true) {
+                        this.isok = true;
+                        this.period = res.data.period;
+                        this.postConfirm();
+                    } else {
+                        this.message = res.data.mes;
+                        this.speakInfo(res.data.message);
+                        this.$refs.barcodeRef.select();
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    this.speakInfo("记录失败");
+                    console.warn(err);
+                    this.loading = false;
+                    this.$refs.barcodeRef.select();
+                });
+            },
+            //语音播放
+            speakInfo(text) {
+                //this.speak.lang = 'zh-CN';//中文
+                //this.speak.pitch = 1;//设置话语的音调(值越大越尖锐, 越低越低沉)0-2
+                //this.speak.rate = 1.2; //设置说话的速度(值越大语速越快, 越小语速越慢)0.1-10
+                //this.speak.volume = 1;//获取并设置说话的音量0-1
+                speechSynthesis.cancel();//删除队列中所有的语音.如果正在播放, 则直接停止
+                this.speak.text = text;
+                speechSynthesis.speak(this.speak);
+            },
+            //重置信息
+            reset(abnormalhave) {
+                this.disabledState = false;
+                this.message = "";
+                this.period = [];
+                this.isok = false;
+                if (abnormalhave) {
+                    this.IsAbnormal = false;
+                    this.AbnormalResult = [];
+                    this.Remark = "";
+                };
+            },
+            //检查信息完整
+            checkPostInfo() {
+                let errormes = "",
+                    nooknum = 0;
+                if (this.Department == "") {
+                    errormes = errormes + (nooknum + 1) + "、部门不能为空<br/>";
+                    nooknum++;
+                };
+                if (this.Group == "") {
+                    errormes = errormes + (nooknum + 1) + "、班组不能为空<br/>";
+                    nooknum++;
+                };
+                if (this.Ordernum == "") {
+                    errormes = errormes + (nooknum + 1) + "、订单号不能为空<br/>";
+                    nooknum++;
+                };
+                if (this.ModuleBarcode == "") {
+                    errormes = errormes + (nooknum + 1) + "、条码号不能为空<br/>";
+                    nooknum++;
+                };
+
+                if (this.IsAbnormal) {
+                    if (this.AbnormalResult.length == 0) {
+                        errormes = errormes + (nooknum + 1) + "、若为异常，异常列表不能为空<br/>";
+                        nooknum++;
+                    };
+                };
+                if (nooknum > 0) {
+                    this.$alert(errormes, "数据不合格", {
+                        confirmButtonText: '确定',
+                        closeOnClickModal: true,
+                        closeOnPressEscape: true,
+                        dangerouslyUseHTMLString: true,
+                        type: "error",
+                    });
+                    return true;
+                } else {
+                    return false;
+                };
+            }
+        },
+        watch: {
+            ModuleBarcode(v) {
+                this.reset(false);
+            },
+            Ordernum(v) {
+                this.reset(true);
+            },
+            IsAbnormal(v) {
+                if (!v) {
+                    this.AbnormalResult = [];
+                }
+            }
+        },
+    });
+</script>

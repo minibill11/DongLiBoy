@@ -1,0 +1,210 @@
+﻿@{
+    ViewBag.Title = "入库";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/Warehouse_Material/MaterialBasicInfo"><el-button size="small">仓库入库信息</el-button></a>
+                <a href="/Warehouse_Material/QueryData"><el-button size="small">物料看板</el-button></a>
+                <a href="/Warehouse_Material/MaterialInput"><el-button size="small">入库</el-button></a>
+                <a href="/Warehouse_Material/Index"><el-button size="small">物料查询</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/Warehouse_Material/mcBoard"><el-dropdown-item>仓库入库信息</el-dropdown-item></a>
+                        <a href="/Warehouse_Material/QueryData"><el-dropdown-item>物料看板</el-dropdown-item></a>
+                        <a href="/Warehouse_Material/MaterialInput"><el-dropdown-item>入库</el-dropdown-item></a>
+                        <a href="/Warehouse_Material/Index"><el-dropdown-item>物料查询</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="inputframe">
+                    <span class="inputtext">班组</span>
+                    <el-select v-model="Group"
+                               placeholder="请选择班组"
+                               size="medium">
+                        <el-option v-for="item in groupOptions"
+                                   :key="item"
+                                   :label="item"
+                                   :value="item">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">库位号</span>
+                    <el-input placeholder="库位号"
+                              v-model.trim="newWarehouseNum"
+                              size="medium"
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">仓库编号</span>
+                    <el-input placeholder="仓库编号"
+                              v-model.trim="newWarehouse"
+                              size="medium"
+                              clearable>
+                    </el-input>
+                </div>
+                <div class="inputframe">
+                    <span class="inputtext">条码</span>
+                    <div class="el-input el-input--medium el-input--suffix">
+                        <input type="text"
+                               v-model.trim="barcode"
+                               autocomplete="off"
+                               v-on:keyup.enter="barcodescan"
+                               placeholder="请扫码"
+                               autofocus="autofocus"
+                               class="el-input__inner">
+                    </div>
+                </div>
+                <div class="inputframe">
+                    <el-button size="medium" @@click="checkList">确认入库</el-button>
+                    <div class="divframe">
+                        <span>条码数量：{{barcodeList.length}}</span>
+                        <el-table :data="barcodeList"
+                                  height="280"
+                                  border>
+                            <el-table-column prop="barcode"
+                                             label="条码清单">
+                            </el-table-column>
+                            <el-table-column prop="edit"
+                                             label=""
+                                             width="40">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            groupOptions: [],
+            Group: "",
+            Department: "",
+            barcode: "",
+            barcodeList: [],
+            newWarehouse: "",
+            newWarehouseNum: ""
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            this.getGroup();
+        },
+        mounted: function () {
+
+        },
+        methods: {
+            checkList() {
+                this.loading = true;
+                if (this.barcodeList.length == 0 || this.newWarehouse == "" || this.newWarehouseNum == "" || this.Group == "") {
+                    this.$message.warning("信息不完整！");
+                    this.loading = false;
+                    return;
+                };
+                let warehouse_putIn = [];
+                for (let i of this.barcodeList) {
+                    warehouse_putIn.push(i.barcode);
+                };
+                //录入数据
+                axios.post('/Warehouse_Material/MaterialInput', {
+                    warehouse_putIn: warehouse_putIn,//条码列表
+                    newWarehouse: this.newWarehouse,//MES仓库编号
+                    newWarehouseNum: this.newWarehouseNum,//MES库位号
+                    group: this.Group,
+                }).then(res => {
+                    if (res.data.Res) {
+                        this.$message.success(res.data.Meg);
+                        this.barcode = "";
+                        this.barcodeList = [];
+                        this.newWarehouse = "";
+                        this.newWarehouseNum = "";
+                        this.loading = false;
+                    } else {
+                        this.$message.error(res.data.Meg);
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    console.warn("post失败")
+                    this.loading = false;
+                });
+            },
+            barcodescan() {
+                if (this.barcode != "") {
+                    //检查重复
+                    for (let i of this.barcodeList) {
+                        if (i.barcode == this.barcode) {
+                            this.$message.warning("已有重复条码！");
+                            this.barcode = '';
+                            return;
+                        };
+                    };
+                    this.barcodeList.push({
+                        barcode: this.barcode,
+                        Tips: ""
+                    });
+                    this.barcode = "";
+                } else {
+                    this.$message.warning("请输入条码！");
+                };
+            },
+            //删除行
+            deleteRow: function (index, row) {
+                this.barcodeList.splice(index, 1);
+            },
+            //获取账号班组列表
+            getGroup() {
+                axios.post("/Users/DisplayGroup").then(res => {
+                    //未登陆则返回null
+                    if (res.data == '') {
+                        this.$message.warning("请登陆！")
+                    } else {
+                        this.groupOptions = res.data.Group;
+                        this.Department = res.data.department;
+                        //查看班组列表里是否存在本地存储的值
+                        let localsg = localStorage.getItem('selectgroup');
+                        if (localsg != null) {
+                            for (let i of this.groupOptions) {
+                                if (i == localsg) {
+                                    this.Group = localsg;
+                                };
+                            };
+                        };
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+        }
+    });
+</script>

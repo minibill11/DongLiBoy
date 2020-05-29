@@ -1,0 +1,513 @@
+﻿
+@{
+    ViewBag.Title = "SPC_PrintOuterBoxLable";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .query {
+        width: 300px;
+        text-align: right;
+        margin: 2px auto;
+    }
+
+    .query1 {
+        width: 450px;
+        text-align: center;
+        margin: 1px auto;
+        margin-bottom: 5px;
+    }
+
+    .el-table td, .el-table th {
+        padding: 0px;
+    }
+
+    .spcolor {
+        color: aqua
+    }
+</style>
+<div id="app">
+    <div class="text-center">
+        <h3 class="text-center">打印外箱标签</h3>
+        <a href="/Packagings/SPC_QueryByOrderNumber"><el-button size="small" class="cret" type="primary" plain>首页</el-button></a>
+        <a href="/Packagings/SPC_Display" style="margin-left:2px"><el-button size="small" type="primary" plain>查询基本信息</el-button></a>
+        <a href="/Packagings/SPC_Addbasic_information"><el-button size="small" class="cret" type="primary" plain>物料基本信息录入</el-button></a>
+        <a href="/Packagings/SPC_MaterialLablePrint"><el-button size="small" type="primary" plain style="margin:2px">打印物料标签</el-button></a>
+        <a href="/Packagings/SPC_StockConfirm"><el-button size="small" type="primary" plain style="margin:2px" v-show="materialPreparation">物料备料</el-button></a>
+        <a href="/Packagings/SPC_Packaging" style="margin-left:2px"><el-button size="small" type="primary" plain v-show="packingMaterial">备品配件检验</el-button></a>
+        <a href="/Packagings/SPC_Packaging_Modify"><el-button size="small" class="cret" type="primary" plain>修改包装信息</el-button></a>
+    </div>
+    <div class="text-center" v-loading="loading">
+        <div class="query">
+            订单号：
+            <select-input v-model.trim="orderNum"
+                          :options="options"
+                          :isfocus="true"
+                          :ismultiple="false"
+                          size="medium"
+                          style="width:190px"
+                          allow-create filterable clearable>
+            </select-input>
+        </div>
+        <div class="query">
+            <span>选打印机：</span>
+            <el-select v-model="printProt" clearable placeholder="选择打印机" size="medium" style="width:190px">
+                <el-option v-for="item in printOptions"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            <span>语言：</span>
+            <el-select v-model="Language" clearable placeholder="选择语言" size="medium" style="width:190px">
+                <el-option v-for="item in LanguageOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="query">
+            <el-switch class="affirm2"
+                       v-model="imgShow"
+                       width="35"
+                       active-text="使用Logo">
+            </el-switch>
+        </div>
+        <div class="query">
+            <el-input v-model.trim="outerBox" placeholder="请输入要导出的外箱号" style="width:180px" size="medium" clearable></el-input>
+            <el-button v-on:click="eproxd" size="mini" plain type="primary" class="btn">导出清单</el-button><br />
+            <form style="display:none;" action="~/Packagings/ExportExcel" method="post">
+                <input type="text" name="spc_OuterBoxBarcode" v-model="outerBox" />
+                <button type="submit" id="submits"></button>
+            </form>
+        </div>
+        <div class="query">
+            <span>打印浓度：</span>
+            <el-slider :max="30"
+                       :min="-30"
+                       v-model="concentration"></el-slider>
+        </div>
+        <div class="query" style="margin-top:5px">
+            <el-button v-on:click="lookImage" size="mini" plain type="primary" style="margin-left:40px">查看勾选条码</el-button>
+            <el-button v-on:click="printMaterialBarcode" size="mini" plain type="primary" v-show="printOutsibox">打印选中的外箱标签</el-button><br />
+        </div>
+        <div class="query1">
+            <el-table v-bind:data="OuterBarcodeList"
+                      height="300"
+                      border v-on:selection-change="changeFun">
+                <el-table-column type="selection"
+                                 width="45"
+                                 :selectable="selectable">
+                </el-table-column>
+                <el-table-column prop="SPC_OuterBoxBarcode"
+                                 label="外箱号"
+                                 width="160">
+                    <template slot-scope="scope">
+                        <span class="spcolor" type="text" size="middle"
+                              v-on:click="addWeight(scope.row)">{{scope.row.SPC_OuterBoxBarcode}}</span>
+                    </template>
+                </el-table-column>
+
+                <el-table-column prop="G_Weight"
+                                 label="毛重量"
+                                 width="72">
+                </el-table-column>
+                <el-table-column prop="N_Weight"
+                                 label="净重量"
+                                 width="72">
+                </el-table-column>
+                <el-table-column prop="SPC_OuterBox_Type"
+                                 label="外箱类型"
+                                 width="100">
+                </el-table-column>
+            </el-table>
+        </div>
+        <el-dialog v-bind:visible.sync="dialogVisible" width="400px">
+            <el-form model="uploadForm" ref="numberValidateForm" label-width="100px" class="demo-ruleForm">
+                <el-form-item label="外箱号">
+                    <el-input v-model.trim="spc_OuterBoxBarcode" placeholder="请输入毛重量" style="width:191px" size="medium" :disabled="edit"></el-input>
+                </el-form-item>
+                <el-form-item label="毛重量">
+                    <el-input v-model.trim="g_Weight" placeholder="请输入毛重量" style="width:191px" size="medium" clearable></el-input>
+                    <span class="tips" style="color:red" v-show="VisiG_Weight">毛重量值只能输入整数或小数</span>
+                </el-form-item>
+                <el-form-item label="净重量">
+                    <el-input v-model.trim="n_Weight" placeholder="请输入净重量" style="width:191px" size="medium" clearable></el-input>
+                    <span class="tips" style="color:red" v-if="VisiN_Weight">净重量值只能输入整数或小数</span>
+                </el-form-item>
+                <el-form-item label="外箱类型" v-show="deleteOutsibox==true">                    
+                    <el-select v-model="spc_OuterBox_Type" placeholder="请选择类型" size="medium" allow-create filterable clearable style="width:190px">
+                        <el-option v-for="item in spc_OuterBox_TypeOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button v-on:click="dialogVisible = false">取 消</el-button>
+                <el-button type="primary" v-on:click="saveAddWeight">保存</el-button>
+            </span>
+        </el-dialog>
+        <div>
+            <div id="img"></div>
+        </div>
+    </div>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            orderNum: '',         //订单号
+            options: [],
+            materialPreparation: false,//物料备料权限
+            printOutsibox: false,//打印外箱标签权限
+            OuterBarcodeList: [],
+            loading: false,
+            imgNumber: 0,  //用于空值加载
+            printProt: '',
+            Language: '中文',//语言
+            LanguageOptions: [{ label: '选项一', value: '中文' }, { label: '选项一', value: '英文' }],//语言选项框
+            printOptions: printIpAddress,
+            imgShow: true,
+            outerBox: '',
+            packingMaterial: false,//物料检验权限
+            G_Weight: '',   //毛重量
+            N_Weight: '',   //净重
+            VisiG_Weight: false,
+            VisiN_Weight: false,
+            dialogVisible: false,//控制弹窗显示
+            spc_OuterBoxBarcode: '',//弹窗中的外箱号
+            g_Weight: '',//毛重
+            n_Weight: '',//净重
+            edit: true,
+            checkBoxData: [],    //多选框选择的值
+            concentration: 30,
+            spc_OuterBox_Type: '',
+            spc_OuterBox_TypeOptions: [{ label: '选项一', value: '备品' }, { label: '选项一', value: '配件' }, { label: '选项一', value: '配件、备品' }],
+            deleteOutsibox: false,//删箱权限
+        },
+        //获取订单号
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.options = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printProt = printIP;
+            };
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '物料备料')) {
+                this.materialPreparation = true
+            } else {
+                this.materialPreparation = false
+            };
+            if (checkRoles(roles, '打印外箱标签')) {
+                this.printOutsibox = true
+            } else {
+                this.printOutsibox = false
+            };
+            if (checkRoles(roles, '物料装箱')) {
+                this.packingMaterial = true
+            } else {
+                this.packingMaterial = false
+            };
+            if (checkRoles(roles, '备品配件删除/移箱')) {
+                this.deleteOutsibox = true
+            } else {
+                this.deleteOutsibox = false
+            };
+        },
+        methods: {
+            //获取复选框的值
+            changeFun(val) {
+                this.checkBoxData = val;
+                if (this.checkBoxData.length == 1) {
+                    for (let i in val) {
+                        this.outerBox = val[i].SPC_OuterBoxBarcode
+                    };
+                } else {
+                    this.outerBox = ''
+                }
+            },
+            //添加净重毛重
+            addWeight(item) {
+                this.dialogVisible = true
+                this.spc_OuterBoxBarcode = item.SPC_OuterBoxBarcode
+                if (item.G_Weight == null) {
+                    this.g_Weight = ''
+                } else {
+                    this.g_Weight = item.G_Weight
+                }
+                if (item.N_Weight == null) {
+                    this.n_Weight = ''
+                } else {
+                    this.n_Weight = item.N_Weight
+                }
+                this.spc_OuterBox_Type = item.SPC_OuterBox_Type
+            },
+            //保存弹框中的重量
+            saveAddWeight() {
+                if (this.spc_OuterBoxBarcode != '' && this.g_Weight != '' && this.n_Weight != '') {
+                    axios.post("/Packagings/SPC_saveWeight", {
+                        SPC_OuterBoxBarcode: this.spc_OuterBoxBarcode,
+                        G_Weight: this.g_Weight,
+                        N_Weight: this.n_Weight,
+                        SPC_OuterBox_Type:this.spc_OuterBox_Type
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "保存成功！") {
+                            this.$message({
+                                showClose: true,
+                                message: res.data,
+                                type: 'success'
+                            });
+                            this.dialogVisible = false
+                            this.spc_OuterBoxBarcode = this.g_Weight = this.n_Weight = ''
+                            this.OuterBarcodeList = []
+                            this.getData()
+                        } else if (res.data == "保存失败！") {
+                            this.$message({
+                                showClose: true,
+                                message: res.data,
+                                type: 'error'
+                            });
+                        }
+                    }).catch(err => {
+                        this.$message({
+                            showClose: true,
+                            message: '请求出错！',
+                            type: 'error'
+                        });
+                    });
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: '请输入毛重量、净重量！',
+                        type: 'error'
+                    });
+                }
+            },
+            getData() {
+                this.OuterBarcodeList = []
+                    axios.post("/Packagings/Output_CartonNumber", {
+                        orderNum: this.orderNum
+                    }).then(res => {
+                        if (res.data.length > 0) {
+                            let arr = res.data;
+                            list = this.OuterBarcodeList
+                            for (let item in arr) {
+                                list.push({
+                                    SPC_OuterBoxBarcode: arr[item].SPC_OuterBoxBarcode,
+                                    G_Weight: arr[item].G_Weight,
+                                    N_Weight: arr[item].N_Weight,
+                                    SPC_OuterBox_Type: arr[item].SPC_OuterBox_Type,
+                                    state: false
+                                })
+                                console.log(this.OuterBarcodeList)
+                            }
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                message: '此订单号还没有可打印的外箱标签！',
+                                type: 'error'
+                            });
+                        }
+                    })
+            },
+            //净重毛重为空，禁止勾选打印
+            selectable(row, index) {
+                if (row.G_Weight == null && row.N_Weight == null) {
+                    return false
+                } else {
+                    return true
+                }
+            },
+            //清单导出方法
+            eproxd() {
+                if (this.outerBox != '') {
+                    $("#submits").click();
+                } else {
+                    this.$message({
+                        message: "请输入要导入的外箱号",
+                        type: "warning"
+                    });
+                }
+            },
+            //查看标签图片方法
+            lookImage: function () {
+                let arr = this.checkBoxData, checkList = [];  //勾选的数组
+                if (arr.length > 0) {
+                    for (let i in arr) {
+                        checkList.push(arr[i].SPC_OuterBoxBarcode);
+                    };
+                    if (checkList.length > 0) {
+                        $("#img>img").remove();
+                        app.loading = true;
+                        this.imgNumber = 0;
+                        for (let i in checkList) {
+                            this.getPicture(checkList[i], checkList.length);
+                        };
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '没有勾选查询清单！',
+                            type: 'error'
+                        });
+                    };
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: '没有可查询的清单！',
+                        type: 'error'
+                    });
+                }
+            },
+            //输出查询出的图片
+            getPicture: function (outerBarcodeNum, number) {
+                if (this.orderNum != '' && outerBarcodeNum != '' && this.Language != '') {
+                    axios.post('/Packagings/Outspc_OutsideBoxLabelToImg', {
+                        orderNumber: this.orderNum,
+                        spc_OuterBoxBarcode: outerBarcodeNum,
+                        language: this.Language,
+                        logo: this.imgShow,
+                    }, {
+                            responseType: "arraybuffer",
+                        }).then(function (response) {
+                            return 'data:image/png;base64,' + btoa(
+                                new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                            );
+                        }).then(function (data) {
+                            let cc = new Image();
+                            cc.src = data;
+                            document.getElementById("img").appendChild(cc);
+                            app.imgNumber++;
+                            if (app.imgNumber == number) {
+                                app.loading = false;
+                            };
+                        }).catch(err => {
+                            app.imgNumber++;
+                            if (app.imgNumber == number) {
+                                app.loading = false;
+                            };
+                            console.warn("显示失败");
+                        });
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: '请填写完再查看！',
+                        type: 'error'
+                    });
+                    app.loading = false;
+                }
+
+            },
+            //打印勾选中的物料条码
+            printMaterialBarcode() {
+                $("#img>img").remove();
+                let arr = this.checkBoxData, postList = [];
+                if (arr.length > 0) {
+                    for (let i in arr) {
+                        postList.push(arr[i].SPC_OuterBoxBarcode);
+                    };
+                    if (postList.length > 0) {
+                        if (this.orderNum != '' && this.Language != '') {
+                            app.loading = true;
+                            this.imgNumber = 0;
+                            axios.post('/Packagings/Outspc_OutsideBoxLabelAgain', {
+                                spc_OuterBoxBarcode: postList,  //物料号
+                                orderNumber: this.orderNum,       //订单号
+                                ip: this.printProt,            //ip地址
+                                port: 9101,                   //端口
+                                language: this.Language,
+                                logo: this.imgShow,
+                                concentration: this.concentration
+                            }
+                            ).then(res => {
+                                this.$message({
+                                    showClose: true,
+                                    message: res.data,
+                                    type: 'success'
+                                });
+                                app.loading = false;
+                            }).catch(err => {
+                                this.$message({
+                                    showClose: true,
+                                    message: '打印出错！',
+                                    type: 'error'
+                                });
+                                app.loading = false;
+                            });
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                message: '请填写完再打印！',
+                                type: 'error'
+                            });
+                        }
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '没有勾选需要打印的外箱号！',
+                            type: 'error'
+                        });
+                    };
+                } else {
+                    this.$message({
+                        showClose: true,
+                        message: '外箱号清单为空！',
+                        type: 'error'
+                    });
+                };
+            },
+        },
+        watch: {
+            orderNum() {
+                //获取外箱列表
+                if (this.orderNum != '' && this.orderNum.length > 10) {
+                    this.getData()
+                }
+            },
+            N_Weight() {
+                if (this.N_Weight != '') {
+                    if (!this.N_Weight.match(/^[0-9]+\.{0,1}[0-9]{0,4}$/)) {
+                        this.VisiN_Weight = true;
+                    } else { this.VisiN_Weight = false };
+                } else {
+                    this.VisiN_Weight = false
+                }
+            },
+            G_Weight() {
+                if (this.G_Weight != '') {
+                    if (!this.G_Weight.match(/^[0-9]+\.{0,1}[0-9]{0,4}$/)) {
+                        this.VisiG_Weight = true
+                    } else {
+                        this.VisiG_Weight = false
+                    }
+                } else {
+                    this.VisiG_Weight = false
+                }
+            }
+        }
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

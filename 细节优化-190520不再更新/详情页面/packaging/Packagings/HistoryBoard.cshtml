@@ -1,0 +1,439 @@
+﻿@{
+    ViewBag.Title = "产值历史记录";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/echarts.js"></script>
+<h2 style="text-align:center;">@ViewBag.Title</h2>
+<style>
+    table {
+        margin-top: 15px;
+    }
+
+        table .cell {
+            text-align: center;
+            padding: 2px !important;
+        }
+
+        table td {
+            padding: 2px 0 !important;
+        }
+</style>
+<div id="app">
+    <div style="display:flex;">
+        
+        <div style="width:90%;text-align:center;">
+            <el-select v-model="orderNum" style="width:150px;" size="small" multiple allow-create filterable clearable placeholder="请选择订单号">
+                <el-option v-for="item in options"
+                           v-bind:key="item.value"
+                           v-bind:label="item.value"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-date-picker v-model="timeRange"
+                            type="daterange"
+                            size="small"
+                            v-bind:disabled="flags"
+                            range-separator="至"
+                            start-placeholder="开始日期"
+                            end-placeholder="结束日期"
+                            v-bind:picker-options="pickerOptions2">
+            </el-date-picker>
+            <el-select v-model="year" size="small" v-bind:disabled="flags2" clearable placeholder="请选择年份">
+                <el-option v-for="item in selectYear"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="month" size="small" v-bind:disabled="flags3" clearable placeholder="请选择月份">
+                <el-option v-for="item in 12"
+                           v-bind:key="item"
+                           v-bind:label="item"
+                           v-bind:value="item">
+                </el-option>
+            </el-select>
+            <el-button style="margin-left:15px;" size="small" v-on:click="search" type="primary">查找</el-button>
+            <el-button v-on:click="goBack" type="primary" size="mini"><i class="el-icon-d-arrow-left"></i>返回</el-button>
+        </div>
+    </div>
+    <el-table v-bind:data="tableData"
+              size="small"
+              max-height="600"
+              v-bind:default-sort="{prop: 'OrderNum', order: 'descending'}"
+              v-loading="loading"
+              show-summary
+              v-bind:summary-method="getSummaries"
+              style="width: 100%;text-align:center;">
+        <el-table-column type="index"
+                         label="序号"
+                         aglin="center"
+                         width="45">
+        </el-table-column>
+        <el-table-column prop="OrderNum"
+                         label="订单"
+                         aglin="center"
+                         sortable
+                         width="95">
+            @*<template slot-scope="scope">
+                    <a v-bind:href="'/Packagings/ViewDisplay/'+ scope.row.OrderNum">{{scope.row.OrderNum}}</a>
+                </template>*@
+            <template slot-scope="scope">
+                <a v-bind:href="'/Packagings/ViewDisplay?'+ 'orderNum='+scope.row.OrderNum+'&worth='+(scope.row.Worth=='- -'?'0':scope.row.Worth)+'&'+
+                           'moduleCount='+scope.row.moduleCount+'&'+'packingCount='+scope.row.packingCount+'&'+'warehousJoinCount='+(scope.row.warehousJoinCount=='- -'?'0':scope.row.warehousJoinCount)+
+                           '&'+'warehousOutCount='+scope.row.warehousOutCount+'&'+'warehouseJoinValue='+scope.row.warehouseJoinValue+
+                           '&'+'uncompleteValue='+(scope.row.uncompleteValue=='- -'?'0':scope.row.uncompleteValue)+'&'+'warehousJoinComplete='+scope.row.warehousJoinComplete+
+                           '&'+'warehousOutComplete='+scope.row.warehousOutComplete+'&'+'remark='+scope.row.remark">{{scope.row.OrderNum}}</a>
+            </template>
+        </el-table-column>
+        <el-table-column prop="Worth"
+                         width=""
+                         sortable
+                         aglin="center"
+                         label="总产值（万）">
+        </el-table-column>
+        <el-table-column prop="moduleCount"
+                         width="80"
+                         sortable
+                         label="模组数量">
+        </el-table-column>
+        <el-table-column prop="packingCount"
+                         width="95"
+                         sortable
+                         aglin="center"
+                         label="已包装数量">
+        </el-table-column>
+        <el-table-column prop="warehousJoinCount"
+                         width="95"
+                         sortable
+                         label="已入库数量">
+        </el-table-column>
+        <el-table-column prop="warehousOutCount"
+                         width="95"
+                         sortable
+                         aglin="center"
+                         label="已出库数量">
+        </el-table-column>
+        <el-table-column prop="stockCount"
+                         width="80"
+                         sortable
+                         label="库存数量">
+        </el-table-column>
+        <el-table-column prop="nuoInfo"
+                         width="80"
+                         sortable
+                         label="挪用信息">
+        </el-table-column>
+        <el-table-column prop="warehouseJoinValue"
+                         width="85"
+                         sortable
+                         aglin="center"
+                         label="目前入库产值（万）">
+        </el-table-column>
+        <el-table-column prop="uncompleteValue"
+                         width="65"
+                         sortable
+                         label="未完成产值（万）">
+        </el-table-column>
+        <el-table-column prop="warehousJoinComplete"
+                         width="65"
+                         sortable
+                         aglin="center"
+                         label="入库完成率">
+        </el-table-column>
+        <el-table-column prop="warehousOutComplete"
+                         width="65"
+                         sortable
+                         aglin="center"
+                         label="出库完成率">
+        </el-table-column>
+        <el-table-column prop="remark"
+                         width="62"
+                         aglin="center"
+                         label="备注">
+        </el-table-column>
+        @* <el-table-column prop=""
+                           width="103"
+                           label="操作">
+            <template slot-scope="scope">
+                  <el-button v-bind:type="scope.row.Worth=='- -'?'danger':'primary'" v-show="showinnerbtn" class="btnone" size="mini" v-on:click="handleEdit(scope.$index, scope.row)" v-text="scope.row.Worth=='- -'?'输入总产值':'编辑总产值'"></el-button>
+                  <el-button class="btntwo" size="mini" style="display:none;" v-on:click="handleSave(scope.$index, scope.row)">保存</el-button>
+                  <el-button type="warning" class="btnthree" size="mini" v-bind:class=`cancle${scope.$index}` style="display:none;" v-on:click="handleCancel(scope.$index, scope.row)">取消</el-button>
+                  @*<el-button v-show="showinnerbtn" class="btnfour" size="mini" type="danger" v-on:click="handleDelete(scope.$index, scope.row)">删除</el-button>
+              </template>
+                </el-table-column>*@
+    </el-table>
+    @*<div v-show="flag4" style="height:200px;">
+
+        </div>*@
+    <div id="lineMain" style="height:300px;display:none;"></div>
+</div>
+
+
+<script>
+    var vm = new Vue({
+        el: "#app",
+        data: {
+            tableData: [],
+            selectYear: [],
+            loading: false,
+            flags: false,
+            flags2: false,
+            flags3: false,
+            flag4: false,
+            timeRange: null,
+            year: null,
+            month: null,
+            orderNum:null,
+            pickerOptions2: {
+                shortcuts: [{
+                    text: '最近一周',
+                    onClick(picker) {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+                        picker.$emit('pick', [start, end]);
+                    }
+                }, {
+                    text: '最近一个月',
+                    onClick(picker) {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+                        picker.$emit('pick', [start, end]);
+                    }
+                }, {
+                    text: '最近三个月',
+                    onClick(picker) {
+                        const end = new Date();
+                        const start = new Date();
+                        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+                        picker.$emit('pick', [start, end]);
+                    }
+                }]
+            },
+            options:[]
+        },
+        mounted() {
+            //this.loading = true
+            //axios.post("/Packagings/HistoryProduction_value").then(res => {
+            //    console.log(res.data)
+            //    for (let i in res.data) {
+            //        this.tableData.push(res.data[i])
+            //    }
+            //    this.loading = false
+            //}).catch(err => {
+            //});
+
+            let dateNow = new Date()
+            let years = dateNow.getFullYear()
+            for (let i = -4; i < 6; i++) {
+                obj = { value: years + i, label: years + i }
+                this.selectYear.push(obj)
+            }
+            this.getOrderNums()
+        },
+        methods: {
+            // 获取订单号
+            getOrderNums(){
+                axios.post("/Packagings/GetOrderList").then(res=>{
+                    this.options = res.data
+                })
+            },
+            goBack() {
+                history.back();
+            },
+            indexMethod(index) {
+                var nums = Number(index) - 10
+                return nums;
+            },
+            search() {
+                this.loading = true
+                axios.post("/Packagings/CheckDateProduction_value", {Ordernums:this.orderNum, day1: this.timeRange == null ? null : this.timeRange[0], day2: this.timeRange == null ? null : this.timeRange[1], year: this.year, mouth: this.month }).then(res => {
+                    console.log(res.data)
+                    if (res.data) {
+                        this.tableData = []
+                        for (let item in res.data) {
+                            this.tableData.push(res.data[item])
+                        }
+                    }
+                    this.loading = false
+                    if (this.year != null) {
+                        axios.post("/Packagings/BrokenlineMessage", { year: this.year }).then(res => {
+                            console.log(res.data);
+                            let echartData = [];
+                            for (let item in res.data) {
+                                let obj = { 'value': res.data[item] };
+                                echartData.push(obj)
+                            }
+                            console.log(echartData);
+                            $("#lineMain").show()
+                            var LineChart = echarts.init(document.getElementById('lineMain'));
+                            var lineOption = {
+                                title: {
+                                    left: 'center',
+                                    text: `${this.year}年度入库产值信息`,
+                                },
+                                tooltip: {
+                                    trigger: 'axis',
+                                },
+                                xAxis: {
+                                    type: 'category',
+                                    data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+                                },
+                                yAxis: {
+                                    type: 'value',
+                                    axisLabel: {
+                                        formatter: '{value} 万(元)'
+                                    }
+                                },
+                                toolbox: {
+                                    feature: {
+                                        magicType: {
+                                            type: ['line', 'bar']
+                                        },
+                                        //restore: {},
+                                        saveAsImage: {}
+                                    },
+                                    right: 60,
+                                    top: 30,
+                                },
+                                series: [{
+                                    name: "入库产值万(元)",
+                                    type: 'line',
+                                    data: echartData,
+                                    toolbox: {
+                                        show: true,
+                                        feature: {
+                                            dataZoom: {
+                                                yAxisIndex: 'none'
+                                            },
+                                            dataView: {
+                                                readOnly: false
+                                            },
+                                            magicType: {
+                                                type: ['line', 'bar']
+                                            },
+                                            restore: {},
+                                            saveAsImage: {}
+                                        }
+                                    },
+                                    itemStyle: {
+                                        normal: {
+                                            label: {
+                                                show: true, //开启显示
+                                                position: 'top', //在上方显示
+                                                textStyle: { //数值样式
+                                                    color: 'black',
+                                                    fontSize: 12
+                                                },
+                                                formatter: "{c}万(元)"
+                                            }
+                                        }
+                                    },
+                                }]
+                            };
+                            LineChart.setOption(lineOption);
+
+                        }).catch(err => {
+                        })
+
+                    } else {
+                        $("#lineMain").hide()
+                    }
+                }).catch(err => {
+                })
+            },
+            getSummaries(param) {
+                const { columns, data } = param;
+                const sums = [];
+                columns.forEach((column, index) => {
+                    if (index === 0) {
+                        sums[index] = '总计';
+                        return;
+                    }
+                    if (index === 1) {
+                        sums[index] = this.tableData.length;
+                        return;
+                    }
+                    if (index === 11) {
+                        sums[index] = '';
+                        return;
+                    }
+                    if (index === 12) {
+                        sums[index] = '';
+                        return;
+                    }
+                    if (index === 13) {
+                        sums[index] = '';
+                        return;
+                    }
+                    const values = data.map(item => Number(item[column.property]));
+                    if (!values.every(value => isNaN(value))) {
+                        sums[index] = values.reduce((prev, curr) => {
+                            const value = Number(curr);
+                            if (!isNaN(value)) {
+                                return prev + curr;
+                            } else {
+                                return prev;
+                            }
+                        }, 0);
+                        sums[index];
+                    } else {
+                        sums[index] = 'N/A';
+                    }
+                });
+
+                return sums;
+            }
+        },
+        watch: {
+            timeRange() {
+                if (this.timeRange != null) {
+                    this.flags2 = true
+                    this.flags3 = true
+                    this.year = null
+                    this.month = null
+                } else {
+                    this.flags2 = false
+                    this.flags3 = false
+                }
+            },
+            year() {
+                if (this.year == '') {
+                    this.year = null
+                }
+                if (this.year != null) {
+                    this.flags = true
+                    this.timeRange = null
+
+                } else {
+                    this.flags = false
+                    this.month = null
+                }
+            },
+            month() {
+                if (this.month == '') {
+                    this.month = null
+                }
+                if (this.month != null) {
+                    this.flags = true
+                    this.timeRange = null
+                } else {
+                    this.flags = false
+                }
+                if (this.year == null && this.month != null) {
+                    this.$notify({
+                        title: '警告',
+                        message: '请选择年份',
+                        type: 'warning'
+                    });
+                }
+            }
+        }
+    });
+
+
+
+</script>

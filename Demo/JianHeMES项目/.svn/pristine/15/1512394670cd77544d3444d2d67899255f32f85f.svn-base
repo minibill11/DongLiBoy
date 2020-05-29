@@ -1,0 +1,210 @@
+﻿@{
+    ViewBag.Title = "权限查看";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+        width: 96vw;
+    }
+
+    .el-main {
+        padding: 0;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-table th {
+        background-color: #f4df42;
+        color: #000;
+    }
+
+    .el-table td {
+        padding: 0;
+    }
+
+    .el-table th {
+        font-size: 13px;
+        text-align: center;
+        padding: 4px 0;
+    }
+
+    h2, h3 {
+        margin-top: 10px;
+    }
+
+    .el-select__tags {
+        max-width: 180px !important;
+        max-height: 60px;
+        overflow: auto;
+    }
+
+    .flexTd {
+        display: flex;
+        flex-flow: column wrap;
+    }
+
+    .flexTd_2 {
+        width: 100%;
+        display: flex;
+        flex-flow: row wrap;
+    }
+
+    .el-tag {
+        margin: 2px 6px 2px 0;
+    }
+
+    .qxcolumn > .cell {
+        padding: 8px 0px;
+    }
+
+    .qxtable {
+        border-top: 1px solid #f4df42;
+        border-bottom: 1px solid #f4df42;
+    }
+
+    .red {
+        color: #FF9999;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="text-center" style="margin:0 0 8px 0;">
+                    <el-select v-model="department"
+                               placeholder="请选择部门"
+                               size="medium"
+                               clearable
+                               filterable>
+                        <el-option v-for="item in departmentOption"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                    <el-select v-model="role"
+                               placeholder="请选择人名"
+                               style="margin-left: 20px;"
+                               size="medium"
+                               multiple
+                               clearable
+                               filterable>
+                        <el-option v-for="item in roleOption"
+                                   :key="item.UserNum"
+                                   :label="item.UserName"
+                                   :value="item.UserNum">
+                        </el-option>
+                    </el-select>
+                    <el-button v-on:click="getPermissionList" type="primary" size="medium">查找</el-button>
+                </div>
+                <el-table :data="dataList" max-height="660" border>
+                    <el-table-column prop="Department" label="部门" width="90"></el-table-column>
+                    <el-table-column prop="UserID" label="工号" width="80"></el-table-column>
+                    <el-table-column prop="UserName" label="姓名" width="80"></el-table-column>
+                    <el-table-column prop="discList" label="权限清单" class-name="qxcolumn">
+                        <template slot-scope="scope">
+                            <el-table :data="scope.row.discList" max-height="280" border stripe :show-header="false" class="qxtable">
+                                <el-table-column prop="RolesName" label="权限所属" width="150"></el-table-column>
+                                <el-table-column prop="Discription" label="权限名称" min-width="300">
+                                    <template slot-scope="scope">
+                                        <template v-for="i in scope.row.Discription">
+                                            <el-tag size="small" type="success"><i class="el-icon-star-on red"></i>{{i}}</el-tag>
+                                        </template>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            dataList: [],
+            department: "",
+            departmentOption: [],
+            role: [],
+            roleOption: [],
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+            this.getRoleList()
+            this.getDepartmentList()
+        },
+        mounted: function () {
+        },
+        methods: {
+            //部门列表
+            getDepartmentList() {
+                axios.post('/Users/QueryDepartment').then(res => {
+                    let arr = [];
+                    res.data.forEach(i => {
+                        arr.push({
+                            value: i
+                        });
+                    });
+                    this.departmentOption = arr;
+                    //console.log(res.data);
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //人名列表
+            getRoleList() {
+                axios.post('/Users/Query_Permissions').then(res => {
+                    this.roleOption = res.data;
+                    //console.log(res.data);
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                });
+            },
+            //获取数据
+            getPermissionList() {
+                if (this.department == '' && this.role == "") {
+                    this.$message.warning("请选择查询条件");
+                    return;
+                };
+                this.loading = true;
+                axios.post('/Users/PermissionList', {
+                    department: this.department,
+                    userID: this.role,
+                }).then(res => {
+                    this.dataList = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("型号列表获取失败");
+                    this.loading = false;
+                });
+            },
+        }
+    });
+</script>

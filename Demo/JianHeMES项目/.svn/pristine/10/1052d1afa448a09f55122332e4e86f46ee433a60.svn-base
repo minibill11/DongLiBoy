@@ -1,0 +1,141 @@
+﻿@{
+    ViewBag.Title = "详细情况";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    .tablebody {
+        max-height: 300px;
+        overflow: auto;
+        border-top: 1px solid #000;
+        margin: 1px 0;
+    }
+
+    .tdDiv {
+        display: inline-block;
+        padding-right: 5px;
+    }
+
+    .glyphicon-arrow-right {
+        color: #FF6666;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>{{this.urlObj.statue}} @ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <div class="tablebody">
+                    <table class="table table-bordered">
+                        <colgroup>
+                            <col width="622" />
+                            <col width="500" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="text-align:right">挪用关系 ( 旧模组 <i class="glyphicon glyphicon-arrow-right"></i>  新模组 ) </th>
+                                <th>历史条码FQC完成状态</th>
+                            </tr>
+                        </thead>
+                        <tbody style="max-height:600px;overflow:auto">
+                            <tr v-for="item in nuoNormalList">
+                                <td style="text-align:right">
+                                    <div v-for="(i,index) in item.info" class="tdDiv">
+                                        {{i}} <i v-if="index<item.info.length-1" class="glyphicon glyphicon-arrow-right"></i>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div v-for="i in item.barcodeInfo" class="tdDiv">
+                                        {{i.barcode}}:{{i.statue}};
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tablebody" v-show="nuoAbnormalList.length>0">
+                    <table class="table table-bordered">
+                        <colgroup>
+                            <col width="622" />
+                            <col width="500" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="text-align:right;">挪用条码</th>
+                                <th>FQC异常</th>
+                            </tr>
+                        </thead>
+                        <tbody style="max-height:600px;overflow:auto">
+                            <tr v-for="item in nuoAbnormalList">
+                                <td style="text-align:right">
+                                    {{item.barcode}}<br />
+                                </td>
+                                <td>
+                                    {{item.abnormal}}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            urlObj: {},
+            nuoNormalList: [],
+            nuoAbnormalList: [],
+        },
+        created: function () {
+            this.loading = true;
+            try {
+                this.urlObj = this.GetUrlPara();
+                axios.post('/ProductionControl/Total', this.urlObj).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.loading = false;
+                }).catch(err => {
+                    this.$message.warning("获取数据失败");
+                    this.loading = false;
+                });
+
+
+                //挪用处理
+                axios.post("/ProductionControl/Burn_inNuo", this.urlObj).then(res => {
+                    this.nuoNormalList = res.data.normal;
+                    this.nuoAbnormalList = res.data.abnormal;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            } catch (err) {
+                this.$alert("页面信息已丢失，请从生产管控首页重新打开页面！");
+                this.$notify.error({
+                    title: '提示',
+                    message: '页面信息已丢失，请从生产管控首页重新打开页面！',
+                    duration: 0,
+                    showClose: false,
+                    offset: 50
+                });
+                this.loading = false;
+            };
+        },
+        methods: {
+            //返回地址对象
+            GetUrlPara() {
+                let urlParaArr = document.location.toString().split("?")[1].split("&"), rt = {};
+                for (let i of urlParaArr) {
+                    let objArr = i.split("=");
+                    rt[objArr[0]] = decodeURI(objArr[1]);
+                };
+                return rt;
+            },
+        }
+    });
+</script>

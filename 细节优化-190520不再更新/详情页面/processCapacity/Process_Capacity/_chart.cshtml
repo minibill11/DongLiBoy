@@ -1,0 +1,132 @@
+﻿@*  <summary>
+    1.echart图表功能组件，可在需要使用的地方引用，引用方法为 @RenderPage("~/Views/Process_Capacity/_chart.cshtml")
+    2.图表显示各工段工序平衡系数
+    </summary>*@
+
+<script src="~/Scripts/echarts.js"></script>@*引用echart js插件*@
+@*组件模板*@
+<script type="text/template" id="chartDiv">
+    <div>
+        <template v-if="ispopover">
+            @*elementui 的弹出框组件，用来鼠标点击‘查看’后显示出图表*@
+            <el-popover placement="top-start"
+                        width="600"
+                        @@show="show"
+                        trigger="click">
+                <div :id="'char'+idname" style="width: 600px;height:400px;" v-loading="chartLoading"></div>
+                <el-button slot="reference" type="text">查看</el-button>
+            </el-popover>
+        </template>
+        <template v-else>
+            <div :id="'char'+idname" style="width: 100%;height:400px;margin:10px 0 0;" v-loading="chartLoading"></div>
+        </template>
+    </div>
+</script>
+@*组件js*@
+<script>
+    Vue.component('chart-div', {
+        template: document.getElementById("chartDiv"),//用模板的id获取元素
+        /* 组件接收的参数
+         * urldata ：获取数据的API的参数值
+         * ispopover ：图表是否需要鼠标触摸点击后才显示
+         * idname ：需要显示图表的div的id
+         */
+        props: ['urldata', 'ispopover', 'idname'],
+        data: function () {
+            return {
+                chartLoading: false,//图表的loading状态
+                phxsChart: "",//用来存储图表实例
+                //echart折线图的配置对象
+                chartOption: {
+                    //标题
+                    title: {
+                        left: 'center',
+                        text: '工段平衡系数 (组装为1)'
+                    },
+                    //提示样式
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    //网格的上下左右宽度
+                    grid: {
+                        top: '8%',
+                        left: '3%',
+                        right: '3%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    //横轴的字体旋转角度为40
+                    xAxis: {
+                        type: 'category',
+                        axisLabel: {
+                            interval: 0,
+                            rotate: 40
+                        }
+                    },
+                    //纵轴的文字显示格式
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: {
+                            formatter: '{value}'
+                        }
+                    },
+                    //标题和图表的类型为 bar柱状图
+                    series: [{
+                        name: "工段平衡系数",
+                        type: 'bar',
+                        label: {
+                            normal: {
+                                show: true,
+                                position: 'top',
+                                formatter: '{c}',
+                            }
+                        },
+                    }]
+                }
+            }
+        },
+        //组件加载完后执行
+        mounted: function () {
+            //this.phxsChart.dispose();
+            setTimeout(() => {
+                //获取echart组件的实例
+                this.phxsChart = echarts.init(document.getElementById('char' + this.idname));
+                //echart组件的初始化
+                this.phxsChart.setOption(this.chartOption);
+                /*
+                 * this.ispopover用于判断图表是否需要鼠标触摸点击后才显示
+                 * 若值为ture，则显示为‘查看’，点击后出现图表
+                 * 若值为false，页面加载完后直接显示图表
+                 */
+                !this.ispopover && this.getdata();
+            }, 0);
+        },
+        methods: {
+            //获取图表数据的方法
+            getdata: function () {
+                this.chartLoading = true;
+                axios.post("/ProCess_Capacity/Icon", this.urldata).then(res => {
+                    //console.log(res.data);
+                    let name = [], value = [];
+                    for (i of res.data) {
+                        name.push(i.name);
+                        value.push(i.BalanceRate);
+                    };
+                    //图表数据注入数据
+                    this.phxsChart.setOption({
+                        series: [{ data: value }],
+                        xAxis: { data: name }
+                    });
+                    this.chartLoading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.chartLoading = false;
+                });
+            },
+            //当图表显示时调用，获取最新数据
+            show() {
+                this.getdata();
+            }
+        },
+    });
+</script>

@@ -1,0 +1,501 @@
+﻿@{
+    ViewBag.Title = "产值看板";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<style>
+    .inputs {
+        width: 100%;
+        text-align: center;
+    }
+
+    table .cell {
+        text-align: center;
+        padding: 2px !important;
+    }
+
+    table button {
+        padding: 4px !important;
+    }
+
+    table td {
+        padding: 2px 0 !important;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 20px 0 0;
+    }
+
+    .el-input {
+        width: auto;
+    }
+
+    .mesDiv {
+        padding: 5px 0;
+        /*border: 1px solid #ccc;*/
+    }
+
+    .mesDiv_div {
+        display: inline-block;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+
+    .selectContainer {
+        text-align: center;
+        margin-top: 12px;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <div class="adiv" href="/Packagings/board"><el-button size="small" type="primary" plain disabled style="cursor:default">产值看板</el-button></div>
+                <a href="/Packagings/HistoryBoard" target="_blank"><el-button size="small">历史记录</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <div href="/Packagings/board"><el-dropdown-item disabled>产值看板</el-dropdown-item></div>
+                        <a href="/Packagings/HistoryBoard"><el-dropdown-item>包装历史查看</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <div class="selectContainer">
+            <select-input v-model.trim="selectedordernum" :disabled="false" :options="ordernums" :isfocus="true" :ismultiple="false" size="small" @@select-val="selectHandle"></select-input>
+        </div>
+        <el-main v-loading="loading">
+            <el-table v-bind:data="tableDatas"
+                      show-summary
+                      v-bind:summary-method="getSummaries"
+                      size="small"
+                      height="600"
+                      v-bind::default-sort="{prop: 'OrderNum', order: 'descending'}"
+                      style="width: 100%;text-align:center;">
+                <el-table-column type="index"
+                                 label="序号"
+                                 aglin="center"
+                                 width="45">
+                </el-table-column>
+                <el-table-column prop="OrderNum"
+                                 label="订单"
+                                 sortable
+                                 width="90">
+                    <template slot-scope="scope">
+                        <a v-bind:href="'/Packagings/ViewDisplay?'+ 'orderNum='+scope.row.OrderNum+'&worth='+(scope.row.Worth=='- -'?'0':scope.row.Worth)+'&'+
+                           'moduleCount='+scope.row.moduleCount+'&'+'packingCount='+scope.row.packingCount+'&'+'warehousJoinCount='+(scope.row.warehousJoinCount=='- -'?'0':scope.row.warehousJoinCount)+
+                           '&'+'warehousOutCount='+scope.row.warehousOutCount+'&'+'warehouseJoinValue='+scope.row.warehouseJoinValue+
+                           '&'+'uncompleteValue='+(scope.row.uncompleteValue=='- -'?'0':scope.row.uncompleteValue)+'&'+'warehousJoinComplete='+scope.row.warehousJoinComplete+
+                           '&'+'warehousOutComplete='+scope.row.warehousOutComplete+'&'+'remark='+scope.row.remark" target="_blank">{{scope.row.OrderNum}}</a>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Worth"
+                                 width="85"
+                                 sortable
+                                 label="总产值（万）">
+                </el-table-column>
+                <el-table-column prop="moduleCount"
+                                 width="75"
+                                 sortable
+                                 label="模组数量">
+                </el-table-column>
+                <el-table-column prop="packingCount"
+                                 width="80"
+                                 sortable
+                                 label="已包装数量(件)">
+                </el-table-column>
+                <el-table-column prop="warehousJoinCount"
+                                 width="80"
+                                 sortable
+                                 label="已入库数量(件)">
+                </el-table-column>
+                <el-table-column prop="warehousOutCount"
+                                 width="80"
+                                 sortable
+                                 label="已出库数量(件)">
+                </el-table-column>
+                <el-table-column prop="stockCount"
+                                 width="80"
+                                 sortable
+                                 label="库存数量(件)">
+                </el-table-column>
+                <el-table-column prop="nuoInfo"
+                                 width="80"
+                                 sortable
+                                 label="挪用信息">
+                </el-table-column>
+                <el-table-column prop="warehouseJoinValue"
+                                 width="85"
+                                 sortable
+                                 label="目前入库产值(万)">
+                </el-table-column>
+                <el-table-column prop="uncompleteValue"
+                                 width="65"
+                                 sortable
+                                 label="未完成产值(万)">
+                </el-table-column>
+                <el-table-column prop="warehousJoinComplete"
+                                 width="65"
+                                 sortable
+                                 label="入库完成率">
+                </el-table-column>
+                <el-table-column prop="warehousOutComplete"
+                                 width="65"
+                                 sortable
+                                 label="出库完成率">
+                </el-table-column>
+                <el-table-column prop="remark"
+                                 width="70"
+                                 label="备注">
+                </el-table-column>
+                <el-table-column prop=""
+                                 width="103"
+                                 label="操作">
+                    <template slot-scope="scope">
+                        <el-button class="chanzhishuruxiugai" v-bind:type="scope.row.Worth=='- -'?'danger':'primary'" v-show="showinnerbtn" size="mini" v-on:click="handleEdit(scope.$index, scope.row)" v-text="scope.row.Worth=='- -'?'输入总产值':'编辑总产值'"></el-button>
+                        <el-button class="btntwo" size="mini" style="display:none;" v-on:click="handleSave(scope.$index, scope.row)">保存</el-button>
+                        <el-button type="warning" class="btnthree" size="mini" v-bind:class=`cancle${scope.$index}` style="display:none;" v-on:click="handleCancel(scope.$index, scope.row)">取消</el-button>
+                        @*<el-button v-show="showinnerbtn" class="btnfour" size="mini" type="danger" v-on:click="handleDelete(scope.$index, scope.row)">删除</el-button>*@
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+<script src="~/signalr/hubs"></script>
+<script>
+    $.fn.exist = function () {    //jquery 判断一个节点是否存在
+        if ($(this).length >= 1) {
+            return true;
+        }
+        return false;
+    };
+
+    var roles = JSON.parse(localStorage.getItem("rigths"))   //
+    function checkRoles(list, roleName) {   //检测权限
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+    var app = new Vue({
+        el: "#app",
+        data: {
+            tableDatas: [],
+            tableData: [],
+            ordernums: [],
+            selectedordernum: "",
+            screenSize: document.body.clientWidth,
+            loading: false,
+            showinnerbtn: true,
+            beforeSaveTrData: null,  //点击编辑之前的行数据,
+            cancleIndex: []   // 为了实现每次只可编辑一条数据，需要每次点击编辑的时候都先把上一次点击的行里面的取消按钮给点击掉 但是为了性能不能每次都把所有取消按钮都点击一遍 只能每次点击就保存被点击的行索引
+        },
+        methods: {
+            handleEdit(index, row) {
+                this.cancleIndex.push(index)   //每次点击就会保存点击行的索引
+                //console.log(this.cancleIndex)
+                if (this.cancleIndex.length >= 2) {  // BUG：即使保存成功，在点击其他编辑按钮的时候还是会点击上一次编辑的取消按钮，然后就把旧值又赋值给上一次的编辑行了
+                    if ($(".inputs").exist()) {   //必须判断上一条编辑是否未保存，才能解决上面的问题
+                        $(`.cancle${this.cancleIndex[0]}`).click();
+                        this.cancleIndex.shift()
+                    } else {
+                        this.cancleIndex.shift()
+                    }
+                }
+                var valArr = [0, row.OrderNum, row.Worth, row.moduleCount, row.packingCount,
+                    row.warehousJoinCount, row.warehousOutCount, row.warehouseJoinValue,
+                    row.uncompleteValue, row.warehousJoinComplete, row.warehousOutComplete, row.remark, 0]
+                this.beforeSaveTrData = valArr
+                editTr(index, row)
+            },
+            handleSave(index, row, item) {
+                //console.log(item)
+                saveEdit(index, row)
+            },
+            handleCancel(index, row) {
+                cancelEdit(index, row)
+            },
+            handleDelete(index, row) {
+                deleteEdit(index, row)
+            },
+            getSummaries(param) {
+                const { columns, data } = param;
+                const sums = [];
+                columns.forEach((column, index) => {
+                    if (index === 0) {
+                        sums[index] = '总计';
+                        return;
+                    }
+                    if (index === 1) {
+                        sums[index] = this.tableData.length;
+                        return;
+                    }
+                    if (index === 11) {
+                        sums[index] = '';
+                        return;
+                    }
+                    if (index === 12) {
+                        sums[index] = '';
+                        return;
+                    }
+                    const values = data.map(item => Number(item[column.property]));
+                    if (!values.every(value => isNaN(value))) {
+                        sums[index] = values.reduce((prev, curr) => {
+                            const value = Number(curr);
+                            if (!isNaN(value)) {
+                                return prev + curr;
+                            } else {
+                                return prev;
+                            }
+                        }, 0);
+                        sums[index];
+                    } else {
+                        sums[index] = '';
+                    }
+                });
+
+                return sums;
+            },
+            selectHandle(v) {
+                if (v != '') {
+                    let data = this.tableData;
+                    let result = [];
+                    data.forEach(item => {
+                        if (item.OrderNum == this.selectedordernum) {
+                            result.push(item)
+                        }
+                    });
+                    this.tableDatas = result;  // 在此重新赋值--当数据再次实时刷新的时候就会覆盖
+
+                } else {
+                    this.tableDatas = this.tableData
+                }
+            }
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            var roles = JSON.parse(localStorage.getItem("rigths"));
+            if (checkRoles(roles, '产值输入修改')) {
+                $('.chanzhishuruxiugai').show()
+            } else {
+                $('.chanzhishuruxiugai').hide()
+            }
+        },
+        watch: {
+            tableData() {
+                if (this.selectedordernum != '') {
+                    //this.tableData = this.tableDatas
+                } else {
+                    this.tableDatas = this.tableData
+                }
+            },
+        }
+    });
+
+    // 封装在线编辑方法--通用（整行变为输入框）
+    function editTr(index, row) {   //参数：行索引与行数据
+        var targetTr = $(".el-table__row")[index];
+        if (row.Worth == '- -') {
+            targetTr.children[2].children[0].innerHTML = `<input class='inputs' value='0' type='text' />`
+            //targetTr.children[11].children[0].innerHTML = `<input class='inputs' value='${app.beforeSaveTrData[11]}' type='text' />`
+        } else {
+            targetTr.children[2].children[0].innerHTML = `<input class='inputs' value='${app.beforeSaveTrData[2]}' type='text' />`
+            //targetTr.children[11].children[0].innerHTML = `<input class='inputs' value='${app.beforeSaveTrData[11]}' type='text' />`
+        }
+        $(targetTr.children[14].children[0].children[0]).hide();
+        //$(targetTr.children[12].children[0].children[3]).hide();
+        $(targetTr.children[14].children[0].children[1]).show();
+        $(targetTr.children[14].children[0].children[2]).show()
+    }
+
+    //取消保存方法
+    function cancelEdit(index, row) {
+        var targetTr = $(".el-table__row")[index];
+        //for (let i = 2; i < targetTr.children.length - 1; i++) {
+        //    targetTr.children[i].children[0].innerHTML = `<span style='text-align:center'>${app.beforeSaveTrData[i]}</span>`
+        //}
+        //targetTr.children[2].children[0].innerHTML = `<span style='text-align:center'>${app.beforeSaveTrData[2]}</span>`
+        targetTr.children[2].children[0].innerHTML = `<span style='text-align:center'>${app.beforeSaveTrData[2]}</span>`
+        //targetTr.children[11].children[0].innerHTML = `<span style='text-align:center'>${app.beforeSaveTrData[11]}</span>`
+        $(targetTr.children[14].children[0].children[0]).show();
+        //$(targetTr.children[12].children[0].children[3]).show();
+        $(targetTr.children[14].children[0].children[1]).hide();
+        $(targetTr.children[14].children[0].children[2]).hide()
+    }
+
+    // 保存方法
+    function saveEdit(index, row) {
+        if (row.Worth != '- -') {
+            console.log('进入了产值不为空的方法')
+            var targetTr = $(".el-table__row")[index];
+            var postData = []   //需要上传的数据，左--右
+            var worths = targetTr.children[2].children[0].children[0].value  //用户输入的总产值
+            var remarks = targetTr.children[13].children[0].value
+            console.log(remarks)
+            axios.post("/Packagings/UpdateProductionValue", { Id: row.id, OrderNum: row.OrderNum, Worth: worths == '- -' ? '0' : worths, CreateDate: null, Remark: remarks }).then(res => {
+                //console.log(res.data)
+                if (res.data == true) {
+                    app.$message({
+                        message: '保存成功！',
+                        type: 'success'
+                    });
+                    targetTr.children[2].children[0].innerHTML = `<span style='text-align:center'>${worths}</span>`
+                    //targetTr.children[11].children[0].innerHTML = `<span style='text-align:center'>${remarks}</span>`
+                    $(targetTr.children[14].children[0].children[0]).show();
+                    $(targetTr.children[14].children[0].children[1]).hide();
+                    $(targetTr.children[14].children[0].children[2]).hide()
+                } else if (res.data == false) {
+                    app.$message({
+                        message: '保存失败!',
+                        type: 'warning'
+                    });
+                } else {
+                    app.$message({
+                        message: res.data + '!',
+                        type: 'warning'
+                    });
+                }
+            }).catch(err => {
+                app.$message({
+                    message: '保存时连接服务器失败！',
+                    type: 'warning'
+                });
+            })
+        } else {
+            console.log('进入了产值为空的执行流')
+            var targetTr = $(".el-table__row")[index];
+            var postData = []   //需要上传的数据，左--右
+            var worths = targetTr.children[2].children[0].children[0].value  //用户输入的总产值
+            var remarks = targetTr.children[13].children[0].value
+            console.log(remarks)
+            axios.post("/Packagings/Procudtion_valueCrete", { Id: row.id, OrderNum: row.OrderNum, Worth: worths == '- -' ? '0' : worths, CreateDate: null, Remark: remarks }).then(res => {
+                // console.log(res.data)
+                if (res.data == true) {
+                    app.$message({
+                        message: '保存成功！',
+                        type: 'success'
+                    });
+                    targetTr.children[2].children[0].innerHTML = `<span style='text-align:center'>${worths}</span>`
+                    //targetTr.children[11].children[0].innerHTML = `<span style='text-align:center'>${remarks}</span>`
+                    $(targetTr.children[14].children[0].children[0]).show();
+                    $(targetTr.children[14].children[0].children[1]).hide();
+                    $(targetTr.children[14].children[0].children[2]).hide()
+                } else if (res.data == false) {
+                    app.$message({
+                        message: '保存失败!',
+                        type: 'warning'
+                    });
+                } else {
+                    app.$message({
+                        message: res.data + '!',
+                        type: 'warning'
+                    });
+                }
+            }).catch(err => {
+                app.$message({
+                    message: '保存时连接服务器失败！',
+                    type: 'warning'
+                });
+            })
+
+        }
+    }
+
+    //删除方法
+    function deleteEdit(index, row) {
+        //console.log(row)
+        //var comfirms = confirm(`确定删除 ${row.OrderNum} 相关信息吗？`)
+        //if (comfirms) {
+        //    axios.post("/Packaging/DeleteProduction", { Id: row.id, OrderNum: row.OrderNum, Worth, CreateDate, Remark}).then(res=> {
+        //        console.log(res.data)
+        //    }).catch(err=> {
+        //        app.$message({
+        //            message: '删除失败！',
+        //            type: 'warning'
+        //        });
+        //    })
+        //} else {
+        //    app.$message({
+        //        message: '用户点击取消！',
+        //        type: 'warning'
+        //    });
+        //}
+    }
+
+
+    //实时数据加载部分
+    $(function () {
+        app.loading = true;
+        var mypush2 = $.connection.Production_Value;
+        mypush2.client.sendProductionControlIndex = function (Production_Value) {
+            app.tableData = [];
+            app.ordernums = [];
+            for (let item in Production_Value) {
+                if (Production_Value[item].remark == null) {
+                    Production_Value[item].remark = ''
+                }
+                app.tableData.push(Production_Value[item]);
+
+            };
+            app.loading = false;
+            console.log(app.tableData)
+            app.tableData.forEach(item => {
+                let obj = { value: item.OrderNum }
+                app.ordernums.push(obj)
+            })
+        };
+        //启动
+        $.connection.hub.start();
+    });
+</script>

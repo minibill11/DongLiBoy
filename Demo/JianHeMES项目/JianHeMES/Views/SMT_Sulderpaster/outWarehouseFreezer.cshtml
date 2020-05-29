@@ -9,6 +9,14 @@
         background: #fcd2d2;
         /*#d2f0fc*/
     }
+
+    .el-upload__input {
+        display: none !important;
+    }
+
+    .baofeiupload {
+        margin: 10px 0;
+    }
 </style>
 <div id="app" v-cloak>
     <el-container>
@@ -85,6 +93,26 @@
                               size="medium"
                               clearable>
                     </el-input>
+                </div>
+                <div class="inputframe" v-show="baofei">
+                    <el-upload class="baofeiupload"
+                               ref="baofeiupload"
+                               name="uploadfile"
+                               action="/SMT_Sulderpaster/UploadImg"
+                               accept=".jpg,.jpeg,.png,.pdf"
+                               :limit="1"
+                               :auto-upload="false"
+                               :file-list="baofeifileList"
+                               :before-upload="beforeAvatarUpload"
+                               :on-success="handleAvatarSuccess"
+                               :on-remove="handleRemove"
+                               :on-exceed="handleExceed"
+                               :on-change="handleChange"
+                               :on-error="handleError">
+                        <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                        <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传到服务器</el-button>
+                        <div slot="tip" class="el-upload__tip">报废单上传，只能上传jpg/png文件，且不超过500kb</div>
+                    </el-upload>
                 </div>
                 <div class="inputframe">
                     <el-switch v-model="baofei"
@@ -169,7 +197,8 @@
             isexistJobNum: false,
             lingliaoName: "",
             smtTable: [],
-            baofei: false
+            baofei: false,
+            baofeifileList: []
         },
         created: function () {
             window.onresize = function () {
@@ -381,7 +410,46 @@
                 }).catch(err => {
                     console.warn(err);
                 });
-            }
+            },
+            //文件操作
+            handleRemove(file, fileList) {
+                console.log(file, fileList);
+            },
+            handleExceed(files, fileList) {
+                this.$message.warning(`只能选择 1 个文件！`);
+            },
+            handleAvatarSuccess(res, file) {
+                this.imageUrl = URL.createObjectURL(file.raw);
+            },
+            beforeAvatarUpload(file) {
+                const isJPG = file.type === 'image/jpeg';
+                const isLt2M = file.size / 1024 / 1024 < 2;
+
+                if (!isJPG) {
+                    this.$message.error('上传头像图片只能是 JPG 格式!');
+                }
+                if (!isLt2M) {
+                    this.$message.error('上传头像图片大小不能超过 2MB!');
+                }
+                return isJPG && isLt2M;
+            },
+            submitUpload() {
+                this.$refs.baofeiupload.submit();
+            },
+            //文件状态改变时的钩子
+            handleChange(file, fileList) {
+                //ready,success,fail
+                if (file.status == "ready") {
+                    console.log("添加文件:" + file.name);
+                } else {
+                    this.$refs.baofeiupload.clearFiles();
+                    this.popoverVisible = false;
+                };
+            },
+            //文件上传失败时的钩子
+            handleError(err, file, fileList) {
+                this.$message.error("上传失败！");
+            },
         },
         watch: {
             lingliaoNum: function (v) {

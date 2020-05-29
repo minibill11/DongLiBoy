@@ -1,0 +1,1561 @@
+﻿@model JianHeMES.Models.EquipmentStatusRecord
+
+@{
+    ViewBag.Title = "Details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+
+<style>
+    .infinitys {
+        display: inline-block;
+        width: 150px;
+        font-weight: 600;
+    }
+
+    table {
+        width: 1139px;
+    }
+
+    .popoverforimg img {
+        width: auto;
+        height: 100%;
+    }
+
+    .popoverforimg .el-dialog__body {
+        padding: 0;
+    }
+
+    .popoverforimg .el-dialog__header {
+        display: none;
+    }
+
+    .popoverforimg .el-dialog {
+        margin: 15px auto !important;
+        height: auto !important;
+    }
+
+    .fuck {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 4px;
+    }
+
+        .fuck span {
+            display: inline-block;
+            width: 40%;
+            text-align: right;
+            vertical-align: middle;
+            padding: 4px;
+        }
+
+    .el-dialog__body {
+        padding: 5px;
+    }
+
+        .el-dialog__body > div {
+            display: inline-block;
+            width: 46%;
+        }
+
+    .el-input {
+        display: inline-block;
+        width: 60%;
+        padding: 0;
+    }
+
+    .tabletop, thead, th, td, .tablebottom {
+        text-align: center;
+    }
+
+        .tabletop tr, .tablebottom tr {
+            height: 34px;
+        }
+
+            .tabletop tr td:nth-child(1) {
+                width: 100px;
+            }
+
+            .tabletop tr td:nth-child(2) {
+                width: 150px;
+            }
+
+            .tabletop tr td:nth-child(3) {
+                width: 100px;
+            }
+
+            .tabletop tr td:nth-child(4) {
+                width: 150px;
+            }
+
+            .tabletop tr td:nth-child(5) {
+                width: 170px;
+            }
+
+            .tabletop tr td:nth-child(6) {
+                width: 280px;
+            }
+
+            .tablebottom tr td:nth-child(1) {
+                width: 42px;
+            }
+
+            .tablebottom tr td:nth-child(2) {
+                width: 123px;
+            }
+
+            .tablebottom tr td:nth-child(3) {
+                width: 123px;
+            }
+
+            .tablebottom tr td:nth-child(4) {
+                width: 165px;
+            }
+
+            .tablebottom tr td:nth-child(5) {
+                width: 167px;
+            }
+
+            .tablebottom tr td:nth-child(6) {
+                width: 165px;
+            }
+
+            .tablebottom tr td:nth-child(7) {
+                width: 165px;
+            }
+
+            .tablebottom tr td:nth-child(8) {
+                width: 70px;
+            }
+
+            .tablebottom tr td:nth-child(9) {
+                width: 150px;
+            }
+
+    .changecolor {
+        background-color: #66b1ff;
+        border-color: #66b1ff;
+        color: white;
+    }
+
+    .changebgc {
+        background-color: #66b1ff
+    }
+
+    .targetTd .el-input {
+        width: 100% !important;
+        text-align: center !important;
+        height: 100%;
+    }
+</style>
+<h4 style="text-align:center;">设备维修履历汇总</h4>
+<div id="app">
+    @* 跳转页面按钮 *@
+    <el-button class="shebeitaizhang" v-on:click="goKeyComponent" type="primary" size="mini" plain>关键原器件清单</el-button>
+    <el-button class="shebeitaizhang" v-on:click="goKeySafetyStorck" type="primary" size="mini" plain>安全库存清单</el-button>
+    <form id="myform" style="display:none;" action="/Equipment/UploadEquipmentPicture" method="post">
+        <input class="upload" v-model="file" name="uploadfile" type="file" />
+        <input class="upload1" v-model="AssetNumber" name="assetNumber" type="text" />
+        <input type="reset" class="reset" />
+    </form>
+    <table class="tabletop" border="1">
+        <thead>
+            <tr>
+                <th colspan="6">
+                    ' {{tabletop.UserDepartment}} ' 设备保养、维修履历资料汇总表
+                    <select id="selectChange" style="margin-left:150px;height:100%;width:120px;">
+                        <option>{{tabletop.Status}}</option>
+                        <option>运行</option>
+                        <option>调机</option>
+                        <option>保养</option>
+                        <option>停机</option>
+                        <option>维修</option>
+                    </select>
+                    <button v-on:click="chiose">选择</button>&nbsp;&nbsp;&nbsp;&nbsp;<button v-on:click="postImgs">上传图片</button>{{fname}}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>资产编号</td>
+                <td v-on:click="changBasicInfos(tabletop.AssetNumber,'资产编号')">{{tabletop.AssetNumber}}</td>
+                <td>设备名称</td>
+                <td v-on:click="changBasicInfos(tabletop.EquipmentName,'设备名称')">{{tabletop.EquipmentName}}</td>
+                <td>使用部门</td>
+                <td colspan="4" rowspan="4">
+                    <el-carousel height="150px" trigger="click" v-bind:interval="4000">
+                        <el-carousel-item v-for="(item,index) in imgArr" key="item">
+                            <img style="width:100%;height:100%;" v-on:click="showBigImg(index)" v-bind:src="item.FullPath" />
+                        </el-carousel-item>
+                    </el-carousel>
+                </td>
+            </tr>
+            <tr>
+                <td>设备编码</td>
+                <td>{{tabletop.EquipmentNumber}}</td>
+                <td>型号规格</td>
+                <td v-on:click="changBasicInfos(tabletop.ModelSpecification,'型号规格')">{{tabletop.ModelSpecification}}</td>
+                <td class="targetTd" v-on:click="changBasicInfos(tabletop.UserDepartment,'使用部门')">
+                    {{tabletop.UserDepartment}}
+                    @*<el-select v-model="depars" filterable allow-create v-on:change="selectChanged" size="mini" placeholder="请选择">
+                            <el-option v-for="item in deparments"
+                                       v-bind:key="item.value"
+                                       v-bind:label="item.label"
+                                       v-bind:value="item.value">
+                            </el-option>
+                        </el-select>*@
+                </td>
+
+
+            </tr>
+            <tr>
+                <td>出厂编号</td>
+                <td v-on:click="changBasicInfos(tabletop.ManufacturingNumber,'出厂编号')">{{tabletop.ManufacturingNumber}}</td>
+                <td>生产厂家</td>
+                <td v-on:click="changBasicInfos(tabletop.Brand,'生产厂家')">{{tabletop.Brand}}</td>
+                <td>
+                    供应商
+                </td>
+            </tr>
+            <tr>
+                <td>购入日期</td>
+                <td v-on:click="changBasicInfos(tabletop.PurchaseDate,'购入日期')">{{tabletop.PurchaseDate}}</td>
+                <td>启用日期</td>
+                <td v-on:click="changBasicInfos(tabletop.ActionDate,'启用日期')">{{tabletop.ActionDate}}</td>
+                <td v-on:click="changBasicInfos(tabletop.ActionDate,'供应商')">
+                    {{tabletop.Supplier}}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6">
+                    <strong>
+                        <button v-on:click="addRecord">增加维修记录</button>
+                        <button v-on:click="batchAddVisibles=true">批量增加记录</button>
+                        <span style="margin: auto 245px;font-size:15px;">设备维修记录 </span>
+
+                        <span>请选择需要修改的序号：</span>
+                        <select v-model="selectVal">
+                            <option v-for="(item,index) in statusrecord">{{index+1}}</option>
+                        </select>
+                        <button v-on:click="shangeInfos" v-bind:class="flags3==true?'changecolor':''">修改维修记录</button>
+                    </strong>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6">
+                    <select v-model="infinitysYear">
+                        <option>2017</option>
+                        <option>2018</option>
+                        <option>2019</option>
+                        <option>2020</option>
+                        <option>2021</option>
+                        <option>2022</option>
+                    </select>
+                    <select v-model="infinitysMonth">
+                        <option>1</option>
+                        <option>2</option>
+                        <option>3</option>
+                        <option>4</option>
+                        <option>5</option>
+                        <option>6</option>
+                        <option>7</option>
+                        <option>8</option>
+                        <option>9</option>
+                        <option>10</option>
+                        <option>11</option>
+                        <option>12</option>
+                    </select>
+                    <template v-for="(item,index) in infinityData">
+                        <span class="infinitys">{{item.name}}: <span style="color:red;">{{item.value}}</span> </span>
+                    </template>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="tablebottom" border="1">
+        <thead>
+            <tr>
+                <th>
+                    序号
+                </th>
+                <th>
+                    故障现象描述
+                </th>
+                <th>
+                    原因分析
+                </th>
+                <th>
+                    维修或检测内容
+                </th>
+                <th>
+                    接单时间
+                </th>
+                <th>
+                    计划完成时间
+                </th>
+                <th>
+                    实际完成时间
+                </th>
+                <th>
+                    维修人
+                </th>
+                <th>
+                    备注
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="(item,index) in statusrecord" v-bind:class="item.addcolor==200?'':'changebgc'" v-on:click.stop="getSelectVal(index)">
+                <td>{{index + 1}}</td>
+                <td>{{item.FailureDescription=='null'?'':item.FailureDescription}}</td>
+                <td>{{item.Reason=='null'?'':item.Reason}}</td>
+                <td>{{item.RepairOrTestContent=='null'?'':item.RepairOrTestContent}}</td>
+                <td>{{item.GetJobTime=='null'?'':item.GetJobTime}}</td>
+                <td>{{item.PlanFinishTime=='null'?'':item.PlanFinishTime}}</td>
+                <td>{{item.ActualFinishTime=='null'?'':item.ActualFinishTime}}</td>
+                <td>{{item.RepairMan=='null'?'':item.RepairMan}}</td>
+                <td>{{item.Remark=='null'?'':item.Remark}}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    @* 新增维修记录弹框 *@
+    <el-dialog title="提示"
+               v-bind:visible.sync="dialogVisible"
+               width="60%"
+               style="text-align:center;"
+               v-bind:before-close="handleClose">
+        <span>新增设备维修记录</span>
+        <hr />
+
+        <div>
+            <div class="fuck">
+                <span> 设备编号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form1.input1"
+                          clearable>
+                </el-input>
+            </div>
+        </div>
+        <div>
+            <div class="fuck">
+                <span>资产编号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form1.input2"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>设备名称：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form1.input3"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>订单号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input4"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>设备状态：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input5"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>状态开始时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input6"
+                          clearable>
+                </el-input>
+
+            </div>
+
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>状态结束时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input7"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>报修人：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input8"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>故障现象描述：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input9"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>原因分析：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input10"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>维修或检测内容：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input11"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>维修接单时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input12"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>计划完成时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input13"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>实际完成时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input14"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>维修人：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input15"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>配件信息：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input16"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>使用部门：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input17"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>车间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input18"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>产线号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input19"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>工段：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input20"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>记录修改人：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form1.input21"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>备注：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form1.input22"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" v-on:click="addRepiaInfo">保存</el-button>
+        </span>
+    </el-dialog>
+
+    @* 修改维修记录弹框 *@
+    <el-dialog title="提示"
+               v-bind:visible.sync="dialogVisibles"
+               width="65%"
+               v-bind:before-close="handleClose">
+        <span>修改设备维修记录</span>
+        <hr />
+
+        <div>
+            <div class="fuck">
+                <span>设备编号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form2.input1"
+                          clearable>
+                </el-input>
+            </div>
+        </div>
+        <div>
+            <div class="fuck">
+                <span>资产编号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form2.input2"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>设备名称：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form2.input3"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>订单号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input4"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>设备状态：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input5"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>状态开始时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input6"
+                          clearable>
+                </el-input>
+            </div>
+
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>状态结束时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input7"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>报修人：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input8"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>故障现象描述：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input9"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>原因分析：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input10"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>维修或检测内容：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input11"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>维修接单时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input12"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>计划完成时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input13"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>实际完成时间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input14"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>维修人：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input15"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>配件信息：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input16"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>使用部门：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input17"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>车间：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input18"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>产线号：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input19"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>工段：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input20"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>记录修改人：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-bind:disabled="true"
+                          v-model="form2.input21"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <div>
+            <div class="fuck">
+                <span>备注：</span>
+                <el-input placeholder="请输入内容"
+                          size="mini"
+                          v-model="form2.input22"
+                          clearable>
+                </el-input>
+            </div>
+
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="dialogVisibles = false">取 消</el-button>
+            <el-button type="primary" v-on:click="addChangedInfos">保存</el-button>
+        </span>
+    </el-dialog>
+
+    @* 批量增加维修记录 *@
+    <el-dialog title="批量增加维修记录"
+               v-bind:visible.sync="batchAddVisibles"
+               width="80%">
+        <div style="color:green;width:100%;margin:0 0 5px 10px;">
+            <span>Excel内容粘贴在此处</span>
+            <textarea v-model="pasteExcel" class="form-control" style="width:130px;height:35px;resize: none;"></textarea>
+        </div>
+
+        <el-table v-bind:data="batchAddList" max-height="600" border stripe style="width:100%">
+            <el-table-column prop="EquipmentNumber" label="设备编号"></el-table-column>
+            <el-table-column prop="AssetNumber" label="资产编号"></el-table-column>
+            <el-table-column prop="EquipmentName" label="设备名称"></el-table-column>
+            <el-table-column prop="Status" label="设备状态"></el-table-column>
+            <el-table-column prop="StatusStarTime" label="状态开始时间"></el-table-column>
+            <el-table-column prop="StatusEndTime" label="状态结束时间"></el-table-column>
+            <el-table-column prop="ReportRepairMan" label="报修人"></el-table-column>
+            <el-table-column prop="FailureDescription" label="故障现象描述"></el-table-column>
+            <el-table-column prop="Reason" label="原因分析"></el-table-column>
+            <el-table-column prop="RepairOrTestContent" label="维修或检测内容"></el-table-column>
+            <el-table-column prop="GetJobTime" label="维修接单时间"></el-table-column>
+            <el-table-column prop="PlanFinishTime" label="计划完成时间"></el-table-column>
+            <el-table-column prop="ActualFinishTime" label="实际完成时间"></el-table-column>
+            <el-table-column prop="RepairMan" label="维修人"></el-table-column>
+            <el-table-column prop="SparePartsInfo" label="配件信息"></el-table-column>
+            <el-table-column prop="UserDepartment" label="使用部门"></el-table-column>
+            <el-table-column prop="WorkShop" label="车间"></el-table-column>
+            <el-table-column prop="LineNum" label="产线号"></el-table-column>
+            <el-table-column prop="Section" label="工段"></el-table-column>
+            <el-table-column prop="Remark" label="备注"></el-table-column>
+            <el-table-column label="操作" width="50">
+                <template slot-scope="scope">
+                    <el-button v-on:click.native.prevent="deleteRow(scope.$index,scope.row)"
+                               type="text"
+                               size="mini">
+                        删除
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="batchAddVisibles = false">取 消</el-button>
+            <el-button type="primary" v-on:click="batchAddRecord">保存</el-button>
+        </span>
+    </el-dialog>
+
+
+    <el-dialog class="popoverforimg"
+               v-bind:visible.sync="dialogVisible3"
+               width="68%">
+        <img v-bind:src="showImg" />
+    </el-dialog>
+
+    @* 修改设备详细信息弹框 *@
+    <el-dialog v-bind:title="changeBasicInfos.title"
+               v-bind:visible.sync="changeBasic"
+               width="25%"
+               v-bind:before-close="handleClose">
+        <span>编辑修改:</span>
+        <div v-if="flagfordate">
+            <el-date-picker v-model="changeBasicInfos.value"
+                            type="date"
+                            size="small"
+                            placeholder="选择日期">
+            </el-date-picker>
+        </div>
+        <div v-else><el-input size="small" v-model="changeBasicInfos.value"></el-input></div>
+
+        <span slot="footer" class="dialog-footer">
+            <el-button size="small" v-on:click="changeBasic = false">取 消</el-button>
+            <el-button size="small" type="primary" v-on:click="savechangeBasic">保存修改</el-button>
+        </span>
+    </el-dialog>
+</div>
+
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role;
+    var UserId = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+    var ischeck = ViewBag.editinfo;
+}
+
+<script>
+    Vue.filter('nonull', function (val) {
+        if (val == 'null') {
+            return ''
+        } else {
+            return val
+        }
+    })
+    //时间格式化
+    function GMTToStr(time) {
+        if (time != null) {
+            let date = new Date(time)
+            //console.log(date);
+            let Str = date.getFullYear() + '-' +
+                (date.getMonth() + 1).toString().padStart(2,'0') + '-' +
+                date.getDate().toString().padStart(2, '0') + ' ' +
+                date.getHours().toString().padStart(2, '0') + ':' +
+                date.getMinutes().toString().padStart(2, '0')
+            return Str
+        } else {
+            return ''
+        }
+    }
+
+    //返回历史记录
+    function goback() {
+        window, history.back();
+    }
+
+    // 增加维修记录
+    function addIndos() {
+
+    }
+
+
+
+    let vm = new Vue({
+        el: "#app",
+        data: {
+            deparments: [],   //使用部门列表
+            depars:null,      // 选择的使用部门
+            flags3:false,     //修改按钮变色
+            selectVal:null,    // 设备状态选择框的值
+            username: '@UserName',   // 登录用户名
+            dialogVisible3:false,    // 控制弹框显示或消失
+            AssetNumber: null,       // 设备资产编号
+            tabletop: '',      // 设备详细信息--上面的表格
+            imgs: null,     // 所选图片路径
+            file: null,     // 所选上传图片
+            fname:'',       // 所选文件名
+            imgArr: [],     // 获取的图片路径集合
+            statusrecord: [],  // 维修记录数据集
+            status: null,   // 设备运行状态
+            dialogVisible: false,  // 新增维修记录弹框显示或消失
+            pasteExcel: "",
+            batchAddList:[],
+            batchAddVisibles: false,//批量新增维修记录
+            dialogVisibles: false,  // 修改维修记录弹框显示或消失
+            showImg: null,  // 所选放大预览的图片路径
+            // 新增设备维修记录表单
+            form1: {
+                input1: null,
+                input2: null,
+                input3: null,
+                input4: null,
+                input5: null,
+                input6: null,
+                input7: null,
+                input8: null,
+                input9: null,
+                input10: null,
+                input11: null,
+                input12: null,
+                input13: null,
+                input14: null,
+                input15: null,
+                input16: null,
+                input17: null,
+                input18: null,
+                input19: null,
+                input20: null,
+                input21: null,
+                input22: null,
+            },
+            // 修改设备维修记录表单
+            form2: {
+                input1: null,
+                input2: null,
+                input3: null,
+                input4: null,
+                input5: null,
+                input6: null,
+                input7: null,
+                input8: null,
+                input9: null,
+                input10: null,
+                input11: null,
+                input12: null,
+                input13: null,
+                input14: null,
+                input15: null,
+                input16: null,
+                input17: null,
+                input18: null,
+                input19: null,
+                input20: null,
+                input21: null,
+                input22: null,
+            },
+            changeBasic: false,
+            // 所修改的设备详细信息指标及值
+            changeBasicInfos: {
+                title: null,
+                value:null
+            },
+
+            flagfordate: false,
+            testdata: {},
+            infinitysYear: null,
+            infinitysMonth: 12,
+            infinityData:[]
+        },
+        mounted() {
+            // 获取导航栏路径字符串
+            let hrefStr = window.location.href;
+            let indexofequl = hrefStr.indexOf("=") + 1;
+            this.AssetNumber = hrefStr.slice(indexofequl) // 获取index传过来的资产编号
+            // 获取设备资产编号
+            this.getDefaultInfos(this.AssetNumber)
+            this.gstSelectVal()
+            let dd = new Date();
+            this.infinitysYear = dd.getFullYear();
+            this.infinitysMonth = dd.getMonth() + 1;
+        },
+        methods: {
+            // 跳转到原器件页面并传参--设备编号
+            goKeyComponent(){
+                window.open(encodeURI(`/Equipment/Equipment_Keycomponents/?equipmenNum=${this.tabletop.EquipmentNumber}`))
+            },
+            // 跳转到安全库存页面并传参--设备编号
+            goKeySafetyStorck(){
+                window.open(encodeURI(`/Equipment/Equipment_safety/?equipmenName=${this.tabletop.EquipmentName}`))
+            },
+            // 关闭弹框，共用函数
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                  .then(_ => {
+                      done();
+                  })
+                  .catch(_ => {});
+            },
+            // 修改设备运行状态
+            selectChanged(val){
+                axios.post("/Equipment/ModifyEquipmentUseDepartment/", { id: this.tabletop.Id, newdepartment: val }).then(res=> {
+                    if (res.data == "True") {
+                        this.$message({
+                            message:"修改成功!",
+                            type:"success"
+                        })
+                    } else {
+                        this.$message({
+                            message: "修改失败!",
+                            type: "warning"
+                        })
+                    }
+                    //console.log(res.data)
+                }).catch(err=> {
+
+                })
+            },
+            // 获取初始的设备运行状态
+            gstSelectVal() {
+                var obj = new Date();
+                axios.post("/Common/comany", { exce: obj }).then(res=> {
+                    res.data.forEach(item=> {
+                        let obj = { label: item, value: item };
+                        this.deparments.push(obj);
+                    });
+                }).catch(err=> {
+                    //console.log(err.data)
+                })
+            },
+            // 获取初始表格数据
+            getDefaultInfos(nums) {
+                axios.post("/Equipment/Details", { equipmentNumber: this.AssetNumber }).then(res=> {
+                    // 获取基本信息
+                    let basicInfos = JSON.parse(res.data.basicinfo);
+                    basicInfos.ActionDate = GMTToStr(basicInfos.ActionDate);
+                    basicInfos.PurchaseDate = GMTToStr(basicInfos.PurchaseDate);
+                    //console.log(basicInfos)
+                    this.tabletop = basicInfos;
+                    this.depars = this.tabletop.UserDepartment;
+                    // 获取图片
+                    if (res.data.picture != '未上传图片。') {
+                        let img = JSON.parse(res.data.picture);
+
+                        img.forEach(item=> {
+                            item.FullPath=item.FullPath.replace(/D:/, '')
+                        })
+                        //console.log(img)
+                        this.imgArr = img
+
+                    } else {
+
+                    }
+
+                    //获取维修记录
+
+                    let statusrecord = JSON.parse(res.data.statusrecord);
+                    //console.log(JSON.parse(res.data.statusrecord))
+                    statusrecord.forEach(item=> {
+                        item.GetJobTime = GMTToStr(item.GetJobTime)
+                        item.PlanFinishTime = GMTToStr(item.PlanFinishTime)
+                        item.ActualFinishTime = GMTToStr(item.ActualFinishTime)
+                        item.addcolor = 200
+                    })
+                    this.statusrecord = statusrecord;
+                }).catch(err=> {
+
+                })
+            },
+            // 上传图片
+            postImgs() {
+                let tt = $('.upload')[0].files[0];
+                if (tt != null) {
+                    //console.log($('.upload'))
+                    let f = new FormData();
+                    let tt = $('.upload')[0].files[0];
+                    f.append("equipmentNumber", this.AssetNumber);
+                    f.append("uploadfile", tt);
+                    axios.post("/Equipment/UploadEquipmentPicture", f).then(res=> {  //
+                        //console.log(res.data)
+                        if (res.data == '上传成功！') {
+                            this.$message({
+                                message: res.data,
+                                type: 'success'
+                            });
+                            $('.reset').click();
+
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'success'
+                            })
+                        };
+                    }).catch(err=> {
+                        this.$message({
+                            message: "连接服务器失败!",
+                            type: 'warning'
+                        })
+                    })
+
+                } else {
+                    this.$message({
+                        message: "请选择需要上传的图片！",
+                        type: 'warning'
+                    })
+                }
+            },
+            chiose() {
+                $(".upload").click();  // 用户选择图片
+            },
+            // 添加设备维修记录信息
+            addRepiaInfo() {
+                if (true) {
+                    let form = new FormData();
+                    form.append('EquipmentNumber', this.form1.input1);  // 设备编号
+                    form.append('AssetNumber', this.form1.input2);  // 资产编号
+                    form.append('EquipmentName', this.form1.input3);  // 设备名称
+                    form.append('OrderNum', this.form1.input4);  // 订单号
+                    form.append('Status', this.form1.input5);  // 设备状态
+                    form.append('StatusStarTime', this.form1.input6);  // 状态开始时间
+                    form.append('StatusEndTime', this.form1.input7);  // 状态结束时间
+                    form.append('ReportRepairMan', this.form1.input8);  // 报修人
+                    form.append('FailureDescription', this.form1.input9);  // 故障现象描述
+                    form.append('Reason', this.form1.input10);  // 原因分析
+                    form.append('RepairOrTestContent', this.form1.input11);  // 维修或检测内容
+                    form.append('GetJobTime', this.form1.input12);  // 维修接单时间
+                    form.append('PlanFinishTime', this.form1.input13);  // 计划完成时间
+                    form.append('ActualFinishTime', this.form1.input14);  // 实际完成时间
+                    form.append('RepairMan', this.form1.input15);  // 维修人
+                    form.append('SparePartsInfo', this.form1.input16);  // 配件信息
+                    form.append('UserDepartment', this.form1.input17);  // 使用部门
+                    form.append('WorkShop', this.form1.input18);  // 车间
+                    form.append('LineNum', this.form1.input19);  // 产线号
+                    form.append('Section', this.form1.input20);  // 工段
+                    form.append('Modifier', this.form1.input21);  // 记录修改人
+                    form.append('Remark', this.form1.input22);  // 备注
+                    axios.post("/Equipment/AddEquipmentStatusRecordAsync", form).then(res=> {
+                        if (res.data == 'False') {
+                            this.$message({
+                                message: "上传失败！",
+                                type:'warning'
+                            })
+
+                        } else {
+                            this.$message({
+                                message: "上传成功！",
+                                type: 'success'
+                            });
+                            this.dialogVisible = false   // 关闭弹框
+                            this.getDefaultInfos()  // 重新获取数据
+                            this.form1.input1 = null;
+                            this.form1.input2 = null;
+                            this.form1.input3 = null;
+                            this.form1.input4 = null;
+                            this.form1.input5 = null;
+                            this.form1.input6 = null;
+                            this.form1.input7 = null;
+                            this.form1.input8 = null;
+                            this.form1.input9 = null;
+                            this.form1.input10 = null;
+                            this.form1.input11 = null;
+                            this.form1.input12 = null;
+                            this.form1.input13 = null;
+                            this.form1.input14 = null;
+                            this.form1.input15 = null;
+                            this.form1.input16 = null;
+                            this.form1.input17 = null;
+                            this.form1.input18 = null;
+                            this.form1.input19 = null;
+                            this.form1.input20 = null;
+                            this.form1.input21 = null;
+                            this.form1.input22 = null;
+                        }
+
+                    }).catch(err=> {
+
+                    })
+                }
+
+            },
+            //预览设备图片偏
+            showBigImg(index) {
+                this.showImg = this.imgArr[index].FullPath;
+                this.dialogVisible3 = true;
+            },
+
+            //添加设备弹框按钮操作
+            addRecord() {
+                this.dialogVisible = true;
+                this.form1.input2 = this.tabletop.AssetNumber
+                this.form1.input1 = this.tabletop.EquipmentNumber
+                this.form1.input3 = this.tabletop.EquipmentName
+                this.form1.input21 = this.username
+            },
+            batchAddRecord() {
+                let records = this.batchAddList;
+                if (records.length > 0) {
+                    axios.post("/Equipment/BatchAdd_Rrecord", records).then(res => {
+                        if (res.data.mes) {
+                            this.$message.success(res.data.repeat);
+                            this.batchAddList = [];
+                            this.batchAddVisibles = false;
+                        } else {
+                            this.$message.error(res.data.repeat);
+                        };
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                } else {
+                    this.$message.warning('无数据增加');
+                };
+            },
+            //删除行
+            deleteRow: function (index, row) {
+                this.batchAddList.splice(index, 1);
+            },
+              // 现在修改设备记录的行--依次赋值
+            shangeInfos() {
+                if (this.selectVal == null) {
+                    this.$message({
+                        message: "请选择需要修改的记录!",
+                        type:"warning"
+                    })
+                } else {
+                    this.dialogVisibles = true
+                    this.form2.input2 = this.tabletop.AssetNumber
+                    this.form2.input1 = this.tabletop.EquipmentNumber
+                    this.form2.input3 = this.tabletop.EquipmentName
+                    this.form2.input21 = this.username
+
+                    let chiosedInfo = this.statusrecord[this.selectVal - 1];
+                    this.testdata = chiosedInfo
+                    this.form2.input4 = chiosedInfo.OrderNum == 'null' ? '' : chiosedInfo.OrderNum
+                    this.form2.input5 = chiosedInfo.Status == 'null' ? '' : chiosedInfo.Status
+                    this.form2.input6 = chiosedInfo.StatusStarTime == 'null' ? '' : chiosedInfo.StatusStarTime
+                    this.form2.input7 = chiosedInfo.StatusEndTime == 'null' ? '' : chiosedInfo.StatusEndTime
+                    this.form2.input8 = chiosedInfo.ReportRepairMan == 'null' ? '' : chiosedInfo.ReportRepairMan
+                    this.form2.input9 = chiosedInfo.FailureDescription == 'null' ? '' : chiosedInfo.FailureDescription
+                    this.form2.input10 = chiosedInfo.Reason == 'null' ? '' : chiosedInfo.Reason
+                    this.form2.input11 = chiosedInfo.RepairOrTestContent == 'null' ? '' : chiosedInfo.RepairOrTestContent
+                    this.form2.input12 = chiosedInfo.GetJobTime == 'null' ? '' : chiosedInfo.GetJobTime
+                    this.form2.input13 = chiosedInfo.PlanFinishTime == 'null' ? '' : chiosedInfo.PlanFinishTime
+                    this.form2.input14 = chiosedInfo.ActualFinishTime == 'null' ? '' : chiosedInfo.ActualFinishTime
+                    this.form2.input15 = chiosedInfo.RepairMan == 'null' ? '' : chiosedInfo.RepairMan
+                    this.form2.input16 = chiosedInfo.SparePartsInfo == 'null' ? '' : chiosedInfo.SparePartsInfo
+                    this.form2.input17 = chiosedInfo.UserDepartmentform1 == 'null' ? '' : chiosedInfo.UserDepartmentform1
+                    this.form2.input18 = chiosedInfo.WorkShop == 'null' ? '' : chiosedInfo.WorkShop
+                    this.form2.input19 = chiosedInfo.LineNum == 'null' ? '' : chiosedInfo.LineNum
+                    this.form2.input20 = chiosedInfo.Section == 'null' ? '' : chiosedInfo.Section
+                    this.form2.input22 = chiosedInfo.Remark == 'null' ? '' : chiosedInfo.Remark
+                    this.form2.id = chiosedInfo.Id
+                   // console.log(chiosedInfo)
+
+                }
+
+            },
+            // 确认新增案例
+            addChangedInfos() {
+                let form = new FormData();
+                form.append('EquipmentNumber', this.form2.input1);  // 设备编号
+                form.append('AssetNumber', this.form2.input2);  // 资产编号
+                form.append('EquipmentName', this.form2.input3);  // 设备名称
+                form.append('OrderNum', this.form2.input4);  // 订单号
+                form.append('Status', this.form2.input5);  // 设备状态
+                form.append('StatusStarTime', this.form2.input6);  // 状态开始时间
+                form.append('StatusEndTime', this.form2.input7);  // 状态结束时间
+                form.append('ReportRepairMan', this.form2.input8);  // 报修人
+                form.append('FailureDescription', this.form2.input9);  // 故障现象描述
+                form.append('Reason', this.form2.input10);  // 原因分析
+                form.append('RepairOrTestContent', this.form2.input11);  // 维修或检测内容
+                form.append('GetJobTime', this.form2.input12);  // 维修接单时间
+                form.append('PlanFinishTime', this.form2.input13);  // 计划完成时间
+                form.append('ActualFinishTime', this.form2.input14);  // 实际完成时间
+                form.append('RepairMan', this.form2.input15);  // 维修人
+                form.append('SparePartsInfo', this.form2.input16);  // 配件信息
+                form.append('UserDepartment', this.form2.input17);  // 使用部门
+                form.append('WorkShop', this.form2.input18);  // 车间
+                form.append('LineNum', this.form2.input19);  // 产线号
+                form.append('Section', this.form2.input20);  // 工段
+                form.append('Modifier', this.form2.input21);  // 记录修改人
+                form.append('Remark', this.form2.input22);  // 备注
+                axios.post("/Equipment/EditEquipmentStatusRecordAsync", {
+                    id: this.form2.id, "Remark": this.form2.input22,
+                    'EquipmentNumber': this.form2.input1,
+                    'AssetNumber': this.form2.input2,'Status': this.form2.input5,'StatusStarTime': this.form2.input6, 'StatusEndTime': this.form2.input7,
+                    'EquipmentName': this.form2.input3,'ReportRepairMan': this.form2.input8,'FailureDescription': this.form2.input9,'Reason': this.form2.input10,
+                    'OrderNum': this.form2.input4, 'RepairOrTestContent': this.form2.input11, 'GetJobTime': this.form2.input12, 'PlanFinishTime': this.form2.input13,
+                    'ActualFinishTime': this.form2.input14, 'RepairMan': this.form2.input15, 'SparePartsInfo': this.form2.input16, 'UserDepartment': this.form2.input17,
+                    'WorkShop': this.form2.input18,'LineNum': this.form2.input19,'Section': this.form2.input20,'Modifier': this.form2.input21
+                }).then(res=> {
+                    console.log(res.data)
+                    if (res.data == true) {
+                        this.$message({
+                            message: "修改成功!",
+                            type: "success"
+                        });
+                        this.dialogVisibles = false
+                        window.location.reload();
+                    } else {
+                        this.$message({
+                            message: "修改失败!",
+                            type: "warning"
+                        })
+                    }
+                }).catch(err=> {
+                    this.$message({
+                        message: "连接服务器失败!",
+                        type: "warning"
+                    })
+                })
+            },
+            // 根据用户所选行数进行变色高亮
+            getSelectVal(indexs) {
+                this.statusrecord.forEach((item, index) => {
+                    if (indexs == index) {
+                        item.addcolor = 202
+                    } else {
+                        item.addcolor = 200
+                    }
+                });
+                this.selectVal = indexs + 1
+            },
+
+            // 修改单个设备基本信息的方法
+            changBasicInfos(item, kw) {
+
+                this.changeBasic = true;
+                this.changeBasicInfos.title = kw;
+                this.changeBasicInfos.value = item;
+                if (this.changeBasicInfos.title == '购入日期') {
+                    this.flagfordate = true;
+                } else if (this.changeBasicInfos.title == '启用日期') {
+                    this.flagfordate = true;
+                } else {
+                    this.flagfordate = false;
+                }
+            },
+            // 保存修改的基本信息
+            savechangeBasic() {
+                if (this.changeBasicInfos.title == '资产编号') {
+                    this.commonChange('assetNumber', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '设备名称') {
+                    this.commonChange('equipmentName', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '使用部门') {
+                    this.commonChange('userdepartment', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '型号规格') {
+                    this.commonChange('modelspeci', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '出厂编号') {
+                    this.commonChange('manufacturingNumber', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '生产厂家') {
+                    this.commonChange('brand', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '供应商') {
+
+                    this.commonChange('supplier', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '购入日期') {
+                    this.commonChange('purchaseDate', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                } else if (this.changeBasicInfos.title == '启用日期') {
+                    this.commonChange('actionDate', this.changeBasicInfos.value, this.tabletop.EquipmentNumber);
+                }
+            },
+            // 通用--修改设备基本信息方法
+            commonChange(kw, val,enumber) {
+                let obj = {};
+                obj[kw] = val
+                obj.equipmentNumber = enumber
+                axios.post("/Equipment/Edit_Equipmentbasic", obj).then(res=> {
+                    //console.log(res.data);
+                    if (res.data.messlist == "修改成功！") {
+                        this.$message({
+                            message: `修改${this.changeBasicInfos.title}成功！`,
+                            type: "success"
+                        });
+                        window.location.reload();
+                        this.changeBasic = false;
+                    } else {
+                        this.$message({
+                            message: res.data,
+                            type: "warning"
+                        });
+                    }
+                })
+            }
+
+        },
+        watch: {
+            pasteExcel(val) {
+                if (val == "") {
+                    return false;
+                };
+                let pasteQuantity = val.split("\n");
+                pasteQuantity.pop();
+                pasteQuantity.forEach(function (value, index) {
+                    pasteQuantity[index] = value.split("\t");
+                });
+                //console.log(pasteQuantity);
+                let moban = ["EquipmentNumber","AssetNumber","EquipmentName","Status","StatusStarTime",
+                     "StatusEndTime","ReportRepairMan","FailureDescription","Reason","RepairOrTestContent",
+                     "GetJobTime","PlanFinishTime","ActualFinishTime","RepairMan","SparePartsInfo",
+                    "UserDepartment", "WorkShop", "LineNum", "Section", "Remark"];
+                let rtd = [];
+                for (let row of pasteQuantity) {
+                    let thisrow = {};
+                    for (let i in moban) {
+                        thisrow[moban[i]] = row[i];
+                    };
+                    rtd.push(thisrow);
+                };
+                this.batchAddList = rtd;
+                this.pasteExcel = "";
+            },
+            // 监听选择修改的序号
+            selectVal() {
+                if (this.selectVal != null) {
+                    this.flags3 = true
+                }
+            },
+            // 监听选择的年--获取设备使用率详情
+            infinitysYear() {
+                return;
+                //axios.post("/Equipment/Equipment_Timeusage/", { equipmentNumber: [this.AssetNumber], userDepartment: this.tabletop.UserDepartment, year: this.infinitysYear, month: null }).then(res=> {
+                //    //console.log(res.data)
+                //    if (res.data[0].timeList.length > 0) {
+                //        this.infinityData = res.data[0].timeList;
+                //        //console.log(this.infinityData)
+                //    } else {
+                //        this.infinityData = [];
+                //    }
+
+                //}).catch(err=> {
+
+                //});
+            },
+            // 监听选择月--获取设备使用率详情
+            infinitysMonth() {
+                axios.post("/Equipment/Equipment_Timeusage/", { equipmentNumber: [this.AssetNumber], userDepartment: this.tabletop.UserDepartment, year: this.infinitysYear, month: this.infinitysMonth }).then(res=> {
+                    console.log(res.data)
+                    if (res.data[0].timeList.length > 0) {
+                        this.infinityData = res.data[0].timeList;
+                        //console.log(this.infinityData)
+                    } else {
+                        this.infinityData = [];
+                    }
+                }).catch(err=> {
+
+                });
+            }
+        }
+    });
+
+
+    // 修改设备状态
+    window.onload = function () {
+        $("#selectChange").change(function () {
+            axios.post("/Equipment/Equipment_state", { equipmentNumber: vm.tabletop.AssetNumber, linenum: vm.tabletop.LineNum, status: $("#selectChange").val(), userdepar: vm.tabletop.UserDepartment }).then(res=> {
+                //console.log(res.data)
+                if (res.data.result == true) {
+                    vm.$message({
+                        message: res.data.msg,
+                        type: "success"
+                    })
+                } else {
+                    vm.$message({
+                        message: res.data.mag,
+                        type: "warning"
+                    })
+                }
+            }).catch(err=> {
+
+            })
+        });
+
+        // 监听输入框的改变
+        $(".upload").bind('input porpertychange', function () {
+            vm.fname = ''
+            let tt = $('.upload')[0].files[0];
+            vm.fname = tt.name
+            //console.log("it changed")
+        });
+
+    }
+
+</script>

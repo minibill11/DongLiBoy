@@ -1,0 +1,105 @@
+﻿@{
+    ViewBag.Title = "物料看板";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<link href="~/Content/styleFile/solder/solderStyle.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                <a href="/Warehouse_Material/MaterialBasicInfo"><el-button size="small">仓库入库信息</el-button></a>
+                <a href="/Warehouse_Material/QueryData"><el-button size="small">物料看板</el-button></a>
+                <a href="/Warehouse_Material/MaterialInput"><el-button size="small">入库</el-button></a>
+                <a href="/Warehouse_Material/Index"><el-button size="small">物料查询</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        <a href="/Warehouse_Material/mcBoard"><el-dropdown-item>仓库入库信息</el-dropdown-item></a>
+                        <a href="/Warehouse_Material/QueryData"><el-dropdown-item>物料看板</el-dropdown-item></a>
+                        <a href="/Warehouse_Material/MaterialInput"><el-dropdown-item>入库</el-dropdown-item></a>
+                        <a href="/Warehouse_Material/Index"><el-dropdown-item>物料查询</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                <span class="inputtext">物料编号：</span>
+                <el-input placeholder="请输入物料编号"
+                          v-model.trim="materialNumber"
+                          v-on:keyup.native.enter="getdata"
+                          size="medium"
+                          clearable>
+                </el-input>
+                <el-button v-on:click="getdata" type="primary" size="medium">查找</el-button>
+            </el-row>
+            <el-row>
+                <el-table :data="dataList" max-height="500" border stripe>
+                    <el-table-column prop="MaterialNumber" label="物料编号"></el-table-column>
+                    <el-table-column prop="MaterialDiscription" label="物料规格描述"></el-table-column>
+                    <el-table-column prop="Batch" label="批次"></el-table-column>
+                    <el-table-column prop="MaterialNum" label="物料数量"></el-table-column>
+                    <el-table-column prop="EffectiveDay" label="有效期"></el-table-column>
+                    <el-table-column prop="AddEffectiveDay" label="追加有效期"></el-table-column>
+                    <el-table-column prop="ima02" label="物料品名"></el-table-column>
+                    <el-table-column prop="Img02" label="仓库编号"></el-table-column>
+                    <el-table-column prop="Img03" label="储位"></el-table-column>
+                    <el-table-column prop="Unit" label="物料单位"></el-table-column>
+                    <el-table-column prop="Img20" label="单位数量换算率"></el-table-column>
+                    <el-table-column prop="Img21" label="单位数量换算率-对料件库存单"></el-table-column>
+                    <el-table-column prop="Supplier" label="供应商"></el-table-column>
+                    <el-table-column prop="MaterialType" label="物料类型"></el-table-column>
+                    <el-table-column prop="LeaveFactoryTime" label="生产日期"></el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            screenSize: document.body.clientWidth,
+            materialNumber: "",
+            dataList: [],
+        },
+        created: function () {
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+        },
+        methods: {
+            getdata: function () {
+                if (this.materialNumber == "") {
+                    return;
+                };
+                this.loading = true;
+                axios.post("/Warehouse_Material/QueryData", {
+                    materialNumber: this.materialNumber,
+                }).then(res => {
+                    if (Object.keys(res.data).length > 0) {
+                        this.dataList = [];
+                        this.dataList.push(res.data);
+                        this.$message.success("查询成功");
+                    } else {
+                        this.$message.success("此物料号无数据");
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+        }
+    });
+</script>

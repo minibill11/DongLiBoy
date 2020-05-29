@@ -1,0 +1,401 @@
+﻿@{
+    ViewBag.Title = "模块内外箱规则录入";
+}
+
+@*  <summary>
+    1.模块内外箱规则录入
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+<style>
+    .el-table--medium td, .el-table .cell, .el-table--border td:first-child .cell {
+        padding: 0;
+    }
+
+    .el-table--medium th {
+        padding: 5px 0;
+    }
+
+    .blue {
+        color: #3e8cf0;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <h3 style="margin:5px">@ViewBag.Title</h3>
+            <a href="/Packagings/inputPackaging"><el-button size="small">模组包装箱基本信息</el-button></a>
+            <a href="/Packagings/RuleEnter"><el-button size="small">录入模组号规则</el-button></a>
+            <div class="adiv" href="/ModuleManageMent/Rule"><el-button size="small" type="primary" plain disabled style="cursor:default">模块内外箱规则录入</el-button></div>
+            <a href="/ModuleManageMent/Inside"><el-button size="small">内箱装箱</el-button></a>
+            <a href="/ModuleManageMent/Outside"><el-button size="small">外箱装箱</el-button></a>
+            @*<module-menu-component name="Rule" title="@ViewBag.Title" :limit="limitsRole"></module-menu-component>*@
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="ruleTable main">
+                <el-col :span="24" class="ruleQuery">
+                    <div>
+                        <span>班组：</span><br />
+                        <el-select v-model="Group"
+                                   placeholder="请选择班组"
+                                   size="mini">
+                            <el-option v-for="item in groupOptions"
+                                       :key="item"
+                                       :label="item"
+                                       :value="item">
+                            </el-option>
+                        </el-select>
+                    </div>
+                    <div>
+                        <span>订单号：</span><br />
+                        <el-autocomplete v-model="Ordernum"
+                                         @@select="selectOrdernum"
+                                         :fetch-suggestions="querySearch"
+                                         :debounce="0"
+                                         size="mini"
+                                         placeholder="输入内容可查询"
+                                         highlight-first-item
+                                         clearable></el-autocomplete>
+                    </div>
+                    <div>
+                        <span>选择装箱款式：</span><br />
+                        <el-select v-model="sideStatue"
+                                   @@change="selectSide"
+                                   placeholder="请选择"
+                                   clearable
+                                   size="mini">
+                            <el-option label="纸箱" value="纸箱"></el-option>
+                            <el-option label="纸盒" value="纸盒"></el-option>
+                            <el-option label="外箱" value="外箱"></el-option>
+                        </el-select>
+                    </div>
+                    <el-switch v-model="isBatch"
+                               active-text="分批"
+                               inactive-text="不分批"
+                               :disabled="canScreen"
+                               style="margin-left:18px">
+                    </el-switch>
+                    <el-switch v-model="isSeparate"
+                               active-text="分屏"
+                               inactive-text="不分屏"
+                               :disabled="canScreen"
+                               style="margin-left:18px">
+                    </el-switch>
+                </el-col>
+                <el-col :span="24">
+                    <el-row>
+                        <el-table :data="dataVal"
+                                  max-height="600"
+                                  size="medium"
+                                  align="center"
+                                  style="margin:5px 0;"
+                                  border>
+                            <el-table-column label="包装箱类型" align="center" width="150">
+                                <template slot-scope="scope">
+                                    <span>{{scope.row.itemNum>0?'1装'+scope.row.itemNum:''}}</span>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="itemNum" label="每箱数量" align="center">
+                                <template slot-scope="scope">
+                                    <el-input-number size="mini" :min="0" v-model="scope.row.itemNum" :disabled="scope.row.update=='false'"></el-input-number>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="Num" label="包装箱件数" align="center">
+                                <template slot-scope="scope">
+                                    <el-input-number size="mini" :min="scope.row.min" v-model="scope.row.Num"></el-input-number>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="batch" label="批次" align="center">
+                                <template slot-scope="scope">
+                                    <el-input-number v-show="isBatch" size="mini" :min="1" v-model="scope.row.batch" :disabled="scope.row.update=='false'"></el-input-number>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="screenNum" label="屏序" align="center">
+                                <template slot-scope="scope">
+                                    <el-input-number v-show="isSeparate" size="mini" :min="1" v-model="scope.row.screenNum" :disabled="scope.row.update=='false'"></el-input-number>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="min" label="" align="center">
+                                <template slot-scope="scope">
+                                    <div v-show="scope.row.update=='false'" class="blue">此包装箱已打印{{scope.row.min}}件</div>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-row>
+                    <el-row v-show="limitsRole['包装箱信息录入修改']" class="text-center">
+                        <el-button size="medium" @@click="addrow">添加行</el-button>
+                        <el-button size="medium" @@click="reset">重置</el-button>
+                        <el-button size="medium" @@click="postSubmit">提交</el-button>
+                    </el-row>
+
+                    @Html.ActionLink("返回", "Index")
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+@*@RenderPage("_moduleMenu.cshtml")*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<script src="~/Content/styleFile/less.min.js"></script>
+<script src="~/Content/styleFile/moduleManagement/module.js"></script>
+<script>
+    //通过mixins将代码注入vue实例
+    var app = new Vue({
+        el: "#app",
+        mixins: [mixin],
+        data: {
+            dataVal: [],//订单表格数据
+            isSeparate: false,//分屏开关
+            isBatch: false,//分批开关
+            sideStatue: ''
+        },
+        //页面加载完后执行
+        mounted: function () {
+            this.initial();
+        },
+        methods: {
+            //选择订单号
+            selectOrdernum(v) {
+                if (v.value != '') {
+                    localStorage.setItem('Order', v.value);
+                    this.sideStatue != '' && this.set();
+                };
+            },
+            selectSide(v) {
+                if (v != '') {
+                    this.OrderNum != '' && this.set();
+                } else {
+                    this.initial();
+                };
+            },
+            //记录填写好的数据方法
+            postSubmit: function () {
+                if (this.Group == '') {
+                    this.$message.error('班组不能为空');
+                    return;
+                };
+                if (this.Ordernum == '') {
+                    this.$message.error('订单号不能为空');
+                    return;
+                };
+                if (this.sideStatue == '') {
+                    this.$message.error('装箱类型不能为空');
+                    return;
+                };
+                let tableData = this.dataVal,
+                    separate = this.isSeparate,
+                    batch = this.isBatch,
+                    modulePackageRule = [],
+                    oknum = 0;
+                for (let i in tableData) {
+                    if (tableData[i].itemNum > 0) {
+                        //验证不能重复数据
+                        for (let j in tableData) {
+                            if (tableData[j].itemNum > 0) {
+                                if ((tableData[i].itemNum == tableData[j].itemNum) && i != j) {
+                                    if ((tableData[i].batch == tableData[j].batch) && (tableData[i].screenNum == tableData[j].screenNum)) {
+                                        this.$message.warning("不能有相同的装箱类型！");
+                                        return;
+                                    };
+                                };
+                            };
+                        };
+                        //记录数据
+                        modulePackageRule.push({
+                            OrderNum: this.Ordernum,
+                            Department: this.Department,
+                            Group: this.Group,
+                            Statue: this.sideStatue,
+                            Type: "1装" + tableData[i].itemNum,
+                            //screenNum: separate == false ? 1 : (typeof (tableData[i].screenNum) == "undefined" ? 1 : tableData[i].screenNum),//这里要改
+                            //Batch: batch == false ? 1 : (typeof (tableData[i].batch) == "undefined" ? 1 : tableData[i].batch),
+                            screenNum: separate == false ? 1 : (tableData[i].screenNum || 1),//这里要改
+                            Batch: batch == false ? 1 : (tableData[i].batch || 1),
+                            OuterBoxCapacity: tableData[i].itemNum,
+                            Quantity: tableData[i].Num,
+                            IsSeparate: separate,
+                            isBatch: batch,
+                        });
+                        oknum++;
+                    };
+                };
+                if (oknum != 0) {
+                    axios.post('/ModuleManagement/GetInnerInfo', modulePackageRule).then(res => {
+                        if (res.data == "ok") {
+                            this.$alert('录入成功！', {
+                                closeOnClickModal: true,
+                                closeOnPressEscape: true,
+                                type: "success",
+                                callback: () => {
+                                    this.reset();
+                                }
+                            });
+                        } else {
+                            this.$alert('录入失败！', {
+                                type: "error",
+                            });
+                        };
+                    }).catch(err => {
+                        this.$alert('录入失败！', {
+                            type: "error",
+                        });
+                    });
+                } else {
+                    this.$message.error('每箱数量不能全为空！');
+                };
+            },
+            //表格添加行方法
+            addrow: function () {
+                this.$prompt('请输入需要添加行数', '添加行', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputPattern: /^[1-9]\d*$/,
+                    inputErrorMessage: '只能输入数字'
+                }).then(({ value }) => {
+                    let thisrtdata = this.dataVal, l = this.dataVal.length;
+                    if (this.Ordernum != "") {
+                        axios.post('/ModuleManagement/GetValueFromOrderNum', { ordernum: this.Ordernum, statue: this.sideStatue }).then(res => {
+                            if (Object.keys(res.data).length == 0) {
+                                for (let i = 0; i < value; i++) {
+                                    thisrtdata.push({
+                                        itemNum: 0,
+                                        Num: 0,
+                                        update: "true",
+                                        min: 0,
+                                        screenNum: l + i + 1,
+                                        batch: l + i + 1
+                                    });
+                                };
+                            } else {
+                                for (let i = 0; i < value; i++) {
+                                    thisrtdata.push({
+                                        itemNum: 0,
+                                        Num: 0,
+                                        update: "true",
+                                        min: 0,
+                                        screenNum: thisrtdata[thisrtdata.length - 1].screenNum + 1,
+                                        batch: thisrtdata[thisrtdata.length - 1].batch + 1
+                                    });
+                                };
+                            }
+                        }).catch(err => {
+                            console.warn("获取值失败")
+                        });
+                    } else {
+                        for (let i = 0; i < value; i++) {
+                            this.dataVal.push({
+                                itemNum: 0,
+                                Num: 0,
+                                update: "true",
+                                min: 0,
+                                screenNum: l + i + 1,
+                                batch: l + i + 1
+                            });
+                        };
+                    };
+                }).catch(() => {
+                    console.log("取消添加");
+                });
+            },
+            //重置按钮
+            reset: function () {
+                if (this.Ordernum == "" || this.sideStatue == "") {
+                    this.initial();
+                } else {
+                    this.set();
+                };
+            },
+            //根据订单号设置表格初始数据
+            set: function () {
+                if (this.Ordernum != "") {
+                    axios.post('/ModuleManagement/GetValueFromOrderNum', { ordernum: this.Ordernum, statue: this.sideStatue }).then(res => {
+                        console.log(res.data);
+                        let rtdata = res.data, thisrtdata = [];
+                        if (Object.keys(rtdata).length > 0) {
+                            this.isSeparate = rtdata[0].isSeparate;
+                            this.isBatch = rtdata[0].isBatch;
+                        };
+                        if (Object.keys(rtdata).length >= 6) {
+                            for (let i in rtdata) {
+                                //console.log(rtdata[i]);
+                                thisrtdata.push({
+                                    screenNum: rtdata[i].screenNum,
+                                    itemNum: rtdata[i].itemNum,
+                                    Num: rtdata[i].Num,
+                                    update: rtdata[i].update,
+                                    min: rtdata[i].min,
+                                    batch: rtdata[i].batch
+                                });
+                            };
+                            this.dataVal = thisrtdata;
+                        } else if (Object.keys(rtdata).length == 0) {
+                            this.initial();
+                        } else {
+                            let DVal = 6 - Object.keys(rtdata).length;
+                            for (let i in rtdata) {
+                                thisrtdata.push({
+                                    screenNum: rtdata[i].screenNum,
+                                    itemNum: rtdata[i].itemNum,
+                                    Num: rtdata[i].Num,
+                                    update: rtdata[i].update,
+                                    min: rtdata[i].min,
+                                    batch: rtdata[i].batch
+                                });
+                            };
+                            for (let i = 0; i < DVal; i++) {
+                                thisrtdata.push({
+                                    itemNum: 0,
+                                    Num: 0,
+                                    update: "true",
+                                    min: 0,
+                                    screenNum: thisrtdata[thisrtdata.length - 1].screenNum + 1,
+                                    batch: thisrtdata[thisrtdata.length - 1].batch + 1
+                                });
+                            };
+                            //console.log(Object.keys(rtdata).length);
+                            this.dataVal = thisrtdata;
+                        };
+                    }).catch(err => {
+                        console.warn("获取值失败")
+                    });
+                };
+            },
+            //初始化空表
+            initial: function () {
+                this.dataVal = [];
+                for (let i = 0; i < 6; i++) {
+                    this.dataVal.push({
+                        itemNum: 0,
+                        Num: 0,
+                        update: "true",
+                        min: 0,
+                        screenNum: i + 1,
+                        batch: i + 1
+                    });
+                };
+                //this.isSeparate = false;
+                //this.isBatch = false;
+            },
+        },
+        computed: {
+            //若已有不能更改的记录，则分屏按钮不可按
+            canScreen: function () {
+                let val = this.dataVal;
+                for (let i in val) {
+                    if (val[i].update == "false") {
+                        return true;
+                    };
+                };
+                return false;
+            }
+        },
+    });
+</script>
