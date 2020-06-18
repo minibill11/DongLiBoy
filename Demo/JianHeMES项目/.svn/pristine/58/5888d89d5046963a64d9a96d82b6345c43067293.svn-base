@@ -1,0 +1,63 @@
+﻿<script type="text/template" id="topTitleComponent">
+    <div class="topTitleComponent">
+        <el-dropdown v-if="admin">
+            <span class="el-dropdown-link">
+                <span class="el-titleText">用户管理</span><i class="el-icon-caret-bottom"></i>
+            </span>
+            <el-dropdown-menu slot="dropdown">
+                <a href="/Users/Index"><el-dropdown-item>用户管理</el-dropdown-item></a>
+                <a href="/Users/BatchUsers"><el-dropdown-item>批量增加用户</el-dropdown-item></a>
+                <a href="/Users/UerserOperateLogsQuery"><el-dropdown-item>日志查询</el-dropdown-item></a>
+            </el-dropdown-menu>
+        </el-dropdown>
+
+        <el-dropdown>
+            <span class="el-dropdown-link">
+                <i class="el-icon-user"></i>
+                <span class="el-titleText">{{username}}<el-badge :value="badgeNum" :max="99" v-show="badgeNum" class="badgeNum" v-on:click="toTips" /></span>
+                <i class="el-icon-caret-bottom"></i>
+            </span>
+            <el-dropdown-menu slot="dropdown">
+                <a :href="`/Users/Modifypwd/${userid}`"><el-dropdown-item>修改密码</el-dropdown-item></a>
+                <a href="/Users/ViewUserRights"><el-dropdown-item>查看权限</el-dropdown-item></a>
+                <a href="/Users/PermissionList" v-if="admin"><el-dropdown-item>权限对比</el-dropdown-item></a>
+                <a href="/Users/UserTeam"><el-dropdown-item>班组信息</el-dropdown-item></a>
+                <el-dropdown-item @@click.native="toLogout">退出</el-dropdown-item>
+            </el-dropdown-menu>
+        </el-dropdown>
+    </div>
+</script>
+
+<script>
+    Vue.component('top-title', {
+        props: ['username', 'userid', 'admin', 'limits'],
+        template: document.getElementById("topTitleComponent"),
+        data: function () {
+            return {
+                badgeNum: 0,
+            }
+        },
+        created: function () {
+            this.getBadgeNum();
+        },
+        methods: {
+            getBadgeNum() {
+                axios.post("/Tips/Pending_Work", { userId: this.userid }).then(res => {
+                    if (res.data) {
+                        this.badgeNum = res.data;
+                        setTimeout(() => {
+                            this.getBadgeNum();
+                        }, 2000);
+                    };
+                }).catch(err => { console.log(err); });
+            },
+            toTips() {
+                window.open('/Tips/Index');
+            },
+            toLogout() {
+                localStorage.removeItem('rigths');
+                location.href = "/Users/Logoff";
+            }
+        },
+    });
+</script>

@@ -1,0 +1,257 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class MetalPlateController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        #region---页面
+        public ActionResult CreatBasicInfo()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "MetalPlate", act = "CreatBasicInfo" });
+            }
+            return View();
+        }
+        public ActionResult CreatProduction()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "MetalPlate", act = "CreatProduction" });
+            }
+            return View();
+        }
+        public ActionResult Index()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "MetalPlate", act = "Index" });
+            }
+            return View();
+        }
+        #endregion
+
+        #region----基本信息录入
+
+        ///// <summary>///// </summary>
+        ///// <param name="ordernum">订单号</param>
+        ///// <param name="quantity">数量</param>
+        ///// <param name="productionType">生产类型</param>
+        ///// <param name="productScheduleStartTime">生产排期起始时间</param>
+        ///// <param name="departmentalDeliveryTime">生产排期部门交货时间</param>
+
+        [HttpPost]
+        public ActionResult CreatBasicInfo(string ordernum, Decimal quantity, string productionType, DateTime productScheduleStartTime, DateTime departmentalDeliveryTime)
+        {
+            if (db.MetalPlate_BasicInfo.Count(c => c.OrderNum == ordernum && c.Quantity == quantity && c.ProductionType == productionType) > 0)
+            {
+                return Content("此记录已存在，不允许重复录入！");
+            }
+            else
+            {
+                MetalPlate_BasicInfo list = new MetalPlate_BasicInfo();
+                list.OrderNum = ordernum;
+                list.Quantity = quantity;
+                list.ProductionType = productionType;
+                list.ProductScheduleStartTime = productScheduleStartTime;
+                list.DepartmentalDeliveryTime = departmentalDeliveryTime;
+                list.CompletionState = false;
+                db.MetalPlate_BasicInfo.Add(list);
+                int savecout = db.SaveChanges();
+                if (savecout > 0) return Content("保存成功！");
+                else return Content("保存失败！");
+            }
+        }
+        #endregion
+
+        #region---生产信息录入
+        ///// <summary>///// </summary>
+        ///// <param name="ordernum">订单号</param>
+        ///// <param name="section">工段</param>
+        ///// <param name="ProductionStartTime">生产开始时间</param>
+        ///// <param name="normalQuantity">正常数</param>
+        ///// <param name="abnormaQuantity">异常数</param>
+        ///// <param name="productionType">生产类型</param>
+        ///// <param name="InputTime">录入时间</param>
+        ///// <param name="InputPerson">录入人</param>
+        ///// <param name="Department">部门</param>
+        ///// <param name="Group">班组</param>
+        [HttpPost]
+        public ActionResult CreatProductionInfo(string ordernum, string section, string productionType, DateTime? productionStartTime, string department, string group, Decimal normalQuantity, Decimal abnormaQuantity = 0)
+        {
+            int count = 0;
+            if (section == "图纸编程")//图纸编程第一次录入时，需保存生产开始时间    
+            {
+                var res = db.MetalPlate_BasicInfo.Where(c => c.OrderNum == ordernum && c.ProductionType == productionType && c.ProductionStartTime == null).ToList();
+                if (res.Count > 0)
+                {
+                    res.FirstOrDefault().ProductionStartTime = productionStartTime;
+                    count = db.SaveChanges();
+                }
+                else count++;
+            };
+            //判断用户输入的数量是否大于订单的总数量
+            var normalNum = db.MetalPlateProduction.Where(c => c.OrderNum == ordernum && c.ProductionType == productionType).Select(c => c.NormalQuantity).ToArray().Sum();
+            var abnormalNum = db.MetalPlateProduction.Where(c => c.OrderNum == ordernum && c.ProductionType == productionType).Select(c => c.AbnormaQuantity).ToArray().Sum();
+            var totalnum = normalNum + abnormalNum + normalQuantity + abnormaQuantity;
+            var record = db.MetalPlate_BasicInfo.Where(c => c.OrderNum == ordernum && c.ProductionType == productionType).FirstOrDefault();
+            if (totalnum > record.Quantity)
+            {
+                return Content("保存失败，您录入的数量大于订单总数量");
+            }
+            else {
+                MetalPlateProduction list = new MetalPlateProduction();
+                list.OrderNum = ordernum;
+                list.Section = section;
+                list.ProductionType = productionType;
+                list.NormalQuantity = normalQuantity;
+                list.AbnormaQuantity = abnormaQuantity;
+                list.Department = department;
+                list.Group = group;
+                list.InputPerson = ((Users)Session["User"]).UserName;
+                list.InputTime = DateTime.Now;
+                db.MetalPlateProduction.Add(list);
+                int savecout = db.SaveChanges();
+                if (section == "入库")
+                {
+                    //如果工段等于入库，就用订单号、生产类型去钣金生产表找出已经入库的数量之和，再判断这个总数量是否等于基本信息表的对应记录的数量，如果相等就修改基本信息表的完成状态为：True
+                    var total = db.MetalPlateProduction.Where(c => c.OrderNum == ordernum && c.ProductionType == productionType).Select(c => c.NormalQuantity).ToArray().Sum();
+                    //找出基本信息表的记录
+                    var rec= db.MetalPlate_BasicInfo.Where(c => c.OrderNum == ordernum && c.ProductionType == productionType).FirstOrDefault();
+                    if (rec.Quantity == total)
+                    {
+                        rec.CompletionState = true;
+                        db.SaveChanges();
+                    }
+                };
+                if (section == "图纸编程")
+                {
+                    if (savecout > 0 && count > 0) return Content("保存成功！");
+                    else return Content("保存失败！");
+                }
+                else
+                {
+                    if (savecout > 0) return Content("保存成功！");
+                    else return Content("保存失败！");
+                }
+            }            
+        }
+        #endregion
+
+        #region---查询
+        public ActionResult getProductionInfo()
+        {          
+            var orderList = db.MetalPlate_BasicInfo.Where(c=>c.CompletionState==null|| c.CompletionState == false).ToList();
+            JArray resultList = new JArray();
+            foreach (var item in orderList)
+            {
+                JObject basicinfo = new JObject();
+                basicinfo.Add("OrderNum", item.OrderNum);
+                basicinfo.Add("Quantity", item.Quantity);
+                basicinfo.Add("ProductionType", item.ProductionType);
+                basicinfo.Add("ProductScheduleStartTime", item.ProductScheduleStartTime);
+                basicinfo.Add("DepartmentalDeliveryTime", item.DepartmentalDeliveryTime);
+                basicinfo.Add("ProductionStartTime", item.ProductionStartTime);
+
+                var normalList = db.MetalPlateProduction.Where(c => c.OrderNum == item.OrderNum && c.ProductionType == item.ProductionType);
+                var abnormalList = db.MetalPlateProduction.Where(c => c.OrderNum == item.OrderNum && c.ProductionType == item.ProductionType);
+
+                //图纸编程
+                var drawNormal = normalList.Where(c=>c.Section == "图纸编程").Select(c => c.NormalQuantity).ToArray().Sum();
+                var drawAbnormal = abnormalList.Where(c =>c.Section == "图纸编程").Select(c => c.AbnormaQuantity).ToArray().Sum();        
+                basicinfo.Add("DrawCompletion", Complete(item.Quantity, drawNormal + drawAbnormal) + "%" + " " + "(" + (drawNormal + drawAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("DrawPass", Complete(item.Quantity, drawNormal) + "%"+" "+"("+ drawNormal.ToString("0.##") + "/"+item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("DrawAbnormal", Complete(item.Quantity, drawAbnormal) + "%" + " " + "(" + drawAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+
+                //数冲冲压
+                var bluntNormal = normalList.Where(c => c.Section == "数冲冲压").Select(c => c.NormalQuantity).ToArray().Sum();
+                var bluntAbnormal = abnormalList.Where(c => c.Section == "数冲冲压").Select(c => c.AbnormaQuantity).ToArray().Sum();
+                basicinfo.Add("BluntCompletion", Complete(item.Quantity, bluntNormal + bluntAbnormal) + "%" + " " + "(" + (bluntNormal + bluntAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("BluntPass", Complete(item.Quantity, bluntNormal) + "%" + " " + "(" + bluntNormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("BluntAbnormal", Complete(item.Quantity, bluntAbnormal) + "%" + " " + "(" + bluntAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+
+                //敲料去毛刺沉孔倒角
+                var chamferNormal = normalList.Where(c => c.Section == "敲料去毛刺沉孔倒角").Select(c => c.NormalQuantity).ToArray().Sum();
+                var chamferAbnormal = abnormalList.Where(c => c.Section == "敲料去毛刺沉孔倒角").Select(c => c.AbnormaQuantity).ToArray().Sum();
+                basicinfo.Add("ChamferCompletion", Complete(item.Quantity, chamferNormal + chamferAbnormal) + "%" + " " + "(" + (chamferNormal + chamferAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("ChamferPass", Complete(item.Quantity, chamferNormal) + "%" + " " + "(" + chamferNormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("ChamferAbnormal", Complete(item.Quantity, chamferAbnormal) + "%" + " " + "(" + chamferAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+
+                //折弯压铆
+                var bendNormal = normalList.Where(c => c.Section == "折弯压铆").Select(c => c.NormalQuantity).ToArray().Sum();
+                var bendAbnormal = abnormalList.Where(c => c.Section == "折弯压铆").Select(c => c.AbnormaQuantity).ToArray().Sum();
+                basicinfo.Add("BendCompletion", Complete(item.Quantity, bendNormal + bendAbnormal) + "%" + " " + "(" + (bendNormal + bendAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("BendPass", Complete(item.Quantity, bendNormal) + "%" + " " + "(" + bendNormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("BendAbnormal", Complete(item.Quantity, bendAbnormal) + "%" + " " + "(" + bendAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+                //焊接打磨
+                var weldNormal = normalList.Where(c => c.Section == "焊接打磨").Select(c => c.NormalQuantity).ToArray().Sum();
+                var weldAbnormal = abnormalList.Where(c => c.Section == "焊接打磨").Select(c => c.AbnormaQuantity).ToArray().Sum();
+                basicinfo.Add("WeldCompletion", Complete(item.Quantity, weldNormal + weldAbnormal) + "%" + " " + "(" + (weldNormal + weldAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("WeldPass", Complete(item.Quantity, weldNormal) + "%" + " " + "(" + weldNormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("WeldAbnormal", Complete(item.Quantity, weldAbnormal) + "%" + " " + "(" + weldAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+                //外协喷涂
+                var sprayNormal = normalList.Where(c => c.Section == "外协喷涂").Select(c => c.NormalQuantity).ToArray().Sum();
+                var sprayAbnormal = abnormalList.Where(c => c.Section == "外协喷涂").Select(c => c.AbnormaQuantity).ToArray().Sum();
+                basicinfo.Add("SprayCompletion", Complete(item.Quantity, sprayNormal + sprayAbnormal) + "%" + " " + "(" + (sprayNormal + sprayAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("SprayPass", Complete(item.Quantity, sprayNormal) + "%" + " " + "(" + sprayNormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("SprayAbnormal", Complete(item.Quantity, sprayAbnormal) + "%" + " " + "(" + sprayAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+                //装配丝印
+                var assembleNormal = normalList.Where(c => c.Section == "装配丝印").Select(c => c.NormalQuantity).ToArray().Sum();
+                var assembleAbnormal = abnormalList.Where(c => c.Section == "装配丝印").Select(c => c.AbnormaQuantity).ToArray().Sum();
+                basicinfo.Add("AssembleCompletion", Complete(item.Quantity, assembleNormal + assembleAbnormal) + "%" + " " + "(" + (assembleNormal + assembleAbnormal).ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("AssemblePass", Complete(item.Quantity, assembleNormal) + "%" + " " + "(" + assembleNormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+                basicinfo.Add("AssembleAbnormal", Complete(item.Quantity, assembleAbnormal) + "%" + " " + "(" + assembleAbnormal.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//异常
+
+                //入库
+                var warehouseNum = normalList.Where(c => c.Section == "入库").Select(c => c.NormalQuantity).ToArray().Sum();
+                basicinfo.Add("WarehouseCompletion", Complete(item.Quantity, warehouseNum + 0) + "%" + " " + "(" + warehouseNum.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//完成率
+                basicinfo.Add("WarehousePass", Complete(item.Quantity, warehouseNum) + "%" + " " + "(" + warehouseNum.ToString("0.##") + "/" + item.Quantity.ToString("0.##") + ")");//合格率
+
+                //完成时间    生产时长
+                //判断当前记录的入库总数量是否与基本信息表对应的订单数量相等，相等则输出完成时间，
+                if (warehouseNum == orderList.Where(c => c.OrderNum == item.OrderNum && c.ProductionType == item.ProductionType).FirstOrDefault().Quantity)
+                {
+                    var compleTime = normalList.Where(c => c.Section == "入库").Max(c => c.InputTime);
+                    basicinfo.Add("CompletionTime", compleTime);
+                    DateTime startTime = Convert.ToDateTime(orderList.Where(c => c.OrderNum == item.OrderNum && c.ProductionType == item.ProductionType).FirstOrDefault().ProductionStartTime);
+                    TimeSpan span = compleTime.Subtract(startTime); //算法是compleTime(完成时间)减去 startTime(开始时间)
+                    string s = span.Days + "天"+ span.Hours + "小时"+ span.Minutes + "分钟";
+                    basicinfo.Add("ProductionTime", s.Replace("-", ""));
+                }
+                else {
+                    basicinfo.Add("CompletionTime", "");
+                    basicinfo.Add("ProductionTime", "");
+                }                             
+                resultList.Add(basicinfo);
+            }
+            //先找出订单号
+            return Content(JsonConvert.SerializeObject(resultList));
+        }
+        //计算完成率  计算公式：（正常数+异常数*100）/订单总数
+        //计算合格率  计算公式：（正常数*100）/订单总数
+        //计算异常    计算公式：（异常数*100）/订单总数
+        public string Complete(Decimal orderQuantity, Decimal totalQuantity) {
+            var complete = ((totalQuantity * 100) / orderQuantity).ToString("0.##");
+            return complete;
+        }
+        
+
+        #endregion
+
+    }
+}

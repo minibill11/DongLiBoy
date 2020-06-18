@@ -1,0 +1,315 @@
+﻿@{
+    ViewBag.Title = "物料看板";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/warehouseMaterial/warehouse.less" />
+
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+
+    .el-table th > .cell, .el-table td > .cell {
+        padding: 0;
+    }
+
+    .miniBtn {
+        padding: 7px;
+        margin-left: 0 !important;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="QueryData" title="@ViewBag.Title" :limit="limitsRole"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center main">
+                <el-form :inline="true" :model="queryTable" size="small" @@submit.native.prevent>
+                    <el-form-item label="输入物料编号">
+                        <el-input placeholder="请输入物料编号"
+                                  v-model.trim="queryTable.materialNumber"
+                                  v-on:keyup.native.enter="getdata"
+                                  size="medium"
+                                  clearable>
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="getdata">查询</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="small"
+                          align="center"
+                          @*cell-class-name="cellParent"*@
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号" align="center" width="40">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="MaterialNumber" label="物料编号" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.MaterialNumber = $event"
+                                        :nametext="scope.row.MaterialNumber"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="MaterialDiscription" label="物料规格描述" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.MaterialDiscription = $event"
+                                        :nametext="scope.row.MaterialDiscription"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Batch" label="批次" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Batch = $event"
+                                        :nametext="scope.row.Batch"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="MaterialNum" label="物料数量" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="num"
+                                        v-on:input="scope.row.MaterialNum = $event"
+                                        :nametext="scope.row.MaterialNum"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="EffectiveDay" label="有效期" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="num"
+                                        v-on:input="scope.row.EffectiveDay = $event"
+                                        :nametext="scope.row.EffectiveDay"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="AddEffectiveDay" label="追加有效期" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="num"
+                                        v-on:input="scope.row.AddEffectiveDay = $event"
+                                        :nametext="scope.row.AddEffectiveDay"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ima02" label="物料品名" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.ima02 = $event"
+                                        :nametext="scope.row.ima02"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Img02" label="仓库编号" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Img02 = $event"
+                                        :nametext="scope.row.Img02"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Img03" label="储位" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Img03 = $event"
+                                        :nametext="scope.row.Img03"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Unit" label="物料单位" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Unit = $event"
+                                        :nametext="scope.row.Unit"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Img20" label="单位数量换算率" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Img20 = $event"
+                                        :nametext="scope.row.Img20"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Img21" label="单位数量换算率-对料件库存单" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Img21 = $event"
+                                        :nametext="scope.row.Img21"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Supplier" label="供应商" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Supplier = $event"
+                                        :nametext="scope.row.Supplier"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="MaterialType" label="物料类型" align="center">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.MaterialType = $event"
+                                        :nametext="scope.row.MaterialType"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="LeaveFactoryTime" label="生产日期" align="center" width="110">
+                        <template slot-scope="scope">
+                            <input-edit datatype="date"
+                                        v-on:input="scope.row.LeaveFactoryTime = $event"
+                                        :nametext="scope.row.LeaveFactoryTime"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" align="center" width="90">
+                        <template slot-scope="scope">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" size="mini" class="miniBtn">编辑</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件  *@
+@RenderPage("_warehouseMenu.cshtml")
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<script src="~/Content/styleFile/less.min.js"></script>
+<script src="~/Content/styleFile/warehouseMaterial/warehouse.js"></script>
+<script type="text/template" id="inputEdit">
+    <div>
+        <span v-if="!isedit">{{nametext}}</span>
+        <template v-else>
+            <el-input-number v-if="datatype=='num'"
+                             v-model.trim="nametext"
+                             v-on:input="$emit('input', nametext)"
+                             :min="0"
+                             controls-position="right"
+                             size="mini"
+                             style="width:auto">
+            </el-input-number>
+            <el-date-picker v-else-if="datatype=='date'"
+                            v-model.trim="nametext"
+                            v-on:input="$emit('input', nametext)"
+                            type="date"
+                            size="mini">
+            </el-date-picker>
+            <el-input v-else
+                      v-model.trim="nametext"
+                      v-on:input="$emit('input', nametext)"
+                      size="mini">
+            </el-input>
+        </template>
+        @*<slot></slot>*@
+    </div>
+</script>
+<script>
+    //input输入框显示编辑切换
+    Vue.component('input-edit', {
+        props: ['nametext', 'isedit', 'datatype'],
+        template: document.getElementById("inputEdit")
+    });
+    var app = new Vue({
+        el: "#app",
+        mixins: [mixin],
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            queryTable: {
+                materialNumber: "",
+            },
+            initialData: {}
+        },
+        //页面打开时执行
+        created: function () {
+        },
+        //页面加载完后执行
+        mounted: function () {
+        },
+        //函数方法
+        methods: {
+            getdata: function () {
+                if (this.materialNumber == "") {
+                    return;
+                };
+                this.loading = true;
+                axios.post("/Warehouse_Material/QueryData", {
+                    materialNumber: this.queryTable.materialNumber,
+                }).then(res => {
+                    if (Object.keys(res.data).length > 0) {
+                        this.tableList = [];
+                        res.data['edit'] = false;
+                        this.tableList.push(res.data);
+                        this.$message.success("查询成功");
+                    } else {
+                        this.$message.success("此物料号无数据");
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+            //验证条码，录入信息，打印条码，
+            Modify_material(row) {
+                //录入数据
+                axios.post('/Warehouse_Material/Modify_material', {
+                    warehouse_Material: row,
+                }).then(res => {
+                    if (res.data.tally) {
+                        this.$message.success('保存成功');
+                        console.log(res.data.warehouse_Material);
+                        row.edit = false;
+                        this.initialData = {};
+                    } else {
+                        this.$message.error('保存失败');
+                        this.cancelClick(row);
+                    };
+                }).catch(err => {
+                    this.$message.error('保存出错');
+                    console.warn("post失败")
+                });
+            },
+            //启动编辑
+            editClick(row) {
+                for (let i of this.tableList) {
+                    if (i.edit) {
+                        this.$message.warning('存在正在编辑的行');
+                        return;
+                    };
+                };
+                this.initialData = {};
+                this.initialData = { ...row };
+                row.edit = true;
+            },
+            //取消编辑
+            cancelClick(row) {
+                let item = row, ini = this.initialData;
+                for (let i in ini) {
+                    item[i] = ini[i];
+                };
+                this.initialData = {};
+            },
+            //保存编辑
+            saveClick(row) {
+                this.Modify_material(row);
+            },
+        }
+    });
+</script>

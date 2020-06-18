@@ -1,0 +1,279 @@
+﻿
+@{
+    ViewBag.Title = "钣金基本信息录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .inputbox {
+        margin: 2px;
+    }
+    #app {
+        height:760px;
+    }
+</style>
+
+
+<div id="app">
+    <div class="text-center">
+        <h3>基本信息录入</h3>
+        <div style="margin-bottom:10px">
+            <a href="/MetalPlate/Index"><el-button size="small" type="primary" plain>首页</el-button></a>
+            <a href="/MetalPlate/CreatBasicInfo"><el-button size="small" type="primary" plain>录入基本信息</el-button></a>
+            <a href="/MetalPlate/CreatProduction"><el-button size="small" type="primary" plain>录入生产信息</el-button></a>
+            <a href="/MetalPlate/MetalPlate_modify"><el-button size="small" type="primary" plain>修改录入信息</el-button></a>
+        </div>
+        <el-row :gutter="50">
+            <el-col :md="12" style="text-align:right">
+                <div class="inputbox">
+                    <label>订 单 号 :</label>
+                    <el-select v-model="ordernum"
+                               clearable
+                               allow-create filterable
+                               placeholder="请选择订单号"
+                               style="width:195px" >
+                        <el-option v-for="item in ordernumOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <!--散件-->
+                <div class="inputbox">
+                    <label>散 件 数 量 :</label>
+                    <el-input v-model="loose.Quantity" placeholder="请输入数量" style="width:195px" clearable>
+                    </el-input>
+                </div>
+                <div class="inputbox">
+                    <label>散 件 下 单 日 期 :</label>
+                    <el-date-picker v-model="loose.ProductScheduleStartTime"
+                                    type="date"
+                                    placeholder="选择下单日期"
+                                    style="width:195px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>散 件 工 单 交 期 :</label>
+                    <el-date-picker v-model="loose.DepartmentalDeliveryTime"
+                                    type="date"
+                                    placeholder="选择工单交期"
+                                    style="width:195px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>散 件 实 际 交 期 :</label>
+                    <el-date-picker v-model="loose.PracticalDeliveryTime"
+                                    type="date"
+                                    placeholder="选择实际交期"
+                                    style="width:195px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>散 件 调 整 后 交 期:</label>
+                    <el-date-picker v-model="loose.AdjustDeliveryTime"
+                                    type="date"
+                                    placeholder="选择调整后交期"
+                                    style="width:195px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>散件生产开始时间 :</label>
+                    <el-date-picker v-model="loose.ProductionStartTime"
+                                    type="datetime"
+                                    placeholder="选择生产开始时间"
+                                    style="width:195px">
+                    </el-date-picker>
+                </div>
+                <el-button v-on:click="saveBasicInfo" size="mini" type="primary" v-show="createBasic">保存</el-button>
+            </el-col>
+
+            <!--箱体-->
+            <el-col :md="12" style="text-align:left">
+                <div class="inputbox">
+                    <label style="text-align:right">箱&nbsp;&nbsp;&nbsp; 体&nbsp;&nbsp;&nbsp;  数&nbsp;&nbsp;&nbsp; 量&nbsp;:</label>
+                    <el-input v-model="box.Quantity" placeholder="请输入数量" style="width:197px" clearable>
+                    </el-input>
+                </div>
+                <div class="inputbox">
+                    <label style="text-align:right">箱 体 下 单 日 期 :</label>
+                    <el-date-picker v-model="box.ProductScheduleStartTime"
+                                    type="date"
+                                    placeholder="选择下单日期"
+                                    style="width:197px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>箱 体 工 单 交 期 :</label>
+                    <el-date-picker v-model="box.DepartmentalDeliveryTime"
+                                    type="date"
+                                    placeholder="选择工单交期"
+                                    style="width:197px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>箱 体 实 际 交 期 :</label>
+                    <el-date-picker v-model="box.PracticalDeliveryTime"
+                                    type="date"
+                                    placeholder="选择实际交期"
+                                    style="width:197px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>箱 体 调 整后交期:</label>
+                    <el-date-picker v-model="box.AdjustDeliveryTime"
+                                    type="date"
+                                    placeholder="选择调整后交期"
+                                    style="width:197px">
+                    </el-date-picker>
+                </div>
+                <div class="inputbox">
+                    <label>箱体生产开始时间:</label>
+                    <el-date-picker v-model="box.ProductionStartTime"
+                                    type="datetime"
+                                    placeholder="选择生产开始时间"
+                                    style="width:195px">
+                    </el-date-picker>
+                </div>
+            </el-col>
+        </el-row>
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            createBasic: false,//录入权限
+            ordernum: '',
+            ordernumOptions: [],
+            productionTypeOptions: [{ label: '选项一', value: '散件' }, { label: '选项二', value: '箱体' }],
+            productionType: '',
+            loose: {
+                OrderNum: '',
+                Quantity: '',//散件数量
+                ProductScheduleStartTime: '',//散件下单日期
+                DepartmentalDeliveryTime: '',//散件工单交期
+                PracticalDeliveryTime: '',//散件实际交期
+                AdjustDeliveryTime: '',//散件调整后交期
+                ProductionStartTime: '',//散件生产开始时间
+                ProductionType: '散件'
+            },
+            box: {
+                OrderNum: '',
+                Quantity: '',//箱体数量
+                ProductScheduleStartTime: '',//箱体下单日期
+                DepartmentalDeliveryTime: '',//箱体工单交期
+                PracticalDeliveryTime: '',//箱体实际交期
+                AdjustDeliveryTime: '',//箱体调整后交期
+                ProductionStartTime: '',//箱体生产开始时间
+                ProductionType: '箱体'
+            }
+        },
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.ordernumOptions = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '钣金基本信息录入')) {
+                this.createBasic = true
+            } else {
+                this.createBasic = false
+            };
+        },
+        methods: {
+            saveBasicInfo() {
+                let arr = []
+                let loose = this.loose//散件
+                let box = this.box //箱体
+                let i = 0;
+                if (this.ordernum != '') {
+                    if (loose.Quantity != '') {
+                        if (loose.ProductScheduleStartTime != '' && loose.DepartmentalDeliveryTime != '' && loose.PracticalDeliveryTime != '' && loose.AdjustDeliveryTime != '' && loose.ProductionStartTime != '') {
+                            loose.OrderNum = this.ordernum
+                            arr.push(loose)
+                        } else {
+                            i += 1;
+                            this.$message({
+                                message: "请将散件日期填写完整！",
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        }
+                    };
+                    if (box.Quantity != '') {
+                        if (box.ProductScheduleStartTime != '' && box.DepartmentalDeliveryTime != '' && box.PracticalDeliveryTime != '' && box.AdjustDeliveryTime != '' && box.ProductionStartTime != '') {
+                            box.OrderNum = this.ordernum
+                            arr.push(box)
+                        } else {
+                            i += 1;
+                            this.$message({
+                                message: "请将箱体日期填写完整！",
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        }
+                    }
+                } else {
+                    this.$message({
+                        message: "请选择订单号！",
+                        type: 'warning',
+                        duration: 6000,
+                    });
+                }                               
+                console.log(arr)
+                if (arr.length>0&&i==0) {
+                    axios.post('/MetalPlate/CreatBasicInfo', {
+                        record:arr
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "保存成功！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'success',
+                                duration: 6000,
+                            });
+                            this.ordernum = '';
+                            this.loose = { OrderNum: '', Quantity: '', ProductScheduleStartTime: '', DepartmentalDeliveryTime: '', PracticalDeliveryTime: '', AdjustDeliveryTime: '', ProductionStartTime: '', ProductionType: '散件' }
+                            this.box = { OrderNum: '', Quantity: '', ProductScheduleStartTime: '', DepartmentalDeliveryTime: '', PracticalDeliveryTime: '', AdjustDeliveryTime: '', ProductionStartTime: '', ProductionType: '箱体' }
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                                duration: 6000,
+                            });   
+                            this.loose = { OrderNum: '', Quantity: '', ProductScheduleStartTime: '', DepartmentalDeliveryTime: '', PracticalDeliveryTime: '', AdjustDeliveryTime: '', ProductionStartTime: '', ProductionType: '散件' }
+                            this.box = { OrderNum: '', Quantity: '', ProductScheduleStartTime: '', DepartmentalDeliveryTime: '', PracticalDeliveryTime: '', AdjustDeliveryTime: '', ProductionStartTime: '', ProductionType: '箱体' }
+                        }
+                    }).catch(err => {
+                        console.log("请求失败")
+                    })
+                } else {
+                    //this.$message({
+                    //    message: '没有要保存的数据',
+                    //    type: 'warning',
+                    //    duration: 6000,
+                    //});
+                }
+            }
+        }
+
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

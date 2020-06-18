@@ -1,0 +1,240 @@
+﻿@{
+    ViewBag.Title = "出库";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/warehouseMaterial/warehouse.less" />
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="Material_Outbound" title="@ViewBag.Title" :limit="limitsRole"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="main">
+                <el-col :span="12" :xs="24">
+                    <div class="flex-item">
+                        <label>班组</label>
+                        <div>
+                            <el-select v-model="Group"
+                                       placeholder="请选择班组"
+                                       size="medium">
+                                <el-option v-for="item in groupOptions"
+                                           :key="item"
+                                           :label="item"
+                                           :value="item">
+                                </el-option>
+                            </el-select>
+                        </div>
+                    </div>
+                    <div class="flex-item">
+                        <label>出库类型</label>
+                        <div>
+                            <el-select v-model="materiaTyper"
+                                       placeholder="出库类型"
+                                       size="medium">
+                                <el-option label="工单出库" value="工单出库"></el-option>
+                                <el-option label="超领出库" value="超领出库"></el-option>
+                            </el-select>
+                        </div>
+                    </div>
+                    <div class="flex-item">
+                        <label>领料人工号</label>
+                        <div>
+                            <el-input placeholder="领料人工号"
+                                      v-model.trim="jobnum"
+                                      size="medium"
+                                      clearable>
+                            </el-input>
+                        </div>
+                    </div>
+                    <div class="flex-item">
+                        <label>领料人姓名</label>
+                        <div>
+                            <el-input placeholder="领料人姓名"
+                                      v-model.trim="name"
+                                      size="medium"
+                                      clearable>
+                            </el-input>
+                        </div>
+                    </div>
+                    <div class="flex-item">
+                        <label>领料部门</label>
+                        <div>
+                            <el-input placeholder="领料部门"
+                                      v-model.trim="Department"
+                                      size="medium"
+                                      clearable>
+                            </el-input>
+                        </div>
+                    </div>
+                    <div class="flex-item barcodeDiv" v-bind:class="message!=''?'is-error':''">
+                        <label>条码号</label>
+                        <div>
+                            <div class="el-input el-input--medium el-input--suffix" @*v-bind:class="disabledState?'is-disabled':''"*@>
+                                <input v-model.trim="barcode"
+                                       v-on:keyup.enter="scanKeyup($event)"
+                                       ref="barcodeRef"
+                                       autocomplete="off"
+                                       placeholder="输入条码后回车"
+                                       @*v-bind:disabled="disabledState?'disabled':false"*@
+                                       class="el-input__inner">
+                            </div>
+                            <div class="el-form-item__error" v-show="message!=''">
+                                {{message}}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-item">
+                        <div>
+                            @*<el-button size="medium">重置</el-button>*@
+                            <el-button type="primary" size="small" @@click="postConfirm">确认</el-button>
+                        </div>
+                    </div>
+                    <div class="flex-item">
+                        <div>
+                            <span>条码数量：{{barcodeList.length}}</span>
+                            <el-table :data="barcodeList"
+                                      height="280"
+                                      style="width:300px"
+                                      border>
+                                <el-table-column prop="barcode"
+                                                 label="条码清单">
+                                </el-table-column>
+                                <el-table-column prop="edit"
+                                                 label=""
+                                                 width="40">
+                                    <template slot-scope="scope">
+                                        <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row)"
+                                                   type="text"
+                                                   size="mini"
+                                                   style="margin:0;padding:0;width:100%;">
+                                            <i class="el-icon-error"></i>
+                                        </el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :span="12" :xs="24">
+                    <span>库存清单：{{kucunList.length}}</span>
+                    <el-table :data="kucunList"
+                              height="280"
+                              style="width:300px"
+                              border>
+                        <el-table-column prop="MaterialBacrcode"
+                                         label="条码号">
+                        </el-table-column>
+                        <el-table-column prop="LeaveFactoryTime"
+                                         label="生产日期">
+                        </el-table-column>
+                        <el-table-column prop="EffectiveDay"
+                                         label="有效天数"
+                                         sortable>
+                        </el-table-column>
+                    </el-table>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+@*  引入组件  *@
+@RenderPage("_warehouseMenu.cshtml")
+@RenderPage("~/Views/ModuleManagement/_print.cshtml")
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<script src="~/Content/styleFile/less.min.js"></script>
+<script src="~/Content/styleFile/warehouseMaterial/warehouse.js"></script>
+<script>
+    //通过mixins将代码注入vue实例
+    var app = new Vue({
+        el: "#app",
+        mixins: [mixin],
+        data: {
+            message: "",
+            barcode: "",
+            barcodeList: [],
+            materiaTyper: "",
+            name: "",
+            jobnum: "",
+            kucunList: []
+        },
+        //页面加载完后执行
+        mounted: function () {
+            this.MaterialsFirstIn();
+            this.$refs.barcodeRef.focus();
+        },
+        methods: {
+            //确认完成
+            postConfirm() {
+                this.loading = true;
+                if (this.barcodeList.length == 0 || this.Group == "" || this.materiaTyper == "" || this.jobnum == "" || this.name == "") {
+                    this.$message.warning("信息不完整！");
+                    this.loading = false;
+                    return;
+                };
+                let material_Outbound = [];
+                for (let i of this.barcodeList) {
+                    material_Outbound.push(i.barcode);
+                };
+                //录入数据
+                axios.post('/Warehouse_Material/Material_Outbound', {
+                    material_Outbound: material_Outbound,//条码列表
+                    materiaTyper: this.materiaTyper,
+                    group: this.Group,
+                    department: this.Department,
+                    jobnum: this.jobnum,
+                    name: this.name
+                }).then(res => {
+                    if (res.data.Res) {
+                        this.$message.success(res.data.Meg);
+                        this.barcode = "";
+                        this.barcodeList = [];
+                        this.loading = false;
+                    } else {
+                        this.$message.error(res.data.Meg);
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    console.warn("post失败")
+                    this.loading = false;
+                });
+            },
+            //扫码
+            scanKeyup(v) {
+                if (this.barcode != "") {
+                    //检查重复
+                    for (let i of this.barcodeList) {
+                        if (i.barcode == this.barcode) {
+                            this.$message.warning("已有重复条码！");
+                            this.barcode = '';
+                            return;
+                        };
+                    };
+                    this.barcodeList.push({
+                        barcode: this.barcode,
+                        Tips: ""
+                    });
+                    this.barcode = "";
+                } else {
+                    this.$message.warning("请输入条码！");
+                };
+            },
+            //删除行
+            deleteRow(index, row) {
+                this.barcodeList.splice(index, 1);
+            },
+            //获取库存清单
+            MaterialsFirstIn() {
+                axios.post('/Warehouse_Material/MaterialsFirstIn').then(res => {
+                    this.kucunList = res.data;
+                }).catch(err => {
+                    console.warn("post失败")
+                });
+            }
+        },
+    });
+</script>

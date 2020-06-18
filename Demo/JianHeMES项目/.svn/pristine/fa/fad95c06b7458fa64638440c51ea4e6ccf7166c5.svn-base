@@ -1,0 +1,231 @@
+﻿<script type="text/template" id="warePrintComponent">
+    <el-row class="warePrint" v-loading="printLoading">
+        <div class="flex-item">
+            <label>物料编号</label>
+            <div>
+                <el-input placeholder="请输入物料编号"
+                          v-model.trim="warePrint.materialNumber"
+                          size="medium"
+                          autofocus
+                          clearable>
+                </el-input>
+            </div>
+        </div>
+        <div class="flex-item">
+            <label>生产时间</label>
+            <div>
+                <el-date-picker v-model="warePrint.leaveFactoryTime"
+                                size="medium"
+                                type="date"
+                                clearable
+                                placeholder="选择生产时间">
+                </el-date-picker>
+            </div>
+        </div>
+        <slot></slot>
+        <div class="flex-item">
+            <div style="margin-left:66px;">
+                <el-button v-on:click="getPrintList" size="small" plain>查找</el-button>
+                <el-button v-on:click="printBarcode" size="small" plain>打印</el-button>
+                <el-button v-on:click="editshow" type="primary" size="small" plain>修改数量</el-button>
+            </div>
+        </div>
+        <div class="flex-item">
+            <div class="boxlist">
+                <span style="color:#409EFF">条码清单：</span>
+                <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @@change="handleCheckAllChange" size="mini" border class="printCheckbox">全选</el-checkbox>
+                <el-checkbox-group v-model="checkArr" @@change="handleChecked">
+                    <el-checkbox v-for="item in checkboxList" :label="item" :key="item"
+                                 size="mini" border class="printCheckbox">{{item}}</el-checkbox>
+                </el-checkbox-group>
+            </div>
+        </div>
+
+
+        <el-dialog title="修改标签条码包含的个数"
+                   @@close="close('ruleForm')"
+                   :visible.sync="editVisible">
+            <div>
+                <el-form label-width="20%"
+                         label-position="right"
+                         style="text-align:left;"
+                         ref="ruleForm"
+                         size="medium"
+                         :rules="rules"
+                         :model="editForm">
+                    <el-form-item label="条码列表">
+                        <el-radio-group v-model="editForm.materialBacrcode" size="mini">
+                            <el-radio v-for="item in checkboxList" :label="item"
+                                      size="mini" border>{{item}}</el-radio>
+                        </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label="条码号" prop="materialBacrcode">
+                        <el-input v-model="editForm.materialBacrcode" size="medium"></el-input>
+                    </el-form-item>
+                    <el-form-item label="修改数量" prop="materialContainNum">
+                        <el-input v-model="editForm.materialContainNum" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button @@click="editVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
+        </el-dialog>
+    </el-row>
+</script>
+<script>
+    Vue.component('ware-print-component', {
+        props: ['value'],
+        template: document.getElementById("warePrintComponent"),
+        data: function () {
+            return {
+                printLoading: false,
+                warePrint: {
+                    materialNumber: '',
+                    leaveFactoryTime: '',
+                },
+                checkArr: [],
+                checkboxList: [],
+                checkAll: false,
+                isIndeterminate: false,
+                editVisible: false,
+                editForm: {
+                    materialBacrcode: "",
+                    materialContainNum: "",
+                },
+                rules: {}
+            }
+        },
+        mounted: function () {
+            let checkFloat = (rule, value, callback) => {
+                if (value == undefined || value == '') { callback() };
+                let reg = /^(0|([1-9]\d*))(\.\d{0,2})?$/g;
+                if (reg.test(value)) {
+                    callback();
+                } else {
+                    callback(new Error('请输入正确的数值，数值最多为2位小数'));
+                };
+            };
+            let stringTest = [{ required: true, message: '条码号不能为空', trigger: 'blur' }],
+                floatTest = [
+                    { required: true, message: '数值不能为空', trigger: 'blur' },
+                    { validator: checkFloat, trigger: 'blur' }
+                ];
+            this.rules = {
+                materialBacrcode: stringTest,
+                materialContainNum: floatTest,
+            };
+        },
+        watch: {
+            value(v) {
+                console.log(v)
+                this.checkboxList = v.list;
+            },
+        },
+        methods: {
+            handleCheckAllChange(val) {
+                let list = this.checkboxList;
+                this.checkArr = val ? list : [];
+                this.isIndeterminate = false;
+            },
+            handleChecked(value) {
+                let list = this.checkboxList;
+                let checkedCount = value.length;
+                this.checkAll = checkedCount === list.length;
+                this.isIndeterminate = checkedCount > 0 && checkedCount < list.length;
+            },
+            getPrintList() {
+                if (this.warePrint.materialNumber == "" && (this.warePrint.leaveFactoryTime == '' || this.warePrint.leaveFactoryTime == null)) {
+                    this.$message.warning('请输入物料编号和生产时间！')
+                    return;
+                };
+                this.printLoading = true;
+                this.checkboxList = [];
+                axios.post('/Warehouse_Material/BarcodeNotOut', {
+                    materialNumber: this.warePrint.materialNumber,
+                    leaveFactoryTime: this.warePrint.leaveFactoryTime,
+                }).then(res => {
+                    this.checkboxList = JSON.parse(res.data.exceptList);
+                    console.log(res.data)
+                    this.printLoading = false;
+                }).catch(err => {
+                    console.warn("打印出错");
+                    this.printLoading = false;
+                });
+            },
+            printBarcode() {
+                if (this.checkArr == '') {
+                    this.$message.warning('请选择打印条码！')
+                    return;
+                };
+                this.printLoading = true;
+                let material_list = [];
+                for (let i of this.checkArr) {
+                    material_list.push({
+                        MaterialNumber: i,
+                        MaterialDiscription: this.value.discription ? this.value.discription : ''
+                    });
+                };
+                axios.post('/Warehouse_Material/MaterialLablePrint', {
+                    material_list: material_list,
+                    pagecount: app.printInfo.pagecount,
+                    concentration: app.printInfo.concentration,
+                    ip: app.printInfo.ip,
+                    port: app.printInfo.port,
+                    leftdissmenion: app.printInfo.leftdissmenion
+                }).then(res => {
+                    this.$message(res.data);
+                    this.printLoading = false;
+                }).catch(err => {
+                    this.$message.error('打印出错');
+                    this.printLoading = false;
+                });
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.editnum();
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            },
+            editnum() {
+                axios.post('/Warehouse_Material/ModifyBarcodeNum', this.editForm).then(res => {
+                    if (res.data.Meg) {
+                        this.$message.success(res.data.Contain);
+                        this.editVisible = false;
+                    } else {
+                        this.$message.error(res.data.Contain);
+                    };
+                }).catch(err => {
+                    this.$message.error('修改出错');
+                });
+            },
+            editshow() {
+                if (this.checkboxList != '') {
+                    this.editVisible = true;
+                    this.editForm.materialBacrcode = this.checkboxList[this.checkboxList.length - 1];
+                } else {
+                    this.$message.warning('没有条码列表');
+                };
+            }
+        },
+        //updated: function () {
+        //    this.$emit("input", {
+        //        ip: this.printSelect,
+        //        pagecount: this.pageCount,
+        //        port: 9101,
+        //        concentration: this.nongDu,
+        //        leftdissmenion: this.leftdissmenion
+        //    });
+        //}
+    });
+</script>

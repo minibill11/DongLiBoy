@@ -1,0 +1,132 @@
+﻿
+@{
+    ViewBag.Title = "钣金基本信息录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .inputbox {
+        margin: 2px;
+    }
+</style>
+
+
+<div id="app">
+    <div class="text-center">
+        <h2>基本信息录入</h2>
+        <div class="inputbox">
+            <label>订  单  &nbsp;号:</label>
+            <el-select v-model="ordernum"
+                       clearable
+                       allow-create filterable
+                       placeholder="请选择订单号">
+                <el-option v-for="item in ordernumOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+
+        <div class="inputbox">
+            <label>订单数量:</label>
+            <el-input v-model="quantity" placeholder="请输入数量" style="width:191px">
+            </el-input>
+        </div>
+
+        <div class="inputbox">
+            <label>生产类型:</label>
+            <el-select v-model="productionType"
+                       allow-create filterable
+                       placeholder="请选择生产类型">
+                <el-option v-for="item in productionTypeOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label>起始日期:</label>
+            <el-date-picker v-model="startTime"
+                            type="datetime"
+                            placeholder="选择生产排期起始日期"
+                            style="width:195px">
+            </el-date-picker>
+        </div>
+        <div class="inputbox">
+            <label>交货日期:</label>
+            <el-date-picker v-model="deliveryTime"
+                            type="datetime"
+                            placeholder="选择生产排期部门交货时间"
+                            style="width:195px">
+            </el-date-picker>
+        </div>
+        <div>
+            <el-button v-on:click="saveBasicInfo" size="mini" type="primary">保存</el-button>
+        </div>
+    </div>
+</div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            ordernum: '',
+            ordernumOptions: [],
+            quantity: '',
+            productionTypeOptions: [{ label: '选项一', value: '散件' }, { label: '选项二', value: '箱体' }],
+            productionType: '',
+            startTime: '',
+            deliveryTime: '',
+
+        },
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.ordernumOptions = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        methods: {
+            saveBasicInfo() {
+                if (this.ordernum != '' && this.quantity != '' && this.productionType != '' && this.startTime != '' && this.deliveryTime != '') {
+                    axios.post('/MetalPlate/CreatBasicInfo', {
+                        ordernum: this.ordernum,
+                        quantity: this.quantity,
+                        productionType: this.productionType,
+                        productScheduleStartTime: this.startTime,
+                        departmentalDeliveryTime: this.deliveryTime
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "保存成功！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'success',
+                                duration: 6000,
+                            });
+                            this.ordernum = this.quantity = this.productionType = this.startTime = this.deliveryTime = ''
+                        } else {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        }
+                    }).catch(err => {
+                        console.log("请求失败")
+                    })
+                } else {
+                    this.$message({
+                        message: '请输入完整再保存！',
+                        type: 'warning',
+                        duration: 6000,
+                    });
+                }
+            }
+        }
+
+    })
+</script>

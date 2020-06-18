@@ -1,0 +1,375 @@
+﻿
+@{
+    ViewBag.Title = "钣金修改录入数据";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .el-input__inner {
+        border-color: #fff
+    }
+
+    .el-table__header tr, .el-table__header th, .el-table td {
+        padding: 0.8%;
+        text-align: center;
+        padding-left: 0px;
+        font-size: 14px;
+    }
+
+    .btn {
+        padding: 5px
+    }
+
+    #selectBox {
+        border-color: #409EFF;
+        margin: 2px;
+    }
+</style>
+
+<div id="app">
+    <div style="text-align:center">
+        <h3>修改录入信息</h3>
+        <a href="/MetalPlate/Index"><el-button size="small" type="primary" plain>首页</el-button></a>
+        <a href="/MetalPlate/CreatBasicInfo"><el-button size="small" type="primary" plain>录入基本信息</el-button></a>
+        <a href="/MetalPlate/CreatProduction"><el-button size="small" type="primary" plain>录入生产信息</el-button></a>
+        <a href="/MetalPlate/MetalPlate_modify"><el-button size="small" type="primary" plain>修改录入信息</el-button></a>
+        <br/>
+        <label>订&nbsp;单&nbsp;号:</label>
+        <el-select v-model="orderNum"
+                   clearable
+                   allow-create filterable
+                   placeholder="请选择订单号" id="selectBox">
+            <el-option v-for="item in orderNumOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        <el-table v-bind:data="tableData"
+                  style="width: 1041px;font-size: 13px;margin:auto" border max-height="310">
+            <el-table-column prop=""
+                             label="基本信息修改"
+                             width="">
+
+                <el-table-column prop="OrderNum"
+                                 label="订单号"
+                                 width="115">
+                </el-table-column>
+                <el-table-column prop="Quantity"
+                                 label="数量"
+                                 width="90">
+                    <template scope="scope">
+                        <el-input v-model="scope.row.Quantity" placeholder="数量" type="text" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="ProductionType"
+                                 label="生产类型"
+                                 width="90">
+                </el-table-column>
+
+                <el-table-column prop=""
+                                 label="生产排期起始时间"
+                                 width="215">
+                    <template scope="scope">
+                        <el-date-picker v-model="scope.row.ProductScheduleStartTime"
+                                        type="datetime"
+                                        placeholder="生产排期起始时间"
+                                        style="width:195px" size="mini">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="部门交货时间"
+                                 width="215">
+                    <template scope="scope">
+                        <el-date-picker v-model="scope.row.DepartmentalDeliveryTime"
+                                        type="datetime"
+                                        placeholder="部门交货时间"
+                                        style="width:195px" size="mini">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="生产开始时间"
+                                 width="215">
+                    <template scope="scope">
+                        <el-date-picker v-model="scope.row.ProductionStartTime"
+                                        type="datetime"
+                                        placeholder="选择生产开始时间"
+                                        style="width:195px" v-bind:disabled="scope.row.ProductionStartTime==''||scope.row.ProductionStartTime==null" size="mini">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="操作"
+                                 width="100">
+                    <template scope="scope">
+                        <div style="display:inline-flex">
+                            <el-button class="btn" v-on:click="saveBasicInfo(scope.row)" size="mini" type="primary" v-show="modifyBasic">保存</el-button>
+                            <el-button class="btn" v-on:click="delBasicInfo(scope.row)" size="mini" type="danger" v-show="delproduc">删除</el-button>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+        </el-table>
+        <br />
+        <label>订&nbsp;单&nbsp;号:</label>
+        <el-select v-model="ordernum"
+                   clearable
+                   allow-create filterable
+                   placeholder="请选择订单号" id="selectBox">
+            <el-option v-for="item in ordernumOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        <el-table v-bind:data="productionData"
+                  style="width: 1041px;font-size: 13px;margin:auto" border max-height="310">
+            <el-table-column prop=""
+                             label="生产信息修改">
+                <el-table-column prop="OrderNum"
+                                 label="订单号"
+                                 width="150">
+                </el-table-column>
+                <el-table-column prop="ProductionType"
+                                 label="生产类型"
+                                 width="115">
+                </el-table-column>
+                <el-table-column prop="Section"
+                                 label="工段"
+                                 width="205">
+                </el-table-column>
+                <el-table-column prop="NormalQuantity"
+                                 label="正常数"
+                                 width="95">
+                    <template scope="scope">
+                        <el-input v-model="scope.row.NormalQuantity" placeholder="" type="text" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="AbnormaQuantity"
+                                 label="异常数"
+                                 width="95">
+                    <template scope="scope">
+                        <el-input v-model="scope.row.AbnormaQuantity" placeholder="" type="text" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="生产开始时间/入库完成时间"
+                                 width="230">
+                    <template scope="scope">
+                        <el-date-picker v-model="scope.row.InputTime"
+                                        type="datetime"
+                                        placeholder="选择生产开始时间"
+                                        style="width:195px" v-bind:disabled="scope.row.Section!='图纸编程'&&scope.row.Section!='入库'" size="mini">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="操作"
+                                 width="150">
+                    <template scope="scope">
+                        <div style="display:inline-flex">
+                            <el-button class="btn" v-on:click="saveProduction(scope.row)" size="mini" type="primary" v-show="modifyproduc">保存</el-button>
+                            <el-button class="btn" v-on:click="delProduction(scope.row)" size="mini" type="danger" v-show="delproduc">删除</el-button>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+        </el-table>
+    </div>
+
+</div>
+
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            ordernum: '',
+            ordernumOptions: [],
+            orderNum: '',
+            orderNumOptions: [],
+            tableData: [],
+            productionData: [],
+            modifyBasic: false,
+            delbasic: false,
+            modifyproduc: false,
+            delproduc: false,
+        },
+        mounted() {
+            axios.post('/MetalPlate/GetorderNum').then(res => {
+                this.ordernumOptions = res.data;
+                this.orderNumOptions = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+                });
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '钣金基本信息修改')) {
+                this.modifyBasic = true
+            } else {
+                this.modifyBasic = false
+            }
+            if (checkRoles(roles, '钣金基本信息删除')) {
+                this.delbasic = true
+            } else {
+                this.delbasic = false
+            }
+            if (checkRoles(roles, '钣金生产信息修改')) {
+                this.modifyproduc = true
+            } else {
+                this.modifyproduc = false
+            }
+            if (checkRoles(roles, '钣金生产信息删除')) {
+                this.delproduc = true
+            } else {
+                this.delproduc = false
+            }
+        },
+        methods: {
+            getData() {
+                axios.post('/MetalPlate/getBasicInfo', {
+                    ordernum: this.orderNum,
+                }).then(res => {
+                    console.log(res.data)
+                    this.tableData = res.data
+                })
+            },
+            getProduction() {
+                axios.post('/MetalPlate/getProduction', {
+                    ordernum: this.ordernum,
+                }).then(res => {
+                    console.log(res.data)
+                    this.productionData = res.data
+                })
+            },
+            saveBasicInfo(row) {
+                let obj = {
+                    Id: row.Id, OrderNum: row.OrderNum, Quantity: row.Quantity, ProductionType: row.ProductionType, ProductScheduleStartTime: row.ProductScheduleStartTime,
+                    DepartmentalDeliveryTime: row.DepartmentalDeliveryTime, ProductionStartTime: row.ProductionStartTime, CompletionState: row.CompletionState, Remark: row.Remark
+                }
+                axios.post('/MetalPlate/MetalPlateBasicInfo_modify', {
+                    newList: obj,
+                }).then(res => {
+                    if (res.data == "修改成功！") {
+                        this.$message({
+                            message: "修改成功!",
+                            type: "success"
+                        });
+                        this.getData()
+                    } else {
+                        this.$message({
+                            message: res.data,
+                            type: "warning"
+                        })
+                    }
+                }).catch(err => {
+                    console.log("请求失败")
+                })
+            },
+            saveProduction(row) {
+                console.log(row)
+                let obj = {
+                    Id: row.Id, OrderNum: row.OrderNum, Section: row.Section, ProductionType: row.ProductionType, NormalQuantity: row.NormalQuantity, AbnormaQuantity: row.AbnormaQuantity,
+                    InputTime: row.InputTime, InputPerson: row.InputPerson, Department: row.Department, Group: row.Group, Remark: row.Remark
+                }
+                axios.post('/MetalPlate/MetalPlateProduction_modify', {
+                    newList: obj,
+                }).then(res => {
+                    if (res.data == "修改成功！") {
+                        this.$message({
+                            message: "修改成功!",
+                            type: "success"
+                        });
+                        this.getProduction()
+                    } else if (res.data == "修改失败,录入数量大于订单总数！") {
+                        this.$message({
+                            message: res.data,
+                            type: "warning"
+                        })
+                        this.getProduction()
+                    }
+                    else {
+                        this.$message({
+                            message: res.data,
+                            type: "warning"
+                        })
+                    }
+                }).catch(err => {
+                    console.log("请求失败")
+                })
+            },
+            delBasicInfo(row) {
+                console.log(row)
+                axios.post('/MetalPlate/delteBasicInfo', {
+                    record: row
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == "删除成功！") {
+                        this.$message({
+                            message: "删除成功!",
+                            type: "success"
+                        });
+                        this.getData()
+                    } else {
+                        this.$message({
+                            message: res.data,
+                            type: "warning"
+                        })
+                    }
+                }).catch(err => {
+                    console.log("请求失败")
+                })
+
+            },
+            delProduction(row) {
+                console.log(row)
+                axios.post('/MetalPlate/delteProduction', {
+                    record: row
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == "删除成功！") {
+                        this.$message({
+                            message: "删除成功!",
+                            type: "success"
+                        });
+                        this.getProduction()
+                    } else {
+                        this.$message({
+                            message: res.data,
+                            type: "warning"
+                        })
+                    }                    
+                }).catch(err => {
+                    console.log("请求失败")
+                })
+            }
+        },
+        watch: {
+            orderNum() {
+                if (this.orderNum != '') {
+                    this.getData()
+                } else this.tableData = []
+            },
+            ordernum() {
+                if (this.ordernum != '') {
+                    this.getProduction()
+                } else this.productionData = []
+            }
+        }
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

@@ -19,8 +19,12 @@
         padding: 0;
     }
 
+    .el-main {
+        padding-bottom: 0;
+    }
+
     .fontsizelie {
-        font-size: 16px;
+        font-size: 14px;
     }
 
     .ulli {
@@ -36,15 +40,20 @@
 
     .el-table__expanded-cell[class*="cell"] {
         padding: 10px 20px;
-        background-color: #fff4f4;
+        /*background-color: #fff4f4;*/
     }
 
     .el-table__body tr:hover > td[class="el-table__expanded-cell"] {
-        background-color: #fff4f4 !important;
+        background-color: #FFF !important;
+    }
+
+    .el-table__expanded-cell .detailTable > thead > tr:hover > td {
+        background-color: #409eff !important;
     }
 
     .el-table__body tr:hover > td {
-        background-color: #30BCF242 !important;
+        /*#30BCF242*/
+        background-color: #E4ECF7 !important;
     }
 
     .areaDiv {
@@ -66,13 +75,13 @@
         display: inline-block;
     }
 
-    .el-divider--vertical {
+    /*.el-divider--vertical {
         margin: 0;
-        width: 2px;
+        width: 1px;
         height: 28px;
         background-color: #d5d7db;
         vertical-align: initial;
-    }
+    }*/
 
     .danwei {
         font-size: 12px;
@@ -82,26 +91,15 @@
 
     .jieguo {
         font-size: 19px;
-        color: #1539f7;
+        color: #f95f5f;
         max-width: 500px;
         padding-left: 10px;
-    }
-
-    .el-table .smtbgcolor {
-        background: #f9f9eb;
-    }
-
-    .el-table .mzbgcolor {
-        background: #fff4f4;
-    }
-
-    .el-table .mkbgcolor {
-        background: #f0f9eb;
     }
 
     .detailTable {
         border: 1px solid #d5d7db;
         border-collapse: unset;
+        width: auto;
     }
 
         .detailTable > thead > tr > td,
@@ -109,7 +107,6 @@
         .detailTable > tfoot > tr > td {
             text-align: center;
             vertical-align: middle;
-            border: 1px solid #d5d7db;
         }
 
             .detailTable > thead > tr > td > .cell,
@@ -121,9 +118,7 @@
             }
 
     .shebeiDivNew > .cell {
-        width: 60px;
-        height: 28px;
-        line-height: 28px;
+        width: 80px;
         text-align: center;
     }
 
@@ -141,7 +136,7 @@
         width: 120px;
     }
 
-    .bpstyle {
+    /*.bpstyle {
         background-color: #ededed !important;
     }
 
@@ -155,34 +150,35 @@
 
     .phstyle {
         background-color: #ffefda !important;
+    }*/
+
+    .detailTable > tbody > tr > td:first-child,
+    .detailTable > tfoot > tr > td:first-child {
+        background: #e4ecf7;
     }
 
-    .trBottom {
-        border-bottom: 2px solid #d5d7db;
+    .detailTable > thead > tr > td {
+        background: #409eff;
+        color: #FFF;
     }
 
-    .phstyle, .phbsstyle {
-        font-weight: bold;
-    }
-
-
-    .detailTable > thead > tr > td:nth-child(1),
-    .detailTable > thead > tr > td:nth-child(3),
-    .detailTable > thead > tr > td:nth-last-child(5),
-    .detailTable > tbody > tr > td:nth-child(1),
-    .detailTable > tbody > tr > td:nth-child(3),
-    .detailTable > tbody > tr > td:nth-last-child(5) {
-        border-right: 1px solid black;
-    }
-
-    .finalTable > thead > tr > td:not(:last-child),
-    .finalTable > tfoot > tr > td:not(:last-child) {
-        border-right: 1px solid black;
+    .finalTable > thead > tr > td,
+    .finalTable > tbody > tr > td,
+    .finalTable > tfoot > tr > td {
+        height: 40px;
     }
 
     .flexDiv {
         display: flex;
         justify-content: center;
+    }
+
+        .flexDiv > .shebeiDivNew:not(:last-child) {
+            border-right: 1px solid #CCD3DE;
+        }
+
+    .el-table__empty-block {
+        min-height: 50px;
     }
 </style>
 <div id="app" v-cloak>
@@ -195,7 +191,7 @@
             <el-row class="text-center">
                 <el-form :inline="true" :model="queryTable" size="small">
                     <el-form-item label="筛选平台">
-                        <select-input v-model.trim="queryTable.proplatform" :disabled="false" @@watchval="watchPlatform($event)" :appendbody="false" :options="options.proplatform" :isfocus="true" @*:ismultiple="true"*@ size="medium" :allowcreate="true"></select-input>
+                        <select-input v-model.trim="queryTable.proplatform" :disabled="false" @@select-val="selectHandle" @@watchval="watchPlatform($event)" :appendbody="false" :options="options.proplatform" :isfocus="true" @*:ismultiple="true"*@ size="medium" :allowcreate="true"></select-input>
                     </el-form-item>
                     <el-form-item label="筛选型号">
                         <select-input v-model.trim="queryTable.protype" :disabled="false" @@watchval="watchType($event)" :appendbody="false" :options="options.protype" :isfocus="true" @*:ismultiple="true"*@ size="medium" :allowcreate="true"></select-input>
@@ -204,24 +200,24 @@
                 </el-form>
             </el-row>
             <el-row class="text-center">
-                <el-table :data="filterResult"
-                          max-height="700"
+                <el-table :data="expandData"
+                          v-show="expandShow"
                           size="medium"
                           align="center"
-                          cell-class-name="cellParent"
+                          cell-class-name="indexCellParent"
                           stripe
                           ref="thistable"
                           border>
                     <el-table-column type="expand" width="1">
                         <template slot-scope="props">
-                            <div v-if="props.row.info!=''">
+                            <div v-if="props.row.info!=''" style="overflow:auto">
                                 @*<div>PCB编号：<b>{{ props.row.PCB }}</b></div>*@
                                 <div class="areaDiv">
                                     <el-switch v-model="detailshow"
                                                active-text="最终"
                                                inactive-text="详细">
                                     </el-switch>
-                                    <div>
+                                    <div v-show="false">
                                         <span class="danwei">模块瓶颈参考值</span><br />
                                         <el-select v-model="Reference.value" placeholder="请选择" @@change="selectCapHouse(props.row,$event)">
                                             <el-option v-for="(item,index) in Reference.options"
@@ -246,57 +242,236 @@
                                 </div>
                                 <template v-if="detailList.data">
                                     <table v-if="detailshow" class="el-table el-table--border detailTable finalTable">
+                                        <colgroup>
+                                            <col width="200" />
+                                            <col width="200" />
+                                            <col width="200" />
+                                            <col width="200" />
+                                            <col width="200" />
+                                            <col width="200" />
+                                        </colgroup>
                                         <thead class="el-table__header-wrapper trParent">
                                             <tr class="">
                                                 <td>工段</td>
-                                                <td v-bind:colspan="finalDetail.smtlength">SMT段工序产能(设备:线)</td>
-                                                <td v-bind:colspan="finalDetail.mklength">模块段工序产能</td>
-                                                <td v-bind:colspan="finalDetail.mzlength">模组段工序产能(设备:线)</td>
+                                                <td>SMT段工序产能(线)</td>
+                                                <td>模块段工序产能(设备)</td>
+                                                <td>模组装配(线)</td>
+                                                <td>老化调试(线)</td>
+                                                <td>包装(线)</td>
                                             </tr>
                                         </thead>
                                         <tbody class="el-table__body-wrapper trParent">
                                             <tr class="">
-                                                <td>工位</td>
-                                                <td v-for="(item,index) in detailList.name">
-                                                    <template v-if="detailList.equipmentName[index].length>1">
-                                                        <div class="cell">{{item}}</div>
-                                                        <el-divider></el-divider>
-                                                        <div class="flexDiv">
-                                                            <template v-for="(i,idx) in detailList.equipmentName[index]">
-                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                                <el-divider v-if="idx<(detailList.equipmentName[index].length-1)" direction="vertical"></el-divider>
-                                                            </template>
-                                                        </div>
-                                                    </template>
-                                                    <template v-else>
-                                                        <div class="cell">{{item}}</div>
-                                                    </template>
-                                                </td>
+                                                <td>人力</td>
+                                                <td>{{finalDetail.smtpersoncount}}</td>
+                                                <td>{{finalDetail.mkpersoncount}}</td>
+                                                <td>{{finalDetail.burninobjarr.zhuangpei.person}}</td>
+                                                <td>{{finalDetail.burninobjarr.laohua.person}}</td>
+                                                <td>{{finalDetail.burninobjarr.baozhuang.person}}</td>
                                             </tr>
                                             <tr class="">
-                                                <td>人力</td>
-                                                <td v-for="(item,index) in detailList.balancePerson">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
+                                                <td>设备(线)</td>
+                                                <td>{{finalDetail.smtbalanceequipmentcount}}</td>
+                                                <td>{{finalDetail.mkbalanceequipmentcount}}</td>
+                                                <td>{{finalDetail.burninobjarr.zhuangpei.equipment}}</td>
+                                                <td>{{finalDetail.burninobjarr.laohua.equipment}}</td>
+                                                <td>{{finalDetail.burninobjarr.baozhuang.equipment}}</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="el-table__header-wrapper trParent">
+                                            <tr class="">
+                                                <td>产能</td>
+                                                <td><u>{{finalDetail.smtmincapacity}} (PCBA)</u> / {{finalDetail.smtpersoncount}}人 / H</td>
+                                                <td><u>{{finalDetail.mkmincapacity}} (模块)</u> / {{finalDetail.mkpersoncount}}人 / H</td>
+                                                <td><u>{{finalDetail.burninobjarr.zhuangpei.capacity}} (模组)</u> <br />/ {{finalDetail.burninobjarr.zhuangpei.person}}人 / H</td>
+                                                <td><u>{{finalDetail.burninobjarr.laohua.capacity}} (模组)</u> <br />/ {{finalDetail.burninobjarr.laohua.person}}人 / H</td>
+                                                <td><u>{{finalDetail.burninobjarr.baozhuang.capacity}} (模组)</u> <br />/ {{finalDetail.burninobjarr.baozhuang.person}}人 / H</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+
+                                    <table v-else @*v-if="Object.keys(detailList).length!=0"*@ class="el-table el-table--border detailTable">
+                                        <colgroup>
+                                            <col width="120" />
+                                            <col v-for="i in finalDetail.smtlength" width="90" />
+                                            <col v-for="i in finalDetail.mklength" width="80" />
+                                            <col v-for="i in finalDetail.mzlength" width="80" />
+                                        </colgroup>
+                                        <thead class="el-table__header-wrapper trParent">
+                                            <tr class="">
+                                                <td style="min-width:120px">详细表</td>
+                                                <td v-bind:colspan="finalDetail.smtlength">SMT段工序产能(线)</td>
+                                                <td v-bind:colspan="finalDetail.mklength">模块段工序产能(设备)</td>
+                                                <td v-bind:colspan="finalDetail.mzlength">模组段工序产能(线)</td>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="el-table__body-wrapper trParent">
+                                            <tr>
+                                                <td>工段</td>
+                                                <td v-for="(item,index) in detailList.name">
+                                                    <div class="cell">{{item}}</div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>模组需求数</td>
+                                                <td v-for="(item,index) in detailList.moduleNeed"><div class="cell">{{item}}</div></td>
+                                            </tr>
+                                            <tr class="sbstyle">
+                                                <td>设备名字</td>
+                                                <td v-for="(item,index) in detailList.equipmentName">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
                                                         </template>
                                                     </div>
                                                 </td>
                                             </tr>
-                                            <tr class="">
-                                                <td>设备(线)</td>
+                                            <tr class="sbstyle">
+                                                <td>设备数量</td>
+                                                <td v-for="(item,index) in detailList.equipmentNum">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="sbstyle">
+                                                <td>产能(PCS/H)</td>
+                                                <td v-for="(item,index) in detailList.equipmentCapacity">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="sbstyle">
+                                                <td><span style="font-size:12px;">一人能控制的机台数</span></td>
+                                                <td v-for="(item,index) in detailList.controllerNum">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="sbstyle">
+                                                <td>人数</td>
+                                                <td v-for="(item,index) in detailList.person">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="phbsstyle">
+                                                <td>平衡后倍数</td>
+                                                <td v-for="(item,index) in detailList.balanceMultiple">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="phstyle">
+                                                <td>平衡后产能</td>
+                                                <td v-for="(item,index) in detailList.balanceCapacity">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="phstyle">
+                                                <td>平衡后人数</td>
+                                                <td v-for="(item,index) in detailList.balancePerson">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="phstyle">
+                                                <td><span style="font-size:13px;">平衡后设备需求数</span></td>
                                                 <td v-for="(item,index) in detailList.balanceEquipmentNum">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">{{detailList.balanceMultiple[index][0] || 1}}</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="phstyle">
+                                                <td>平衡率</td>
+                                                <td v-for="(item,index) in detailList.balanceRate">
+                                                    <div class="flexDiv">
+                                                        <template v-if="item==''">
+                                                            <div class="shebeiDivNew"><div class="cell">/</div></div>
+                                                        </template>
+                                                        <template v-else class="flexDiv">
+                                                            <template v-for="(i,idx) in item">
+                                                                <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
+                                                                @*<el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>*@
+                                                            </template>
                                                         </template>
                                                     </div>
                                                 </td>
@@ -306,193 +481,16 @@
                                             <tr class="">
                                                 <td>产能</td>
                                                 <td v-bind:colspan="finalDetail.smtlength">
-                                                    <u>{{finalDetail.smtmincapacity}} PCS</u> / {{finalDetail.smtpersoncount}}人 / 小时
+                                                    <u>{{finalDetail.smtmincapacity}} (PCBA)</u> / {{finalDetail.smtpersoncount}}人 / H
                                                 </td>
                                                 <td v-bind:colspan="finalDetail.mklength">
-                                                    <u>{{finalDetail.mkmincapacity}} PCS</u> / {{finalDetail.mkpersoncount}}人 / 小时
+                                                    <u>{{finalDetail.mkmincapacity}} (模块)</u> / {{finalDetail.mkpersoncount}}人 / H
                                                 </td>
-                                                @* 模组合并产能后的数据，累加 *@
-                                                @*<td v-bind:colspan="finalDetail.mzlength">
-                                                        <u>{{finalDetail.mzcapacitycount.toFixed(2)}} PCS</u> / {{finalDetail.mzpersoncount}}人 / 小时
-                                                    </td>*@
-                                                <td v-for="(item,index) in finalDetail.mzlength" style="border-right:1px solid #d5d7db;">
-                                                    <u>{{finalDetail.mzarr[index].capacity.toFixed(2)}} PCS</u> <br />/ {{finalDetail.mzarr[index].person}}人 / 小时
+                                                <td v-for="(item,index) in finalDetail.mzlength">
+                                                    <u>{{finalDetail.mzarr[index].capacity}} (模组)</u> <br />/ {{finalDetail.mzarr[index].person}}人 / H
                                                 </td>
                                             </tr>
                                         </tfoot>
-                                    </table>
-
-                                    <table v-else @*v-if="Object.keys(detailList).length!=0"*@ class="el-table el-table--border detailTable">
-                                        <thead class="el-table__header-wrapper trParent">
-                                            <tr>
-                                                <td>详细表</td>
-                                                <td v-for="(item,index) in detailList.name">
-                                                    <div class="cell">{{item}}</div>
-                                                </td>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="el-table__body-wrapper trParent">
-                                            @*<tr>
-                                                    <td>每小时产能</td>
-                                                    <td v-for="(item,index) in detailList.capacityPerHour"><div class="cell">{{item}}</div></td>
-                                                </tr>
-                                                <tr>
-                                                    <td>模组需求数</td>
-                                                    <td v-for="(item,index) in detailList.moduleNeed"><div class="cell">{{item}}</div></td>
-                                                </tr>
-                                                <tr class="bpstyle">
-                                                    <td>标配人数</td>
-                                                    <td v-for="(item,index) in detailList.person"><div class="cell">{{item}}</div></td>
-                                                </tr>
-                                                <tr class="bpstyle">
-                                                    <td>标准产能</td>
-                                                    <td v-for="(item,index) in detailList.capacity"><div class="cell">{{item}}</div></td>
-                                                </tr>*@
-                                            <tr>
-                                                <td>模组需求数</td>
-                                                <td v-for="(item,index) in detailList.moduleNeed"><div class="cell">{{item}}</div></td>
-                                            </tr>
-                                            <tr class="sbstyle">
-                                                <td>设备名字</td>
-                                                <td v-for="(item,index) in detailList.equipmentName">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="sbstyle">
-                                                <td>设备数量</td>
-                                                <td v-for="(item,index) in detailList.equipmentNum">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="sbstyle">
-                                                <td>产能(PCS/H)</td>
-                                                <td v-for="(item,index) in detailList.equipmentCapacity">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="sbstyle">
-                                                <td><span style="font-size:12px;">一人能控制的机台数</span></td>
-                                                <td v-for="(item,index) in detailList.controllerNum">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="sbstyle">
-                                                <td>人数</td>
-                                                <td v-for="(item,index) in detailList.person">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="phbsstyle">
-                                                <td>平衡后倍数</td>
-                                                <td v-for="(item,index) in detailList.balanceMultiple">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="phstyle">
-                                                <td>平衡后产能</td>
-                                                <td v-for="(item,index) in detailList.balanceCapacity">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="phstyle">
-                                                <td>平衡后人数</td>
-                                                <td v-for="(item,index) in detailList.balancePerson">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="phstyle">
-                                                <td><span style="font-size:13px;">平衡后设备需求数</span></td>
-                                                <td v-for="(item,index) in detailList.balanceEquipmentNum">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr class="phstyle trBottom">
-                                                <td>平衡率</td>
-                                                <td v-for="(item,index) in detailList.balanceRate">
-                                                    <template v-if="item==''">
-                                                        <div class="shebeiDivNew"><div class="cell">/</div></div>
-                                                    </template>
-                                                    <div v-else class="flexDiv">
-                                                        <template v-for="(i,idx) in item">
-                                                            <div class="shebeiDivNew"><div class="cell">{{i}}</div></div>
-                                                            <el-divider v-if="idx<(item.length-1)" direction="vertical"></el-divider>
-                                                        </template>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tbody>
                                     </table>
                                 </template>
                                 <template v-else>
@@ -515,28 +513,29 @@
                     </el-table-column>
                     <el-table-column prop="platfrom"
                                      min-width="80"
-                                     @*fixed*@
+                                     class-name="fontsizelie"
                                      sortable
                                      label="平台">
                         <template slot-scope="scope">
                             @*<el-link :href="`/Process_Capacity/index2?Type=${scope.row.type}&ProductPCBnumber=${scope.row.PCB}&Platform=${scope.row.platfrom}`"
                                 target="_blank"
-                                class="fontsizelie"
                                 style="color:#409EFF"
                                 :underline="false">{{scope.row.platfrom}}</el-link>*@
-                            <span class="fontsizelie">{{scope.row.platfrom}}</span>
+                            <span>{{scope.row.platfrom}}</span>
                         </template>
                     </el-table-column>
                     <el-table-column prop="type"
                                      sortable
+                                     class-name="fontsizelie"
                                      min-width="80"
                                      label="型号">
                         <template slot-scope="scope">
-                            <span class="fontsizelie">{{scope.row.type}}</span>
+                            <span>{{scope.row.type}}</span>
                         </template>
                     </el-table-column>
                     <el-table-column prop="PlatformModul"
                                      label="平台模块"
+                                     class-name="fontsizelie"
                                      min-width="100">
                         <template slot-scope="scope">
                             <div v-if="scope.row.platformModule.length>0">
@@ -549,12 +548,13 @@
                                         </el-option>
                                     </el-select>
                                 </div>
-                                <div v-else class="fontsizelie">{{scope.row.ptmkVal}}</div>
+                                <div v-else>{{scope.row.ptmkVal}}</div>
                             </div>
                         </template>
                     </el-table-column>
                     <el-table-column prop="Maintenance"
                                      label="维护方式"
+                                     class-name="fontsizelie"
                                      min-width="100">
                         <template slot-scope="scope">
                             <div v-if="scope.row.platformModule.length>0">
@@ -567,7 +567,7 @@
                                         </el-option>
                                     </el-select>
                                 </div>
-                                <div v-else class="fontsizelie">{{scope.row.whVal}}</div>
+                                <div v-else>{{scope.row.whVal}}</div>
                             </div>
                         </template>
                     </el-table-column>
@@ -712,7 +712,230 @@
                     <el-table-column label="详细信息"
                                      width="65">
                         <template slot-scope="scope">
-                            <el-button type="text" size="medium" @@click="toogleExpand(scope.row)">查看</el-button>
+                            @*<el-button type="text" size="medium" @@click="toogleExpand(scope.row)">查看</el-button>*@
+                            <el-button type="text" size="medium" @@click="changeExpand(scope.row,false)">返回</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <el-button type="text" v-show="expandShow" @@click="changeExpand(expandData[0],false)" style="padding-bottom:0;">返回上一页</el-button>
+
+                @* -------------·分割线·---------------- *@
+
+                <el-table :data="filterResult"
+                          v-show="!expandShow"
+                          max-height="700"
+                          size="medium"
+                          align="center"
+                          cell-class-name="indexCellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号" width="40">
+                        <template slot-scope="scope">
+                            <span style="font-size:16px;">{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="platfrom"
+                                     min-width="80"
+                                     class-name="fontsizelie"
+                                     sortable
+                                     label="平台">
+                        <template slot-scope="scope">
+                            @*<el-link :href="`/Process_Capacity/index2?Type=${scope.row.type}&ProductPCBnumber=${scope.row.PCB}&Platform=${scope.row.platfrom}`"
+                                target="_blank"
+                                style="color:#409EFF"
+                                :underline="false">{{scope.row.platfrom}}</el-link>*@
+                            <span>{{scope.row.platfrom}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="type"
+                                     sortable
+                                     min-width="80"
+                                     class-name="fontsizelie"
+                                     label="型号">
+                        <template slot-scope="scope">
+                            <span>{{scope.row.type}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="PlatformModul"
+                                     label="平台模块"
+                                     class-name="fontsizelie"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.platformModule.length>0">
+                                <div v-if="scope.row.platformModule.length>1">
+                                    <el-select v-model="scope.row.ptmkVal" @@change="ptmkselect($event,scope.row)" placeholder="请选择">
+                                        <el-option v-for="item in scope.row.platformModule"
+                                                   :key="item.PlatformModul"
+                                                   :label="item.PlatformModul"
+                                                   :value="item.PlatformModul">
+                                        </el-option>
+                                    </el-select>
+                                </div>
+                                <div v-else>{{scope.row.ptmkVal}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Maintenance"
+                                     label="维护方式"
+                                     class-name="fontsizelie"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.platformModule.length>0">
+                                <div v-if="scope.row.platformModule[scope.row.ptmkIndex].Maintenance.length>1">
+                                    <el-select v-model="scope.row.whVal" @@change="whselect(scope.row)" placeholder="请选择">
+                                        <el-option v-for="item in scope.row.platformModule[scope.row.ptmkIndex].Maintenance"
+                                                   :key="item"
+                                                   :label="item"
+                                                   :value="item">
+                                        </el-option>
+                                    </el-select>
+                                </div>
+                                <div v-else>{{scope.row.whVal}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组单位"
+                                     min-width="65"
+                                     prop="ModuleUnits">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.platformModule.length>0">
+                                {{scope.row.platformModule[scope.row.ptmkIndex].ModuleUnits}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模块"
+                                     min-width="140">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.sgOption.length>1">
+                                <el-select v-model="scope.row.sgID" @@change="sgselect(scope.row)" placeholder="请选择">
+                                    <el-option v-for="item in scope.row.sgOption"
+                                               :key="item.threeid+item.guleid"
+                                               :label="sglabel(item.threename,item.gulename)"
+                                               :value="item.threeid+'+'+item.guleid">
+                                    </el-option>
+                                </el-select>
+                            </div>
+                            <div v-else>
+                                <div v-if="sglabel(scope.row.sgVal.split('+')[0],scope.row.sgVal.split('+')[1]).split('+').length>1">
+                                    <ul class="ulli">
+                                        <li v-for="i in sglabel(scope.row.sgVal.split('+')[0],scope.row.sgVal.split('+')[1]).split('+')">
+                                            {{i}}
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-else>{{sglabel(scope.row.sgVal.split('+')[0],scope.row.sgVal.split('+')[1])}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组">
+                        <el-table-column label="出货方式"
+                                         min-width="90">
+                            <template slot-scope="scope">
+                                <div v-if="scope.row.wayOption.length>1">
+                                    <el-select v-model="scope.row.wayVal" @@change="wayselect(scope.row,$event)" placeholder="请选择">
+                                        <el-option v-for="item in scope.row.wayOption"
+                                                   :key="item"
+                                                   :label="item"
+                                                   :value="item">
+                                        </el-option>
+                                    </el-select>
+                                </div>
+                                <div v-else>
+                                    {{scope.row.wayVal}}
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="模组类别"
+                                         min-width="100">
+                            <template slot-scope="scope">
+                                <template v-if="scope.row.wayVal!=''">
+                                    <div v-if="scope.row.categoryOption.length>1">
+                                        <el-select v-model="scope.row.categoryVal" @@change="categoryselect(scope.row,$event)" placeholder="请选择">
+                                            <el-option v-for="item in scope.row.categoryOption"
+                                                       :key="item"
+                                                       :label="item"
+                                                       :value="item">
+                                            </el-option>
+                                        </el-select>
+                                    </div>
+                                    <div v-else>
+                                        {{scope.row.categoryVal}}
+                                    </div>
+                                </template>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="箱体尺寸"
+                                         min-width="110">
+                            <template slot-scope="scope">
+                                <template v-if="scope.row.categoryVal!=''">
+                                    <div v-if="scope.row.sizeOption.length>1">
+                                        <el-select v-model="scope.row.sizeVal" @@change="sizeselect(scope.row,$event)" placeholder="请选择">
+                                            <el-option v-for="item in scope.row.sizeOption"
+                                                       :key="item"
+                                                       :label="item"
+                                                       :value="item">
+                                            </el-option>
+                                        </el-select>
+                                    </div>
+                                    <div v-else>
+                                        {{scope.row.sizeVal}}
+                                    </div>
+                                </template>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="包装"
+                                     min-width="130">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.bzOption.length>1">
+                                <el-select v-model="scope.row.bzID" @@change="bzselect(scope.row)" placeholder="请选择">
+                                    <el-option v-for="item in scope.row.bzOption"
+                                               :key="item.id"
+                                               :label="item.name"
+                                               :value="item.id">
+                                    </el-option>
+                                </el-select>
+                            </div>
+                            <div v-else>
+                                <div v-if="scope.row.bzVal.split('+').length>1">
+                                    <ul class="ulli">
+                                        <li v-for="i in scope.row.bzVal.split('+')">
+                                            {{i}}
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div v-else>{{scope.row.bzVal}}</div>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组生产总工时(H)"
+                                     min-width="75">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.info!=''">
+                                {{scope.row.info.totalcapacityPerHour}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="所需人数"
+                                     min-width="65">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.info!=''">
+                                {{scope.row.info.totalperson}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="加工费用"
+                                     min-width="65">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.info!=''">
+                                {{scope.row.info.processingFee}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="详细信息"
+                                     width="65">
+                        <template slot-scope="scope">
+                            <el-button type="text" size="medium" @@click="changeExpand(scope.row,true)">查看</el-button>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -733,7 +956,7 @@
             filterResult: [],//存储筛选总数据后的结果
             queryTable: {
                 protype: '',
-                proplatform: 'FS',
+                proplatform: 'VA',
             },
             options: {
                 protype: [],
@@ -745,7 +968,9 @@
                 options: []
             },
             detailshow: true,
-            finalDetail: {}
+            finalDetail: {},
+            expandData: [],
+            expandShow: false
         },
         //页面打开时执行
         created: function () {
@@ -758,7 +983,11 @@
         methods: {
             //总表条件查询
             onQuerySubmit() {
+                if (this.queryTable.protype == "" && this.queryTable.proplatform == "") {
+                    return;
+                };
                 this.loading = true;
+                this.changeExpand(this.expandData[0], false)
                 axios.post('/Process_Capacity/GetInfoByModule1', {
                     type: this.queryTable.protype,
                     Platform: this.queryTable.proplatform
@@ -803,6 +1032,10 @@
             //监听平台选择，调用筛选方法，即时更新筛选后的表格
             watchPlatform(v) {
                 //this.filterList();
+            },
+            selectHandle(v) {
+                this.queryTable.protype = '';
+                this.onQuerySubmit();
             },
             //监听型号选择，调用筛选方法，即时更新筛选后的表格
             watchType(v) {
@@ -943,7 +1176,7 @@
             },
             //重置数据
             clear(row, from) {
-                this.$refs.thistable.toggleRowExpansion(row, false);
+                //this.$refs.thistable.toggleRowExpansion(row, false);
                 this.detailList = {};
                 row.info = '';
                 //if (from == "ptmk" || from == "wh" || from == "sg" || from == "way" || from == "category" || from == "size" || from == "bz") {
@@ -1179,6 +1412,7 @@
             //选择包装
             bzselect(row) {
                 this.clear(row, "bz");
+                this.getCapHouse(row);
                 //this.toogleExpand(row);
             },
             //获取详细值
@@ -1285,13 +1519,15 @@
             //详细展开切换
             toogleExpand(row, event, column) {
                 //切换展开状态清空值
-                this.clear(row, 'qh');
-                let $table = this.$refs.thistable;
+                let $table = this.$refs.thistable, isclear = true;
                 this.filterResult.map((item) => {
-                    if (row.platfrom != item.platfrom || row.type != item.type || row.PCB != item.PCB) {
+                    if (row.platfrom == item.platfrom && row.type == item.type && row.PCB == item.PCB) {
+                        isclear = false;
+                    } else {
                         $table.toggleRowExpansion(item, false);
                     };
                 });
+                isclear && this.clear(row, 'qh');
                 $table.toggleRowExpansion(row);
                 //若该行值不为空，详细表取值
                 if (row.type != '' && row.platfrom != '' && row.ptmkVal != '' && row.whVal != '' && row.sgID !== '' && row.mzID !== '' && row.bzID !== '') {
@@ -1304,6 +1540,24 @@
                     };
                 });
             },
+            //切换成展开表
+            changeExpand(row, from) {
+                this.expandData = [];
+                this.detailList = {};
+                this.finalDetail = {};
+                if (from) {
+                    this.expandShow = true;
+                    this.expandData.push(row);
+                    if (row.type != '' && row.platfrom != '' && row.ptmkVal != '' && row.whVal != '' && row.sgID !== '' && row.mzID !== '' && row.bzID !== '') {
+                        this.getCapHouse(row);
+                    };
+                    this.$nextTick(_ => {
+                        this.$refs.thistable.toggleRowExpansion(row, true);
+                    });
+                } else {
+                    this.expandShow = false;
+                };
+            },
             //综合计算最终结果需要的信息
             finalDetailSum(detailobj) {
                 let rtd = {
@@ -1311,17 +1565,35 @@
                     mzlength: 0,
                     mklength: 0,
                     smtpersoncount: 0,
-                    mzpersoncount: 0,
-                    mzcapacitycount: 0,
-                    mzarr: [],
                     mkpersoncount: 0,
+                    smtbalanceequipmentcount: 0,
+                    mkbalanceequipmentcount: 0,
                     smtmincapacity: 0,
-                    mzmincapacity: 0,
                     mkmincapacity: 0,
-                    jieguoxishu: 0
+                    mzarr: [],
+                    jieguoxishu: 0,
                 }, smtVal = [], mzVal = [], mkVal = [], smtTimeVal = [], mzTimeVal = [], mkTimeVal = [];
                 //模块单独计算部分
                 let mkNeed = [], mkArr = [];
+                //---
+                //老化调试版本的单独计算部分
+                rtd['burninobjarr'] = {
+                    zhuangpei: {
+                        person: 0,
+                        capacity: 0,
+                        equipment: 0
+                    },
+                    laohua: {
+                        person: 0,
+                        capacity: 0,
+                        equipment: 0
+                    },
+                    baozhuang: {
+                        person: 0,
+                        capacity: 0,
+                        equipment: 0
+                    }
+                };
                 //---
                 detailobj.name.forEach((item, index) => {
                     if (item == 'IC' || item == '灯面' || item == '插件' || item == '后焊') {
@@ -1330,6 +1602,7 @@
                             smtVal.push(detailobj.balanceCapacity[index][i]);
                             smtTimeVal.push((detailobj.moduleNeed[index] / detailobj.balanceCapacity[index][i]));
                             rtd.smtpersoncount += detailobj.balancePerson[index][i];
+                            rtd.smtbalanceequipmentcount += (detailobj.balanceEquipmentNum[index][i] == undefined ? 1 : detailobj.balanceEquipmentNum[index][i]);
                         };
                         rtd.smtlength++;
                     } else if (item == '模组装配' || item == '拼屏' || item == '拆屏' || item == '包装') {
@@ -1337,13 +1610,28 @@
                         for (let i in detailobj.equipmentName[index]) {
                             mzVal.push(detailobj.balanceCapacity[index][i]);
                             mzTimeVal.push((detailobj.moduleNeed[index] / detailobj.balanceCapacity[index][i]));
-                            rtd.mzpersoncount += detailobj.balancePerson[index][i];
-                            rtd.mzcapacitycount += detailobj.balanceCapacity[index][i];
                             //分开模组
                             rtd.mzarr.push({
                                 person: detailobj.balancePerson[index][i],
                                 capacity: detailobj.balanceCapacity[index][i]
                             });
+                            //老化调试版本的单独计算部分
+                            if (item == '模组装配') {
+                                rtd.burninobjarr.zhuangpei.person += detailobj.balancePerson[index][i];
+                                rtd.burninobjarr.zhuangpei.capacity += detailobj.balanceCapacity[index][i];
+                                rtd.burninobjarr.zhuangpei.equipment += (detailobj.balanceEquipmentNum[index][i] == undefined ? 1 : detailobj.balanceEquipmentNum[index][i]);
+                            };
+                            if (item == '拼屏' || item == '拆屏') {
+                                rtd.burninobjarr.laohua.person += detailobj.balancePerson[index][i];
+                                rtd.burninobjarr.laohua.capacity += ((detailobj.balancePerson[index][i] * 3600) / detailobj.balanceCapacity[index][i]);
+                                rtd.burninobjarr.laohua.equipment += (detailobj.balanceEquipmentNum[index][i] == undefined ? 0 : detailobj.balanceEquipmentNum[index][i]);
+                            };
+                            if (item == '包装') {
+                                rtd.burninobjarr.baozhuang.person += detailobj.balancePerson[index][i];
+                                rtd.burninobjarr.baozhuang.capacity += detailobj.balanceCapacity[index][i];
+                                rtd.burninobjarr.baozhuang.equipment += (detailobj.balanceEquipmentNum[index][i] == undefined ? 1 : detailobj.balanceEquipmentNum[index][i]);
+                            };
+                            //---
                         };
                         rtd.mzlength++;
                     } else {
@@ -1355,10 +1643,15 @@
                             mkVal.push(detailobj.balanceCapacity[index][i]);//原本模块
                             mkTimeVal.push((detailobj.moduleNeed[index] / detailobj.balanceCapacity[index][i]));
                             rtd.mkpersoncount += detailobj.balancePerson[index][i];
+                            rtd.mkbalanceequipmentcount += (detailobj.balanceEquipmentNum[index][i] == undefined ? 1 : detailobj.balanceEquipmentNum[index][i]);
                         };
                         rtd.mklength++;
                     };
                 });
+                //老化调试版本的单独计算部分
+                rtd.burninobjarr.laohua.equipment = rtd.burninobjarr.laohua.equipment == 0 ? 1 : rtd.burninobjarr.laohua.equipment;
+                rtd.burninobjarr.laohua.capacity = ((3600 / rtd.burninobjarr.laohua.capacity) * rtd.burninobjarr.laohua.person);
+                //---
                 //模块单独计算部分
                 let mkMaxNeed = Math.max(...mkNeed),
                     mkMinNeed = Math.min(...mkNeed),
@@ -1381,12 +1674,7 @@
                 for (let mz of mzTimeVal) {
                     rtd.jieguoxishu += mz;
                 };
-                //rtd.maxSMT = Math.max(...smtVal);
-                //rtd.maxMZ = Math.max(...mzVal);
-                //rtd.maxMK = Math.max(...mkVal);
                 rtd.smtmincapacity = Math.min(...smtVal);
-                rtd.mzmincapacity = Math.min(...mzVal);
-                //rtd.mkmincapacity = Math.min(...mkVal);//原本模块
                 this.finalDetail = rtd;
             },
             areaCompute(row, areaVal) {
@@ -1426,91 +1714,6 @@
                     }, 500);
                 };
             },
-            detailInfoComputed() {
-                let list = this.detailList;
-                let rtd = {
-                    maxSMT: '',
-                    minSMT: '',
-                    maxMZ: '',
-                    minMZ: '',
-                    maxMK: '',
-                    minMK: '',
-                }, smtVal = [], mkVal = [], mzVal = [];
-                for (let i of list) {
-                    if (i.capacity != 0) {
-                        if (i.name == 'IC' || i.name == '灯面' || i.name == '插件' || i.name == '后焊') {
-                            //smt
-                            smtVal.push(i.capacity * i.balance);
-                        } else if (i.name == '模组装配' || i.name == '拼屏' || i.name == '拆屏' || i.name == '包装') {
-                            //模组
-                            mzVal.push(i.capacity * i.balance);
-                        } else {
-                            //模块
-                            mkVal.push(i.capacity * i.balance);
-                        };
-                    };
-                };
-                rtd.maxSMT = Math.max(...smtVal);
-                rtd.minSMT = Math.min(...smtVal);
-                rtd.maxMZ = Math.max(...mzVal);
-                rtd.minMZ = Math.min(...mzVal);
-                rtd.maxMK = Math.max(...mkVal);
-                rtd.minMK = Math.min(...mkVal);
-                return rtd;
-            },
-            rateCompute(row) {
-                let capacityData = this.detailInfoComputed(), rtd = '';
-                if (row.name == 'IC' || row.name == '灯面' || row.name == '插件' || row.name == '后焊') {
-                    //smt
-                    rtd = (row.balance * row.capacity) / capacityData.maxSMT;
-                } else if (row.name == '模组装配' || row.name == '拼屏' || row.name == '拆屏' || row.name == '包装') {
-                    //模组
-                    rtd = (row.balance * row.capacity) / (row.balance * row.capacity);
-                } else {
-                    //模块
-                    rtd = (row.balance * row.capacity) / capacityData.maxMK;
-                };
-                return (rtd * 100).toFixed(1);
-            },
-            needNumCompute(row) {
-                let capacityData = this.detailInfoComputed(), rtd = [];
-                if (row.name == 'IC' || row.name == '灯面' || row.name == '插件' || row.name == '后焊') {
-                    //smt
-                    for (let i of row.equipmentCapacity) {
-                        rtd.push((capacityData.minSMT / i).toFixed(1));
-                    };
-                } else if (row.name == '模组装配' || row.name == '拼屏' || row.name == '拆屏' || row.name == '包装') {
-                    //模组
-                    for (let i of row.equipmentCapacity) {
-                        rtd.push((capacityData.minMZ / i).toFixed(1));
-                    };
-                } else {
-                    //模块
-                    for (let i of row.equipmentCapacity) {
-                        rtd.push((capacityData.minMK / i).toFixed(1));
-                    };
-                };
-                return rtd;
-            },
-            tableRowClassName({ row, rowIndex }) {
-                if (row.name == 'IC' || row.name == '灯面' || row.name == '插件' || row.name == '后焊') {
-                    //smt
-                    return 'smtbgcolor';
-                } else if (row.name == '模组装配' || row.name == '拼屏' || row.name == '拆屏' || row.name == '包装') {
-                    //模组
-                    return 'mzbgcolor';
-                } else {
-                    //模块
-                    return 'mkbgcolor';
-                };
-            },
-            cellStyle({ row, column, rowIndex, columnIndex }) {
-                if (columnIndex == 10) {
-                    if (this.rateCompute(row) < 85) {
-                        return "color: red";
-                    }
-                }
-            }
         },
         //页面加载完后执行
         mounted: function () {

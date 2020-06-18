@@ -1,0 +1,54 @@
+﻿const limit = {
+    data: function () {
+        return {
+            limitsList: {},//用来存储用户所有的权限列表
+            limitsRole: {},//用来存储用户与工序产能相关的权限列表
+        }
+    },
+    //页面打开时执行
+    created: function () {
+        if (this.userName) {
+            if (localStorage.getItem('rigths') == "{}" || localStorage.getItem('rigths') == null) {
+                axios.post("/Common/Permissions", { id: this.userId }).then(res => {
+                    localStorage.setItem('rigths', JSON.stringify(res.data));
+                    //获取存储在浏览器的权限列表
+                    this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+                }).catch(err => {
+                    console.warn(err);
+                });
+            } else {
+                //获取存储在浏览器的权限列表
+                this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            };
+        } else {
+            localStorage.removeItem('rigths');
+        };
+    },
+    //页面加载完后执行
+    mounted: function () {
+        this.getRolesObj();
+    },
+    //函数方法
+    methods: {
+        getRolesObj() {
+            for (let n of Object.values(this.limitsList)) {
+                this.limitsRole[n] = true;
+            };
+        },
+        /**    获取与工序产能相关的权限对象列表，对应的结果用函数checkRoles判断 
+             * @@param roleName 参数为权限名称 例：‘新建平台’
+             * 传入参数，在该用户权限列表中遍历查找该权限名称，若存在该权限，返回true，否则返回false
+             */
+        checkRoles(roleName) {   //检测权限
+            let list = this.limitsList;
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        return true;
+                    };
+                };
+            };
+            return false;
+        },
+    },
+};

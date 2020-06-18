@@ -1,0 +1,279 @@
+﻿
+@{
+    /**/
+
+    ViewBag.Title = "钣金生产数据录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .inputbox {
+        margin: 2px;
+    }
+    .el-table__header tr, .el-table__header th, .el-table td {
+        padding: 1%;
+        text-align: center;
+        padding-left: 0px;
+    }
+    .box {
+        margin-left:420px;
+    }
+</style>
+
+<div id="app">
+    <div class="text-center">
+        <h3>生产数据录入</h3>
+        <div class="query">
+            <label>班&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;组:</label>
+            <group-select style="width: 190px;"></group-select>
+        </div>
+        <div class="inputbox">
+            <label>订&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;号:</label>
+            <el-select v-model="ordernum"
+                       clearable
+                       allow-create filterable
+                       placeholder="请选择订单号">
+                <el-option v-for="item in ordernumOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label>生&nbsp;&nbsp;产&nbsp;&nbsp;类&nbsp;&nbsp;型:</label>
+            <el-select v-model="productionType"
+                       clearable
+                       allow-create filterable
+                       placeholder="请选择生产类型">
+                <el-option v-for="item in productionTypeOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label>工&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;段:</label>
+            <el-select v-model="section"
+                       clearable
+                       allow-create filterable
+                       placeholder="请选择工段">
+                <el-option v-for="item in sectionOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label v-if="section!='入库'">订单正常数量:</label>
+            <label v-if="section=='入库'">订单入库数量:</label>
+            <el-input v-model="normalQuantity" placeholder="请输入正常数量" style="width:191px" clearable>
+            </el-input>
+        </div>
+        <div class="inputbox" v-if="section!='入库'">
+            <label>订单异常数量:</label>
+            <el-input v-model="abnormaQuantity" placeholder="请输入异常数量" style="width:191px" clearable>
+            </el-input>
+        </div>
+        <div class="inputbox" style="display:none" v-show="section=='图纸编程'&&flag==true||section=='入库'">
+            <label v-show="section=='图纸编程'&&flag==true">生产开始时间:</label>
+            <label v-show="section=='入库'">订单入库时间:</label>
+            <el-date-picker v-model="startTime"
+                            type="datetime"
+                            placeholder="选择生产开始时间"
+                            style="width:195px">
+            </el-date-picker>
+        </div>
+        <div>
+            <el-button v-on:click="saveProducionInfo" size="mini" type="primary">保存</el-button>
+        </div>
+
+    </div>
+    <div class="box" v-if="tableData.length>0">
+        <el-table v-bind:data="tableData"
+                  style="width: 471px;font-size: 13px" border>
+            <el-table-column prop="OrderNum"
+                             label="订单号"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="ProductionType"
+                             label="生产类型"
+                             width="90">
+            </el-table-column>
+            <el-table-column prop="Section"
+                             label="工段"
+                             width="90">
+            </el-table-column>
+            <el-table-column prop="NormalQuantity"
+                             label="正常数"
+                             width="90">
+            </el-table-column>
+            <el-table-column prop="AbnormaQuantity"
+                             label="异常数"
+                             width="90">
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            ordernum: '',
+            ordernumOptions: [],
+            section: '',
+            sectionOptions: [{ value: '图纸编程' }, { value: '数冲冲压' }, { value: '敲料去毛刺沉孔倒角' }, { value: '折弯压铆' }, { value: '焊接打磨' }, { value: '外协喷涂' }, { value: '装配丝印' }, { value: '入库' }],
+            startTime: '',//生产开始时间
+            normalQuantity: '',//正常数
+            abnormaQuantity: '',//异常数
+            productionType: '',
+            productionTypeOptions: [{ value: '散件' }, { value: '箱体' }],//生产类型
+            tableData: [],
+            flag: false,
+        },
+        mounted() {
+            axios.post('/Packagings/GetOrderList').then(res => {
+                this.ordernumOptions = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        methods: {
+            saveProducionInfo() {
+                if ($("#banzuGroup").val() == "") {
+                    this.$message.warning("请选择班组");
+                    return;
+                };
+                if (this.section == '图纸编程') {
+                    if (this.flag == true) {
+                        if (this.ordernum != '' && this.section != '' && this.startTime != '' && this.normalQuantity != '' && this.abnormaQuantity != '' && this.productionType != '') {
+                            this.save()
+                        } else {
+                            this.$message({
+                                message: "请填写完整在保存",
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        }
+                    } else {
+                        if (this.ordernum != '' && this.section != '' && this.normalQuantity != '' && this.abnormaQuantity != '' && this.productionType != '') {
+                            this.save()
+                        } else {
+                            this.$message({
+                                message: "请填写完整在保存",
+                                type: 'warning',
+                                duration: 6000,
+                            });
+                        }
+                    }                   
+                }
+                else if (this.section == '入库') {
+                    if (this.ordernum != '' && this.section != '' && this.normalQuantity != '' && this.productionType != '' && this.startTime) {
+                        this.save()
+                    } else {
+                        this.$message({
+                            message: "请填写完整在保存",
+                            type: 'warning',
+                            duration: 6000,
+                        });
+                    }
+                } else {
+                    if (this.ordernum != '' && this.section != '' && this.normalQuantity != '' && this.abnormaQuantity != '' && this.productionType != '') {
+                        this.save()
+                    } else {
+                        this.$message({
+                            message: "请填写完整在保存",
+                            type: 'warning',
+                            duration: 6000,
+                        });
+                    }
+                }
+
+            },
+            save() {
+                axios.post('/MetalPlate/CreatProductionInfo', {
+                    ordernum: this.ordernum,//订单号
+                    section: this.section,//工段
+                    productionType: this.productionType,//生产类型
+                    productionStartTime: this.startTime == '' ? null : this.startTime,//生产开始时间
+                    normalQuantity: this.normalQuantity,//正常数
+                    abnormaQuantity: this.abnormaQuantity == '' ? 0 : this.abnormaQuantity,//异常数
+                    Department: $("#banzuDepartment").val(),
+                    Group: $("#banzuGroup").val(),
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == "保存成功！") {
+                        this.$message({
+                            message: res.data,
+                            type: 'success',
+                            duration: 6000,
+                        });
+                        this.getdata()
+                        this.quantity = this.section = this.startTime = this.normalQuantity = this.abnormaQuantity = '';
+                    } else {
+                        this.$message({
+                            message: res.data,
+                            type: 'warning',
+                            duration: 8000,
+                        });
+                    }
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                })
+            },
+            getdata() {
+                axios.post('/MetalPlate/GetEnteredDatat', {
+                    ordernum: this.ordernum,
+                    productionType: this.productionType,
+                    section: this.section
+                }).then(res => {
+                    console.log(res.data)
+                    this.tableData = res.data
+                })
+
+            }
+        },
+        watch: {
+            productionType() {
+                if (this.ordernum != '' && this.productionType != '') {
+                    axios.post('/MetalPlate/CheckBasicInfo', {
+                        ordernum: this.ordernum,
+                        productionType: this.productionType,
+                    }).then(res => {
+                        if (res.data == "此订单未创建基本信息记录，用户需先创建基本信息记录！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                                duration: 8000,
+                            });
+                        }
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    })
+                }
+            },
+            section() {
+                if (this.ordernum != '' && this.productionType != '' && this.section != '') {
+                    this.getdata()
+                    axios.post('/MetalPlate/CheckTime', {
+                        ordernum: this.ordernum,
+                        productionType: this.productionType,                        
+                    }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "开始时间为空！") {
+                            this.flag = true
+                        } else {
+                            this.flag = false
+                        }
+                    })
+                }
+            }
+        }
+
+    })
+</script>

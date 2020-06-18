@@ -1,0 +1,121 @@
+﻿@{
+    ViewBag.Title = "物料看板";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/warehouseMaterial/warehouse.less" />
+
+<style>
+    /* 宽度设为屏幕宽度的96% */
+    .container, .body-content {
+        width: 96vw;
+    }
+
+    .el-table th > .cell, .el-table td > .cell {
+        padding: 0;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="QueryData" title="@ViewBag.Title" :limit="limitsRole"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center main">
+                <el-form :inline="true" :model="queryTable" size="small" @@submit.native.prevent>
+                    <el-form-item label="输入物料编号">
+                        <el-input placeholder="请输入物料编号"
+                                  v-model.trim="queryTable.materialNumber"
+                                  v-on:keyup.native.enter="getdata"
+                                  size="medium"
+                                  clearable>
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="getdata">查询</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="small"
+                          align="center"
+                          @*cell-class-name="cellParent"*@
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号" align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="MaterialNumber" label="物料编号" align="center"></el-table-column>
+                    <el-table-column prop="MaterialDiscription" label="物料规格描述" align="center"></el-table-column>
+                    <el-table-column prop="Batch" label="批次" align="center"></el-table-column>
+                    <el-table-column prop="MaterialNum" label="物料数量" align="center"></el-table-column>
+                    <el-table-column prop="EffectiveDay" label="有效期" align="center"></el-table-column>
+                    <el-table-column prop="AddEffectiveDay" label="追加有效期" align="center"></el-table-column>
+                    <el-table-column prop="ima02" label="物料品名" align="center"></el-table-column>
+                    <el-table-column prop="Img02" label="仓库编号" align="center"></el-table-column>
+                    <el-table-column prop="Img03" label="储位" align="center"></el-table-column>
+                    <el-table-column prop="Unit" label="物料单位" align="center"></el-table-column>
+                    <el-table-column prop="Img20" label="单位数量换算率" align="center"></el-table-column>
+                    <el-table-column prop="Img21" label="单位数量换算率-对料件库存单" align="center"></el-table-column>
+                    <el-table-column prop="Supplier" label="供应商" align="center"></el-table-column>
+                    <el-table-column prop="MaterialType" label="物料类型" align="center"></el-table-column>
+                    <el-table-column prop="LeaveFactoryTime" label="生产日期" align="center"></el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件  *@
+@RenderPage("_warehouseMenu.cshtml")
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<script src="~/Content/styleFile/less.min.js"></script>
+<script src="~/Content/styleFile/warehouseMaterial/warehouse.js"></script>
+<script>
+    var app = new Vue({
+        el: "#app",
+        mixins: [mixin],
+        data: {
+            loading: false,//控制页面loading等待状态
+            tableList: [],//存储表格总数据
+            queryTable: {
+                materialNumber: "",
+            },
+        },
+        //页面打开时执行
+        created: function () {
+        },
+        //页面加载完后执行
+        mounted: function () {
+
+        },
+        //函数方法
+        methods: {
+            getdata: function () {
+                if (this.materialNumber == "") {
+                    return;
+                };
+                this.loading = true;
+                axios.post("/Warehouse_Material/QueryData", {
+                    materialNumber: this.queryTable.materialNumber,
+                }).then(res => {
+                    if (Object.keys(res.data).length > 0) {
+                        this.tableList = [];
+                        this.tableList.push(res.data);
+                        this.$message.success("查询成功");
+                    } else {
+                        this.$message.success("此物料号无数据");
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                });
+            },
+        }
+    });
+</script>
