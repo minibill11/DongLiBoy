@@ -28,7 +28,6 @@
             localStorage.removeItem('limits');
             localStorage.removeItem('menuIndexKey');
             localStorage.removeItem('menuIndexKeyPath');
-            location.href = '/Users/Login2?col=Home&act=Index3';
         };
     },
     //函数方法
