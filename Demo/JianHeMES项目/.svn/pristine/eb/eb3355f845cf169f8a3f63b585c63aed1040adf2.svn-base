@@ -1,0 +1,276 @@
+﻿<script type="text/template" id="warePrintComponent">
+    <el-row class="warePrint" v-loading="printLoading">
+        <slot></slot>
+        <div class="flex-item">
+            <label style="color:#409EFF">条码清单</label>
+            <div>
+                <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @@change="handleCheckAllChange" size="mini" border class="printCheckbox">全选</el-checkbox>
+                <el-button v-on:click="printBarcode" type="primary" size="mini" plain>打印</el-button>
+            </div>
+        </div>
+        <div class="flex-item">
+            <div class="boxlist">
+                <el-checkbox-group v-model="checkArr" @@change="handleChecked">
+                    <el-checkbox v-for="item in checkboxList" :label="item" :key="item"
+                                 size="mini" border class="printCheckbox">{{item}}</el-checkbox>
+                </el-checkbox-group>
+            </div>
+        </div>
+        <div class="flex-item">
+            <label>条码数量</label>
+            <div>
+                {{tableList.length}}
+                <el-button v-show="tableList.length>0" @@click="adddialogVisible=true" type="success" size="mini">增加条码</el-button>
+                <el-dialog title="增加条码"
+                           :visible.sync="adddialogVisible"
+                           width="30%"
+                           @@open="handleOpen">
+                    <el-form label-position="top" :model="addBarcodeLabel" size="mini">
+                        <el-form-item label="增加条码数量">
+                            <el-input-number v-model.trim="addBarcodeLabel.code"
+                                             :min="0"
+                                             style="width:auto"
+                                             clearable>
+                            </el-input-number>
+                        </el-form-item>
+                        <el-form-item label="物料条码所包含物料个数">
+                            <el-input-number v-model.trim="addBarcodeLabel.materialContainNum"
+                                             :min="0"
+                                             :precision="2"
+                                             style="width:auto"
+                                             clearable>
+                            </el-input-number>
+                        </el-form-item>
+                    </el-form>
+                    <span slot="footer" class="dialog-footer">
+                        <el-button @@click="adddialogVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="addBarcodeLabelMethods">确 定</el-button>
+                    </span>
+                </el-dialog>
+            </div>
+        </div>
+        <div class="flex-item">
+            <div>
+                <el-table :data="tableList"
+                          max-height="250"
+                          border>
+                    <el-table-column prop="bar"
+                                     label="条码"
+                                     min-width="185"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.bar = $event"
+                                        :nametext="scope.row.bar"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="num"
+                                     label="物料个数"
+                                     min-width="90"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.num = $event"
+                                        :nametext="scope.row.num"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="print"
+                                     width="65"
+                                     label="状态"
+                                     sortable>
+                        <template slot-scope="scope">
+                            {{scope.row.print?'已打印':'未打印'}}
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" width="80">
+                        <template slot-scope="scope">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" size="mini" class="miniBtn">编辑</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
+        </div>
+        <div class="flex-item">
+            <label>规格描述</label>
+            <div>
+                {{discription}}
+            </div>
+        </div>
+        <div class="flex-item">
+            <label>物料个数</label>
+            <div>
+                {{chushunum}}  <span style="color:#888;font-size:12px;"> &nbsp; （公式：来料个数/物料条码所包含物料个数）</span>
+            </div>
+        </div>
+    </el-row>
+</script>
+<script>
+    Vue.component('ware-print-component', {
+        props: ['value'],
+        template: document.getElementById("warePrintComponent"),
+        data: function () {
+            return {
+                printLoading: false,
+                checkArr: [],
+                checkboxList: [],
+                checkAll: false,
+                isIndeterminate: false,
+                tableList: [],
+                discription: '',
+                chushunum: '',
+                initialData: {},
+                adddialogVisible: false,
+                addBarcodeLabel: {
+                    code: 0,
+                    materialContainNum: 0,
+                    materialNumber: '',
+                    batch: ''
+                },
+            }
+        },
+        mounted: function () {
+        },
+        watch: {
+            value(v) {
+                console.log(v);
+                let box = [], table = [];
+                for (let i of v.list) {
+                    i = JSON.parse(i);
+                    box.push(i.MaterialBacrcode);
+                    table.push({
+                        bar: i.MaterialBacrcode,
+                        print: i.Print,
+                        num: i.MaterialContainNum,
+                        edit: false
+                    });
+                };
+                this.checkboxList = box;
+                this.tableList = table;
+                this.discription = v.discription;
+                this.chushunum = v.num;
+                this.addBarcodeLabel.materialNumber = v.materialNumber;
+                this.addBarcodeLabel.batch = v.batch;
+            },
+        },
+        methods: {
+            handleCheckAllChange(val) {
+                let list = this.checkboxList;
+                this.checkArr = val ? list : [];
+                this.isIndeterminate = false;
+            },
+            handleChecked(value) {
+                let list = this.checkboxList;
+                let checkedCount = value.length;
+                this.checkAll = checkedCount === list.length;
+                this.isIndeterminate = checkedCount > 0 && checkedCount < list.length;
+            },
+            printBarcode() {
+                if (this.checkArr == '') {
+                    this.$message.warning('请选择打印条码！')
+                    return;
+                };
+                this.printLoading = true;
+                let material_list = [];
+                for (let i of this.checkArr) {
+                    material_list.push({
+                        MaterialNumber: i,
+                        MaterialDiscription: this.value.discription ? this.value.discription : ''
+                    });
+                };
+                axios.post('/Warehouse_Material/MaterialLablePrint', {
+                    material_list: material_list,
+                    pagecount: app.printInfo.pagecount,
+                    concentration: app.printInfo.concentration,
+                    ip: app.printInfo.ip,
+                    port: app.printInfo.port,
+                    leftdissmenion: app.printInfo.leftdissmenion
+                }).then(res => {
+                    this.$message(res.data);
+                    for (let i of this.tableList) {
+                        for (let j of material_list) {
+                            if (i.bar == j.MaterialNumber) {
+                                i.print = true;
+                                break;
+                            };
+                        };
+                    };
+                    this.printLoading = false;
+                }).catch(err => {
+                    this.$message.error('打印出错');
+                    this.printLoading = false;
+                });
+            },
+            editnum(row) {
+                axios.post('/Warehouse_Material/ModifyBarcodeNum', {
+                    materialBacrcode: row.bar,
+                    materialContainNum: row.num,
+                }).then(res => {
+                    if (res.data.Meg) {
+                        row.edit = false;
+                        this.initialData = {};
+                        this.$message.success('修改成功');
+                    } else {
+                        this.$message.error(res.data.Contain);
+                    };
+                }).catch(err => {
+                    this.$message.error('修改出错');
+                });
+            },
+            //启动编辑
+            editClick(row) {
+                for (let i of this.tableList) {
+                    if (i.edit) {
+                        this.$message.warning('存在正在编辑的行');
+                        return;
+                    };
+                };
+                this.initialData = {};
+                this.initialData = { ...row };
+                row.edit = true;
+            },
+            //取消编辑
+            cancelClick(row) {
+                let item = row, ini = this.initialData;
+                for (let i in ini) {
+                    item[i] = ini[i];
+                };
+                this.initialData = {};
+            },
+            //保存编辑
+            saveClick(row) {
+                this.editnum(row);
+            },
+            handleOpen() {
+                this.addBarcodeLabel.code = 0;
+                this.addBarcodeLabel.materialContainNum = 0;
+            },
+            addBarcodeLabelMethods() {
+                axios.post('/Warehouse_Material/ADDBarcodeLabel', this.addBarcodeLabel).then(res => {
+                    if (res.data.meg) {
+                        this.$message.success(res.data.fag);
+                        for (let i of res.data.barcodeList) {
+                            let obj = JSON.parse(i);
+                            this.checkboxList.push(obj.MaterialBacrcode);
+                            this.tableList.push({
+                                bar: obj.MaterialBacrcode,
+                                print: obj.Print,
+                                num: obj.MaterialContainNum,
+                                edit: false
+                            });
+                        };
+                        this.adddialogVisible = false;
+                    } else {
+                        this.$message.error(res.data.fag);
+                    };
+                }).catch(err => {
+                    this.$message.error('');
+                });
+            }
+        },
+    });
+</script>

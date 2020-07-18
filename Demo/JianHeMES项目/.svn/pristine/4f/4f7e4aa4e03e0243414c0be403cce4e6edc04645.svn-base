@@ -1,0 +1,191 @@
+﻿@{
+    ViewBag.Title = "组织架构";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vue-org-tree/vueorgtree.css" rel="stylesheet" />
+    <style>
+        .labelClassName {
+            word-break: keep-all;
+        }
+
+        .main {
+            overflow: initial;
+        }
+
+            .main, .main .org-tree-container {
+                padding: 0;
+            }
+
+        .org-tree-node-label .org-tree-node-label-inner {
+            padding: 5px 10px;
+        }
+
+        .org-tree-node.is-leaf {
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*菜单*@
+        <h3>@ViewBag.Title</h3>
+    </el-header>
+    <el-main class="main text-center" v-loading="loading">
+        <el-row>
+            <el-col :span="24">
+                <el-select size="small" v-model="version" placeholder="请选择架构版本">
+                    <el-option v-for="item in versionList"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col :span="24">
+                <vue2-org-tree :data="data"
+                               :render-content="renderContent"
+                               @@on-expand="onExpand"
+                               label-class-name="labelClassName"
+                               collapsable
+                               @*@@on-node-click="onNodeClick"//(e,data)
+                               @@on-node-mouseover="onMouseover"//(e,data)
+                               @@on-node-mouseout="onMouseout"//(e,data)
+                               horizontal*@ />
+            </el-col>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/vue-org-tree/vueorgtree.js"></script>
+    <script>
+        //Framework2
+        const app = {
+            data: function () {
+                return {
+                    loading: false,
+                    data: {},
+                    version: '',
+                    versionList: [],
+                }
+            },
+            created: function () {
+                this.getFramework();
+                this.getVersisonList();
+            },
+            mounted: function () {
+            },
+            methods: {
+                // 获取架构版本列表
+                getVersisonList() {
+                    axios.post("/Personnel_Framework/VersionList").then(res => {
+                        if (res.data.length > 0) {
+                            this.versionList = res.data
+                            this.version = this.versionList[0].value
+                            //this.getDefultInfos(this.versionList[0].value);
+                        } else {
+                            this.$notify({
+                                message: "暂无历史版本",
+                                type: "info"
+                            });
+                        };
+                    });
+                },
+                getFramework() {
+                    this.loading = true;
+                    axios.post('/Personnel_Framework/Framework2').then(res => {
+                        this.data = res.data;
+                        this.loading = false;
+                    }).catch(err => {
+                        this.loading = false;
+                    });
+                },
+                renderContent: function (h, data) {
+                    //返回显示的内容
+                    let text = [];
+                    if (typeof data.name == 'string') {
+                        text = data.name;
+                    } else if (data.name != null) {
+                        text = data.name.map(i => { return h('div', i) });
+                    } else {
+                        text = '';
+                    };
+                    return h('div', {
+                        on: {
+                            click() { console.info('点击') }
+                        },
+                        style: {
+                            color: '#555'
+                        },
+                        'class': {
+                            foo: true,
+                            bar: false
+                        },
+                        attrs: {
+                            id: 'foo'
+                        },
+                        //domProps: {
+                        //    innerHTML: "<i class=\'el-icon-circle-plus\'>" + text+"</i>"
+                        //},
+                    }, [h('div', data.title), text])
+                },
+                onExpand: function (e, data) {
+                    console.log('onExpand');
+                    console.log(e);
+                    console.log(data);
+                    if ('expand' in data) {
+                        data.expand = !data.expand
+
+                        if (!data.expand && data.children) {
+                            this.collapse(data.children)
+                        }
+                    } else {
+                        this.$set(data, 'expand', true)
+                    }
+                },
+                collapse: function (list) {
+                    console.log('collapse');
+                    console.log(list);
+                    var _this = this
+                    list.forEach(function (child) {
+                        if (child.expand) {
+                            child.expand = false
+                        }
+
+                        child.children && _this.collapse(child.children)
+                    })
+                },
+                expandChange: function () {
+                    console.log('expandChange');
+                    this.toggleExpand(this.data, true)
+                },
+                toggleExpand: function (data, val) {
+                    console.log('toggleExpand');
+                    console.log(data);
+                    console.log(val);
+                    var _this = this
+                    if (Array.isArray(data)) {
+                        data.forEach(function (item) {
+                            _this.$set(item, 'expand', val)
+                            if (item.children) {
+                                _this.toggleExpand(item.children, val)
+                            }
+                        })
+                    } else {
+                        this.$set(data, 'expand', val)
+                        if (data.children) {
+                            _this.toggleExpand(data.children, val)
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+}

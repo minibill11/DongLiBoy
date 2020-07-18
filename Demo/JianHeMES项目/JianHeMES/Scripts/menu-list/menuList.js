@@ -136,8 +136,8 @@ const setMuneList = [
         },
     },
     {
-        url: '/PC',
-        title: 'PC部',
+        url: '/PMC',
+        title: 'PMC部',
         limits: [],
         departmentLimits: {
             KeepOrExclude: false,
@@ -188,20 +188,6 @@ const setMuneList = [
                 title: '直通率看板',
                 limits: [],
             },
-        ]
-    }, {
-        url: '/MC',
-        title: 'MC部',
-        limits: [],
-        departmentLimits: {
-            KeepOrExclude: false,
-            JudgeArray: ['合约部', '销售部', '财务部', '采购部', '客户服务部', '研发部']
-        },
-        specialLimits: {
-            KeepOrExclude: false,
-            JudgeArray: ['姜春艳', '刘秋如']
-        },
-        children: [
             {
                 url: '/Packagings/board',
                 title: '产值看板',
@@ -247,11 +233,16 @@ const setMuneList = [
                 title: '锡膏入库',
                 limits: ['MC锡膏仓库操作'],
             },
+            {
+                url: '/Plans/Section_Enter',
+                title: '工段工序录入',
+                limits: [],
+            },
         ]
     },
     {
         url: '/zhuanpei',
-        title: '装配一/二部',
+        title: '总装一/二部',
         limits: [],
         departmentLimits: {
             KeepOrExclude: false,
@@ -263,14 +254,42 @@ const setMuneList = [
         },
         children: [
             {
-                url: '/ModuleManagement/index',
-                title: '模块看板',
+                url: '/ModuleManagement',
+                title: '模块',
                 limits: [],
-            },
-            {
-                url: '/ModuleManagement/AfterWeldingCreate',
-                title: '后焊产线',
-                limits: [],
+                children: [
+                    {
+                        url: '/ModuleManagement/Index',
+                        title: '看板首页',
+                        limits: [],
+                    },
+                    {
+                        url: '/ModuleManagement/normalCheck',
+                        title: '模块产线',
+                        limits: [],
+                    }, {
+                        url: '/ModuleManagement/spotCheck',
+                        title: '模块抽检',
+                        limits: [],
+                    },
+                    {
+                        url: '/ModuleManagement/Burnin',
+                        title: '模块老化',
+                        limits: [],
+                    }, {
+                        url: '/ModuleManagement/Rule',
+                        title: '装箱规则',
+                        limits: [],
+                    },
+                    {
+                        url: '/ModuleManagement/Inside',
+                        title: '内箱装箱',
+                        limits: [],
+                    }, {
+                        url: '/ModuleManagement/Outside',
+                        title: '外箱装箱',
+                        limits: [],
+                    }]
             },
             {
                 url: '/Assembles/AssembleIndex',
@@ -385,6 +404,10 @@ const setMuneList = [
                 title: '客诉订单',
                 limits: [],
                 /*'创建订单客诉表','修改订单客诉表'*/
+            }, {
+                url: '/Customer_Complaints/Customer_loss',
+                title: '客诉损失明细表',
+                limits: [],
             },
         ]
     },
@@ -498,7 +521,7 @@ const setMuneList = [
     },
     {
         url: '/banjin',
-        title: '钣金部',
+        title: '配套加工部',
         limits: [],
         departmentLimits: {
             KeepOrExclude: false,
@@ -609,11 +632,7 @@ const setMuneList = [
             }, {
                 url: '/Users/Usersquery',
                 title: '系统用户',
-                limits: [],
-                specialLimits: {
-                    KeepOrExclude: true,
-                    JudgeArray: ['姜春艳', '刘秋如', '魏顺平']
-                },
+                limits: ['查看工厂用户清单', '查看总部用户清单'],
             },
         ]
     },

@@ -1,0 +1,965 @@
+﻿@{
+    ViewBag.Title = "模组编号录入";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 20px 0 0;
+    }
+
+    .divframe {
+        margin: 1px auto;
+        text-align: center;
+        border: 1px solid #ccc;
+        display: inline-block;
+    }
+
+    .inputframe {
+        width: 300px;
+        text-align: right;
+        margin: 1px auto;
+    }
+
+    .el-table th {
+        padding: 5px 0;
+        background-color: #f4df42;
+        color: #000;
+        text-align: center;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+        text-align: center;
+    }
+
+    .el-transfer-panel__filter {
+        margin: 5px;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+
+    .green {
+        color: #67c23a;
+    }
+
+    .red {
+        color: #f56c6c;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+                @*<a href="/OrderMgms/Create"><el-button size="small">创建订单</el-button></a>*@
+                <div class="adiv" href="/BarCodes/SetJsonFile"><el-button size="small" type="primary" plain disabled style="cursor:default">录入模组号规则</el-button></div>
+                <a href="/Appearances/DisplayTotalModule"><el-button size="small">模组号打印和修改</el-button></a>
+            </div>
+            <div v-show="screenSize<768">
+                <h3>@ViewBag.Title</h3>
+                <el-dropdown placement="bottom">
+                    <el-button size="medium ">
+                        更多菜单<i class="el-icon-arrow-down el-icon--right"></i>
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                        @*<a href="/OrderMgms/Create"><el-dropdown-item>创建订单</el-dropdown-item></a>*@
+                        <div href="/BarCodes/SetJsonFile"><el-dropdown-item disabled>录入模组号规则</el-dropdown-item></div>
+                        <a href="/Appearances/DisplayTotalModule"><el-dropdown-item>模组号打印和修改</el-dropdown-item></a>
+                    </el-dropdown-menu>
+                </el-dropdown>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <div class="text-center" style="margin:0 auto;">
+                <div class="inputframe">
+                    <span>订单号：</span>
+                    <el-select v-model="selectVal" placeholder="输入内容可查询" filterable size="medium" style="width:220px;">
+                        <el-option v-for="item in selectOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                    <div v-show="checkRuleMessage!=''" class="red">{{checkRuleMessage}}</div>
+                </div>
+                <div class="inputframe">
+                    <span>输入前缀：</span>
+                    <el-input placeholder="输入前缀" v-model="Prefix" clearable size="medium" style="width:220px"></el-input>
+                </div>
+                <div class="inputframe">
+                    <span>输入后缀：</span>
+                    <el-input placeholder="输入后缀" v-model="Suffix" clearable size="medium" style="width:220px"></el-input>
+                </div>
+                <div class="inputframe">
+                    <span>数量：</span>
+                    <el-input-number size="medium" v-model="Num" :min="1" style="width:220px"></el-input-number>
+                </div>
+                <div class="inputframe">
+                    <span>起始值：</span>
+                    <el-input-number size="medium" v-model="startNum" :min="1" style="width:220px"></el-input-number>
+                </div>
+                <div class="inputframe" style="margin-bottom:10px;">
+                    <el-switch v-model="Rule"
+                               active-text="补零"
+                               inactive-text="不补零"
+                               size="medium">
+                    </el-switch>
+                    <el-switch v-model="isJson"
+                               active-text="不绑定条码"
+                               inactive-text="绑定条码"
+                               size="medium">
+                    </el-switch>
+                </div>
+                <div class="inputframe">
+                    <el-button size="mini" @@click="deleteRule" type="danger" plain>编号规则复位</el-button>
+                    <el-button size="medium" @@click="confirmRule" :disabled="(ruleList.length==0)">确认</el-button>
+                    <el-button size="medium" @@click="addrule">添加</el-button>
+                </div>
+                <br />
+                <div class="divframe">
+                    <el-table :data="ruleList"
+                              :summary-method="getSummaries"
+                              show-summary
+                              max-height="300"
+                              border>
+                        <el-table-column prop="Prefix"
+                                         label="前缀"
+                                         width="90">
+                        </el-table-column>
+                        <el-table-column prop="Suffix"
+                                         label="后缀"
+                                         width="70">
+                        </el-table-column>
+                        <el-table-column prop="Num"
+                                         label="数量"
+                                         width="60">
+                        </el-table-column>
+                        <el-table-column label="是否补零"
+                                         width="80">
+                            <template slot-scope="scope">
+                                <span v-if="scope.row.Rule" class="el-icon-success green"></span>
+                                <span v-else class="el-icon-error red"></span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="startNum"
+                                         label="起始值"
+                                         width="70">
+                        </el-table-column>
+                        <el-table-column label="预览"
+                                         width="200">
+                            <template slot-scope="scope">
+                                <span>{{zero(scope.row.Prefix,scope.row.Suffix,scope.row.Num,scope.row.Rule,scope.row.startNum)}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label=""
+                                         width="40">
+                            <template slot-scope="scope">
+                                <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,ruleList)"
+                                           type="text"
+                                           size="mini"
+                                           style="margin:0;padding:0;width:100%;">
+                                    <i class="el-icon-error"></i>
+                                </el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+
+                @* 输入框 *@
+                <div style="margin-top:20px;" id="tb">
+                    <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium"></select-input>
+                    类型：
+                    <el-select v-model="type" placeholder="请选择类型" size="medium">
+                        <el-option label="模组" value="模组"></el-option>
+                        <el-option label="模块" value="模块"></el-option>
+                        <el-option label="电源" value="电源"></el-option>
+                        <el-option label="转接卡" value="转接卡"></el-option>
+                    </el-select>
+                    <el-button @@click="getTableData" size="medium">查询条码号模组号打印情况</el-button>
+                    <el-button @@click="printVisible = true" size="small" type="primary" :disabled="tableList.length==0">打印标签</el-button>
+                </div>
+
+                @* 打印框 *@
+                <el-dialog @@open="open"
+                           @@close="close"
+                           v-loading="loading"
+                           title="打印条码"
+                           :visible.sync="printVisible"
+                           center>
+                    <div class="inputframe">
+                        <span>选打印机：</span>
+                        <el-select v-model="printSelect" clearable placeholder="选择打印机" size="medium">
+                            <el-option v-for="item in printOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </div>
+                    <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                        <span>打印浓度：</span>
+                        <el-slider :max="30"
+                                   :min="-30"
+                                   v-model="nongDu"></el-slider>
+                    </div>
+                    <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                        <span>打印数量：</span>
+                        <el-input-number v-model.trim="pageCount"
+                                         size="medium"
+                                         :min="1"
+                                         :max="5"
+                                         clearable>
+                        </el-input-number>
+                    </div>
+                    <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                        <span>向右偏移：</span>
+                        <el-input-number v-model.trim="right"
+                                         size="medium"
+                                         clearable>
+                        </el-input-number>
+                    </div>
+                    <div class="inputframe" v-show="printSelect!='0'&&printSelect!=''">
+                        <span>打印样式：</span>
+                        <el-select v-model="printStyle" clearable placeholder="选择打印样式" size="medium" :class="printStyle==0?'selectblue':'selectred'">
+                            <el-option label="打印模组号与条码号" value="0"></el-option>
+                            <el-option label="只打印模组号" value="1"></el-option>
+                            <el-option label="只打印条码号" value="2"></el-option>
+                        </el-select>
+                    </div>
+                    <div class="inputframe" style="margin-top:10px;margin-bottom:10px;">
+                        <span slot="footer" class="dialog-footer">
+                            <el-button @@click="printVisible = false" size="mini">取 消</el-button>
+                            <el-button type="primary" @@click="submitPrint" size="mini">打印选中的条码号</el-button>
+                        </span>
+                    </div>
+                    <div class="inputframe" v-show="moCheckboxList.length!=0" v-if="printStyle==1">
+                        <div class="divframe" style="text-align:center;min-height:0;">
+                            <span style="color:#409EFF">编号清单：</span><br />
+                            <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @@change="handleCheckAllChange" size="mini" border>全选</el-checkbox>
+                            <el-popover placement="top"
+                                        v-model="printScopeVisible">
+                                <div>
+                                    <p>选择打印范围(数量:{{moCheckboxList.length}})</p>
+                                    <el-input-number size="mini" v-model="minScopeNum" :min="1" :max="moCheckboxList.length" style="width:100px"></el-input-number>
+                                    至
+                                    <el-input-number size="mini" v-model="maxScopeNum" :min="1" :max="moCheckboxList.length" style="width:100px"></el-input-number>
+                                </div>
+                                <div style="text-align: right; margin: 5px 0 0;">
+                                    <el-button size="mini" type="text" @@click="printScopeVisible = false">取消</el-button>
+                                    <el-button type="primary" size="mini" @@click="printScopeShow">确认</el-button>
+                                </div>
+                                <el-button slot="reference" size="mini">选择范围</el-button>
+                            </el-popover>
+                            <el-switch v-model="reverselist"
+                                       size="mini"
+                                       active-text="正序"
+                                       inactive-text="倒序">
+                            </el-switch>
+
+                            <div style="max-height:200px;overflow:auto;margin-top:5px;text-align:left;">
+                                <el-checkbox-group v-model="checkArr" @@change="handleChecked">
+                                    <el-checkbox v-for="item in moCheckboxList" :label="item" :key="item"
+                                                 size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item}}</el-checkbox>
+                                </el-checkbox-group>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="inputframe" v-show="barCheckboxList.length!=0" v-else>
+                        <div class="divframe" style="text-align:center;min-height:0;">
+                            <span style="color:#409EFF">条码清单：</span><br />
+                            <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @@change="handleCheckAllChange" size="mini" border>全选</el-checkbox>
+                            <el-popover placement="top"
+                                        v-model="printScopeVisible">
+                                <div>
+                                    <p>选择打印范围(数量:{{barCheckboxList.length}})</p>
+                                    <el-input-number size="mini" v-model="minScopeNum" :min="1" :max="barCheckboxList.length" style="width:100px"></el-input-number>
+                                    至
+                                    <el-input-number size="mini" v-model="maxScopeNum" :min="1" :max="barCheckboxList.length" style="width:100px"></el-input-number>
+                                </div>
+                                <div style="text-align: right; margin: 5px 0 0;">
+                                    <el-button size="mini" type="text" @@click="printScopeVisible = false">取消</el-button>
+                                    <el-button type="primary" size="mini" @@click="printScopeShow">确认</el-button>
+                                </div>
+                                <el-button slot="reference" size="mini">选择范围</el-button>
+                            </el-popover>
+                            <el-switch v-model="reverselist"
+                                       size="mini"
+                                       active-text="正序"
+                                       inactive-text="倒序">
+                            </el-switch>
+
+                            <div style="max-height:200px;overflow:auto;margin-top:5px;text-align:left;">
+                                <el-checkbox-group v-model="checkArr" @@change="handleChecked">
+                                    <el-checkbox v-for="item in barCheckboxList" :label="item" :key="item"
+                                                 size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item}}</el-checkbox>
+                                </el-checkbox-group>
+                            </div>
+                        </div>
+                    </div>
+                </el-dialog>
+
+                @* 表格 *@
+                <el-table :data="tableList"
+                          size="mini"
+                          v-loading="loading"
+                          :max-height="screenSize<768?450:600"
+                          style="margin-top:10px;">
+                    <el-table-column type="index"
+                                     label="序号"
+                                     width="40"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="barcode"
+                                     label="条码号"
+                                     :width="role?(screenSize<768?70:''):''"
+                                     align="center"
+                                     sortable>
+                    </el-table-column>
+                    <el-table-column v-if="role"
+                                     align="center">
+                        <template slot="header" slot-scope="scope">
+                            <div>操作</div>
+                            <el-button v-if="!allEditShow" @@click="allEditOnOff(true)" type="text" size="mini">批量修改</el-button>
+                            <div v-else>
+                                <el-button @@click="allEditOnOff(false)" type="text" size="mini">取消</el-button>
+                                <el-button @@click="allEditPost" type="text" size="mini">确认</el-button>
+                            </div>
+                        </template>
+                        <template slot-scope="scope">
+                            <template v-if="allEditShow">
+                                <el-input v-model.trim="scope.row.newData" size="mini"></el-input>
+                            </template>
+                            <template v-else>
+                                <el-button v-if="!scope.row.editShow" @@click="scope.row.editShow=true" type="text" size="mini">修改</el-button>
+                                <div v-else>
+                                    <el-button @@click="scope.row.editShow=false" type="text" size="mini">取消</el-button>
+                                    <el-button @@click="editModule(scope.row.barcode,scope.row.newData,scope.row)" type="text" size="mini">确认</el-button>
+                                    <el-input v-model.trim="scope.row.newData" size="mini"></el-input>
+                                </div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模组编号"
+                                     align="center">
+                        <el-table-column prop="barcodeModule"
+                                         label="条码"
+                                         :width="screenSize<768?60:''"
+                                         align="center"
+                                         sortable>
+                        </el-table-column>
+                        <el-table-column prop="calibtationModule"
+                                         label="校正"
+                                         :width="screenSize<768?60:''"
+                                         align="center"
+                                         sortable>
+                        </el-table-column>
+                        <el-table-column prop="appearanModule"
+                                         label="电检"
+                                         :width="screenSize<768?60:''"
+                                         align="center"
+                                         sortable>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="打印情况"
+                                     align="center">
+                        <el-table-column prop="BarcodePrint"
+                                         label="条码号"
+                                         :width="screenSize<768?60:''"
+                                         align="center"
+                                         sortable>
+                            <template slot-scope="scope">
+                                <span :class="scope.row.BarcodePrint=='条码未打印'?'red':'green'">{{scope.row.BarcodePrint}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="ModuleNumPrint"
+                                         label="模组编号"
+                                         :width="screenSize<768?60:''"
+                                         align="center"
+                                         sortable>
+                            <template slot-scope="scope">
+                                <span :class="scope.row.ModuleNumPrint=='编号未打印'?'red':'green'">{{scope.row.ModuleNumPrint}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                </el-table>
+            </div>
+        </el-main>
+    </el-container>
+</div>
+
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            selectOptions: [],//输入框的下拉列表
+            tableList: [],//表格数据
+            allEditShow: false,//批量编辑开关
+            screenSize: document.body.clientWidth,//存放屏幕宽度大小
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            screenSize: document.body.clientWidth,
+            ruleList: [],
+            Prefix: "",
+            Suffix: "",
+            printSelect: '',
+            type: "模组",
+            printStyle: '0',
+            Num: 1,
+            Rule: true,
+            startNum: 1,
+            printVisible: false,
+            checkArr: [],
+            moCheckboxList: [],
+            barCheckboxList: [],
+            checkAll: false,
+            printOptions: printIpAddress,
+            nongDu: 10,
+            pageCount: 1,
+            right: 0,
+            isIndeterminate: false,
+            role: false,//权限
+            reverselist: true,
+            printScopeVisible: false,
+            minScopeNum: 1,
+            maxScopeNum: 1,
+            isJson: false,
+            checkRuleMessage: ''
+
+        },
+        methods: {
+            //获取订单数据方法
+            getTableData() {
+                this.loading = true;
+                axios.post('/Appearances/DisplayTotalModule', {
+                    ordernum: this.selectVal,
+                    type: this.type
+                }).then(res => {
+                    if (res.data == '') {
+                        this.$message('此订单没有数据');
+                        this.tableList = [];
+                    } else {
+                        let addInput = res.data;
+                        for (let i of addInput) {
+                            i['newData'] = '';
+                            i['editShow'] = false;
+                        };
+                        this.tableList = addInput;
+                    };
+                    this.allEditShow = false;
+                    this.loading = false;
+                    window.location.hash = "#tb";
+                }).catch(err => {
+                    this.loading = false;
+                    console.warn('获取数据失败')
+                });
+            },
+            //预览排序
+            zero: function (Prefix, Suffix, Num, Rule, startNum) {
+                let returnString = "", numLength = (Num + startNum - 1).toString().length;
+                for (let i = 0; i < Num; i++) {
+                    if (Num <= 4) {
+                        if (!Rule) {
+                            returnString += Prefix + (startNum + i) + Suffix;
+                        } else {
+                            if ((startNum + i) < 10) {
+                                returnString += Prefix + '0' + (startNum + i) + Suffix;
+                            } else {
+                                returnString += Prefix + (Array(numLength).join('0') + (startNum + i)).slice(-numLength) + Suffix;
+                            };
+                        };
+                        if (i != Num - 1) {
+                            returnString += ","
+                        };
+                    };
+                    if (Num > 4) {
+                        if (i < 3) {
+                            if (!Rule) {
+                                returnString += Prefix + (startNum + i) + Suffix;
+                            } else {
+                                if ((startNum + i) < 10) {
+                                    returnString += Prefix + '0' + (startNum + i) + Suffix;
+                                } else {
+                                    returnString += Prefix + (Array(numLength).join('0') + (startNum + i)).slice(-numLength) + Suffix;
+                                };
+                            };
+                            if (i != Num - 1) {
+                                returnString += ","
+                            };
+                        };
+                        if (i == 3) {
+                            returnString += "..."
+                        };
+                        if (i == Num - 1) {
+                            if (!Rule) {
+                                returnString += Prefix + (startNum + i) + Suffix;
+                            } else {
+                                if ((startNum + i) < 10) {
+                                    returnString += Prefix + '0' + (startNum + i) + Suffix;
+                                } else {
+                                    returnString += Prefix + (Array(numLength).join('0') + (startNum + i)).slice(-numLength) + Suffix;
+                                };
+                            };
+                        };
+                    };
+                };
+                return returnString;
+            },
+            //确认
+            confirmRule: function () {
+                this.loading = true;
+                axios.post('/BarCodes/SetJsonFile', {
+                    sequences: this.ruleList,
+                    ordernum: this.selectVal,
+                    isJson: this.isJson
+                }).then(res => {
+                    if (res.data == true) {
+                        //this.$confirm('录入成功，是否打印条码？', "录入成功", {
+                        //    confirmButtonText: '确定',
+                        //    cancelButtonText: '取消',
+                        //    type: 'success',
+                        //    center: true,
+                        //}).then(() => {
+
+                        //}).catch(() => {
+                        //    location.reload();
+                        //});
+                        this.$alert(`<span>录入成功</span>`, '录入成功', {
+                            dangerouslyUseHTMLString: true,
+                            type: 'success'
+                        });
+                        this.ruleList = [];
+                        this.loading = false;
+                    } else {
+                        this.$alert(`<span>${res.data}</span>`, '录入失败', {
+                            dangerouslyUseHTMLString: true,
+                            type: 'error'
+                        });
+                        this.loading = false;
+                    };
+                    //console.log(res.data)
+                }).catch(err => {
+                    console.warn("失败");
+                    this.loading = false;
+                });
+            },
+            //添加数据
+            addrule: function () {
+                let list = this.ruleList, pre = this.Prefix, suf = this.Suffix;
+                //检查重复
+                //for (let i in list) {
+                //    if (list[i].Prefix == pre && list[i].Suffix == suf) {
+                //        this.$message({
+                //            showClose: true,
+                //            dangerouslyUseHTMLString: true,
+                //            message: '<h4 style="margin:0">已有重复条码！</h4>',
+                //            type: 'warning'
+                //        });
+                //        return;
+                //    };
+                //};
+                list.push({
+                    Prefix: this.Prefix,
+                    Suffix: this.Suffix,
+                    Num: this.Num,
+                    Rule: this.Rule,
+                    startNum: this.startNum
+                });
+            },
+            //删除规则
+            deleteRule() {
+                if (this.selectVal == '' || this.selectVal == null) {
+                    this.$message.error('订单号不能为空');
+                    return;
+                };
+                this.$confirm('订单号：' + this.selectVal, "确认复位此订单号规则？", {
+                    type: 'error',
+                    center: true,
+                }).then(() => {
+                    //开始删除
+                    axios.post('/BarCodes/ChangeRule', {
+                        ordernum: this.selectVal,
+                    }).then(res => {
+                        if (res.data.pass) {
+                            this.$message.success(res.data.mes);
+                        } else {
+                            this.$alert(res.data.mes, {
+                                confirmButtonText: '确定',
+                                closeOnClickModal: true,
+                                closeOnPressEscape: true,
+                                type: "error",
+                            });
+                        };
+                    }).catch(err => {
+                        console.warn("失败");
+                    });
+                }).catch(() => {
+                    console.warn("失败");
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+            },
+            //权限筛选方法
+            checkRoles(roleName) {   //检测权限
+                let list = JSON.parse(localStorage.getItem("rigths"));
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            getSummaries(param) {
+                const { columns, data } = param;
+                const sums = [];
+                columns.forEach((column, index) => {
+                    if (index === 1) {
+                        sums[index] = '总数：';
+                        return;
+                    };
+                    if (index === 2) {
+                        const values = data.map(item => Number(item[column.property]));
+                        if (!values.every(value => isNaN(value))) {
+                            sums[index] = values.reduce((prev, curr) => {
+                                const value = Number(curr);
+                                if (!isNaN(value)) {
+                                    return prev + curr;
+                                } else {
+                                    return prev;
+                                }
+                            }, 0);
+                        } else {
+                            sums[index] = 'N/A';
+                        }
+                    };
+                });
+                return sums;
+            },
+            //批量编辑输入框开关方法
+            allEditOnOff(v) {
+                this.allEditShow = v;
+                for (let i of this.tableList) {
+                    i.editShow = v;
+                };
+            },
+            //修改单个模组号方法
+            editModule(barcode, module, row) {
+                axios.post('/Common/UpdateTotalModule', {
+                    barcode: barcode,
+                    module: module
+                }).then(res => {
+                    if (res.data.pass) {
+                        //row.barcodeModule = module;
+                        //row.calibtationModule = module;
+                        //row.appearanModule = module;
+                        //row.editShow = false;
+                        //row.newData = '';
+                        this.getTableData();
+                        this.$message.success(res.data.mes);
+                    } else {
+                        this.$message.error(res.data.mes);
+                    };
+                }).catch(err => {
+                    console.warn('修改数据失败')
+                });
+            },
+            //批量修改模组号方法
+            allEditPost() {
+                this.loading = true;
+                let listArr = [], thistable = this.tableList;
+                for (let item of thistable) {
+                    if (item.newData != '') {
+                        listArr.push({
+                            barcode: item.barcode,
+                            module: item.newData
+                        });
+                    }
+                };
+                axios.post('/Appearances/BatchUpdatTotalModule', {
+                    ListMessage: JSON.stringify(listArr),
+                }).then(res => {
+                    if (res.data.pass) {
+                        this.$message.success(res.data.mes);
+                        this.getTableData();
+                    } else {
+                        this.$message.error(res.data.mes);
+                        this.loading = false;
+                    };
+                }).catch(err => {
+                    this.allEditShow = false;
+                    this.loading = false;
+                    this.$message.success('修改数据失败');
+                });
+            },
+            open() {
+                let moList = [], barList = [];
+                for (let i of this.tableList) {
+                    //以前的，自己获取列表的数据
+                    //if (i.barcodeModule != '' && i.barcodeModule != null) {
+                    //    moList.push(i.barcodeModule);
+                    //};
+                    barList.push(i.barcode);
+                };
+                //------------
+                axios.post('/BarCodes/GetModuleNum', {
+                    ordernum: this.selectVal,
+                    statue: this.type
+                }).then(res => {
+                    moList = res.data;
+                    this.moCheckboxList = moList;
+                }).catch(err => {
+                    console.warn("失败");
+                });
+                //------------
+                this.checkAll = false;
+                this.isIndeterminate = false;
+                this.checkArr = [];
+                //this.moCheckboxList = moList;
+                this.barCheckboxList = barList;
+                this.reverselist = true;
+                this.minScopeNum = 1;
+                this.maxScopeNum = 1;
+            },
+            close() {
+                this.checkAll = false;
+                this.isIndeterminate = false;
+                this.checkArr = [];
+                this.moCheckboxList = [];
+                this.barCheckboxList = [];
+                this.reverselist = true;
+                this.minScopeNum = 1;
+                this.maxScopeNum = 1;
+            },
+            submitPrint() {
+                this.loading = true;
+                localStorage.setItem('printPageCount', this.pageCount);
+                localStorage.setItem('printNongDuCount', this.nongDu);
+                localStorage.setItem('rightPianYi', this.right);
+
+                if (this.checkArr.length == 0) {
+                    this.$message({
+                        showClose: true,
+                        message: "没有选中条码！",
+                        type: 'warning'
+                    });
+                    this.loading = false;
+                    return;
+                };
+
+                if (this.printStyle == 2) {
+                    axios.post('/BarCodes/InsideListPrintNotModuleNum', {
+                        barcode: this.checkArr,
+                        pagecount: this.pageCount,
+                        concentration: this.nongDu,
+                        right: this.right,
+                        ip: this.printSelect,
+                        port: 9101,
+                    }).then(res => {
+                        this.$message(res.data);
+                        this.getTableData();
+                        this.printVisible = false;
+                        this.loading = false;
+                    }).catch(err => {
+                        this.$message.error("打印出错");
+                        this.loading = false;
+                    });
+                } else if (this.printStyle == 1) {
+                    axios.post('/BarCodes/InsideListPrintNotBarcode', {
+                        ModuleNum: this.checkArr,
+                        Ordernum: this.selectVal,
+                        pagecount: this.pageCount,
+                        concentration: this.nongDu,
+                        right: this.right,
+                        ip: this.printSelect,
+                        port: 9101,
+                    }).then(res => {
+                        this.$message(res.data);
+                        this.getTableData();
+                        this.printVisible = false;
+                        this.loading = false;
+                    }).catch(err => {
+                        this.$message.error("打印出错");
+                        this.loading = false;
+                    });
+                } else {
+                    axios.post('/BarCodes/InsideListPrint', {
+                        barcode: this.checkArr,
+                        pagecount: this.pageCount,
+                        concentration: this.nongDu,
+                        right: this.right,
+                        ip: this.printSelect,
+                        port: 9101,
+                    }).then(res => {
+                        this.$message(res.data);
+                        this.getTableData();
+                        this.printVisible = false;
+                        this.loading = false;
+                    }).catch(err => {
+                        this.$message.error("打印出错");
+                        this.loading = false;
+                    });
+                };
+            },
+            handleCheckAllChange(val) {
+                let checkboxList;
+                if (this.printStyle == 1) {
+                    checkboxList = this.moCheckboxList;
+                } else {
+                    checkboxList = this.barCheckboxList;
+                };
+                this.checkArr = val ? checkboxList : [];
+                this.isIndeterminate = false;
+            },
+            handleChecked(value) {
+                let checkboxList;
+                if (this.printStyle == 1) {
+                    checkboxList = this.moCheckboxList;
+                } else {
+                    checkboxList = this.barCheckboxList;
+                };
+                let checkedCount = value.length;
+                this.checkAll = checkedCount === checkboxList.length;
+                this.isIndeterminate = checkedCount > 0 && checkedCount < checkboxList.length;
+            },
+            checkRoles(roleName) {   //检测权限
+                let list = JSON.parse(localStorage.getItem("rigths"));
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            printScopeShow() {
+                if (this.minScopeNum <= this.maxScopeNum) {
+                    let checkboxList;
+                    if (this.printStyle == 1) {
+                        checkboxList = this.moCheckboxList;
+                    } else {
+                        checkboxList = this.barCheckboxList;
+                    };
+                    this.checkArr = [];
+                    for (let i in checkboxList) {
+                        if (Number.parseInt(i) + 1 >= this.minScopeNum && Number.parseInt(i) + 1 <= this.maxScopeNum) {
+                            this.checkArr.push(checkboxList[i]);
+                        };
+                    }
+                    this.printScopeVisible = false;
+                } else {
+                    this.$message.warning("数值范围不正确");
+                };
+            },
+            CheckRule(v) {
+                axios.post('/BarCodes/CheckRule', { ordenum: v }).then(res => {
+                    this.checkRuleMessage = res.data.mesage;
+                }).catch(err => {
+                    console.warn("获取数据失败")
+                });
+            }
+
+        },
+        created: function () {
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            this.role = this.checkRoles("修改模组号");//验证是否存在‘修改模组号’权限
+            //let localOrder = localStorage.getItem('Order');
+            //if (localOrder != null) {
+            //    this.selectVal = localOrder;
+            //};
+            let printIP = localStorage.getItem('printIP');
+            if (printIP != null) {
+                this.printSelect = printIP;
+            };
+            let localprintstyle = localStorage.getItem('printStyle');
+            if (localprintstyle != null) {
+                this.printStyle = localprintstyle;
+            };
+            let localbarcodeisjson = localStorage.getItem('barcodeIsJson');
+            if (localbarcodeisjson != null) {
+                if (localbarcodeisjson == "true") {
+                    this.isJson = true;
+                } else {
+                    this.isJson = false;
+                };
+            };
+        },
+        watch: {
+            printSelect(v) {
+                localStorage.setItem('printIP', v);
+            },
+            isJson(v) {
+                localStorage.setItem('barcodeIsJson', v);
+            },
+            selectVal: function (v) {
+                if (v != "") {
+                    localStorage.setItem('Order', v);
+                    this.CheckRule(v);
+                };
+                this.checkRuleMessage = '';
+                this.Prefix = "";
+                this.Suffix = "";
+                this.Num = 1;
+                this.ruleList = [];
+            },
+            reverselist(v) {
+                this.checkArr = [];
+                this.checkAll = false;
+                this.isIndeterminate = false;
+                this.moCheckboxList.reverse();
+                this.barCheckboxList.reverse();
+            },
+            printStyle(v) {
+                localStorage.setItem('printStyle', v);
+                this.checkAll = false;
+                this.isIndeterminate = false;
+                this.checkArr = [];
+            },
+        },
+    });
+</script>

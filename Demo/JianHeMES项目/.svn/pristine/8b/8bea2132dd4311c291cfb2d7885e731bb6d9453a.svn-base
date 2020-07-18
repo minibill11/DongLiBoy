@@ -1,0 +1,233 @@
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Web.Http;
+
+namespace JianHeMES.Controllers
+{
+    public class CRM_QueryController : ApiController
+    {
+        [HttpPost]
+        public JArray OrderInfo(string parameter)
+        {
+            //var prepare = JsonConvert.DeserializeObject(parameter);//字符串转成json
+            //建立本地存储表
+            //1.按订单读本地存储记录，检查记录存储时间，如果订单号为空，则返回生产管控看板JSON文件的记录；
+            //2.有订单号，如果存储时间到现在>5分钟，按订单查询（写一个独立的查询方法），本地存储一份查询结果，返回查询结果； 
+            //3.有订单号，如果存储时间到现在 <5分钟，如果本地存储有记录，则返回取本地存储记录，如果没有，按订单查询，本地存储一份查询结果，返回查询结果；
+
+            JArray total = new JArray();
+
+            var totaljson = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\ProductionController.json");
+            var json = JsonConvert.DeserializeObject<JObject>(totaljson);
+            var jsontotalitem = json.Children().Children().ToList();
+            if (parameter != null)
+            {
+                JObject result = new JObject();
+                var jsonitem = jsontotalitem.Where(c => c["OrderNum"].ToString() == parameter).FirstOrDefault();
+                result.Add("ordernum", jsonitem["OrderNum"].ToString());//订单
+                var box = jsonitem["Quantity"].ToString();
+                result.Add("Quantity", box);//订单数量
+                result.Add("PlatformType", jsonitem["PlatformType"].ToString());//平台型号
+                result.Add("PlanInputTime", jsonitem["PlanInputTime"].ToString());//生成排期开始时间
+                result.Add("PlanCompleteTime", jsonitem["PlanCompleteTime"].ToString());//生产排期结束时间
+                result.Add("ActualProductionTime", jsonitem["ActualProductionTime"].ToString());//实际生产开始时间
+                                                                                                //SMT完成率
+                var smtfinsh = ((JObject)jsonitem["extendFinishRate"]).Children().Children().ToList();
+                JArray smtfinshArray = new JArray();
+                foreach (var item in smtfinsh)
+                {
+                    JObject obj = new JObject();
+                    obj.Add("jobconten", item["jobconten"].ToString());
+                    obj.Add("FinishRateMolecule", item["FinishRateMolecule"].ToString());
+                    obj.Add("FinishRateDenominator", item["FinishRateDenominator"].ToString());
+                    obj.Add("FinishRate", item["FinishRate"].ToString());
+                    smtfinshArray.Add(obj);
+                }
+
+                result.Add("SMT_Finish", smtfinshArray);
+                //SNT合格率
+                var smtPass = ((JObject)jsonitem["dextendPassRate"]).Children().Children().ToList();
+                JArray smtPassArray = new JArray();
+                foreach (var item in smtPass)
+                {
+                    JObject obj = new JObject();
+                    obj.Add("jobconten", item["jobconten"].ToString());
+                    obj.Add("PassRateMolecule", item["PassRateMolecule"].ToString());
+                    obj.Add("PassRateDenominator", item["PassRateDenominator"].ToString());
+                    obj.Add("PassRate", item["PassRate"].ToString());
+                    smtPassArray.Add(obj);
+                }
+                result.Add("SMT_Pass", smtPassArray);
+
+                if (jsonitem["FinalQC_Finish"] != null)
+                {
+                    result.Add("FinalQC_Finish_Rate", jsonitem["FinalQC_Finish_Rate"].ToString() + "(" + jsonitem["FinalQC_Finish"].ToString() + "/" + jsonitem["Quantity"].ToString() + ")");//FQC完成率
+
+                    result.Add("FinalQC_Pass_Rate", jsonitem["FinalQC_Pass_Rate"].ToString() + "(" + jsonitem["FinalQC_Finish"].ToString() + "/" + jsonitem["FinalQC_Record_Count"].ToString() + ")");//FQC合格率
+                }
+                else
+                {
+                    result.Add("FinalQC_Finish_Rate", "--%");//FQC完成率
+
+                    result.Add("FinalQC_Pass_Rate", "--%");//FQC合格率
+                }
+                if (jsonitem["Calibration_Finish"] != null)
+                {
+                    result.Add("Calibration_Finish_Rate", jsonitem["Calibration_Finish_Rate"].ToString() + "(" + jsonitem["Calibration_Finish"].ToString() + "/" + jsonitem["Quantity"].ToString() + ")");//校正完成率
+
+                    result.Add("Calibration_Pass_Rate", jsonitem["Calibration_Pass_Rate"].ToString() + "(" + jsonitem["Calibration_Finish"].ToString() + "/" + jsonitem["Calibration_Record_Count"].ToString() + ")");//校正合格率
+                }
+                else
+                {
+                    result.Add("Calibration_Finish_Rate", "--%");//校正完成率
+
+                    result.Add("Calibration_Pass_Rate", "--%");//校正合格率
+                }
+                if (jsonitem["Appearances_Finish"] != null)
+                {
+                    result.Add("Appearances_Finish_Rate", jsonitem["Appearances_Finish_Rate"].ToString() + "(" + jsonitem["Appearances_Finish"].ToString() + " /" + jsonitem["Quantity"].ToString() + ")");//外观电检完成率
+                    result.Add("Appearances_Pass_Rate", jsonitem["Appearances_Pass_Rate"].ToString() + "(" + jsonitem["Appearances_Finish"].ToString() + "/" + jsonitem["Appearances_Record_Count"].ToString() + ")");//外观电检合格率
+                }
+                else
+                {
+                    result.Add("Appearances_Finish_Rate", "--%");//外观电检完成率
+                    result.Add("Appearances_Pass_Rate", "--%");//外观电检合格率
+                }
+                result.Add("joinAndOutDepot", jsonitem["joinAndOutDepot"].ToString());//入库/出库(件)
+                result.Add("ActualFinishTime", jsonitem["ActualFinishTime"].ToString());//完成时间
+                result.Add("TotalTime", jsonitem["TotalTime"].ToString());//生产时间
+
+                total.Add(result);
+            }
+            else
+            {
+                foreach (var jsonitem in jsontotalitem)
+                {
+                    JObject result = new JObject();
+
+                    result.Add("ordernum", jsonitem["OrderNum"].ToString());//订单
+                    var box = jsonitem["Quantity"].ToString();
+                    result.Add("Quantity", box);//订单数量
+                    result.Add("PlatformType", jsonitem["PlatformType"].ToString());//平台型号
+                    result.Add("PlanInputTime", jsonitem["PlanInputTime"].ToString());//生成排期开始时间
+                    result.Add("PlanCompleteTime", jsonitem["PlanCompleteTime"].ToString());//生产排期结束时间
+                    result.Add("ActualProductionTime", jsonitem["ActualProductionTime"].ToString());//实际生产开始时间
+                                                                                                    //SMT完成率
+                    var smtfinsh = ((JObject)jsonitem["extendFinishRate"]).Children().Children().ToList();
+                    JArray smtfinshArray = new JArray();
+                    foreach (var item in smtfinsh)
+                    {
+                        JObject obj = new JObject();
+                        obj.Add("jobconten", item["jobconten"].ToString());
+                        obj.Add("FinishRateMolecule", item["FinishRateMolecule"].ToString());
+                        obj.Add("FinishRateDenominator", item["FinishRateDenominator"].ToString());
+                        obj.Add("FinishRate", item["FinishRate"].ToString());
+                        smtfinshArray.Add(obj);
+                    }
+
+                    result.Add("SMT_Finish", smtfinshArray);
+                    //SNT合格率
+                    var smtPass = ((JObject)jsonitem["dextendPassRate"]).Children().Children().ToList();
+                    JArray smtPassArray = new JArray();
+                    foreach (var item in smtPass)
+                    {
+                        JObject obj = new JObject();
+                        obj.Add("jobconten", item["jobconten"].ToString());
+                        obj.Add("PassRateMolecule", item["PassRateMolecule"].ToString());
+                        obj.Add("PassRateDenominator", item["PassRateDenominator"].ToString());
+                        obj.Add("PassRate", item["PassRate"].ToString());
+                        smtPassArray.Add(obj);
+                    }
+                    result.Add("SMT_Pass", smtPassArray);
+
+                    if (jsonitem["FinalQC_Finish"] != null)
+                    {
+                        result.Add("FinalQC_Finish_Rate", jsonitem["FinalQC_Finish_Rate"].ToString() + "(" + jsonitem["FinalQC_Finish"].ToString() + "/" + jsonitem["Quantity"].ToString() + ")");//FQC完成率
+
+                        result.Add("FinalQC_Pass_Rate", jsonitem["FinalQC_Pass_Rate"].ToString() + "(" + jsonitem["FinalQC_Finish"].ToString() + "/" + jsonitem["FinalQC_Record_Count"].ToString() + ")");//FQC合格率
+                    }
+                    else
+                    {
+                        result.Add("FinalQC_Finish_Rate", "--%");//FQC完成率
+
+                        result.Add("FinalQC_Pass_Rate", "--%");//FQC合格率
+                    }
+                    if (jsonitem["Calibration_Finish"] != null)
+                    {
+                        result.Add("Calibration_Finish_Rate", jsonitem["Calibration_Finish_Rate"].ToString() + "(" + jsonitem["Calibration_Finish"].ToString() + "/" + jsonitem["Quantity"].ToString() + ")");//校正完成率
+
+                        result.Add("Calibration_Pass_Rate", jsonitem["Calibration_Pass_Rate"].ToString() + "(" + jsonitem["Calibration_Finish"].ToString() + "/" + jsonitem["Calibration_Record_Count"].ToString() + ")");//校正合格率
+                    }
+                    else
+                    {
+                        result.Add("Calibration_Finish_Rate", "--%");//校正完成率
+
+                        result.Add("Calibration_Pass_Rate", "--%");//校正合格率
+                    }
+                    if (jsonitem["Appearances_Finish"] != null)
+                    {
+                        result.Add("Appearances_Finish_Rate", jsonitem["Appearances_Finish_Rate"].ToString() + "(" + jsonitem["Appearances_Finish"].ToString() + " /" + jsonitem["Quantity"].ToString() + ")");//外观电检完成率
+                        result.Add("Appearances_Pass_Rate", jsonitem["Appearances_Pass_Rate"].ToString() + "(" + jsonitem["Appearances_Finish"].ToString() + "/" + jsonitem["Appearances_Record_Count"].ToString() + ")");//外观电检合格率
+                    }
+                    else
+                    {
+                        result.Add("Appearances_Finish_Rate", "--%");//外观电检完成率
+                        result.Add("Appearances_Pass_Rate", "--%");//外观电检合格率
+                    }
+                    result.Add("joinAndOutDepot", jsonitem["joinAndOutDepot"].ToString());//入库/出库(件)
+                    result.Add("ActualFinishTime", jsonitem["ActualFinishTime"].ToString());//完成时间
+                    result.Add("TotalTime", jsonitem["TotalTime"].ToString());//生产时间
+
+                    total.Add(result);
+                }
+            }
+
+            //string result = "MES接收到的内容是：" + parameter ;
+
+            return total;
+        }
+
+        [HttpPost]
+        [Authorize]
+        public string OrderInfo2(string parameter)
+        {
+            //var prepare = JsonConvert.DeserializeObject(parameter);//字符串转成json
+
+            string result = "MES接收到的内容是：" + parameter;
+
+            return result;
+        }
+
+        // GET: api/CRM_Query
+        public IEnumerable<string> Get()
+        {
+            return new string[] { "value1", "value2" };
+        }
+
+        // GET: api/CRM_Query/5
+        public string Get(int id)
+        {
+            return "value";
+        }
+
+        // POST: api/CRM_Query
+        public void Post([FromBody]string value)
+        {
+        }
+
+        // PUT: api/CRM_Query/5
+        public void Put(int id, [FromBody]string value)
+        {
+        }
+
+        // DELETE: api/CRM_Query/5
+        public void Delete(int id)
+        {
+        }
+    }
+}

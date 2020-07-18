@@ -1,0 +1,479 @@
+﻿
+@{
+    ViewBag.Title = "批量添加客诉损失";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .DuplicateData {
+            color: red;
+        }
+
+        .el-table thead.has-gutter th {
+            background: #F5F7FA;
+            height: 24px;
+        }
+
+        .table-top {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .marginRight {
+            margin-right: 10px
+        }
+
+        .el-main {
+            padding: 20px 20px 0 20px;
+        }
+
+        .bottomInfo {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 20px 30px 20px;
+        }
+
+        .pone {
+            font-size: 14px;
+        }
+
+        .el-table__body .cell {
+            line-height: 24px;
+            font-size: 12px;
+        }
+
+        .el-table--border th:first-child .cell {
+            padding-left: 14px;
+        }
+
+        .delLine {
+            text-decoration: underline;
+        }
+
+            .delLine:hover {
+                color: red;
+            }
+
+        .el-table__footer-wrapper tbody td {
+            background-color: #F0FAFF;
+            border-top-color: rgba(64, 158, 255, 1);
+            border-bottom-color: rgba(64, 158, 255, 1);
+            z-index: 1;
+            font-weight: 700;
+        }
+
+        .el-table__footer, .el-table td.is-center, .el-table th.is-center {
+            height: 36px;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3 class="top-title">批量添加客诉损失</h3>
+        </el-header>
+        <el-main>
+            @*批量添加粘贴处 *@
+            <el-row class="text-center table-top">
+                <textarea v-model="inputText" class="marginRight" placeholder="表格粘贴处..."></textarea>
+                <el-date-picker v-model="selectTime"
+                                class="marginRight"
+                                type="month"
+                                size="medium"
+                                placeholder="选择年月">
+                </el-date-picker>
+                <el-button size="medium" v-on:click="goback2">返回</el-button>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          min-height="234"
+                          max-height="560"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          :summary-method="getSummaries"
+                          show-summary
+                          border>
+                    <el-table-column prop="serialNumber"
+                                     label="序号"
+                                     min-width="52"
+                                     height="100">
+                    </el-table-column>
+                    <el-table-column prop="CustomerName"
+                                     label="客户名称"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="DeliveryDate"
+                                     sortable
+                                     label="出货日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ComplaintsDate"
+                                     sortable
+                                     label="投诉日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="SettlementDate"
+                                     label="结案日期"
+                                     sortable
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ProductModel"
+                                     label="产品型号"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="OrderNum"
+                                     label="订单号"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="Customer_phenomenon"
+                                     label="客诉现象"
+                                     align="center"
+                                     min-width="130">
+                    </el-table-column>
+                    <el-table-column prop="Cause_Analysis"
+                                     label="原因分析"
+                                     align="center"
+                                     min-width="170">
+                    </el-table-column>
+                    <el-table-column prop="Interim_Disposal"
+                                     label="临时处理措施"
+                                     align="center"
+                                     min-width="150">
+                    </el-table-column>
+                    <el-table-column prop="Longterm_Treatment"
+                                     label="长期处理措施"
+                                     align="center"
+                                     min-width="160">
+                    </el-table-column>
+                    <el-table-column prop="ClaimIs"
+                                     label="索赔情况"
+                                     align="center"
+                                     min-width="180">
+                    </el-table-column>
+                    <el-table-column prop="claimConfirm"
+                                     label="索赔确认"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="Contract_Amount"
+                                     label="合同额(元)"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="Losses_Amount"
+                                     label="损失金额(元)"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="LossRate"
+                                     label="损失率(%)"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="Responsibility"
+                                     label="质量损失-责任判定"
+                                     align="center"
+                                     min-width="78">
+                        <el-table-column prop="QualityLoss1"
+                                         label="惠州工厂"
+                                         align="center"
+                                         min-width="120">
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss2"
+                                         label="订单管理部"
+                                         align="center"
+                                         min-width="120">
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss3"
+                                         label="采购部"
+                                         align="center"
+                                         min-width="120">
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss4"
+                                         label="研发中心"
+                                         align="center"
+                                         min-width="120">
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss5"
+                                         label="工程售后部"
+                                         align="center"
+                                         min-width="120">
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss6"
+                                         label="风控中心"
+                                         align="center"
+                                         min-width="120">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="操作" align="center">
+                        <template slot-scope="scope">
+                            <el-button v-bind:class="scope.row.color==200?'red':''" v-on:click.native.prevent="deleteRow(scope.$index, tableData)"
+                                       class="delLine"
+                                       type="text"
+                                       size="small">
+                                移除
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+
+    @* 表格信息概述 *@
+    <div class="bottomInfo" v-if="flag">
+        <p class="pone">
+            本次共提交
+            <span style="color:red;font-size:18px;">{{count}}</span>条数据！
+            <span v-if="flags" class="DuplicateData">存在{{numberOfzf}}条重复数据，请先手动移除其中{{numberOfzf}}条重复数据再重新上传！</span>
+        </p>
+        <p>
+            <el-button v-on:click="postData" type="primary" size="mini">上传<i class="el-icon-upload el-icon--right"></i></el-button>
+            <el-button v-on:click="delated" type="primary" size="mini">清空<i class="el-icon-delete el-icon--right"></i></el-button>
+        </p>
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        // 返回上一页
+        function goback2() {
+            window.history.back();
+        }
+        const app = {
+            data: function () {
+                return {
+                    res1: [],
+                    inputText: null,   // 批量添加客诉损失时的输入框的值
+                    flag: false,       // 批量添加客诉损失时为true
+                    flags: false,      // 筛选重复的数据开关
+                    count: null,       // 概述数据条数
+                    numberOfzf: 0,      // 重复的数据条数
+                    tableData: [],     // 客诉损失表格
+                    selectTime: null,  // 所选时间
+                    lossesList: [],
+                    lossesData: {
+                        Responsibility: '',
+                        QualityLoss: ''
+                    },
+                    obj1: {             //责任判定
+                        Responsibility1: "惠州工厂",
+                        Responsibility2: "订单管理部",
+                        Responsibility3: "采购部",
+                        Responsibility4: "研发中心",
+                        Responsibility5: "工程售后部",
+                        Responsibility6: "风控中心",
+                    },
+                }
+            },
+            created: function () {
+
+            },
+            mounted: function () {
+
+            },
+            //函数方法
+            methods: {
+                //合计
+                getSummaries(param) {
+                    const { columns, data } = param;
+                    const sums = [];
+                    columns.forEach((column, index) => {
+                        if (index === 15) {
+                            sums[index] = '总计：';
+                            return;
+                        }
+                    });
+                    return sums;
+                },
+                // 客诉损失表格删除单独行
+                deleteRow(index) {
+                    this.numberOfzf--;
+                    if (this.numberOfzf > 0) {
+                        this.flags = true;
+                        console.log(this.numberOfzf, 888777)
+                    } else if (this.numberOfzf <= 0) {
+                        console.log(this.numberOfzf, 888)
+                        this.flags = false;
+                    }
+                    this.tableData.splice(index, 1);
+                    this.count--;
+                },
+                // 清空重置
+                delated() {
+                    this.tableData = [];
+                    this.count = 0;
+                    this.flag = false;
+                    this.falgs = false;
+                },
+                //保存添加的数据
+                postData() {
+                    if (this.count > 1) {
+                        if (this.selectTime != null) {
+                            let dd = new Date(this.selectTime)
+                            let year = dd.getFullYear()
+                            let month = dd.getMonth() + 1
+                            axios.post("/Customer_Complaints/BatchUpload", { attachment: this.tableData, year: year, month: month }).then(res => {
+                                console.log(res.data.meg, 1111)
+                                if (res.data.meg == true) {
+                                    this.$message({
+                                        message: "上传成功！",
+                                        type: "success"
+                                    });
+                                    this.delated();
+                                } else if (res.data.meg == false) {
+                                    // 注意：此时给表格的数据增加一个color属性并不会触发视图重新渲染；新增的属性无法触发，但是修改原有属性的值却是可以触发渲染的
+                                    // 所以在初次给表格赋值的时候就需要添加上color属性
+                                    this.res1 = res.data.feg;
+                                    this.numberOfzf = this.res1.length;
+                                    let AttributionYears = year + '-' + month;
+                                    for (let i = 0; i < this.res1.length; i++) {
+                                        let str = this.res1[this.res1.length - 1];
+                                        let Arr = str.split(";"),
+                                            Arr0 = Arr.shift();
+                                        for (let j = 0; j < Arr.length; j++) {
+                                            let arr0 = Arr[j].split(",");
+                                            let arrs0 = arr0[2].split(" ");
+                                            this.tableData.forEach(item => {
+                                                if (arr0[0] == AttributionYears && arr0[1] == item.OrderNum && arrs0[0] == item.ComplaintsDate) {
+                                                    item.color = 200
+                                                }
+                                            })
+                                        }
+                                    }
+                                    this.$message({
+                                        message: "存在重复信息，请手动删除！",
+                                        type: "warning"
+                                    });
+                                }
+                            })
+                        } else {
+                            this.$message({
+                                message: "请选择年月!",
+                                type: "warning"
+                            })
+                        }
+                    } else if (this.count == 1) {
+                        //质量损失
+                        let obj2 = {
+                            QualityLoss1: this.tableData[0].QualityLoss1,
+                            QualityLoss2: this.tableData[0].QualityLoss2,
+                            QualityLoss3: this.tableData[0].QualityLoss3,
+                            QualityLoss4: this.tableData[0].QualityLoss4,
+                            QualityLoss5: this.tableData[0].QualityLoss5,
+                            QualityLoss6: this.tableData[0].QualityLoss6,
+                        };
+                        let arrRes1 = Object.values(this.obj1);
+                        let arrRes2 = Object.values(obj2);
+                        arrRes1.forEach((item, index) => {
+                            let index1 = index;
+                            arrRes2.forEach((key, index) => {
+                                let index2 = index;
+                                if (key != "" && index2 == index1) {
+                                    this.lossesData = {
+                                        QualityLoss: key,
+                                        Responsibility: item
+                                    }
+                                    console.log(this.lossesData, 666)
+                                    if (this.lossesData.Responsibility.indexOf(item) < 0) {
+                                        this.lossesList.push(this.lossesData);
+                                        console.log(this.lossesList, 2222)
+                                    }
+                                }
+                            })
+
+                        })
+                        axios.post("/Customer_Complaints/ADDLoss", { customerList: this.tableData, lossesList: this.lossesList }).then(res => {
+                            console.log(res.data, 33333)
+                            if (this.selectTime != null && this.tableData[0].OrderNum != null && this.lossesList != null) {
+                                if (res.data.meg == true) {
+                                    this.$message({
+                                        message: "上传成功！",
+                                        type: "success"
+                                    });
+                                    this.delated();
+                                } else if (res.data.meg == false) {
+                                    // 注意：此时给表格的数据增加一个color属性并不会触发视图重新渲染；新增的属性无法触发，但是修改原有属性的值却是可以触发渲染的
+                                    // 所以在初次给表格赋值的时候就需要添加上color属性
+                                    this.tableData.forEach(item => {
+                                        item.color = 200
+                                    })
+                                    this.$message({
+                                        message: "重复信息，请手动删除并上传其它信息！",
+                                        type: "warning"
+                                    });
+                                }
+                            } else if (this.selectTime == null) {
+                                this.$message({
+                                    message: "请选择年月!",
+                                    type: "warning"
+                                })
+                            } else if (this.tableData[0].OrderNum == null) {
+                                this.$message({
+                                    message: "订单号为空!",
+                                    type: "warning"
+                                })
+                            } else if (this.lossesList == null) {
+                                this.$message({
+                                    message: "质量损失不能为空!",
+                                    type: "warning"
+                                })
+                            }
+                        })
+                    } else {
+                        this.$message({
+                            message: "请导入数据再上传!",
+                            type: "warning"
+                        })
+                    }
+                }
+            },
+            watch: {
+                // 监听客诉损失粘贴框-- 渲染表格
+                inputText(val) {
+                    var valOfPaste = val.split("\n");
+                    valOfPaste.pop();
+                    var initDatas = []
+                    valOfPaste.forEach((item, i) => {
+                        var items = item.split("\t");
+                        initDatas.push(items)
+                    });
+                    initDatas.forEach(item => {
+                        let obj = {
+                            serialNumber: item[0], CustomerName: item[1], DeliveryDate: item[2], ComplaintsDate: item[3], SettlementDate: item[4], ProductModel: item[5], OrderNum: item[6],
+                            Customer_phenomenon: item[7], Cause_Analysis: item[8], Interim_Disposal: item[9], Longterm_Treatment: item[10], ClaimIs: item[11], ClaimConfirm: item[12],
+                            Contract_Amount: item[13], Losses_Amount: item[14], LossRate: item[15], QualityLoss1: item[16], QualityLoss2: item[17], QualityLoss3: item[18], QualityLoss4: item[19],
+                            QualityLoss5: item[20], QualityLoss6: item[21], color: 202
+                        };
+                        this.tableData.push(obj);
+                    });
+                    this.count = this.tableData.length;
+                    if (this.count <= 0) {
+                        this.flag = false;
+                    } else {
+                        this.flag = true
+                    }
+                    this.inputText = null;
+                },
+            }
+        };
+    </script>
+}

@@ -1,0 +1,1280 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+<script src="~/Scripts/echarts.js"></script>
+<link href="~/Content/tableStyle/index.css" rel="stylesheet" />
+<style>
+    #app {
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .container {
+        width: 82.8%;
+    }
+
+    .select {
+        width: 100% !important;
+    }
+
+    button {
+        padding: 2px !important;
+    }
+
+    .el-input {
+        width: 130px;
+    }
+
+    input {
+        text-align: center;
+    }
+
+    .el-table--small th, .el-table .cell, .el-table th div, .el-table--small td, .el-table .cell, .el-table .cell {
+        padding: 2px;
+        padding-left: 2px !important;
+    }
+
+    .el-button--mini {
+        padding: 5px;
+    }
+
+    .timePicker {
+        display: flex;
+        justify-content: center;
+        margin: 15px auto;
+    }
+
+    .el-card__header {
+        border-bottom-color: #CCD3DE;
+        height: 50px;
+        width: 415px;
+    }
+
+    .box-card {
+        background: #EFF2F7;
+        width: 415px;
+        margin: 0 auto;
+
+    }
+    .box-card1 {
+        background: #fff;
+        border: none;
+        width: 415px;
+        margin: 0 auto;
+    }
+    .el-card__body {
+        padding:10px;
+    }
+
+    .clearfix {
+        text-align: center;
+        font-size: 20px;
+    }
+    #lineMain2 {
+        margin: 0 auto;
+        width: 100%;
+        height: 330px;
+        background: #EFF2F7;
+    }
+    #lineMain, #lineMain3, #lineMain4, #lineMain5, #lineMain6 {
+        margin: 0 auto;
+        width: 100%;
+        height: 275px;
+        background: #EFF2F7;
+    }  
+    .popoverTable input {
+            width: 100%;
+        }
+
+    .popoverTable select {
+        width: 100%;
+        height: 22px;
+    }
+
+    .el-table__header tr,
+    .el-table__header th {
+        font-size: 12px;
+        padding: 0;
+        height: 30px;
+    }
+
+    .el-table__body tr,
+    .el-table__body td {
+        font-size: 12px;
+        padding: 0;
+        height: 30px;
+    }
+    .collect {
+        font-size: 18px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        background: #EFF2F7;
+        padding:5px;
+        text-align:center
+    }
+    .collect1 {
+        font-size: 16px;
+        margin-top: 25px;      
+        background: #EFF2F7;
+        padding: 5px;
+        text-align: left
+    }
+</style>
+
+<div id="app">
+    <div class="timePicker" style="margin-bottom:0">
+        <div>
+            <el-select v-model="selectYear" size="small" width="150" placeholder="请选择">
+                <el-option v-for="item in optionsYear"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>年
+            <el-select v-model="selectMonth" size="small" clearable placeholder="请选择">
+                <el-option v-for="item in optionsMonth"
+                           v-bind:key="item.value"
+                           v-bind:label="item.label"
+                           v-bind:value="item.value">
+                </el-option>
+            </el-select>月
+            各部门离职情况汇总
+        </div>
+
+    </div>
+    <div>
+        <p style="margin-bottom:0;" class="inputrigth">
+            @Html.ActionLink("批量添加", "Create")
+        </p>
+    </div>
+    <el-table v-bind:data="tableData" style="width: 100%" size="small" show-summary v-bind:summary-method="getSummaries" v-loading.fullscreen="loading" stripe>
+        <el-table-column prop="department" label="部门" align="center" width="100">
+            <template slot-scope="scope">
+                <el-popover placement="right"
+                            width="auto"
+                            trigger="click">
+                    <el-table v-show="showinnertable" v-bind:id=`table${scope.$index}` class="popoverTable" v-bind:data="gridData" max-height="450" size="small">
+                        <el-table-column width="50" align="center" property="Name" label="姓名"></el-table-column>
+                        <el-table-column width="60" align="center" property="jobNum" label="工号"></el-table-column>
+                        <el-table-column width="75" align="center" property="department" label="部门"></el-table-column>
+                        <el-table-column width="75" align="center" property="Position" label="职位"></el-table-column>
+                        <el-table-column width="68" align="center" property="levelType" label="族群"></el-table-column>
+                        <el-table-column width="68" align="center" property="Resign" label="离退类型">
+                            <template scope="scope">
+                                <div>{{scope.row.Resign | typeFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column width="80" align="center" property="DP_group" label="组名"></el-table-column>
+                        <el-table-column width="232" align="center" property="Remark" label="备注"></el-table-column>
+                        <el-table-column width="50" align="center" property="HealthyBody" label="身体健康"></el-table-column>
+                        <el-table-column width="50" align="center" property="Family_Reasons" label="家庭原因"></el-table-column>
+                        <el-table-column width="50" align="center" property="Better_development" label="更好的发展"></el-table-column>
+                        <el-table-column width="60" align="center" property="Pay_dissatisfaction" label="薪酬福利不满意"></el-table-column>
+                        <el-table-column width="50" align="center" property="NotSystem" label="制度不满意"></el-table-column>
+                        <el-table-column width="50" align="center" property="Notmanagement" label="管理不满意"></el-table-column>
+                        <el-table-column width="60" align="center" property="NotWork_Itself" label="工作本身不满意"></el-table-column>
+                        <el-table-column width="60" align="center" property="Jobenvironment" label="工作环境不满意"></el-table-column>
+                        <el-table-column width="60" align="center" property="NotCultural_Atmosphere" label="文化气氛不满意"></el-table-column>
+                        <el-table-column width="50" align="center" property="NotProbation_Period" label="试用期不合格"></el-table-column>
+                        <el-table-column width="50" align="center" property="Negotiate_Remove" label="协商解除"></el-table-column>
+                        <el-table-column width="50" align="center" property="Other_Reasons" label="其他"></el-table-column>
+                        <el-table-column prop="date" label="操作" align="center" width="108">
+                            <template slot-scope="scope">
+                                <el-button v-show="showinnerbtn" class="btnone" size="mini" v-on:click="handleEdit(scope.$index, scope.row)">编辑</el-button>
+                                <el-button class="btntwo" size="mini" style="display:none;" v-on:click="handleSave(scope.$index, scope.row)">保存</el-button>
+                                <el-button class="btnthree" size="mini" style="display:none;" v-on:click="handleCancel(scope.$index, scope.row)">取消</el-button>
+                                <el-button v-show="showinnerbtn" class="btnfour" size="mini" type="danger" v-on:click="handleDelete(scope.$index, scope.row)">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <span v-show="showinnerspan">无此权限</span>
+                    <el-button slot="reference" size="small" v-on:click="showDetials(scope.$index, scope.row)">{{scope.row.department}}</el-button>
+                </el-popover>
+            </template>
+        </el-table-column>
+        <el-table-column prop="begin_day_of_month" align="center" label="月初人数" width="40">
+        </el-table-column>
+        <el-table-column prop="end_day_of_month" align="center" label="月末人数" width="40">
+        </el-table-column>
+        <el-table-column prop="average" align="center" label="平均人数" width="40">
+        </el-table-column>
+        <el-table-column prop="ru_departure_sum" align="center" label="入职人数" width="40">
+        </el-table-column>
+        <el-table-column prop="li_departure_sum" align="center" label="离职人数" width="40">
+        </el-table-column>
+        <el-table-column align="center" label="离职族群汇总">
+            <el-table-column prop="levelTypeguanli" align="center" label="管理族" width="55">
+            </el-table-column>
+            <el-table-column prop="levelTypecaozuo" align="center" label="操作族" width="55">
+            </el-table-column>
+            <el-table-column prop="levelTypejishu" align="center" label="技术族" width="55">
+            </el-table-column>
+            <el-table-column prop="levelTypezhuanye" align="center" label="专业族" width="55">
+            </el-table-column>
+            <el-table-column prop="levelTypefuwu" align="center" label="服务族" width="55">
+            </el-table-column>
+        </el-table-column>
+
+        <el-table-column align="center" label="离退类型">
+            <el-table-column prop="types_cizhi" align="center" label="辞职" width="55">
+            </el-table-column>
+            <el-table-column prop="types_zili" align="center" label="自离" width="55">
+            </el-table-column>
+            <el-table-column prop="types_citui" align="center" label="辞退" width="55">
+            </el-table-column>
+            <el-table-column prop="types_tuixiu" align="center" label="退休" width="55">
+            </el-table-column>
+        </el-table-column>
+
+        <el-table-column align="center" label="离职原因汇总">
+            <el-table-column align="center" prop="" label="个人原因">
+                <el-table-column align="center" prop="py_shenti" label="身体健康" width="50">
+                </el-table-column>
+                <el-table-column align="center" prop="py_jiating" label="家庭原因" width="50">
+                </el-table-column>
+                <el-table-column align="center" prop="py_geng" label="更好的发展" width="50">
+                </el-table-column>
+            </el-table-column>
+            <el-table-column align="center" prop="" label="公司原因">
+                <el-table-column align="center" prop="py_couxin" label="薪酬福利不满意" width="60">
+                </el-table-column>
+                <el-table-column align="center" prop="py_zhidu" label="制度不满意" width="60">
+                </el-table-column>
+                <el-table-column align="center" prop="py_guan" label="管理不满意" width="60">
+                </el-table-column>
+                <el-table-column align="center" prop="py_benshen" label="工作本身不满意" width="60">
+                </el-table-column>
+                <el-table-column align="center" prop="py_gong" label="工作环境不满意" width="60">
+                </el-table-column>
+                <el-table-column align="center" prop="py_wenhua" label="文化气氛不满意" width="60">
+                </el-table-column>
+            </el-table-column>
+            <el-table-column align="center" prop="py_proba" label="试用期不合格" width="50">
+            </el-table-column>
+            <el-table-column align="center" prop="py_tiate" label="协商解除" width="50">
+            </el-table-column>
+            <el-table-column align="center" prop="py_reasons" label="其他" width="50">
+            </el-table-column>
+            <el-table-column prop="for_leaving" align="center" label="离职率
+（含入职未满7天人员）" width="88">
+            </el-table-column>
+    </el-table>
+    <div class="collect1">
+        <strong>
+            离职原因汇总
+        </strong>
+    </div>
+    <el-table v-bind:data="table" style="width: 100%;" max-height="690" border stripe>
+        <el-table-column prop="DimissionReason" align="center" label="离职原因" width="185">
+        </el-table-column>
+        <el-table-column prop="ManagementGroup" align="center" label="管理族" width="195">
+        </el-table-column>
+        <el-table-column prop="OperationGroup" align="center" label="操作族" width="195">
+        </el-table-column>
+        <el-table-column prop="ProfessionGroup" align="center" label="专业族" width="195">
+        </el-table-column>
+        <el-table-column prop="TechnologyGroup" align="center" label="技术族" width="195">
+        </el-table-column>
+        <el-table-column prop="ServeGroup" align="center" label="服务族" width="195">
+        </el-table-column>
+        <el-table-column prop="Total" align="center" label="各项人数总计" width="195">
+        </el-table-column>
+        <el-table-column prop="Proportion" align="center" label="各项占比" width="188">
+        </el-table-column>
+    </el-table>
+    <div class="collect">
+        <strong>
+            离职原因汇总概况
+        </strong>         
+    </div>
+    <el-row :gutter="25">
+            <el-col :md="8">
+                <el-card class="box-card">
+                    <div slot="header" class="clearfix">
+                        <span>管理族</span>
+                    </div>
+                    <div id="lineMain"></div>
+                </el-card>
+            </el-col>
+            <el-col :md="8">
+                <el-card class="box-card1" shadow="never">
+                    <div id="lineMain2"></div>
+                </el-card>
+            </el-col>
+            <el-col :md="8">
+                <el-card class="box-card">
+                    <div slot="header" class="clearfix">
+                        <span>技术族</span>
+                    </div>
+                    <div id="lineMain3"></div>
+                </el-card>
+            </el-col>      
+    </el-row>
+    <el-row :gutter="20" style="margin-top:40px;">
+        <el-col :md="8">
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>专业族</span>
+                </div>
+                <div id="lineMain4"></div>
+            </el-card>
+        </el-col>
+        <el-col :md="8">
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>服务族</span>
+                </div>
+                <div id="lineMain5"></div>
+            </el-card>
+        </el-col>
+        <el-col :md="8">
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>操作族</span>
+                </div>
+                <div id="lineMain6"></div>
+            </el-card>
+        </el-col>
+    </el-row>
+</div>
+
+<script>
+    Vue.filter("typeFilter", function (val) {
+        if (!val) return ''
+        else {
+            if (val == 1) {
+                return "辞职"
+            } else if (val == 2) {
+                return "自离"
+            } else if (val == 3) {
+                return "辞退"
+            } else if (val == 4) {
+                return "退休"
+            }
+        }
+    })
+    function checkRoles(list, roleName) {   //检测权限
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+    var vm = new Vue({
+        el: "#app",
+        data: {
+            table: [],
+            showinnertable: true,
+            showinnerspan: false,
+            showinnerbtn: true,
+            selectYear: '',
+            selectMonth: '',
+            optionsYear: [],
+            optionsMonth: [],
+            index: null,
+            flags: false,
+            gridData: [],
+            times: "",
+            Year: '',
+            Months: '',
+            loading: false,
+            totalCompleteRange: '',
+            tableData: [],  //表格加载的数据必须是数组，否则报错
+            tableBottmData: [],
+            tableBottomRange: '',
+            coporationTypeVal: [],
+            leavingRangr: [],
+            trOldVal: '',  //点击编辑之前的本行的数据---为了取消保存时方便给本行重新 赋值
+        },
+        mounted() {
+            //权限设置
+            var roles = JSON.parse(localStorage.getItem("rigths")) 
+            if (checkRoles(roles, '离职原因调查操作')) {
+                $('.inputrigth').show()
+            } else {
+                $('.inputrigth').hide()
+            }
+            if (checkRoles(roles, '查看所有部门离职详情')) {
+                this.showinnertable = true
+                this.showinnerspan = false
+
+            } else {
+                this.showinnertable = false
+                this.showinnerspan = true
+            }
+            if (checkRoles(roles, '离职原因调查编辑按钮')) {
+                this.showinnerbtn = true
+            } else {
+                this.showinnerbtn = false
+            }
+            var yearNow = new Date().getFullYear();   //动态为选择框获取年份
+            for (let i = 0; i < 5; i++) {
+                var obj = { label: yearNow - i, value: yearNow - i };
+                this.optionsYear.push(obj)
+            }
+            for (let i = 0; i < 12; i++) {     //动态输出月份
+                var vals = (i + 1).toString().padStart(2, '0')
+                var obj = { label: vals, value: vals };
+                this.optionsMonth.push(obj);
+            }
+            axios.post("/Personnel_Reasons_for_leaving/DefaualInfo").then(res => {
+                var arr = res.data.split(',');
+                var time = `${arr[0]}-${arr[1]}`;      //时间格式问题：火狐不支持的格式：yyyy/mm//dd  需要转换成：  yyyy-mm-dd(正好谷歌也支持此格式);
+                this.selectYear = arr[0];
+                this.selectMonth = arr[1];
+            }).catch(err => {
+
+            })
+        },
+        methods: {
+            handleEdit(index, row) {    //在线编辑功能
+                this.trOldVal = row;
+                var targetTr = $(`#table${this.index} .el-table__row`)[index]
+                targetTr.children[0].innerHTML = "<input type='text' value=" + row.Name + " />";//姓名
+                targetTr.children[1].innerHTML = "<input type='text' value=" + (row.jobNum == undefined ? '' : row.jobNum) + " >";//工号
+                targetTr.children[2].innerHTML = "<input type='text' value=" + (row.department == undefined ? '' : row.department) + " >";//部门
+                targetTr.children[3].innerHTML = "<input type='text' value=" + (row.Position == undefined ? '' : row.Position) + " >";//职位
+                targetTr.children[4].innerHTML = "<select><option>" + (row.levelType == undefined ? '' : row.levelType) + "</option><option>操作族</option><option>技术族</option><option>专业族</option><option>服务族</option><option>管理族</option></select>";//族群
+                //判断离职类型
+                let type = "";
+                if (row.Resign == "1") {
+                    type = "辞职"
+                } else if (row.Resign == "2") {
+                    type = "自离"
+                }
+                else if (row.Resign == "3") {
+                    type = "辞退"
+                }
+                else if (row.Resign == "4") {
+                    type = "退休"
+                }
+                targetTr.children[5].innerHTML = "<select><option>" + (row.Resign == undefined ? '' : type) + "</option><option>辞职</option><option>自离</option><option>辞退</option><option>退休</option></select>";//离退类型
+                targetTr.children[6].innerHTML = "<input type='text' value=" + (row.DP_group == undefined ? '' : row.DP_group) + " >";//组名
+                targetTr.children[7].innerHTML = `<input type='text' value=" ${(row.Remark == undefined ? '' : row.Remark)}" >`;//备注
+                targetTr.children[8].innerHTML = "<select><option>" + (row.HealthyBody == undefined ? '' : row.HealthyBody) + "</option><option>0</option><option>1</option></select>";//身体健康
+                targetTr.children[9].innerHTML = "<select><option>" + (row.Family_Reasons == undefined ? '' : row.Family_Reasons) + "</option><option>0</option><option>1</option></select>";//家庭原因
+                targetTr.children[10].innerHTML = "<select><option>" + (row.Better_development == undefined ? '' : row.Better_development) + "</option><option>0</option><option>1</option></select>";//更好的发展
+                targetTr.children[11].innerHTML = "<select><option>" + (row.Pay_dissatisfaction == undefined ? '' : row.Pay_dissatisfaction) + "</option><option>0</option><option>1</option></select>";//薪酬福利不满意
+                targetTr.children[12].innerHTML = "<select><option>" + (row.NotSystem == undefined ? '' : row.NotSystem) + "</option><option>0</option><option>1</option></select>";//制度不满意
+                targetTr.children[13].innerHTML = "<select><option>" + (row.Notmanagement == undefined ? '' : row.Notmanagement) + "</option><option>0</option><option>1</option></select>";//管理不满意
+                targetTr.children[14].innerHTML = "<select><option>" + (row.NotWork_Itself == undefined ? '' : row.NotWork_Itself) + "</option><option>0</option><option>1</option></select>";//工作本身不满意
+                targetTr.children[15].innerHTML = "<select><option>" + (row.Jobenvironment == undefined ? '' : row.Jobenvironment) + "</option><option>0</option><option>1</option></select>";//工作环境不满意
+                targetTr.children[16].innerHTML = "<select><option>" + (row.NotCultural_Atmosphere == undefined ? '' : row.NotCultural_Atmosphere) + "</option><option>0</option><option>1</option></select>";//文化气氛不满意
+                targetTr.children[17].innerHTML = "<select><option>" + (row.NotProbation_Period == undefined ? '' : row.NotProbation_Period) + "</option><option>0</option><option>1</option></select>";//试用期不合格
+                targetTr.children[18].innerHTML = "<select><option>" + (row.Negotiate_Remove == undefined ? '' : row.Negotiate_Remove) + "</option><option>0</option><option>1</option></select>";//协商解除
+                targetTr.children[19].innerHTML = "<select><option>" + (row.Other_Reasons == undefined ? '' : row.Other_Reasons) + "</option><option>0</option><option>1</option></select>";//其他
+                var btn1 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[0];
+                var btn2 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[1];
+                var btn3 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[2];
+                var btn4 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[3];
+                $(btn1).hide()
+                $(btn4).hide()
+                $(btn2).show()
+                $(btn3).show()
+            },
+            handleCancel(index, row) {   //取消保存方法
+                var targetTr = $(`#table${this.index} .el-table__row`)[index];
+                targetTr.children[0].innerHTML = row.Name;//姓名
+                targetTr.children[1].innerHTML = (row.jobNum == undefined ? '' : row.jobNum);//工号
+                targetTr.children[2].innerHTML = (row.department == undefined ? '' : row.department);//部门
+                targetTr.children[3].innerHTML = (row.Position == undefined ? '' : row.Position);//职位
+                targetTr.children[4].innerHTML = (row.levelType == undefined ? '' : row.levelType);//族群
+                targetTr.children[5].innerHTML = (row.Resign == undefined ? '' : row.Resign);//离退类型
+                targetTr.children[6].innerHTML = (row.DP_group == undefined ? '' : row.DP_group);//班组
+                targetTr.children[7].innerHTML = (row.Remark == undefined ? '' : row.Remark);//备注
+                targetTr.children[8].innerHTML = (row.HealthyBody == undefined ? '' : row.HealthyBody);//身体健康
+                targetTr.children[9].innerHTML = (row.Family_Reasons == undefined ? '' : row.Family_Reasons);//家庭原因
+                targetTr.children[10].innerHTML = (row.Better_development == undefined ? '' : row.Better_development);//更好的发展
+                targetTr.children[11].innerHTML = (row.Pay_dissatisfaction == undefined ? '' : row.Pay_dissatisfaction);//薪酬福利不满意
+                targetTr.children[12].innerHTML = (row.NotSystem == undefined ? '' : row.NotSystem);//制度不满意
+                targetTr.children[13].innerHTML = (row.Notmanagement == undefined ? '' : row.Notmanagement);//管理不满意
+                targetTr.children[14].innerHTML = (row.NotWork_Itself == undefined ? '' : row.NotWork_Itself);//工作本身不满意
+                targetTr.children[15].innerHTML = (row.Jobenvironment == undefined ? '' : row.Jobenvironment);//工作环境不满意
+                targetTr.children[16].innerHTML = (row.NotCultural_Atmosphere == undefined ? '' : row.NotCultural_Atmosphere);//文化气氛不满意
+                targetTr.children[17].innerHTML = (row.NotProbation_Period == undefined ? '' : row.NotProbation_Period);//试用期不合格
+                targetTr.children[18].innerHTML = (row.Negotiate_Remove == undefined ? '' : row.Negotiate_Remove);//协商解除
+                targetTr.children[19].innerHTML = (row.Other_Reasons == undefined ? '' : row.Other_Reasons);//其他
+                var btn1 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[0];
+                var btn2 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[1];
+                var btn3 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[2];
+                var btn4 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[3];
+                $(btn1).show()
+                $(btn4).show()
+                $(btn2).hide()
+                $(btn3).hide()
+            },
+            handleSave(index, row) {     //单条编辑保存
+                console.log(row)
+                var targetTr_td = $(`#table${this.index} .el-table__row`)[index].cells;
+                var formVals = [];
+                for (let i = 0; i < targetTr_td.length; i++) {
+                    formVals.push(targetTr_td[i].children[0].value);
+                }
+                //判断离职类型
+                let type = "";
+                if (formVals[5] == "辞职") {
+                    type = "1"
+                }
+                else if (formVals[5] == "自离") {
+                    type = "2"
+                }
+                else if (formVals[5] == "辞退") {
+                    type = "3"
+                }
+                else if (formVals[5] == "退休") {
+                    type = "4"
+                } else {
+                    type = formVals[5]
+                }
+                axios.post("/Personnel_Reasons_for_leaving/Create", {
+                    Name: formVals[0],//姓名
+                    jobNum: formVals[1],//工号
+                    Department_leaving: formVals[2],//部门
+                    Position: formVals[3],//职位
+                    levelType: formVals[4],//族群
+                    Resign: type,//离退类型
+                    DP_group: formVals[6],//班组
+                    Remark: formVals[7],//备注
+                    HealthyBody: formVals[8],//身体健康
+                    Family_Reasons: formVals[9],//家庭原因
+                    Better_development: formVals[10],//更好的发展
+                    Pay_dissatisfaction: formVals[11],//薪酬福利不满意
+                    NotSystem: formVals[12],//制度不满意
+                    Notmanagement: formVals[13],//管理不满意
+                    NotWork_Itself: formVals[14],//工作本身不满意
+                    Jobenvironment: formVals[15],//工作环境不满意
+                    NotCultural_Atmosphere: formVals[16],//文化气氛不满意
+                    NotProbation_Period: formVals[17],//试用期不合格
+                    Negotiate_Remove: formVals[18],//协商解除
+                    Other_Reasons: formVals[19],//其他
+                    Id: row.Id,//id
+                    HireDate: row.HireDate,//入职日期
+                    LastDate: row.LastDate//离职日期
+                }).then(res => {
+                    if (res.data == 'ok') {
+                        var targetTr = $(`#table${this.index} .el-table__row`)[index];
+                        targetTr.children[0].innerHTML = formVals[0];
+                        targetTr.children[1].innerHTML = formVals[1];
+                        targetTr.children[2].innerHTML = formVals[2];
+                        targetTr.children[3].innerHTML = formVals[3];
+                        targetTr.children[4].innerHTML = formVals[4];
+                        targetTr.children[5].innerHTML = formVals[5];
+                        targetTr.children[6].innerHTML = formVals[6];
+                        targetTr.children[7].innerHTML = formVals[7];
+                        targetTr.children[8].innerHTML = formVals[8];
+                        targetTr.children[9].innerHTML = formVals[9];
+                        targetTr.children[10].innerHTML = formVals[10];
+                        targetTr.children[11].innerHTML = formVals[11];
+                        targetTr.children[12].innerHTML = formVals[12];
+                        targetTr.children[13].innerHTML = formVals[13];
+                        targetTr.children[14].innerHTML = formVals[14];
+                        targetTr.children[15].innerHTML = formVals[15];
+                        targetTr.children[16].innerHTML = formVals[16];
+                        targetTr.children[17].innerHTML = formVals[17];
+                        targetTr.children[18].innerHTML = formVals[18];
+                        targetTr.children[19].innerHTML = formVals[19];
+                        var btn1 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[0];
+                        var btn2 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[1];
+                        var btn3 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[2];
+                        var btn4 = $(`#table${this.index} .el-table__row`)[index].lastChild.children[0].children[3];
+                        $(btn1).show()
+                        $(btn4).show()
+                        $(btn2).hide()
+                        $(btn3).hide()
+                        this.$message({
+                            message: '保存成功！',
+                            type: 'success'
+                        });
+                    }
+                }).catch(err => {
+                })
+            },
+            handleDelete(index, row) {   //删除方法
+                console.log(index, row);
+                var confrims = confirm(`确定要删除 ${row.Name} 的记录信息吗？`)
+                if (confrims) {
+                    axios.post("/Personnel_Reasons_for_leaving/Delete", { id: row.Id }).then(res => {
+                        if (res.data) {
+                            this.$message({
+                                message: '删除成功！',
+                                type: 'success'
+                            });
+                            var newData = []
+                            this.gridData.forEach(item => {
+                                if (item.Id == row.Id) {
+
+                                } else {
+                                    newData.push(item)
+                                }
+                            })
+                            this.gridData = newData;
+                        } else {
+                            this.$message({
+                                message: '删除失败！',
+                                type: 'warning'
+                            });
+                        }
+                    }).catch(er => {
+
+                    })
+                } else {
+
+                }
+            },
+            //获取第一个表格数据
+            getInfos() {
+                this.tableData = [];
+                this.tableBottmData = [];
+                this.tableBottomRange = '';
+                if (this.selectYear != '') {
+                    var d = new Date(this.selectYear + '-' + this.selectMonth);
+                    var timestamp = Date.parse(new Date());
+                    if (d > timestamp) {
+                        this.$notify({
+                            title: '警告',
+                            message: '所选时间超前！',
+                            type: 'warning'
+                        });
+                        this.tableData = [];
+                        this.tableBottmData = [];
+                        this.tableBottomRange = '';
+                        return false;
+                    } else {
+                        this.loading = true;
+                        year = d.getFullYear();
+                        month = d.getMonth() + 1;
+                        months = month.toString().padStart(2, '0')
+                        this.Year = this.selectYear + '年';
+                        this.Months = this.selectMonth != '' ? this.selectMonth + '月' : ''
+                        axios.post("/Personnel_Reasons_for_leaving/For_leaving", { Year: this.selectYear, Month: this.selectMonth }).then(res => {
+                            if (res.data.status == '202') {
+                                this.$notify({
+                                    title: '警告',
+                                    message: res.data.msg,
+                                    type: 'warning'
+                                });
+                                this.tableBottmData = [];
+                                this.leavingRangr = []
+                                this.loading = false;
+                            } else {
+                                this.tableBottmData = [];
+                                for (let item in res.data.for_leaving_Table) {
+                                    if (item == 'month_average') {
+                                        this.totalCompleteRange = res.data.for_leaving_Table[item];
+                                        delete res.data.for_leaving_Table[item];
+                                    }
+                                }
+                                var arr = [];
+                                //数据处理（为0的不显示）
+                                for (let item in res.data.for_leaving_Table) {
+                                    res.data.for_leaving_Table[item].average = res.data.for_leaving_Table[item].average == '0' ? '' : res.data.for_leaving_Table[item].average;//平均人数
+                                    res.data.for_leaving_Table[item].begin_day_of_month = res.data.for_leaving_Table[item].begin_day_of_month == '0' ? '' : res.data.for_leaving_Table[item].begin_day_of_month;//月初人数
+                                    res.data.for_leaving_Table[item].end_day_of_month = res.data.for_leaving_Table[item].end_day_of_month == '0' ? '' : res.data.for_leaving_Table[item].end_day_of_month;//月末人数
+                                    res.data.for_leaving_Table[item].levelTypecaozuo = res.data.for_leaving_Table[item].levelTypecaozuo == '0' ? '' : res.data.for_leaving_Table[item].levelTypecaozuo;//操作族
+                                    res.data.for_leaving_Table[item].levelTypefuwu = res.data.for_leaving_Table[item].levelTypefuwu == '0' ? '' : res.data.for_leaving_Table[item].levelTypefuwu;
+                                    res.data.for_leaving_Table[item].levelTypeguanli = res.data.for_leaving_Table[item].levelTypeguanli == '0' ? '' : res.data.for_leaving_Table[item].levelTypeguanli;
+                                    res.data.for_leaving_Table[item].levelTypejishu = res.data.for_leaving_Table[item].levelTypejishu == '0' ? '' : res.data.for_leaving_Table[item].levelTypejishu;
+                                    res.data.for_leaving_Table[item].levelTypezhuanye = res.data.for_leaving_Table[item].levelTypezhuanye == '0' ? '' : res.data.for_leaving_Table[item].levelTypezhuanye;
+                                    res.data.for_leaving_Table[item].li_departure_sum = res.data.for_leaving_Table[item].li_departure_sum == '0' ? '' : res.data.for_leaving_Table[item].li_departure_sum;
+                                    res.data.for_leaving_Table[item].py_couxin = res.data.for_leaving_Table[item].py_couxin == '0' ? '' : res.data.for_leaving_Table[item].py_couxin;
+                                    res.data.for_leaving_Table[item].py_geng = res.data.for_leaving_Table[item].py_geng == '0' ? '' : res.data.for_leaving_Table[item].py_geng;
+                                    res.data.for_leaving_Table[item].py_gong = res.data.for_leaving_Table[item].py_gong == '0' ? '' : res.data.for_leaving_Table[item].py_gong;
+                                    res.data.for_leaving_Table[item].py_guan = res.data.for_leaving_Table[item].py_guan == '0' ? '' : res.data.for_leaving_Table[item].py_guan;
+                                    res.data.for_leaving_Table[item].py_zhidu = res.data.for_leaving_Table[item].py_zhidu == '0' ? '' : res.data.for_leaving_Table[item].py_zhidu;//制度不满意
+                                    res.data.for_leaving_Table[item].ru_departure_sum = res.data.for_leaving_Table[item].ru_departure_sum == '0' ? '' : res.data.for_leaving_Table[item].ru_departure_sum;
+                                    res.data.for_leaving_Table[item].types_cizhi = res.data.for_leaving_Table[item].types_cizhi == '0' ? '' : res.data.for_leaving_Table[item].types_cizhi;//辞职
+                                    res.data.for_leaving_Table[item].types_zili = res.data.for_leaving_Table[item].types_zili == '0' ? '' : res.data.for_leaving_Table[item].types_zili;//自离
+                                    res.data.for_leaving_Table[item].types_citui = res.data.for_leaving_Table[item].types_citui == '0' ? '' : res.data.for_leaving_Table[item].types_citui;//辞退
+                                    res.data.for_leaving_Table[item].types_tuixiu = res.data.for_leaving_Table[item].types_tuixiu == '0' ? '' : res.data.for_leaving_Table[item].types_tuixiu;//退休
+                                    res.data.for_leaving_Table[item].py_shenti = res.data.for_leaving_Table[item].py_shenti == '0' ? '' : res.data.for_leaving_Table[item].py_shenti;//身体健康
+                                    res.data.for_leaving_Table[item].py_jiating = res.data.for_leaving_Table[item].py_jiating == '0' ? '' : res.data.for_leaving_Table[item].py_jiating;//家庭原因
+                                    res.data.for_leaving_Table[item].py_benshen = res.data.for_leaving_Table[item].py_benshen == '0' ? '' : res.data.for_leaving_Table[item].py_benshen;//工作本身不满意
+                                    res.data.for_leaving_Table[item].py_wenhua = res.data.for_leaving_Table[item].py_wenhua == '0' ? '' : res.data.for_leaving_Table[item].py_wenhua;//文化气氛不满意
+                                    res.data.for_leaving_Table[item].py_proba = res.data.for_leaving_Table[item].py_proba == '0' ? '' : res.data.for_leaving_Table[item].py_proba;//使用期不合格
+                                    res.data.for_leaving_Table[item].py_tiate = res.data.for_leaving_Table[item].py_tiate == '0' ? '' : res.data.for_leaving_Table[item].py_tiate;//协商解除
+                                    res.data.for_leaving_Table[item].py_reasons = res.data.for_leaving_Table[item].py_reasons == '0' ? '' : res.data.for_leaving_Table[item].py_reasons;//其他
+                                    arr.push(res.data.for_leaving_Table[item])
+                                }
+                                res.data.leave_record3.leave_record1.taps = '人数'
+                                this.tableBottmData.push(res.data.leave_record3.leave_record1);
+                                this.tableBottomRange = res.data.leave_record3.leave_record2;
+                                this.tableData = arr;
+                                //重组表二数据
+                                let tableaArr = []
+                                this.table = []
+                                let obj = res.data.leave_record3.leave_record2
+                                let obj1 = res.data.leave_record3.leave_record1
+                                tableaArr.push({ DimissionReason: '个人原因', ManagementGroup: obj.man_genghao + '(' + obj1.Management_sum + '人)', OperationGroup: obj.proportion_genghao + '(' + obj1.Operating_sum + '人)', ProfessionGroup: obj.pro_genghao + '(' + obj1.Professional_sum + '人)', TechnologyGroup: obj.tec_genghao + '(' + obj1.Technology_sum + '人)', ServeGroup: obj.ser_genghao + '(' + obj1.Service_sum + '人)', Total: obj.gern, Proportion: obj.leaving_Better },
+                                    { DimissionReason: '公司原因', ManagementGroup: obj.man_couxin + '(' + obj1.Management_sum1 + '人)', OperationGroup: obj.proportion_couxin + '(' + obj1.Operating_sum1 + '人)', ProfessionGroup: obj.pro_couxin + '(' + obj1.Professional_sum1 + '人)', TechnologyGroup: obj.tec_couxin + '(' + obj1.Technology_sum1 + '人)', ServeGroup: obj.ser_couxin + '(' + obj1.Service_sum1 + '人)', Total: obj.gern1, Proportion: obj.leaving_salary },
+                                    { DimissionReason: '试用期不合格', ManagementGroup: obj.man_trial + '(' + obj1.Management_sum2 + '人)', OperationGroup: obj.proportion_trial + '(' + obj1.Operating_sum2 + '人)', ProfessionGroup: obj.pro_trial + '(' + obj1.Professional_sum2 + '人)', TechnologyGroup: obj.tec_trial + '(' + obj1.Technology_sum2 + '人)', ServeGroup: obj.ser_trial + '(' + obj1.Service_sum2 + '人)', Total: obj.gern2, Proportion: obj.leaving_Period },
+                                    { DimissionReason: '协商解除', ManagementGroup: obj.man_remove + '(' + obj1.Management_sum3 + '人)', OperationGroup: obj.proportion_remove + '(' + obj1.Operating_sum3 + '人)', ProfessionGroup: obj.pro_remove + '(' + obj1.Professional_sum3 + '人)', TechnologyGroup: obj.tec_remove + '(' + obj1.Technology_sum3 + '人)', ServeGroup: obj.ser_remove + '(' + obj1.Service_sum3 + '人)', Total: obj.gern3, Proportion: obj.leaving_Remove },
+                                    { DimissionReason: '其他原因', ManagementGroup: obj.man_other + '(' + obj1.Management_sum4 + '人)', OperationGroup: obj.proportion_other + '(' + obj1.Operating_sum4 + '人)', ProfessionGroup: obj.pro_other + '(' + obj1.Professional_sum4 + '人)', TechnologyGroup: obj.tec_other + '(' + obj1.Technology_sum4 + '人)', ServeGroup: obj.ser_other + '(' + obj1.Service_sum4 + '人)', Total: obj.gern4, Proportion: obj.leaving_Other })
+                                this.table = tableaArr
+                                console.log(123)
+                                console.log(res.data)
+                                this.loading = false;
+                            }
+
+                        }).catch(err => {
+                            this.$notify({
+                                title: '警告',
+                                message: '连接失败！',
+                                type: 'warning'
+                            });
+                        })
+                    }
+
+                } else {
+                    this.tableData = [];
+                    this.tableBottmData = [];
+                    this.tableBottomRange = '';
+                }
+            },
+            //第一个表格最后一行求和
+            getSummaries(param) {
+                const { columns, data } = param;
+                const sums = [];
+                columns.forEach((column, index) => {
+                    if (index === 0) {
+                        sums[index] = '总计';
+                        return;
+                    } else if (index === 27) {
+                        sums[index] = this.totalCompleteRange;
+                        return;
+                    }
+                    const values = data.map(item => Number(item[column.property]));
+                    if (!values.every(value => isNaN(value))) {
+                        sums[index] = values.reduce((prev, curr) => {
+                            const value = Number(curr);
+                            if (!isNaN(value)) {
+                                return prev + curr;
+                            } else {
+                                return prev;
+                            }
+                        }, 0);
+                        sums[index] += ' ';
+                    } else {
+                        sums[index] = '';
+                    }
+                });
+
+                return sums;
+            },
+            //获取弹框中的数据
+            showDetials(index, row) {
+                this.gridData = [];
+                this.index = index
+                if (this.selectMonth == '') {
+                    vm.$notify({
+                        title: '警告',
+                        message: '仅支持查看各部门单月详细，请选择月份！',
+                        type: 'warning'
+                    });
+                } else {
+                    axios.post("/Personnel_Reasons_for_leaving/Leaving_reason", { department: row.department, year: parseInt(this.selectYear), mouth: parseInt(this.selectMonth) }).then(res => {
+                        console.log(res.data);
+                        if (res.data != {}) {
+                            for (let item in res.data) {
+                                this.gridData.push(res.data[item]);
+                            }
+                        }
+                    }).catch(err => {
+                        vm.$notify({
+                            title: '警告',
+                            message: '连接失败！',
+                            type: 'warning'
+                        });
+                    })
+                }
+            },
+        },
+        watch: {
+            selectYear() {
+                this.getInfos();
+            },
+            selectMonth() {
+                if (this.selectYear != '') {
+                    this.getInfos();
+                }
+            },
+            times() {
+                this.getInfos();
+            },
+            tableBottomRange() {
+                //管理族
+                var LineChart = echarts.init(document.getElementById('lineMain'));
+                let option1 = {
+                    backgroundColor: '#EFF2F7',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    series: [
+                        {
+                            name: '访问来源',
+                            type: 'pie',
+                            radius: ['30%', '50%'],
+                            avoidLabelOverlap: true,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '30',
+                                    fontWeight: 'bold'
+                                }
+                            },
+                            labelLine: {
+                                show: false
+                            },
+                            itemStyle: {
+                                borderWidth: 5, //设置border的宽度有多大
+                                borderColor: '#EFF2F7',
+                            },
+                            data: [
+                                { name: '个人原因', value: this.tableBottomRange.man_genghao.replace(/%/, ''), itemStyle: { color: '#2bcfaa' } },
+                                { name: '公司原因', value: this.tableBottomRange.man_couxin.replace(/%/, ''), itemStyle: { color: '#5a74ed' } },
+                                { name: '试用期不合格', value: this.tableBottomRange.man_trial.replace(/%/, ''), itemStyle: { color: '#ff8590' } },
+                                { name: '协商解除', value: this.tableBottomRange.man_remove.replace(/%/, ''), itemStyle: { color: '#4ed4ed' } },
+                                { name: '其他原因', value: this.tableBottomRange.man_other.replace(/%/, ''), itemStyle: { color: '#1890ff' } }
+                            ],
+                            label: {        //展示文本设置
+                                normal: {
+                                    show: true,     //展示
+                                    position: 'outside',      // outside表示文本显示位置为外部                                   
+                                    formatter: "{a_set|{b}}\n{c_set|{c}%}",                                   
+                                    rich: {
+                                        a_set: {
+                                            color: "#1a1a1a",
+                                            lineHeight: 18,
+                                            align: "center",
+                                            fontSize: '12',
+                                        },
+                                        c_set: {
+                                            color: "#9EACC3",
+                                            align: "center",
+                                            fontSize: '12',
+                                        }
+                                    }
+                                },
+                                emphasis: {    //文本样式
+                                    show: true,    //展示
+                                    textStyle: {    //文本样式
+                                        fontSize: '18',
+                                        fontWeight: '600',
+                                    }
+                                },
+                               
+                            },
+                            labelLine: {    //引导线设置
+                                normal: {
+                                    show: true,   //引导线显示
+                                }
+                            },
+                        }
+                    ]
+                };
+                LineChart.setOption(option1);
+                //各项占比
+                var LineChart2 = echarts.init(document.getElementById('lineMain2'));
+                let option2 = {
+                    backgroundColor: '#fff',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    legend: {
+                        orient: 'horizontal',
+                        left: 10,
+                        data: ['个人原因', '公司原因', '试用期不合格', '协商解除', '其他原因'],
+                        bottom: 'bottom',
+                        itemWidth: 9,
+                        padding: -1,
+                        icon: 'circle',                        
+                        textStyle: {
+                            color: "#9EACC3",
+                        },
+                    },
+                    series: [
+                        {
+                            name: '访问来源',
+                            type: 'pie',
+                            radius: ['30%', '50%'],
+                            avoidLabelOverlap: true,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '30',
+                                    fontWeight: 'bold'
+                                }
+                            },
+                            labelLine: {
+                                show: false
+                            },
+                            itemStyle: {
+                                borderWidth: 5, //设置border的宽度有多大
+                                borderColor: '#fff',
+                            },
+                            data: [
+                                { name: '个人原因', value: this.tableBottomRange.leaving_Better.replace(/%/, ''), itemStyle: { color: '#2bcfaa' } },
+                                { name: '公司原因', value: this.tableBottomRange.leaving_salary.replace(/%/, ''), itemStyle: { color: '#5a74ed' } },
+                                { name: '试用期不合格', value: this.tableBottomRange.leaving_Period.replace(/%/, ''), itemStyle: { color: '#ff8590' } },
+                                { name: '协商解除', value: this.tableBottomRange.leaving_Remove.replace(/%/, ''), itemStyle: { color: '#4ed4ed' } },
+                                { name: '其他原因', value: this.tableBottomRange.leaving_Other.replace(/%/, ''), itemStyle: { color: '#1890ff' } }
+                            ],
+                            label: {        //展示文本设置
+                                normal: {
+                                    show: true,     //展示
+                                    position: 'outside',      // outside表示文本显示位置为外部
+                                    formatter: "{a_set|{b}}\n{c_set|{c}%}",                                    
+                                    rich: {
+                                        a_set: {
+                                            color: "#1a1a1a",
+                                            lineHeight: 18,
+                                            align: "center",
+                                            fontSize: '16',
+                                        },
+                                        c_set: {
+                                            color: "#9EACC3",
+                                            align: "center",
+                                            fontSize: '14',
+                                        }
+
+                                    }
+                                },
+                                emphasis: {    //文本样式
+                                    show: true,    //展示
+                                    textStyle: {    //文本样式
+                                        fontSize: '14',
+                                        fontWeight: '600',
+                                    }
+                                }
+                            },
+                            labelLine: {    //引导线设置
+                                normal: {
+                                    show: true,   //引导线显示
+                                }
+                            },
+                        }
+                    ]
+                };
+                LineChart2.setOption(option2);
+                //技术族
+                var LineChart3 = echarts.init(document.getElementById('lineMain3'));
+                let option3 = {
+                    backgroundColor: '#EFF2F7',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    series: [
+                        {
+                            name: '访问来源',
+                            type: 'pie',
+                            radius: ['30%', '50%'],
+                            avoidLabelOverlap: true,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '30',
+                                    fontWeight: 'bold'
+                                }
+                            },
+                            labelLine: {
+                                show: false
+                            },
+                            itemStyle: {
+                                borderWidth: 5, //设置border的宽度有多大
+                                borderColor: '#EFF2F7',
+                            },
+                            data: [
+                                { name: '个人原因', value: this.tableBottomRange.tec_genghao.replace(/%/, ''), itemStyle: { color: '#2bcfaa' } },
+                                { name: '公司原因', value: this.tableBottomRange.tec_couxin.replace(/%/, ''), itemStyle: { color: '#5a74ed' } },
+                                { name: '试用期不合格', value: this.tableBottomRange.tec_trial.replace(/%/, ''), itemStyle: { color: '#ff8590' } },
+                                { name: '协商解除', value: this.tableBottomRange.tec_remove.replace(/%/, ''), itemStyle: { color: '#4ed4ed' } },
+                                { name: '其他原因', value: this.tableBottomRange.tec_other.replace(/%/, ''), itemStyle: { color: '#1890ff' } }
+                            ],
+                            label: {        //展示文本设置
+                                normal: {
+                                    show: true,     //展示
+                                    position: 'outside',      // outside表示文本显示位置为外部
+                                    formatter: "{a_set|{b}}\n{c_set|{c}%}",
+                                    fontSize: '14',
+                                    rich: {
+                                        a_set: {
+                                            color: "#1a1a1a",
+                                            lineHeight: 18,
+                                            align: "center",
+                                            fontSize: '12',
+                                        },
+                                        c_set: {
+                                            color: "#9EACC3",
+                                            align: "center",
+                                            fontSize: '12',
+                                        }
+                                    }
+                                },
+                                emphasis: {    //文本样式
+                                    show: true,    //展示
+                                    textStyle: {    //文本样式
+                                        fontSize: '14',
+                                        fontWeight: '600',
+                                    }
+                                }
+                            },
+                            labelLine: {    //引导线设置
+                                normal: {
+                                    show: true,   //引导线显示
+                                }
+                            },
+                        }
+                    ]
+                };
+                LineChart3.setOption(option3);
+                //专业族
+                var LineChart4 = echarts.init(document.getElementById('lineMain4'));
+                let option4 = {
+                    backgroundColor: '#EFF2F7',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    series: [
+                        {
+                            name: '访问来源',
+                            type: 'pie',
+                            radius: ['30%', '50%'],
+                            avoidLabelOverlap: true,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '30',
+                                    fontWeight: 'bold'
+                                }
+                            },
+                            labelLine: {
+                                show: false
+                            },
+                            itemStyle: {
+                                borderWidth: 5, //设置border的宽度有多大
+                                borderColor: '#EFF2F7',
+                            },
+                            data: [
+                                { name: '个人原因', value: this.tableBottomRange.pro_genghao.replace(/%/, ''), itemStyle: { color: '#2bcfaa' } },
+                                { name: '公司原因', value: this.tableBottomRange.pro_couxin.replace(/%/, ''), itemStyle: { color: '#5a74ed' } },
+                                { name: '试用期不合格', value: this.tableBottomRange.pro_trial.replace(/%/, ''), itemStyle: { color: '#ff8590' } },
+                                { name: '协商解除', value: this.tableBottomRange.pro_remove.replace(/%/, ''), itemStyle: { color: '#4ed4ed' } },
+                                { name: '其他原因', value: this.tableBottomRange.pro_other.replace(/%/, ''), itemStyle: { color: '#1890ff' } }
+                            ],
+                            label: {        //展示文本设置
+                                normal: {
+                                    show: true,     //展示
+                                    position: 'outside',     // outside表示文本显示位置为外部
+                                    formatter: "{a_set|{b}}\n{c_set|{c}%}",
+                                    fontSize: '14',
+                                    rich: {
+                                        a_set: {
+                                            color: "#1a1a1a",
+                                            lineHeight: 18,
+                                            align: "center",
+                                            fontSize: '12',
+                                        },
+                                        c_set: {
+                                            color: "#9EACC3",
+                                            align: "center",
+                                            fontSize: '12',
+                                        }
+                                    }
+                                },
+                                emphasis: {    //文本样式
+                                    show: true,    //展示
+                                    textStyle: {    //文本样式
+                                        fontSize: '14',
+                                        fontWeight: '600',
+                                    }
+                                }
+                            },
+                            labelLine: {    //引导线设置
+                                normal: {
+                                    show: true,   //引导线显示
+                                }
+                            },
+                        }
+                    ]
+                };
+                LineChart4.setOption(option4);
+                //服务族
+                var LineChart5 = echarts.init(document.getElementById('lineMain5'));
+                let option5 = {
+                    backgroundColor: '#EFF2F7',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    series: [
+                        {
+                            name: '访问来源',
+                            type: 'pie',
+                            radius: ['30%', '50%'],
+                            avoidLabelOverlap: true,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '30',
+                                    fontWeight: 'bold'
+                                }
+                            },
+                            labelLine: {
+                                show: false
+                            },
+                            itemStyle: {
+                                borderWidth: 5, //设置border的宽度有多大
+                                borderColor: '#EFF2F7',
+                            },
+                            data: [
+                                { name: '个人原因', value: this.tableBottomRange.ser_genghao.replace(/%/, ''), itemStyle: { color: '#2bcfaa' } },
+                                { name: '公司原因', value: this.tableBottomRange.ser_couxin.replace(/%/, ''), itemStyle: { color: '#5a74ed' } },
+                                { name: '试用期不合格', value: this.tableBottomRange.ser_trial.replace(/%/, ''), itemStyle: { color: '#ff8590' } },
+                                { name: '协商解除', value: this.tableBottomRange.ser_remove.replace(/%/, ''), itemStyle: { color: '#4ed4ed' } },
+                                { name: '其他原因', value: this.tableBottomRange.ser_other.replace(/%/, ''), itemStyle: { color: '#1890ff' } }
+                            ],
+                            label: {        //展示文本设置
+                                normal: {
+                                    show: true,     //展示
+                                    position: 'outside',      // outside表示文本显示位置为外部
+                                    formatter: "{a_set|{b}}\n{c_set|{c}%}",
+                                    fontSize: '14',
+                                    rich: {
+                                        a_set: {
+                                            color: "#1a1a1a",
+                                            lineHeight: 18,
+                                            align: "center",
+                                            fontSize: '12',
+                                        },
+                                        c_set: {
+                                            color: "#9EACC3",
+                                            align: "center",
+                                            fontSize: '12',
+                                        }
+                                    }
+                                },
+                                emphasis: {    //文本样式
+                                    show: true,    //展示
+                                    textStyle: {    //文本样式
+                                        fontSize: '14',
+                                        fontWeight: '600',
+                                    }
+                                }
+                            },
+                            labelLine: {    //引导线设置
+                                normal: {
+                                    show: true,   //引导线显示
+                                }
+                            },
+                        }
+                    ]
+                };
+                LineChart5.setOption(option5);
+                //操作族
+                var LineChart6 = echarts.init(document.getElementById('lineMain6'));
+                let option6 = {
+                    backgroundColor: '#EFF2F7',
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    series: [
+                        {
+                            name: '访问来源',
+                            type: 'pie',
+                            radius: ['30%', '50%'],
+                            avoidLabelOverlap: true,
+                            label: {
+                                show: false,
+                                position: 'center'
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    fontSize: '30',
+                                    fontWeight: 'bold'
+                                }
+                            },
+
+                            itemStyle: {
+                                borderWidth: 5, //设置border的宽度有多大
+                                borderColor: '#EFF2F7',
+                            },
+                            data: [
+                                { name: '个人原因', value: this.tableBottomRange.proportion_genghao.replace(/%/, ''), itemStyle: { color: '#2bcfaa' } },
+                                { name: '公司原因', value: this.tableBottomRange.proportion_couxin.replace(/%/, ''), itemStyle: { color: '#5a74ed' } },
+                                { name: '试用期不合格', value: this.tableBottomRange.proportion_trial.replace(/%/, ''), itemStyle: { color: '#ff8590' } },
+                                { name: '协商解除', value: this.tableBottomRange.proportion_remove.replace(/%/, ''), itemStyle: { color: '#4ed4ed' } },
+                                { name: '其他原因', value: this.tableBottomRange.proportion_other.replace(/%/, ''), itemStyle: { color: '#1890ff' } }
+                            ],
+                            label: {        //展示文本设置
+                                normal: {
+                                    show: true,     //展示
+                                    position: 'outside',      // outside表示文本显示位置为外部
+                                    formatter: "{a_set|{b}}\n{c_set|{c}%}",
+                                    rich: {
+                                        a_set: {
+                                            color: "#1a1a1a",
+                                            lineHeight: 18,
+                                            align: "center",
+                                            fontSize: '12',
+                                        },
+                                        c_set: {
+                                            color: "#9EACC3",
+                                            align: "center",
+                                            fontSize: '12',
+                                        }
+                                    }
+                                },
+                                emphasis: {    //文本样式
+                                    show: true,    //展示
+                                    textStyle: {    //文本样式
+                                        fontSize: '14',
+                                        fontWeight: '600',
+                                    }
+                                }
+                            },
+                            labelLine: {    //引导线设置
+                                normal: {
+                                    show: true,   //引导线显示
+                                }
+                            },
+                        }
+                    ]
+                };
+                LineChart6.setOption(option6);
+            }
+        }
+    })
+</script>

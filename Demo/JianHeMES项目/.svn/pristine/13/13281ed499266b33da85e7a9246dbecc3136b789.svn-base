@@ -1,0 +1,1074 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json.Linq;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using iTextSharp.text;
+
+namespace JianHeMES.Controllers
+{
+    public class Personnel_Reasons_for_leavingController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        /// <summary>
+        /// 不需要用input
+        /// </summary>
+        private static List<input> input = new List<input>();
+
+
+        #region---离职情况汇总调差表查看
+
+        public ActionResult Index()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Personnel_Reasons_for_leaving", act = "Index" });
+            }
+
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> For_leaving(int? Year = null, int? Month = null)
+        {
+
+            //if (Year == null || Month == null)
+            //{
+            //    return Content(Year == null ? "年份" : "" + Month == null ? "月份" : "" + "未选择！");
+            //}
+            JObject for_leaving_Table = new JObject();
+            JObject Department_record = new JObject();
+            JObject surface = new JObject();
+            var Year_Month_Allrecord = await db.Personnel_daily.ToListAsync();
+            var leaving = db.Personnel_Reasons_for_leaving.Where(c => c.LastDate != null).ToList();
+            if (Year != null)
+            {
+                Year_Month_Allrecord = Year_Month_Allrecord.Where(c => c.Date.Value.Year == Year).ToList();
+                leaving = leaving.Where(c => c.LastDate.Value.Year == Year).ToList();
+            }
+            if (Month != null)
+            {
+                Year_Month_Allrecord = Year_Month_Allrecord.Where(c => c.Date.Value.Month == Month).ToList();
+                leaving = leaving.Where(c => c.LastDate.Value.Month == Month).ToList();
+            }
+            var Department_list = Year_Month_Allrecord.Select(c => c.Department).Distinct().ToList();
+
+            //没有引用
+            // var department_leaving = leaving.Select(c => c.Department_leaving).Distinct().ToList();
+            var depar = new List<Personnel_Architecture>();
+            if (Year_Month_Allrecord.Count() == 0)
+            {
+                JObject mes = new JObject();
+                mes.Add("msg", "没有记录!");
+                mes.Add("status", "202");
+                return Content(JsonConvert.SerializeObject(mes));
+            }
+            else
+            {
+                CommonController date = new CommonController();
+                DateTime exdate = new DateTime(Year.Value, Month.Value, 28, 0, 0, 0);
+                depar = date.CompanyDatetime(exdate);
+            }
+
+            List<string> dp_list = new List<string>();
+            List<string> others = new List<string>();
+            foreach (var i in depar)
+            {
+                if (Department_list.Contains(i.Department))
+                {
+                    dp_list.Add(i.Department);
+                }
+                else
+                {
+                    others.Add(i.Department);
+                }
+            }
+            dp_list.AddRange(others);
+            decimal average_sum = 0;
+            int departure_month_sum = 0;
+            int k = 0;
+            int jishu = 0;//技术族
+            int caozuo = 0;//操作族
+            int fuwu = 0;//服务族
+            int zhuanye = 0;//专业族
+            int guanli = 0;//管理族
+            int couxin = 0;//薪酬不满意
+            int zhidu = 0;//制度不满意
+            int guan = 0;//管理不满意
+            int gong = 0;//工作环境不满意
+            int geng = 0;//更好的发展
+            int benshen = 0;//工作本身不满意
+            int wenhua = 0;//文化氛围不满意
+            int shenti = 0;//身体的健康
+            int jiating = 0;//家庭原因
+            int proba = 0;//试用期不合格
+            int tiate = 0;//协商解除
+            int reasons = 0;//其他原因
+            int resign = 0;//离退类型：辞职
+            int since = 0;//离退类型：自离
+            int lay = 0;//离退类型：辞职
+            int retied = 0;//离退类型：退休
+            foreach (var department in dp_list)
+            {
+                int countByDepartment = Year_Month_Allrecord.Count(c => c.Department == department);
+                if (Month == null)
+                {
+                    int average = 0;
+                    double year_li = 0;
+                    Department_record.Add("begin_day_of_month", "/");
+                    Department_record.Add("end_day_of_month", "/");
+                    var mouthlist = Year_Month_Allrecord.Where(c => c.Department == department).Select(c => c.Date.Value.Month).Distinct().ToList();
+                    foreach (var item in mouthlist)
+                    {
+                        var newSoure = Year_Month_Allrecord.Where(c => c.Date.Value.Month == item).ToList();
+                        //月初人数
+                        var begin_day_of_month = countByDepartment == 0 ? 0 : newSoure.Where(c => c.Department == department).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel;
+
+                        //月末人数
+                        var end_day_of_month = countByDepartment == 0 ? 0 : newSoure.Where(c => c.Department == department).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + newSoure.Where(c => c.Department == department).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+
+                        //平均人数
+                        var averagemouth = (begin_day_of_month + end_day_of_month) / 2;
+                        average = average + averagemouth;
+
+                        //每月离职人数
+                        var mouth_li = countByDepartment == 0 ? 0 : newSoure.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_nvever_over7days) + newSoure.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_over7days);
+                        year_li = year_li + (mouth_li * 100 / averagemouth);
+                        departure_month_sum = departure_month_sum + mouth_li;
+
+                    }
+                    int count = mouthlist.Count;
+                    average = count == 0 ? 0 : average / count;
+                    average_sum = average_sum + average;
+                    Department_record.Add("average", average);
+
+                    //保留两位小数
+                    year_li = count == 0 ? 0 : year_li / count;
+
+                    Department_record.Add("for_leaving", year_li.ToString("F2") + "%");
+
+                }
+                else
+                {
+                    //月初人数
+                    var begin_day_of_month = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel;
+                    Department_record.Add("begin_day_of_month", begin_day_of_month);
+                    //月末人数
+                    var end_day_of_month = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + Year_Month_Allrecord.Where(c => c.Department == department).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                    Department_record.Add("end_day_of_month", end_day_of_month);
+
+                    //平均人数
+                    var average = (begin_day_of_month + end_day_of_month) / 2;
+
+                    average_sum = average_sum + average;
+                    Department_record.Add("average", average);
+                    //离职人数
+                    var li_departure = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_nvever_over7days) + Year_Month_Allrecord.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_over7days);
+                    //离职人数总和
+                    departure_month_sum = departure_month_sum + li_departure;
+                    //保留两位小数
+                    string for_leaving = (average == 0 ? 0 : li_departure * 100 / average).ToString("F2") + "%";
+                    Department_record.Add("for_leaving", for_leaving);
+                }
+                //入职人数
+                var ru_departure_sum = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).Sum(c => c.Today_on_board_employees);
+                Department_record.Add("ru_departure_sum", ru_departure_sum);
+                //入职人数总和
+                //departure_month_sum = departure_month_sum + ru_departure_sum;
+
+                //离职人数
+                var li_departure_sum = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_nvever_over7days) + Year_Month_Allrecord.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_over7days);
+                Department_record.Add("li_departure_sum", li_departure_sum);
+
+                //离职族群汇总levelType
+                var levelTypejishu = leaving.Count(c => c.levelType == "技术族" && c.Department_leaving == department);
+                jishu = jishu + levelTypejishu;
+                Department_record.Add("levelTypejishu", levelTypejishu);
+
+                var levelTypecaozuo = leaving.Count(c => c.levelType == "操作族" && c.Department_leaving == department);
+                caozuo = caozuo + levelTypecaozuo;
+                Department_record.Add("levelTypecaozuo", levelTypecaozuo);
+
+                var levelTypefuwu = leaving.Count(c => c.levelType == "服务族" && c.Department_leaving == department);
+                fuwu = fuwu + levelTypefuwu;
+                Department_record.Add("levelTypefuwu", levelTypefuwu);
+
+                var levelTypezhuanye = leaving.Count(c => c.levelType == "专业族" && c.Department_leaving == department);
+                zhuanye = zhuanye + levelTypezhuanye;
+                Department_record.Add("levelTypezhuanye", levelTypezhuanye);
+
+                var levelTypeguanli = leaving.Count(c => c.levelType == "管理族" && c.Department_leaving == department);
+                guanli = guanli + levelTypeguanli;
+                Department_record.Add("levelTypeguanli", levelTypeguanli);
+
+                //离退类型汇总
+
+                var Types_cizhi = leaving.Count(c => c.Resign == 1 && c.Department_leaving == department);
+                resign = resign + Types_cizhi;
+                Department_record.Add("types_cizhi", Types_cizhi);//辞职
+
+                var Types_zili = leaving.Count(c => c.SinceFrom == 1 && c.Department_leaving == department);
+                since = since + Types_zili;
+                Department_record.Add("types_zili", Types_zili);//自离
+
+                var Types_citui = leaving.Count(c => c.LayOff == 1 && c.Department_leaving == department);
+                lay = lay + Types_citui;
+                Department_record.Add("types_citui", Types_citui);//辞退
+
+                var Types_tuixiu = leaving.Count(c => c.Retired == 1 && c.Department_leaving == department);
+                retied = retied + Types_tuixiu;
+                Department_record.Add("types_tuixiu", Types_tuixiu);//退休
+
+                //离职原因汇总
+                var py_couxin = leaving.Count(c => c.Pay_dissatisfaction == 1 && c.Department_leaving == department);
+                couxin = couxin + py_couxin;
+                Department_record.Add("py_couxin", py_couxin);//薪酬不满意
+
+                var py_zhidu = leaving.Count(c => c.NotSystem == 1 && c.Department_leaving == department);
+                zhidu = zhidu + py_zhidu;
+                Department_record.Add("py_zhidu", py_zhidu);//制度不满意
+
+                var py_guan = leaving.Count(c => c.Notmanagement == 1 && c.Department_leaving == department);
+                guan = guan + py_guan;
+                Department_record.Add("py_guan", py_guan);//管理不满意
+
+                var py_gong = leaving.Count(c => c.Jobenvironment == 1 && c.Department_leaving == department);
+                gong = gong + py_gong;
+                Department_record.Add("py_gong", py_gong);//工作环境不满意
+
+                var py_benshen = leaving.Count(c => c.NotWork_Itself == 1 && c.Department_leaving == department);
+                benshen = benshen + py_benshen;
+                Department_record.Add("py_benshen", py_benshen);//工作本身不满意
+
+                var py_wenhua = leaving.Count(c => c.NotCultural_Atmosphere == 1 && c.Department_leaving == department);
+                wenhua = wenhua + py_wenhua;
+                Department_record.Add("py_wenhua", py_wenhua);//文化氛围不满意
+
+                var py_geng = leaving.Count(c => c.Better_development == 1 && c.Department_leaving == department);
+                geng = geng + py_geng;
+                Department_record.Add("py_geng", py_geng);//更好的发展
+
+                var py_shenti = leaving.Count(c => c.HealthyBody == 1 && c.Department_leaving == department);
+                shenti = shenti + py_shenti;
+                Department_record.Add("py_shenti", py_shenti);//身体的健康
+
+                var py_jiating = leaving.Count(c => c.Family_Reasons == 1 && c.Department_leaving == department);
+                jiating = jiating + py_jiating;
+                Department_record.Add("py_jiating", py_jiating);//家庭原因
+
+                var py_proba = leaving.Count(c => c.NotProbation_Period == 1 && c.Department_leaving == department);
+                proba = proba + py_proba;
+                Department_record.Add("py_proba", py_proba);//试用期不合格
+
+                var py_tiate = leaving.Count(c => c.Negotiate_Remove == 1 && c.Department_leaving == department);
+                tiate = tiate + py_tiate;
+                Department_record.Add("py_tiate", py_tiate);//协商解除
+
+                var py_reasons = leaving.Count(c => c.Other_Reasons == 1 && c.Department_leaving == department);
+                reasons = reasons + py_reasons;
+                Department_record.Add("py_reasons", py_reasons);//其他原因
+
+
+                //离职率
+                //decimal for_leaving = average == 0 ? 0 : li_departure_sum * 100 / average;
+
+                Department_record.Add("department", department);
+                for_leaving_Table.Add(k.ToString(), Department_record);
+                Department_record = new JObject();
+                k++;
+
+            }
+
+            //离职总率
+            //for_leaving_Table.Add("month_average", average_sum == 0 ? 0 : departure_month_sum * 100 / average_sum);//表1
+            //保留两位小数
+            for_leaving_Table.Add("month_average", (average_sum == 0 ? 0 : departure_month_sum * 100 / average_sum).ToString("F2") + "%");//表1
+
+
+            #region------表2
+            JObject leave_record1 = new JObject();//离职原因
+            JObject leave_record2 = new JObject();//占比
+            JObject leave_record3 = new JObject();//表2
+
+            #region--操作族离职原因
+            //操作族公司离职原因
+            var leave_xinzi = leaving.Count(c => c.levelType == "操作族" && c.Pay_dissatisfaction != 0);
+            leave_record1.Add("leave_xinzi", leave_xinzi);//leave_xinzi薪酬不满意
+
+            var leave_zhidu = leaving.Count(c => c.levelType == "操作族" && c.NotSystem != 0);
+            leave_record1.Add("leave_zhidu", leave_zhidu);// leave_zhidu制度不满意
+
+            var leave_guanli = leaving.Count(c => c.levelType == "操作族" && c.Notmanagement != 0);
+            leave_record1.Add("leave_guanli", leave_guanli);//leave_guanli管理不满意
+
+            var leave_huanji = leaving.Count(c => c.levelType == "操作族" && c.Jobenvironment != 0);
+            leave_record1.Add("leave_huanji", leave_huanji);//leave_huanji工作环境不满意
+
+            var leave_benshen = leaving.Count(c => c.levelType == "操作族" && c.NotWork_Itself != 0);
+            leave_record1.Add("leave_benshen", leave_benshen);//leave_benshen工作本身不满意
+
+            var leave_wenhua = leaving.Count(c => c.levelType == "操作族" && c.NotCultural_Atmosphere != 0);
+            leave_record1.Add("leave_wenhua", leave_wenhua);//leave_wenhua文化氛围不满意
+
+            //操作族个人离职原因
+            var leave_genghao = leaving.Count(c => c.levelType == "操作族" && c.Better_development != 0);
+            leave_record1.Add("leave_genghao", leave_genghao);// leave_genghao更好的发展
+
+            var leave_shenti = leaving.Count(c => c.levelType == "操作族" && c.HealthyBody != 0);
+            leave_record1.Add("leave_shenti", leave_shenti);//leave_shenti身体的健康
+
+            var leave_jiating = leaving.Count(c => c.levelType == "操作族" && c.Family_Reasons != 0);
+            leave_record1.Add("leave_jiating", leave_jiating);//leave_jiating家庭原因
+
+            //试用期不合格离职原因
+            var leave_trial = leaving.Count(c => c.levelType == "操作族" && c.NotProbation_Period != 0);
+            leave_record1.Add("leave_trial", leave_trial);//leave_trial试用期不合格
+
+            //协商解除的离职原因
+            var leave_remove = leaving.Count(c => c.levelType == "操作族" && c.Negotiate_Remove != 0);
+            leave_record1.Add("leave_remove", leave_remove);//leave_remove协商解除
+
+            //其他原因
+            var leave_other = leaving.Count(c => c.levelType == "操作族" && c.Other_Reasons != 0);
+            leave_record1.Add("leave_other", leave_other);//leave_other其他原因
+
+            #endregion
+
+            #region--技术族离职原因
+            //技术族离职原因（公司）
+            var tech_couxin = leaving.Count(c => c.levelType == "技术族" && c.Pay_dissatisfaction != 0);
+            leave_record1.Add("tech_couxin", tech_couxin);//tech_couxin薪酬不满意
+
+            var tech_zhidu = leaving.Count(c => c.levelType == "技术族" && c.NotSystem != 0);
+            leave_record1.Add("tech_zhidu", tech_zhidu);//tech_zhidu 制度不满意
+
+            var tech_guanli = leaving.Count(c => c.levelType == "技术族" && c.Notmanagement != 0);
+            leave_record1.Add("tech_guanli", tech_guanli);//tech_guanli管理不满意
+
+            var tech_gongzuo = leaving.Count(c => c.levelType == "技术族" && c.Jobenvironment != 0);
+            leave_record1.Add("tech_gongzuo", tech_gongzuo);//tech_gongzuo工作环境不满意
+
+            var tech_benshen = leaving.Count(c => c.levelType == "技术族" && c.NotWork_Itself != 0);
+            leave_record1.Add("tech_benshen", tech_benshen);//tech_benshen工作本身不满意
+
+            var tech_wenhua = leaving.Count(c => c.levelType == "技术族" && c.NotCultural_Atmosphere != 0);
+            leave_record1.Add("tech_wenhua", tech_wenhua);//tech_wenhua文化氛围不满意
+
+            //技术族个人离职原因
+            var tech_fazhang = leaving.Count(c => c.levelType == "技术族" && c.Better_development != 0);
+            leave_record1.Add("tech_fazhang", tech_fazhang);//tech_fazhang更好的发展
+
+            var tech_shenti = leaving.Count(c => c.levelType == "技术族" && c.HealthyBody != 0);
+            leave_record1.Add("tech_shenti", tech_shenti);//tech_shenti身体的健康
+
+            var tech_jiating = leaving.Count(c => c.levelType == "技术族" && c.Family_Reasons != 0);
+            leave_record1.Add("tech_jiating", tech_jiating);//tech_jiating家庭原因
+
+            //试用期不合格离职原因
+            var tech_trial = leaving.Count(c => c.levelType == "技术族" && c.NotProbation_Period != 0);
+            leave_record1.Add("tech_trial", tech_trial);//tech_trial试用期不合格
+
+            //协商解除的离职原因
+            var tech_remove = leaving.Count(c => c.levelType == "技术族" && c.Negotiate_Remove != 0);
+            leave_record1.Add("tech_remove", tech_remove);//tech_remove协商解除
+
+            //其他原因
+            var tech_other = leaving.Count(c => c.levelType == "技术族" && c.Other_Reasons != 0);
+            leave_record1.Add("tech_other", tech_other);//tech_other其他原因
+
+            #endregion
+
+            #region--专业族离职原因
+            //专业族离职原因（公司）
+            var profe_couxin = leaving.Count(c => c.levelType == "专业族" && c.Pay_dissatisfaction != 0);
+            leave_record1.Add("profe_couxin", profe_couxin);//profe_couxin薪酬不满意
+
+            var profe_zhidu = leaving.Count(c => c.levelType == "专业族" && c.NotSystem != 0);
+            leave_record1.Add("profe_zhidu", profe_zhidu);//profe_zhidu 制度不满意
+
+            var profe_guanli = leaving.Count(c => c.levelType == "专业族" && c.Notmanagement != 0);
+            leave_record1.Add("profe_guanli", profe_guanli);//profe_guanli管理不满意
+
+            var profe_gongzuo = leaving.Count(c => c.levelType == "专业族" && c.Jobenvironment != 0);
+            leave_record1.Add("profe_gongzuo", profe_gongzuo);//profe_gongzuo工作环境不满意
+
+            var profe_benshen = leaving.Count(c => c.levelType == "专业族" && c.NotWork_Itself != 0);
+            leave_record1.Add("profe_benshen", profe_benshen);//profe_benshen工作本身不满意
+
+            var profe_wenhua = leaving.Count(c => c.levelType == "专业族" && c.NotCultural_Atmosphere != 0);
+            leave_record1.Add("profe_wenhua", profe_wenhua);//profe_wenhua文化氛围不满意
+
+            //专业族个人离职原因
+            var profe_fazhang = leaving.Count(c => c.levelType == "专业族" && c.Better_development != 0);
+            leave_record1.Add("cause_fazhang", profe_fazhang);//profe_fazhang更好的发展
+
+            var profe_shenti = leaving.Count(c => c.levelType == "专业族" && c.HealthyBody != 0);
+            leave_record1.Add("profe_shenti", profe_shenti);//profe_shenti身体的健康
+
+            var profe_jiating = leaving.Count(c => c.levelType == "专业族" && c.Family_Reasons != 0);
+            leave_record1.Add("profe_jiating", profe_jiating);//profe_jiating家庭原因
+
+            //试用期不合格离职原因
+            var profe_trial = leaving.Count(c => c.levelType == "专业族" && c.NotProbation_Period != 0);
+            leave_record1.Add("profe_trial", profe_trial);//profe_trial试用期不合格
+
+            //协商解除的离职原因
+            var profe_remove = leaving.Count(c => c.levelType == "专业族" && c.Negotiate_Remove != 0);
+            leave_record1.Add("profe_remove", profe_remove);//profe_remove协商解除
+
+            //其他原因
+            var profe_other = leaving.Count(c => c.levelType == "专业族" && c.Other_Reasons != 0);
+            leave_record1.Add("profe_other", profe_other);//profe_other其他原因
+
+            #endregion
+
+            #region--服务族离职原因
+            //服务族离职原因（公司）
+            var service_couxin = leaving.Count(c => c.levelType == "服务族" && c.Pay_dissatisfaction != 0);
+            leave_record1.Add("service_couxin", service_couxin);//service_couxin薪酬不满意
+
+            var service_zhidu = leaving.Count(c => c.levelType == "服务族" && c.NotSystem != 0);
+            leave_record1.Add("service_zhidu", service_zhidu);//service_zhidu 制度不满意
+
+            var service_guanli = leaving.Count(c => c.levelType == "服务族" && c.Notmanagement != 0);
+            leave_record1.Add("service_guanli", service_guanli);//service_guanli管理不满意
+
+            var service_gongzuo = leaving.Count(c => c.levelType == "服务族" && c.Jobenvironment != 0);
+            leave_record1.Add("service_gongzuo", service_gongzuo);//service_gongzuo工作环境不满意
+
+            var service_benshen = leaving.Count(c => c.levelType == "服务族" && c.NotWork_Itself != 0);
+            leave_record1.Add("service_benshen", service_benshen);//service_benshen工作本身不满意
+
+            var service_wenhua = leaving.Count(c => c.levelType == "服务族" && c.NotCultural_Atmosphere != 0);
+            leave_record1.Add("service_wenhua", service_wenhua);//service_wenhua文化氛围不满意
+
+            //服务族个人离职原因
+            var service_fazhang = leaving.Count(c => c.levelType == "服务族" && c.Better_development != 0);
+            leave_record1.Add("service_fazhang", service_fazhang);//service_fazhang更好的发展
+
+            var service_shenti = leaving.Count(c => c.levelType == "服务族" && c.HealthyBody != 0);
+            leave_record1.Add("service_shenti", service_shenti);//service_shenti身体的健康
+
+            var service_jiating = leaving.Count(c => c.levelType == "服务族" && c.Family_Reasons != 0);
+            leave_record1.Add("service_jiating", service_jiating);//service_jiating家庭原因
+
+            //试用期不合格离职原因
+            var service_trial = leaving.Count(c => c.levelType == "服务族" && c.NotProbation_Period != 0);
+            leave_record1.Add("service_trial", service_trial);//service_trial试用期不合格
+
+            //协商解除的离职原因
+            var service_remove = leaving.Count(c => c.levelType == "服务族" && c.Negotiate_Remove != 0);
+            leave_record1.Add("service_remove", service_remove);//service_remove协商解除
+
+            //其他原因
+            var service_other = leaving.Count(c => c.levelType == "服务族" && c.Other_Reasons != 0);
+            leave_record1.Add("service_other", service_other);//service_other其他原因
+
+            #endregion
+
+            #region--管理族离职原因
+            //管理族离职原因（公司）
+            var manage_couxin = leaving.Count(c => c.levelType == "管理族" && c.Pay_dissatisfaction != 0);
+            leave_record1.Add("manage_couxin", manage_couxin);//manage_couxin薪酬不满意
+
+            var manage_zhidu = leaving.Count(c => c.levelType == "管理族" && c.NotSystem != 0);
+            leave_record1.Add("manage_zhidu", manage_zhidu);//manage_zhidu 制度不满意
+
+            var manage_guanli = leaving.Count(c => c.levelType == "管理族" && c.Notmanagement != 0);
+            leave_record1.Add("manage_guanli", manage_guanli);//manage_guanli管理不满意
+
+            var manage_gongzuo = leaving.Count(c => c.levelType == "管理族" && c.Jobenvironment != 0);
+            leave_record1.Add("manage_gongzuo", manage_gongzuo);//manage_gongzuo工作环境不满意
+
+            var manage_benshen = leaving.Count(c => c.levelType == "管理族" && c.NotWork_Itself != 0);
+            leave_record1.Add("manage_benshen", manage_benshen);//manage_benshen工作本身不满意
+
+            var manage_wenhua = leaving.Count(c => c.levelType == "管理族" && c.NotCultural_Atmosphere != 0);
+            leave_record1.Add("manage_wenhua", manage_wenhua);//manage_wenhua文化氛围不满意
+
+            //管理族个人离职原因
+            var manage_fazhang = leaving.Count(c => c.levelType == "管理族" && c.Better_development != 0);
+            leave_record1.Add("manage_fazhang", manage_fazhang);//manage_fazhang更好的发展
+
+            var manage_shenti = leaving.Count(c => c.levelType == "管理族" && c.HealthyBody != 0);
+            leave_record1.Add("manage_shenti", manage_shenti);//manage_shenti身体的健康
+
+            var manage_jiating = leaving.Count(c => c.levelType == "管理族" && c.Family_Reasons != 0);
+            leave_record1.Add("manage_jiating", manage_jiating);//manage_jiating家庭原因
+
+            //试用期不合格离职原因
+            var manage_trial = leaving.Count(c => c.levelType == "管理族" && c.NotProbation_Period != 0);
+            leave_record1.Add("manage_trial", manage_trial);//manage_trial试用期不合格
+
+            //协商解除的离职原因
+            var manage_remove = leaving.Count(c => c.levelType == "管理族" && c.Negotiate_Remove != 0);
+            leave_record1.Add("manage_remove", manage_remove);//manage_remove协商解除
+
+            //其他原因
+            var manage_other = leaving.Count(c => c.levelType == "管理族" && c.Other_Reasons != 0);
+            leave_record1.Add("manage_other", manage_other);//manage_other其他原因
+
+            #endregion
+
+            //公司离职原因小计
+            var Pay_diss = leave_xinzi + tech_couxin + profe_couxin + service_couxin + manage_couxin;
+            leave_record1.Add("pay_diss", Pay_diss);//薪酬部满意小计
+            var System = leave_zhidu + tech_zhidu + profe_zhidu + service_zhidu + manage_zhidu;
+            leave_record1.Add("system", System);//制度不满意小计
+            var management = leave_guanli + tech_guanli + profe_guanli + service_guanli + manage_guanli;
+            leave_record1.Add("management", management);//管理不满意小计
+            var Joben = leave_huanji + tech_gongzuo + profe_gongzuo + service_gongzuo + manage_gongzuo;
+            leave_record1.Add("joben", Joben);//工作环境不满意小计
+            var Itself = leave_benshen + tech_benshen + profe_benshen + service_benshen + manage_benshen;
+            leave_record1.Add("itself", Itself);//工作本身不满意小计
+            var Cultural = leave_wenhua + tech_wenhua + profe_wenhua + service_wenhua + manage_wenhua;
+            leave_record1.Add("cultural", Cultural);//文化氛围不满意小计
+
+            //个人离职原因小计
+            var Better = leave_genghao + tech_fazhang + profe_fazhang + service_fazhang + manage_fazhang;
+            leave_record1.Add("better", Better);//更好的发展小计
+            var Healthy = leave_shenti + tech_shenti + profe_shenti + service_shenti + manage_shenti;
+            leave_record1.Add("healthy", Healthy);//身体健康小计
+            var Family = leave_jiating + tech_jiating + profe_jiating + service_jiating + manage_jiating;
+            leave_record1.Add("family", Family);//家庭原因小计
+
+            //试用期不合格离职原因小计
+            var Period = leave_trial + tech_trial + profe_trial + service_trial + manage_trial;
+            leave_record1.Add("period", Period);
+
+            //协商解除的离职原因小计
+            var Remove = leave_remove + tech_remove + profe_remove + service_remove + manage_remove;
+            leave_record1.Add("remove", Remove);
+
+            //其他原因小计
+            var Other = leave_other + tech_other + profe_other + service_other + manage_other;
+            leave_record1.Add("other", Other);
+
+            #region ---表2
+            //操作族的离职原因小计
+            var Operating_sum = leave_xinzi + leave_zhidu + leave_guanli + leave_huanji + leave_benshen + leave_wenhua + leave_genghao + leave_shenti + leave_jiating + leave_trial + leave_remove + leave_other;
+            //leave_record1.Add("Operating_sum", Operating_sum);
+            //技术族的离职原因小计
+            var Technology_sum = tech_couxin + tech_zhidu + tech_guanli + tech_gongzuo + tech_benshen + tech_wenhua + tech_fazhang + tech_shenti + tech_jiating + tech_trial + tech_remove + tech_other;
+            //专业族的离职原因小计
+            var Professional_sum = profe_couxin + profe_zhidu + profe_guanli + profe_gongzuo + profe_benshen + profe_wenhua + profe_fazhang + profe_shenti + profe_jiating + profe_trial + profe_remove + profe_other;
+            //服务族的离职原因小计
+            var Service_sum = service_couxin + service_zhidu + service_guanli + service_gongzuo + service_benshen + service_wenhua + service_fazhang + service_shenti + service_jiating + service_trial + service_remove + service_other;
+            //管理族的离职原因小计
+            var Management_sum = manage_couxin + manage_zhidu + manage_guanli + manage_gongzuo + manage_benshen + manage_wenhua + manage_fazhang + manage_shenti + manage_jiating + manage_trial + manage_remove + manage_other;
+            ////非操作族的离职原因小计
+            //var Notoperation_sum = cause_couxin + cause_zhidu + cause_guanli + cause_gongzuo + cause_fazhang;
+            //leave_record1.Add("Notoperation_sum", Notoperation_sum);
+            #endregion
+            //合计
+            var cause_heji = Pay_diss + System + management + Joben + Itself + Cultural + Better + Healthy + Family + Period + Remove + Other;
+            leave_record1.Add("cause_heji", cause_heji);
+
+            #region--- 操作族占比
+            var proportion_couxin = (Operating_sum == 0 ? 0 : (leave_xinzi * 100 / Operating_sum)).ToString("F2") + "%";//薪酬不满意
+            leave_record2.Add("proportion_couxin", proportion_couxin);
+            var proportion_zhidu = (Operating_sum == 0 ? 0 : (leave_zhidu * 100 / Operating_sum)).ToString("F2") + "%";//制度不满意
+            leave_record2.Add("proportion_zhidu", proportion_zhidu);
+            var proportion_guanli = (Operating_sum == 0 ? 0 : (leave_guanli * 100 / Operating_sum)).ToString("F2") + "%";//管理不满意
+            leave_record2.Add("proportion_guanli", proportion_guanli);
+            var proportion_huanji = (Operating_sum == 0 ? 0 : (leave_huanji * 100 / Operating_sum)).ToString("F2") + "%";//工作环境不满意
+            leave_record2.Add("proportion_huanji", proportion_huanji);
+            var proportion_benshen = (Operating_sum == 0 ? 0 : (leave_benshen * 100 / Operating_sum)).ToString("F2") + "%";//工作本身不满意
+            leave_record2.Add("proportion_benshen", proportion_benshen);
+            var proportion_wenhua = (Operating_sum == 0 ? 0 : (leave_wenhua * 100 / Operating_sum)).ToString("F2") + "%";//文化氛围不满意
+            leave_record2.Add("proportion_wenhua", proportion_wenhua);
+            var proportion_genghao = (Operating_sum == 0 ? 0 : (leave_genghao * 100 / Operating_sum)).ToString("F2") + "%";//更好的发展
+            leave_record2.Add("proportion_genghao", proportion_genghao);
+            var proportion_shenti = (Operating_sum == 0 ? 0 : (leave_shenti * 100 / Operating_sum)).ToString("F2") + "%";//身体健康原因
+            leave_record2.Add("proportion_shenti", proportion_shenti);
+            var proportion_jiating = (Operating_sum == 0 ? 0 : (leave_jiating * 100 / Operating_sum)).ToString("F2") + "%";//家庭原因
+            leave_record2.Add("proportion_jiating", proportion_jiating);
+            var proportion_trial = (Operating_sum == 0 ? 0 : (leave_trial * 100 / Operating_sum)).ToString("F2") + "%";//试用期不合格原因
+            leave_record2.Add("proportion_trial", proportion_trial);
+            var proportion_remove = (Operating_sum == 0 ? 0 : (leave_remove * 100 / Operating_sum)).ToString("F2") + "%";//协商解除
+            leave_record2.Add("proportion_remove", proportion_remove);
+            var proportion_other = (Operating_sum == 0 ? 0 : (leave_other * 100 / Operating_sum)).ToString("F2") + "%";//其他原因
+            leave_record2.Add("proportion_other", proportion_other);
+            #endregion
+
+            #region--- 技术族占比
+            var Tec_couxin = (Technology_sum == 0 ? 0 : (tech_couxin * 100 / Technology_sum)).ToString("F2") + "%";//薪酬不满意
+            leave_record2.Add("tec_couxin", Tec_couxin);
+            var Tec_zhidu = (Technology_sum == 0 ? 0 : (tech_zhidu * 100 / Technology_sum)).ToString("F2") + "%";//制度不满意
+            leave_record2.Add("tec_zhidu", Tec_zhidu);
+            var Tec_guanli = (Technology_sum == 0 ? 0 : (tech_guanli * 100 / Technology_sum)).ToString("F2") + "%";//管理不满意
+            leave_record2.Add("tec_guanli", Tec_guanli);
+            var Tec_huanji = (Technology_sum == 0 ? 0 : (tech_gongzuo * 100 / Technology_sum)).ToString("F2") + "%";//工作环境不满意
+            leave_record2.Add("tec_huanji", Tec_huanji);
+            var Tec_benshen = (Technology_sum == 0 ? 0 : (tech_benshen * 100 / Technology_sum)).ToString("F2") + "%";//工作本身不满意
+            leave_record2.Add("tec_benshen", Tec_benshen);
+            var Tec_wenhua = (Technology_sum == 0 ? 0 : (tech_wenhua * 100 / Technology_sum)).ToString("F2") + "%";//文化氛围不满意
+            leave_record2.Add("tec_wenhua", Tec_wenhua);
+            var Tec_genghao = (Technology_sum == 0 ? 0 : (tech_fazhang * 100 / Technology_sum)).ToString("F2") + "%";//更好的发展
+            leave_record2.Add("tec_genghao", Tec_genghao);
+            var Tec_shenti = (Technology_sum == 0 ? 0 : (tech_shenti * 100 / Technology_sum)).ToString("F2") + "%";//身体健康原因
+            leave_record2.Add("tec_shenti", Tec_shenti);
+            var Tec_jiating = (Technology_sum == 0 ? 0 : (tech_jiating * 100 / Technology_sum)).ToString("F2") + "%";//家庭原因
+            leave_record2.Add("tec_jiating", Tec_jiating);
+            var Tec_trial = (Technology_sum == 0 ? 0 : (tech_trial * 100 / Technology_sum)).ToString("F2") + "%";//试用期不合格原因
+            leave_record2.Add("tec_trial", Tec_trial);
+            var Tec_remove = (Technology_sum == 0 ? 0 : (tech_remove * 100 / Technology_sum)).ToString("F2") + "%";//协商解除
+            leave_record2.Add("tec_remove", Tec_remove);
+            var Tec_other = (Technology_sum == 0 ? 0 : (tech_other * 100 / Technology_sum)).ToString("F2") + "%";//其他原因
+            leave_record2.Add("tec_other", Tec_other);
+            #endregion
+
+            #region---专业族占比
+            var Pro_couxin = (Professional_sum == 0 ? 0 : (profe_couxin * 100 / Professional_sum)).ToString("F2") + "%";//薪酬不满意
+            leave_record2.Add("pro_couxin", Pro_couxin);
+            var Pro_zhidu = (Professional_sum == 0 ? 0 : (profe_zhidu * 100 / Professional_sum)).ToString("F2") + "%";//制度不满意
+            leave_record2.Add("pro_zhidu", Pro_zhidu);
+            var Pro_guanli = (Professional_sum == 0 ? 0 : (profe_guanli * 100 / Professional_sum)).ToString("F2") + "%";//管理不满意
+            leave_record2.Add("pro_guanli", Pro_guanli);
+            var Pro_huanji = (Professional_sum == 0 ? 0 : (profe_gongzuo * 100 / Professional_sum)).ToString("F2") + "%";//工作环境不满意
+            leave_record2.Add("pro_huanji", Pro_huanji);
+            var Pro_benshen = (Professional_sum == 0 ? 0 : (profe_benshen * 100 / Professional_sum)).ToString("F2") + "%";//工作本身不满意
+            leave_record2.Add("pro_benshen", Pro_benshen);
+            var Pro_wenhua = (Professional_sum == 0 ? 0 : (profe_wenhua * 100 / Professional_sum)).ToString("F2") + "%";//文化氛围不满意
+            leave_record2.Add("pro_wenhua", Pro_wenhua);
+            var Pro_genghao = (Professional_sum == 0 ? 0 : (profe_fazhang * 100 / Professional_sum)).ToString("F2") + "%";//更好的发展
+            leave_record2.Add("pro_genghao", Pro_genghao);
+            var Pro_shenti = (Professional_sum == 0 ? 0 : (profe_shenti * 100 / Professional_sum)).ToString("F2") + "%";//身体健康原因
+            leave_record2.Add("pro_shenti", Pro_shenti);
+            var Pro_jiating = (Professional_sum == 0 ? 0 : (profe_jiating * 100 / Professional_sum)).ToString("F2") + "%";//家庭原因
+            leave_record2.Add("pro_jiating", Pro_jiating);
+            var Pro_trial = (Professional_sum == 0 ? 0 : (profe_trial * 100 / Professional_sum)).ToString("F2") + "%";//试用期不合格原因
+            leave_record2.Add("pro_trial", Pro_trial);
+            var Pro_remove = (Professional_sum == 0 ? 0 : (profe_remove * 100 / Professional_sum)).ToString("F2") + "%";//协商解除
+            leave_record2.Add("pro_remove", Pro_remove);
+            var Pro_other = (Professional_sum == 0 ? 0 : (profe_other * 100 / Professional_sum)).ToString("F2") + "%";//其他原因
+            leave_record2.Add("pro_other", Pro_other);
+            #endregion
+
+            #region---服务族占比
+            var Ser_couxin = (Service_sum == 0 ? 0 : (service_couxin * 100 / Service_sum)).ToString("F2") + "%";//薪酬不满意
+            leave_record2.Add("ser_couxin", Ser_couxin);
+            var Ser_zhidu = (Service_sum == 0 ? 0 : (service_zhidu * 100 / Service_sum)).ToString("F2") + "%";//制度不满意
+            leave_record2.Add("ser_zhidu", Ser_zhidu);
+            var Ser_guanli = (Service_sum == 0 ? 0 : (service_guanli * 100 / Service_sum)).ToString("F2") + "%";//管理不满意
+            leave_record2.Add("ser_guanli", Ser_guanli);
+            var Ser_huanji = (Service_sum == 0 ? 0 : (service_gongzuo * 100 / Service_sum)).ToString("F2") + "%";//工作环境不满意
+            leave_record2.Add("ser_huanji", Ser_huanji);
+            var Ser_benshen = (Service_sum == 0 ? 0 : (service_benshen * 100 / Service_sum)).ToString("F2") + "%";//工作本身不满意
+            leave_record2.Add("ser_benshen", Ser_benshen);
+            var Ser_wenhua = (Service_sum == 0 ? 0 : (service_wenhua * 100 / Service_sum)).ToString("F2") + "%";//文化氛围不满意
+            leave_record2.Add("ser_wenhua", Ser_wenhua);
+            var Ser_genghao = (Service_sum == 0 ? 0 : (service_fazhang * 100 / Service_sum)).ToString("F2") + "%";//更好的发展
+            leave_record2.Add("ser_genghao", Ser_genghao);
+            var Ser_shenti = (Service_sum == 0 ? 0 : (service_shenti * 100 / Service_sum)).ToString("F2") + "%";//身体健康原因
+            leave_record2.Add("ser_shenti", Ser_shenti);
+            var Ser_jiating = (Service_sum == 0 ? 0 : (service_jiating * 100 / Service_sum)).ToString("F2") + "%";//家庭原因
+            leave_record2.Add("ser_jiating", Ser_jiating);
+            var Ser_trial = (Service_sum == 0 ? 0 : (service_trial * 100 / Service_sum)).ToString("F2") + "%";//试用期不合格原因
+            leave_record2.Add("ser_trial", Ser_trial);
+            var Ser_remove = (Service_sum == 0 ? 0 : (service_remove * 100 / Service_sum)).ToString("F2") + "%";//协商解除
+            leave_record2.Add("ser_remove", Ser_remove);
+            var Ser_other = (Service_sum == 0 ? 0 : (service_other * 100 / Service_sum)).ToString("F2") + "%";//其他原因
+            leave_record2.Add("ser_other", Ser_other);
+            #endregion
+
+            #region---管理族占比
+            var Man_couxin = (Management_sum == 0 ? 0 : (manage_couxin * 100 / Management_sum)).ToString("F2") + "%";//薪酬不满意
+            leave_record2.Add("man_couxin", Man_couxin);
+            var Man_zhidu = (Management_sum == 0 ? 0 : (manage_zhidu * 100 / Management_sum)).ToString("F2") + "%";//制度不满意
+            leave_record2.Add("man_zhidu", Man_zhidu);
+            var Man_guanli = (Management_sum == 0 ? 0 : (manage_guanli * 100 / Management_sum)).ToString("F2") + "%";//管理不满意
+            leave_record2.Add("man_guanli", Man_guanli);
+            var Man_huanji = (Management_sum == 0 ? 0 : (manage_gongzuo * 100 / Management_sum)).ToString("F2") + "%";//工作环境不满意
+            leave_record2.Add("man_huanji", Man_huanji);
+            var Man_benshen = (Management_sum == 0 ? 0 : (manage_benshen * 100 / Management_sum)).ToString("F2") + "%";//工作本身不满意
+            leave_record2.Add("man_benshen", Man_benshen);
+            var Man_wenhua = (Management_sum == 0 ? 0 : (manage_wenhua * 100 / Management_sum)).ToString("F2") + "%";//文化氛围不满意
+            leave_record2.Add("man_wenhua", Man_wenhua);
+            var Man_genghao = (Management_sum == 0 ? 0 : (manage_fazhang * 100 / Management_sum)).ToString("F2") + "%";//更好的发展
+            leave_record2.Add("man_genghao", Man_genghao);
+            var Man_shenti = (Management_sum == 0 ? 0 : (manage_shenti * 100 / Management_sum)).ToString("F2") + "%";//身体健康原因
+            leave_record2.Add("man_shenti", Man_shenti);
+            var Man_jiating = (Management_sum == 0 ? 0 : (manage_jiating * 100 / Management_sum)).ToString("F2") + "%";//家庭原因
+            leave_record2.Add("man_jiating", Man_jiating);
+            var Man_trial = (Management_sum == 0 ? 0 : (manage_trial * 100 / Management_sum)).ToString("F2") + "%";//试用期不合格原因
+            leave_record2.Add("man_trial", Man_trial);
+            var Man_remove = (Management_sum == 0 ? 0 : (manage_remove * 100 / Management_sum)).ToString("F2") + "%";//协商解除
+            leave_record2.Add("man_remove", Man_remove);
+            var Man_other = (Management_sum == 0 ? 0 : (manage_other * 100 / Management_sum)).ToString("F2") + "%";//其他原因
+            leave_record2.Add("man_other", Man_other);
+            #endregion
+
+            //非操作族占比
+            //var account_couxin = (Notoperation_sum == 0 ? 0 : (cause_couxin * 100 / Notoperation_sum)).ToString("F2") + "%";//薪酬不满意
+            //leave_record2.Add("account_couxin", account_couxin);
+            //var account_zhidu = (Notoperation_sum == 0 ? 0 : (cause_zhidu * 100 / Notoperation_sum)).ToString("F2") + "%";//制度不满意
+            //leave_record2.Add("account_zhidu", account_zhidu);
+            //var account_guanli = (Notoperation_sum == 0 ? 0 : (cause_guanli * 100 / Notoperation_sum)).ToString("F2") + "%";//管理不满意
+            //leave_record2.Add("account_guanli", account_guanli);
+            //var account_gongzuo = (Notoperation_sum == 0 ? 0 : (cause_gongzuo * 100 / Notoperation_sum)).ToString("F2") + "%";//工作环境不满意
+            //leave_record2.Add("account_gongzuo", account_gongzuo);
+            //var account_fazhang = (Notoperation_sum == 0 ? 0 : (cause_fazhang * 100 / Notoperation_sum)).ToString("F2") + "%";//更好的发展
+            //leave_record2.Add("account_fazhang", account_fazhang);
+
+            //离职原因占比
+            var Leaving_salary = (cause_heji == 0 ? 0 : (Pay_diss * 100 / cause_heji)).ToString("F2") + "%";//薪酬不满意
+            leave_record2.Add("leaving_salary", Leaving_salary);
+            var Leaving_System = (cause_heji == 0 ? 0 : (System * 100 / cause_heji)).ToString("F2") + "%";//制度不满意
+            leave_record2.Add("leaving_System", Leaving_System);
+            var Leaving_management = (cause_heji == 0 ? 0 : (management * 100 / cause_heji)).ToString("F2") + "%";//管理不满意
+            leave_record2.Add("leaving_management", Leaving_management);
+            var Leaving_Joben = (cause_heji == 0 ? 0 : (Joben * 100 / cause_heji)).ToString("F2") + "%";//工作环境不满意
+            leave_record2.Add("leaving_Joben", Leaving_Joben);
+            var Leaving_Itself = (cause_heji == 0 ? 0 : (Itself * 100 / cause_heji)).ToString("F2") + "%";//工作本身不满意
+            leave_record2.Add("leaving_Itself", Leaving_Itself);
+            var Leaving_Cultural = (cause_heji == 0 ? 0 : (Cultural * 100 / cause_heji)).ToString("F2") + "%";//文化氛围不满意
+            leave_record2.Add("leaving_Cultural", Leaving_Cultural);
+            var Leaving_Better = (cause_heji == 0 ? 0 : (Better * 100 / cause_heji)).ToString("F2") + "%";//更好的发展
+            leave_record2.Add("leaving_Better", Leaving_Better);
+            var Leaving_Healthy = (cause_heji == 0 ? 0 : (Healthy * 100 / cause_heji)).ToString("F2") + "%";//身体健康
+            leave_record2.Add("leaving_Healthy", Leaving_Healthy);
+            var Leaving_Family = (cause_heji == 0 ? 0 : (Family * 100 / cause_heji)).ToString("F2") + "%";//家庭原因
+            leave_record2.Add("leaving_Family", Leaving_Family);
+            var Leaving_Period = (cause_heji == 0 ? 0 : (Period * 100 / cause_heji)).ToString("F2") + "%";//试用期不合格
+            leave_record2.Add("leaving_Period", Leaving_Period);
+            var Leaving_Remove = (cause_heji == 0 ? 0 : (Remove * 100 / cause_heji)).ToString("F2") + "%";//协商解除
+            leave_record2.Add("leaving_Remove", Leaving_Remove);
+            var Leaving_Other = (cause_heji == 0 ? 0 : (Other * 100 / cause_heji)).ToString("F2") + "%";//其他原因
+            leave_record2.Add("leaving_Other", Leaving_Other);
+
+            leave_record3.Add("leave_record1", leave_record1);
+            leave_record3.Add("leave_record2", leave_record2);
+            surface.Add("leave_record3", leave_record3);
+            surface.Add("for_leaving_Table", for_leaving_Table);
+            return Content(JsonConvert.SerializeObject(surface));
+        }
+
+        #endregion
+
+        public string DefaualInfo()
+        {
+            var datetime = db.Personnel_Reasons_for_leaving.OrderByDescending(c => c.LastDate).Select(c => c.LastDate).FirstOrDefault();
+            var xx = datetime.Value.Year + "," + datetime.Value.Month;
+            return datetime.Value.Year + "," + datetime.Value.Month;
+        }
+
+        #region---点击部门查看离职原因明细表
+        [HttpPost]
+        public async Task<ActionResult> Leaving_reason(string department, int? year, int? mouth)
+        {
+            if (department == null || year == null || mouth == null)
+            {
+                return Content(department == null ? "部门为空！" : "" + year == null ? "年份未选择" : "" + mouth == null ? "月份未选择" : "");
+            }
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Personnel_Reasons_for_leaving", act = "Index" });
+            }
+
+            JObject userItem = new JObject();
+            JObject userJobject = new JObject();
+            var leave_mingxi = await db.Personnel_Reasons_for_leaving.ToListAsync();
+            int L = 0;
+            var leave = db.Personnel_Reasons_for_leaving.Where(c => c.Department_leaving == department && c.LastDate.Value.Year == year && c.LastDate.Value.Month == mouth).ToList();
+            //添加日期为null的方法
+            var aa = leave.Where(c => c.LastDate == null ? false : c.LastDate.Value.Year == year && c.LastDate == null ? false : c.LastDate.Value.Month == mouth).ToList();
+
+            foreach (var item in aa)
+            {
+                //ID
+                userItem.Add("Id", item.Id);
+                //名字
+                userItem.Add("Name", item.Name);
+                //工号
+                userItem.Add("jobNum", item.jobNum);
+                //部门
+                userItem.Add("department", item.Department_leaving);
+                //组别
+                userItem.Add("DP_group", item.DP_group);
+                //职位名称
+                userItem.Add("Position", item.Position);
+                //族群levelType
+                userItem.Add("levelType", item.levelType);
+                //入职日期HireDate
+                string Hiretostring = string.Format("{0:yyyy-MM-dd--HH-mm-ss}", item.HireDate);
+                userItem.Add("HireDate", item.HireDate);
+                //离职日期LastDate
+                string Lasttostring = string.Format("{0:yyyy-MM-dd--HH-mm-ss}", item.LastDate);
+                userItem.Add("LastDate", item.LastDate);
+                //离退类型：辞职
+                userItem.Add("Resign", item.Resign);
+                //离退类型：自离
+                userItem.Add("SinceFrom", item.SinceFrom);
+                //离退类型：辞退
+                userItem.Add("LayOff", item.LayOff);
+                //离退类型：退休
+                userItem.Add("Retired", item.Retired);
+                //备注Remark
+                userItem.Add("Remark", item.Remark);
+                //部门结论Department_of_conclusion
+                userItem.Add("Department_of_conclusion", item.Department_of_conclusion);
+                //人力资源部结论HR_conclusion
+                userItem.Add("HR_conclusion", item.HR_conclusion);
+                //薪酬不满意Pay_dissatisfaction
+                userItem.Add("Pay_dissatisfaction", item.Pay_dissatisfaction);
+                //制度不满意NotSystem
+                userItem.Add("NotSystem", item.NotSystem);
+                //管理不满意Notmanagement
+                userItem.Add("Notmanagement", item.Notmanagement);
+                //工作环境不满意Jobenvironment
+                userItem.Add("Jobenvironment", item.Jobenvironment);
+                //工作本身不满意
+                userItem.Add("NotWork_Itself", item.NotWork_Itself);
+                //文化氛围不满意
+                userItem.Add("NotCultural_Atmosphere", item.NotCultural_Atmosphere);
+                //更好的发展Better_development
+                userItem.Add("Better_development", item.Better_development);
+                //身体健康原因
+                userItem.Add("HealthyBody", item.HealthyBody);
+                //家庭原因
+                userItem.Add("Family_Reasons", item.Family_Reasons);
+                //试用期不合格
+                userItem.Add("NotProbation_Period", item.NotProbation_Period);
+                //协商解除
+                userItem.Add("Negotiate_Remove", item.Negotiate_Remove);
+                //其他原因
+                userItem.Add("Other_Reasons", item.Other_Reasons);
+
+                userJobject.Add(L.ToString(), userItem);
+                L++;
+                userItem = new JObject();
+
+            }
+            return Content(JsonConvert.SerializeObject(userJobject));
+
+        }
+
+        #endregion
+
+        #region Details方法
+        public ActionResult Details(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Reasons_for_leaving personnel_Reasons_for_leaving = db.Personnel_Reasons_for_leaving.Find(id);
+            if (personnel_Reasons_for_leaving == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Reasons_for_leaving);
+        }
+        #endregion
+
+        //前端找不到这个方法
+        #region ---保存数据方法
+        public ActionResult Create()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Personnel_Reasons_for_leaving", act = "Create" });
+            }
+
+            return View();
+        }
+        #region---保存离职原因信息
+        public ActionResult ModifyCreate(string jobNum)
+        {
+
+            if (jobNum != null)
+            {
+                var Present = db.Personnel_Reasons_for_leaving.Where(c => c.jobNum == jobNum).FirstOrDefault();
+
+                if (Present != null)
+                {
+                    return Content(JsonConvert.SerializeObject(Present));
+                }
+            }
+            return Content("false");
+        }
+        #endregion
+        [HttpPost]
+        public ActionResult Create([Bind(Include = "Id,Name,jobNum,Department_leaving,DP_group,Position,levelType,HireDate,LastDate,Remark,Department_of_conclusion,HR_conclusion,Pay_dissatisfaction,NotSystem,Notmanagement,Jobenvironment,NotWork_Itself,NotCultural_Atmosphere,Better_development,HealthyBody,Family_Reasons,NotProbation_Period,Negotiate_Remove,Other_Reasons,Resign,SinceFrom,LayOff,Retired,Creator,CreateDate")] Personnel_Reasons_for_leaving personnel_Reasons_for_leaving)
+        {
+            //personnel_Reasons_for_leaving.CreateDate = DateTime.Now;
+            //    personnel_Reasons_for_leaving.Creator = ((Users)Session["User"]).UserName;
+
+            //db.Entry(personnel_Reasons_for_leaving).State = EntityState.Added;
+            if (personnel_Reasons_for_leaving.Pay_dissatisfaction != 0 || personnel_Reasons_for_leaving.NotSystem != 0 || personnel_Reasons_for_leaving.Notmanagement != 0 || personnel_Reasons_for_leaving.Jobenvironment != 0 || personnel_Reasons_for_leaving.Better_development != 0 || personnel_Reasons_for_leaving.NotProbation_Period != 0 || personnel_Reasons_for_leaving.NotWork_Itself != 0 || personnel_Reasons_for_leaving.NotCultural_Atmosphere != 0 || personnel_Reasons_for_leaving.Negotiate_Remove != 0 || personnel_Reasons_for_leaving.Family_Reasons != 0 || personnel_Reasons_for_leaving.HealthyBody != 0 || personnel_Reasons_for_leaving.Other_Reasons != 0)
+            {
+
+                var amend = db.Personnel_Reasons_for_leaving.Where(c => c.jobNum == personnel_Reasons_for_leaving.jobNum).FirstOrDefault();
+                if (amend != null)
+                {
+                    amend.levelType = personnel_Reasons_for_leaving.levelType;
+                    amend.Pay_dissatisfaction = personnel_Reasons_for_leaving.Pay_dissatisfaction;
+                    amend.NotSystem = personnel_Reasons_for_leaving.NotSystem;
+                    amend.Notmanagement = personnel_Reasons_for_leaving.Notmanagement;
+                    amend.Jobenvironment = personnel_Reasons_for_leaving.Jobenvironment;
+                    amend.Better_development = personnel_Reasons_for_leaving.Better_development;
+                    amend.NotWork_Itself = personnel_Reasons_for_leaving.NotWork_Itself;
+                    amend.NotCultural_Atmosphere = personnel_Reasons_for_leaving.NotCultural_Atmosphere;
+                    amend.HealthyBody = personnel_Reasons_for_leaving.HealthyBody;
+                    amend.Family_Reasons = personnel_Reasons_for_leaving.Family_Reasons;
+                    amend.NotProbation_Period = personnel_Reasons_for_leaving.NotProbation_Period;
+                    amend.Negotiate_Remove = personnel_Reasons_for_leaving.Negotiate_Remove;
+                    amend.Other_Reasons = personnel_Reasons_for_leaving.Other_Reasons;
+                    amend.Resign = personnel_Reasons_for_leaving.Resign;
+                    amend.Retired = personnel_Reasons_for_leaving.Retired;
+                    amend.LayOff = personnel_Reasons_for_leaving.LayOff;
+                    amend.SinceFrom = personnel_Reasons_for_leaving.SinceFrom;
+                    amend.Remark = personnel_Reasons_for_leaving.Remark;
+
+                    db.SaveChanges();
+                    return Content("ok");
+                }
+                if (ModelState.IsValid)
+                {
+                    db.Personnel_Reasons_for_leaving.Add(personnel_Reasons_for_leaving);
+                    db.SaveChanges();
+                    return Content("ok");
+                }
+            }
+            return Content("离职原因为空，请重新输入");
+        }
+        #endregion
+
+        #region------批量增加方法
+        public ActionResult Batch_leave()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "Personnel_Reasons_for_leaving", act = "Batch_leave" });
+            }
+            return Content("<script>alert('对不起，您不能进行离职原因调查批量增加，请联系统管理人员！');window.location.href='../Personnel_Reasons_for_leaving';</script>");
+
+        }
+
+
+
+        [HttpPost]
+        public ActionResult Batch_leave(List<Personnel_Reasons_for_leaving> inputList)
+        {
+
+            string repeat = null;
+            foreach (var item in inputList)
+            {
+                item.CreateDate = DateTime.Now;
+                item.Creator = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";
+                if (db.Personnel_Reasons_for_leaving.Count(c => c.jobNum == item.jobNum) != 0)
+                    repeat = repeat + item.jobNum + ",";
+            }
+            if (!string.IsNullOrEmpty(repeat))
+            {
+                return Content(repeat);
+            }
+            if (ModelState.IsValid)
+            {
+                db.Personnel_Reasons_for_leaving.AddRange(inputList);
+                db.SaveChangesAsync();
+                return Content("true");
+
+            }
+            return Content("false");
+        }
+
+        #endregion
+
+        #region----- 修改方法
+        public ActionResult Edit(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Reasons_for_leaving personnel_Reasons_for_leaving = db.Personnel_Reasons_for_leaving.Find(id);
+            if (personnel_Reasons_for_leaving == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Reasons_for_leaving);
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Edit([Bind(Include = "Id,Name,jobNum,Department_leaving,DP_group,Position,levelType,HireDate,LastDate,Remark,Department_of_conclusion,HR_conclusion,Pay_dissatisfaction,NotSystem,Notmanagement,Jobenvironment,NotWork_Itself,NotCultural_Atmosphere,Better_development,HealthyBody,Family_Reasons,NotProbation_Period,Negotiate_Remove,Other_Reasons,Resign,SinceFrom,LayOff,Retired,Creator,CreateDate")] Personnel_Reasons_for_leaving personnel_Reasons_for_leaving)
+        {
+            if (ModelState.IsValid)
+            {
+                if (!string.IsNullOrEmpty(personnel_Reasons_for_leaving.jobNum))
+                {
+                    personnel_Reasons_for_leaving.CreateDate = DateTime.Now;
+                    personnel_Reasons_for_leaving.Creator = ((Users)Session["User"]).UserName;
+                    db.Entry(personnel_Reasons_for_leaving).State = EntityState.Modified;
+                    await db.SaveChangesAsync();
+                    return Content("true");
+                }
+
+            }
+            return Content("修改出错，请确认数据是否正确");
+        }
+
+        #endregion
+
+        #region ------删除
+        public ActionResult Delete(int? id)
+        {
+            if (id == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            Personnel_Reasons_for_leaving personnel_Reasons_for_leaving = db.Personnel_Reasons_for_leaving.Find(id);
+            if (personnel_Reasons_for_leaving == null)
+            {
+                return HttpNotFound();
+            }
+            return View(personnel_Reasons_for_leaving);
+        }
+
+
+        [HttpPost, ActionName("Delete")]
+        public ActionResult DeleteConfirmed(int id)
+        {
+            Personnel_Reasons_for_leaving personnel_Reasons_for_leaving = db.Personnel_Reasons_for_leaving.Find(id);
+            UserOperateLog operaterecord = new UserOperateLog();
+            operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
+            operaterecord.Operator = ((Users)Session["User"]).UserName;//添加删除操作人
+            //添加操作记录
+            operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除离职原因记录工号为" + personnel_Reasons_for_leaving.jobNum + "数据记录";
+            db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
+            db.Personnel_Reasons_for_leaving.Remove(personnel_Reasons_for_leaving);
+            int count = db.SaveChanges();
+            if (count > 0)
+            {
+                return Content("true");
+            }
+            else
+            {
+                return Content("false");
+            }
+        }
+        #endregion
+
+        #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

@@ -1,0 +1,411 @@
+﻿
+@{
+    ViewBag.Title = "钣金部生产进度管控";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .el-table__header tr, .el-table__header th, .el-table td {
+        padding: 1px;
+        text-align: center;
+        padding-left: 0px;
+    }
+
+    .container {
+        width: 92.6%;
+    }
+    #app {
+        height: 600px
+    }
+
+</style>
+
+<div id="app">
+    <div class="text-center">
+        <h3>钣金部生产进度管控</h3>
+        <a href="/MetalPlate/Index"><el-button size="small" type="primary" plain>首页</el-button></a>
+        <a href="/MetalPlate/CreatBasicInfo"><el-button size="small" type="primary" plain>录入基本信息</el-button></a>
+        <a href="/MetalPlate/CreatProduction"><el-button size="small" type="primary" plain>录入生产信息</el-button></a>
+        <a href="/MetalPlate/MetalPlate_modify"><el-button size="small" type="primary" plain>修改录入信息</el-button></a>
+    </div>  
+    <div>
+        <span>订单号：</span>
+        <el-select v-model="ordernumTable"
+                   clearable
+                   collapse-tags
+                    allow-create filterable
+                   placeholder="请选择">
+            <el-option v-for="item in ordTableOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        <span>历史订单号：</span>
+        <el-select v-model="ordernum"
+                   multiple
+                   clearable
+                   collapse-tags
+                   placeholder="请选择" style="width:220px">
+            <el-option v-for="item in ordernumOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        <el-table v-bind:data="tableData"
+                  style="width: 100%;font-size: 12px" border  max-height="650" v-bind:span-method="cellMerge" v-bind:cell-style="yellowBg" >
+            <el-table-column prop="OrderNum"
+                             label="订单号"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="Quantity"
+                             label="订单数量"
+                             width="60">
+            </el-table-column>
+            <el-table-column prop=""
+                             label="生产类型"
+                             width="75">
+                <el-table-column prop="ProductionType"
+                                 label="(散件/箱体)"
+                                 width="80">
+                </el-table-column>
+            </el-table-column>
+            <el-table-column prop=""
+                             label="生产排期"
+                             width="190">
+                <el-table-column prop="ProductScheduleStartTime"
+                                 label="下单工期"
+                                 width="87">
+                    <template scope="scope">
+                        <div>{{scope.row.ProductScheduleStartTime | timeFilter}}</div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="DepartmentalDeliveryTime"
+                                 label="工单交期"
+                                 width="88">
+                    <template scope="scope">
+                        <div>{{scope.row.DepartmentalDeliveryTime | timeFilter}}</div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop="ProductionStartTime"
+                             label="生产开始时间"
+                             width="85">
+            </el-table-column>
+            <el-table-column prop=""
+                             label="工艺图纸"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.DrawCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.DrawPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="编程"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.ProgramCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.ProgramPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="数冲冲压敲料去毛刺"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.BluntCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.BluntPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="沉孔倒角钳工"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.ChamferCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.ChamferPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="折弯压铆"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.BendCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.BendPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="焊接打磨"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.WeldCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.WeldPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="外协喷涂"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.SprayCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.SprayPass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="装配丝印"
+                             width="130">
+                <el-table-column prop=""
+                                 label="完成率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.AssembleCompletion"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop=""
+                                 label="合格率"
+                                 width="65">
+                    <template slot-scope="scope">
+                        <div v-html="scope.row.AssemblePass"></div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+            <el-table-column prop=""
+                             label="入库（件）"
+                             width="70">
+                <template slot-scope="scope">
+                    <div v-html="scope.row.WarehouseCompletion"></div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="CompletionTime"
+                             label="完成时间"
+                             width="85">
+            </el-table-column>
+            <el-table-column prop="ProductionTime"
+                             label="生产时长"
+                             width="80">
+            </el-table-column>
+        </el-table>
+    </div>
+    
+</div>
+<script>
+    Vue.filter("timeFilter", function (val) {
+        if (!val) return '';
+        let dd = new Date(val);
+        let yy = dd.getFullYear();
+        let mm = (dd.getMonth() + 1).toString().padStart(2, 0);
+        let ds = dd.getDate().toString().padStart(2, 0);        
+        return `${yy}-${mm}-${ds}`
+    })
+    var app = new Vue({
+        el: '#app',
+        data: {
+            tableData: [],
+            ordernum: [],
+            ordernumOptions: [],
+            ordTableOptions: [],
+            ordernumTable: '',
+            tableData2: [],
+            spanArr: [],   //存放第一列合并的数据
+            pos: '',       //spanArr数组的索引
+          
+        },
+        mounted() {
+            axios.post('/MetalPlate/GetOrderList').then(res => {
+                this.ordernumOptions = res.data;
+                console.log(res.data)
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            this.getData()           
+        },
+        methods: {
+            //获取表格数据
+            getData() {
+                axios.post('/MetalPlate/getProductionInfo', {
+                    ordernum: this.ordernum.length == 0 ? null : this.ordernum
+                }).then(res => {
+                    this.spanArr = [];
+                    this.pos = '';
+                   // console.log(res.data)
+                    if (res.data !="找不到已完成订单对应记录！") {
+                        this.tableData = res.data
+                        this.tableData2 = res.data
+                        this.getSpanArr(this.tableData)
+                        console.log(res.data)
+                        if (res.data.length > 0) {
+                            let arr = res.data
+                            let order=[]
+                            for (let i = 0; i < arr.length; i++) {                              
+                                order.push(arr[i].OrderNum)
+                            }                            
+                            var newArr = Array.from(new Set(order));//去重数量
+                            for (let i = 0; i < newArr.length; i++) {
+                                this.ordTableOptions.push({value:newArr[i] })
+                            }
+                        }
+                    }                 
+                }).catch(err => {
+                    console.warn("请求失败！")
+                })
+            },
+            //合并相同数据
+            getSpanArr(data) {
+                for (var i = 0; i < data.length; i++) {
+                    if (i === 0) {
+                        this.spanArr.push(1);
+                        this.pos = 0
+                    } else {
+                        if (data[i].OrderNum == data[i - 1].OrderNum) {
+                            //合并行数+1
+                            this.spanArr[this.pos] += 1;
+                            this.spanArr.push(0);
+                        } else {
+                            this.spanArr.push(1);
+                            this.pos = i;
+                        }
+                    }
+                }
+            },
+            cellMerge({ row, column, rowIndex, columnIndex }) {
+                if (columnIndex === 0) {
+                    const _row = this.spanArr[rowIndex];
+                    const _col = _row > 0 ? 1 : 0;
+                    return {
+                        rowspan: _row,
+                        colspan: _col
+                    }
+                };
+            },
+            yellowBg({ row, column, rowIndex, columnIndex }) {
+                if (row.DrawCompletion.includes('100%') && columnIndex == 6 || row.DrawPass.includes('100%') && columnIndex == 7 || row.ProgramCompletion.includes('100%') && columnIndex == 8 || row.ProgramPass.includes('100%') && columnIndex == 9 ||
+                    row.BluntCompletion.includes('100%') && columnIndex == 10 || row.BluntPass.includes('100%') && columnIndex == 11 || row.ChamferCompletion.includes('100%') && columnIndex == 12 || row.ChamferPass.includes('100%') && columnIndex == 13 ||
+                    row.BendCompletion.includes('100%') && columnIndex == 14 || row.BendPass.includes('100%') && columnIndex == 15 || row.WeldCompletion.includes('100%') && columnIndex == 16 || row.WeldPass.includes('100%') && columnIndex == 17 ||
+                    row.SprayCompletion.includes('100%') && columnIndex == 18 || row.SprayPass.includes('100%') && columnIndex == 19 || row.AssembleCompletion.includes('100%') && columnIndex == 20 || row.AssemblePass.includes('100%') && columnIndex == 21 ||
+                    row.WarehouseCompletion.includes('100%') && columnIndex == 22 ) {
+                    return {
+                        background: '#b2ef99',
+                    }
+                } 
+                else {
+                    return {
+                        color: '',
+                    }
+                };
+            }
+        },
+        watch: {
+            ordernum() {
+                if (this.ordernum.length > 0) {
+                    this.getData()
+                } else {
+                    this.tableData = []
+                    this.getData()
+                }
+            },
+            ordernumTable() {
+                this.tableData = this.tableData2
+                let changeTable = []
+                if (this.ordernumTable != '') {                   
+                    this.tableData.forEach(item => {
+                     
+                        if (item.OrderNum == this.ordernumTable) {
+                            changeTable.push(item)
+                        }
+                    })
+                    this.tableData = changeTable
+                } else {
+                    this.tableData = this.tableData2;
+                }               
+            },
+            tableData() {
+                if (this.tableData.length == 0) {
+                    this.ordTableOptions =[]
+                }
+            }
+        }
+    })
+</script>

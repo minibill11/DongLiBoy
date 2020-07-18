@@ -1,0 +1,489 @@
+﻿
+@{
+    /**/
+
+    ViewBag.Title = "钣金生产数据录入";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<script src="~/Scripts/axios.min.js"></script>
+
+<style>
+    #app {
+        height:750px
+    }
+    .inputbox {
+        margin: 2px;
+    }
+
+    .query {
+        margin-top: 5px;
+    }
+
+    .container {
+        width: 83.5%;
+    }
+
+    .el-table__header tr, .el-table__header th, .el-table td {
+        padding: 0.1%;
+        text-align: center;
+        padding-left: 0px;
+    }
+
+    .inputInfoData {
+        width: 1574px;
+        font-size: 12px;
+        margin: auto
+    }
+
+    .tableData {
+        width: 471px;
+        font-size: 13px;
+        margin: auto
+    }
+
+    .inputcopy {
+        display: inline-flex;
+        height: 35px;
+        text-align: left;
+        margin-bottom: 2px;
+    }
+</style>
+
+<div id="app">
+    <div class="text-center">
+        <h3>生产数据录入</h3>
+        <a href="/MetalPlate/Index"><el-button size="small" type="primary" plain>首页</el-button></a>
+        <a href="/MetalPlate/CreatBasicInfo"><el-button size="small" type="primary" plain>录入基本信息</el-button></a>
+        <a href="/MetalPlate/CreatProduction"><el-button size="small" type="primary" plain>录入生产信息</el-button></a>
+        <a href="/MetalPlate/MetalPlate_modify"><el-button size="small" type="primary" plain>修改录入信息</el-button></a>
+        <el-button v-on:click="modify" style="margin:5px" size="small" type="primary">批量录入</el-button>
+    </div>
+    <div v-show="inputFlag==false" class="text-center">
+        <div class="query">
+            <label>班&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;组:</label>
+            <group-select style="width: 190px;"></group-select>
+        </div>
+        <div class="inputbox">
+            <label>订&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;号:</label>
+            <el-select v-model="ordernum" clearable allow-create filterable placeholder="请选择订单号">
+                <el-option v-for="item in ordernumOptions" :key="item.value" :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label>生&nbsp;&nbsp;产&nbsp;&nbsp;类&nbsp;&nbsp;型:</label>
+            <el-select v-model="productionType" clearable allow-create filterable placeholder="请选择生产类型">
+                <el-option v-for="item in productionTypeOptions" :key="item.value" :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label>工&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;段:</label>
+            <el-select v-model="section" clearable allow-create filterable placeholder="请选择工段">
+                <el-option v-for="item in sectionOptions" :key="item.value" :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="inputbox">
+            <label>订单正常数量:</label>
+            <el-input v-model="normalQuantity" placeholder="请输入正常数量" style="width:191px" clearable>
+            </el-input>
+        </div>
+        <div class="inputbox">
+            <label>订单异常数量:</label>
+            <el-input v-model="abnormaQuantity" placeholder="请输入异常数量" style="width:191px" clearable>
+            </el-input>
+        </div>
+        <div class="inputbox" v-show="section=='入库'">
+            <label>入 &nbsp;库 &nbsp;时 &nbsp;间 :</label>
+            <el-date-picker v-model="warehouseTime"
+                            type="datetime"
+                            placeholder="选择生产开始时间"
+                            style="width:191px">
+            </el-date-picker>
+        </div>
+        <el-button v-on:click="saveProducionInfo" size="mini" type="primary" v-show="createProduction">保存</el-button>
+        <div class="box" v-if="tableData.length>0">
+            <el-table v-bind:data="tableData" class="tableData" border max-height="350">
+                <el-table-column prop="OrderNum"
+                                 label="订单号"
+                                 width="110">
+                </el-table-column>
+                <el-table-column prop="ProductionType"
+                                 label="生产类型"
+                                 width="90">
+                </el-table-column>
+                <el-table-column prop="Section"
+                                 label="工段"
+                                 width="90">
+                </el-table-column>
+                <el-table-column prop="NormalQuantity"
+                                 label="正常数"
+                                 width="90">
+                </el-table-column>
+                <el-table-column prop="AbnormaQuantity"
+                                 label="异常数"
+                                 width="90">
+                </el-table-column>
+            </el-table>
+        </div>
+    </div>
+    <div v-show="inputFlag==true">
+        <div class="inputcopy">
+            <textarea v-model="inputInfo" placeholder="表格粘贴处..."></textarea>
+            <group-select style="width: 190px;"></group-select>
+        </div>
+        <el-table v-bind:data="inputInfoData" class="inputInfoData" border max-height="600">
+            <el-table-column prop="OrderNum"
+                             label="订单号"
+                             width="110">
+            </el-table-column>
+            <el-table-column prop="ProductionType"
+                             label="生产类型"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="DrawNormalQuantity"
+                             label="工艺图纸正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="DrawAbnormaQuantity"
+                             label="工艺图纸异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="ProgramNormalQuantity"
+                             label="编程正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="ProgramAbnormaQuantity"
+                             label="编程异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="BluntNormalQuantity"
+                             label="数冲冲压敲料去包刺正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="BluntAbnormaQuantity"
+                             label="数冲冲压敲料去包刺异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="ChamferNormalQuantity"
+                             label="沉孔倒角钳工正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="ChamferAbnormaQuantity"
+                             label="沉孔倒角钳工异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="BendNormalQuantity"
+                             label="折弯压铆正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="BendAbnormaQuantity"
+                             label="折弯压铆异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="WeldNormalQuantity"
+                             label="焊接打磨正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="WeldAbnormaQuantity"
+                             label="焊接打磨异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="SprayNormalQuantity"
+                             label="外协喷涂正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="SprayAbnormaQuantity"
+                             label="外协喷涂异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="FitoutNormalQuantity"
+                             label="装配丝印正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="FitoutAbnormaQuantity"
+                             label="装配丝印异常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="WarehouseNormalQuantity"
+                             label="入库正常数"
+                             width="77">
+            </el-table-column>
+            <el-table-column prop="WarehouseAbnormaQuantity"
+                             label="入库异常数"
+                             width="77">
+            </el-table-column>
+        </el-table>
+        <el-button v-on:click="saveBatchData" size="mini" type="primary" v-show="createProduction">保存</el-button>
+    </div>
+</div>
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            ordernum: '',
+            ordernumOptions: [],
+            section: '',
+            sectionOptions: [],
+            normalQuantity: '',
+            abnormaQuantity: '',
+            productionType: '',
+            productionTypeOptions: [{ value: '散件' }, { value: '箱体' }],
+            tableData: [],
+            createProduction: false,//生产数据录入权限
+            inputFlag: false,
+            inputInfo: '',//表格粘贴
+            inputInfoData: [],
+            postdata: [],
+            warehouseTime:'',//入库时间
+        },
+        mounted() {
+            axios.post('/MetalPlate/GetOrderNumList').then(res => {
+                this.ordernumOptions = res.data;
+            })
+            axios.post('/MetalPlate/SectionName').then(res => {
+                this.sectionOptions = res.data;
+            })
+            //获取权限
+            var roles = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(roles, '钣金生产信息录入')) {
+                this.createProduction = true
+            } else {
+                this.createProduction = false
+            }
+        },
+        methods: {
+            //批量按钮切换
+            modify() {
+                this.inputFlag = !this.inputFlag
+            },
+            tips() {
+                this.$message({
+                    message: "请填写完整在保存",
+                    type: 'warning',
+                    duration: 6000,
+                });
+            },
+            //单个工段录入数据重组
+            saveProducionInfo() {
+                if ($("#banzuGroup").val() == "") {
+                    this.$message.warning("请选择班组");
+                    return;
+                };
+                this.postdata = []
+                if (this.ordernum != '' && this.section != '' && this.normalQuantity != '' && this.abnormaQuantity != '' && this.productionType != '') {
+                    let obj = { OrderNum: this.ordernum, ProductionType: this.productionType, Section: this.section, NormalQuantity: this.normalQuantity, AbnormaQuantity: this.abnormaQuantity, InputTime: this.warehouseTime == '' ? '' : this.warehouseTime }
+                    this.postdata.push(obj)
+                    let str = "single"
+                    this.save(str) //传参区分是单个工段录入还是批量录入               
+                } else {
+                    this.tips()
+                }
+            },
+            //保存数据  传参是为了区分单个录入还是批量录入
+            save(str) {
+                console.log(this.postdata)
+                axios.post('/MetalPlate/CreatProductionInfo', {
+                    record: this.postdata,
+                    Department: $("#banzuDepartment").val(),
+                    Group: $("#banzuGroup").val(),
+                }).then(res => {
+                    console.log(res.data)
+                    if (res.data == "保存成功！") {
+                        this.$message({
+                            message: res.data,
+                            type: 'success',
+                            duration: 6000,
+                        });
+                        this.getdata()
+                        if (str == "single") {
+                            this.section = this.normalQuantity = this.abnormaQuantity = this.warehouseTime='';
+                        }
+                        this.postdata = []
+                    } else {
+                        this.$message({
+                            message: res.data,
+                            type: 'warning',
+                            duration: 10000,
+                        });
+                    }
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                })
+            },
+            //获取工段已录入的数据
+            getdata() {
+                axios.post('/MetalPlate/GetEnteredDatat', {
+                    ordernum: this.ordernum,
+                    productionType: this.productionType,
+                    section: this.section
+                }).then(res => {
+                    console.log(res.data)
+                    this.tableData = res.data
+                })
+            },
+            //批量录入数据处理
+            saveBatchData() {
+                let arr = this.inputInfoData
+                let information = []
+                let Program = Blunt = Chamfer = Bend = Weld = Spray = Fitout = Warehouse = Draw = {}
+                for (let i = 0; i < arr.length; i++) {
+                    if (arr[i].DrawAbnormaQuantity == 0 && arr[i].DrawNormalQuantity == 0) {//如果工段的正常数，异常数都不等于0 就保存到数组
+                    } else {
+                        Draw = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "工艺图纸", NormalQuantity: arr[i].DrawNormalQuantity, AbnormaQuantity: arr[i].DrawAbnormaQuantity }
+                        information.push(Draw)
+                    }
+                    if (arr[i].ProgramAbnormaQuantity == 0 && arr[i].ProgramNormalQuantity == 0) {
+                    } else {
+                        Program = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "编程", NormalQuantity: arr[i].ProgramNormalQuantity, AbnormaQuantity: arr[i].ProgramAbnormaQuantity }
+                        information.push(Program)
+                    }
+                    if (arr[i].BluntNormalQuantity == 0 && arr[i].BluntAbnormaQuantity == 0) {
+                    } else {
+                        Blunt = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "数冲冲压敲料去毛刺", NormalQuantity: arr[i].BluntNormalQuantity, AbnormaQuantity: arr[i].BluntAbnormaQuantity }
+                        information.push(Blunt)
+                    }
+                    if (arr[i].ChamferNormalQuantity == 0 && arr[i].ChamferAbnormaQuantity == 0) {
+                    } else {
+                        Chamfer = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "沉孔倒角钳工", NormalQuantity: arr[i].ChamferNormalQuantity, AbnormaQuantity: arr[i].ChamferAbnormaQuantity }
+                        information.push(Chamfer)
+                    }
+                    if (arr[i].BendNormalQuantity == 0 && arr[i].BendAbnormaQuantity == 0) {
+                    } else {
+                        Bend = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "折弯压铆", NormalQuantity: arr[i].BendNormalQuantity, AbnormaQuantity: arr[i].BendAbnormaQuantity }
+                        information.push(Bend)
+                    }
+                    if (arr[i].WeldNormalQuantity == 0 && arr[i].WeldAbnormaQuantity == 0) {
+                    } else {
+                        Weld = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "焊接打磨", NormalQuantity: arr[i].WeldNormalQuantity, AbnormaQuantity: arr[i].WeldAbnormaQuantity }
+                        information.push(Weld)
+                    }
+                    if (arr[i].SprayNormalQuantity == 0 && arr[i].SprayAbnormaQuantity == 0) {
+                    } else {
+                        Spray = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "外协喷涂", NormalQuantity: arr[i].SprayNormalQuantity, AbnormaQuantity: arr[i].SprayAbnormaQuantity }
+                        information.push(Spray)
+                    }
+                    if (arr[i].FitoutNormalQuantity == 0 && arr[i].FitoutAbnormaQuantity == 0) {
+                    } else {
+                        Fitout = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "装配丝印", NormalQuantity: arr[i].FitoutNormalQuantity, AbnormaQuantity: arr[i].FitoutAbnormaQuantity }
+                        information.push(Fitout)
+                    }
+                    if (arr[i].WarehouseAbnormaQuantity == 0 && arr[i].WarehouseNormalQuantity == 0) {
+                    } else {
+                        Warehouse = { OrderNum: arr[i].OrderNum, ProductionType: arr[i].ProductionType, Section: "入库", NormalQuantity: arr[i].WarehouseNormalQuantity, AbnormaQuantity: arr[i].WarehouseAbnormaQuantity }
+                        information.push(Warehouse)
+                    }
+                }
+                if (information.length > 0) {
+                    this.postdata = information
+                    let str = "double"
+                    this.save(str)//传参区分是单个工段录入还是批量录入
+                }
+            }
+        },
+        watch: {
+            //检验此订单是否有基本信息录入
+            productionType() {
+                if (this.ordernum != '' && this.productionType != '') {
+                    axios.post('/MetalPlate/CheckBasicInfo', {
+                        ordernum: this.ordernum,
+                        productionType: this.productionType,
+                    }).then(res => {
+                        if (res.data == "此订单未创建基本信息记录，用户需先创建基本信息记录！") {
+                            this.$message({
+                                message: res.data,
+                                type: 'warning',
+                                duration: 8000,
+                            });
+                        }
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    })
+                }
+            },
+            section() {
+                if (this.ordernum != '' && this.productionType != '' && this.section != '') {
+                    this.getdata()
+
+                }
+            },
+            //将粘贴的值赋给表格
+            inputInfo(val) {
+                if (this.inputInfo != '') {
+                    let valuePaste = val.split("\n");
+                    valuePaste.pop();
+                    let arr = []
+                    valuePaste.forEach((item, i) => {
+                        let items = item.split("\t");
+                        arr.push(items)
+                    })
+                    let data = []
+                    for (let i = 0; i < arr.length; i++) {
+                        let OrderNum = arr[i][0]
+                        let ProductionType = arr[i][1]
+                        let DrawNormalQuantity = arr[i][2]
+                        let DrawAbnormaQuantity = arr[i][3]
+                        let ProgramNormalQuantity = arr[i][4]
+                        let ProgramAbnormaQuantity = arr[i][5]
+                        let BluntNormalQuantity = arr[i][6]
+                        let BluntAbnormaQuantity = arr[i][7]
+                        let ChamferNormalQuantity = arr[i][8]
+                        let ChamferAbnormaQuantity = arr[i][9]
+                        let BendNormalQuantity = arr[i][10]
+                        let BendAbnormaQuantity = arr[i][11]
+                        let WeldNormalQuantity = arr[i][12]
+                        let WeldAbnormaQuantity = arr[i][13]
+                        let SprayNormalQuantity = arr[i][14]
+                        let SprayAbnormaQuantity = arr[i][15]
+                        let FitoutNormalQuantity = arr[i][16]
+                        let FitoutAbnormaQuantity = arr[i][17]
+                        let WarehouseNormalQuantity = arr[i][18]
+                        let WarehouseAbnormaQuantity = arr[i][19]
+                        let obj = {
+                            OrderNum: OrderNum,
+                            ProductionType: ProductionType,
+                            DrawNormalQuantity: DrawNormalQuantity == '' ? 0 : DrawNormalQuantity,
+                            DrawAbnormaQuantity: DrawAbnormaQuantity == '' ? 0 : DrawAbnormaQuantity,
+                            ProgramNormalQuantity: ProgramNormalQuantity == '' ? 0 : ProgramNormalQuantity,
+                            ProgramAbnormaQuantity: ProgramAbnormaQuantity == '' ? 0 : ProgramAbnormaQuantity,
+                            BluntNormalQuantity: BluntNormalQuantity == '' ? 0 : BluntNormalQuantity,
+                            BluntAbnormaQuantity: BluntAbnormaQuantity == '' ? 0 : BluntAbnormaQuantity,
+                            ChamferNormalQuantity: ChamferNormalQuantity == '' ? 0 : ChamferNormalQuantity,
+                            ChamferAbnormaQuantity: ChamferAbnormaQuantity == '' ? 0 : ChamferAbnormaQuantity,
+                            BendNormalQuantity: BendNormalQuantity == '' ? 0 : BendNormalQuantity,
+                            BendAbnormaQuantity: BendAbnormaQuantity == '' ? 0 : BendAbnormaQuantity,
+                            WeldNormalQuantity: WeldNormalQuantity == '' ? 0 : WeldNormalQuantity,
+                            WeldAbnormaQuantity: WeldAbnormaQuantity == '' ? 0 : WeldAbnormaQuantity,
+                            SprayNormalQuantity: SprayNormalQuantity == '' ? 0 : SprayNormalQuantity,
+                            SprayAbnormaQuantity: SprayAbnormaQuantity == '' ? 0 : SprayAbnormaQuantity,
+                            FitoutNormalQuantity: FitoutNormalQuantity == '' ? 0 : FitoutNormalQuantity,
+                            FitoutAbnormaQuantity: FitoutAbnormaQuantity == '' ? 0 : FitoutAbnormaQuantity,
+                            WarehouseNormalQuantity: WarehouseNormalQuantity == '' ? 0 : WarehouseNormalQuantity,
+                            WarehouseAbnormaQuantity: WarehouseAbnormaQuantity == '' ? 0 : WarehouseAbnormaQuantity,
+                        }
+                        data.push(obj)
+                    }
+                    this.inputInfoData = data
+                    this.inputInfo = ''
+                }
+            }
+        }
+    })
+    //检测权限
+    function checkRoles(list, roleName) {
+        var flag = false
+        if (list && roleName) {
+            for (let item in list) {
+                if (list[item] == roleName) {
+                    flag = true
+                }
+            }
+        }
+        return flag
+    }
+</script>

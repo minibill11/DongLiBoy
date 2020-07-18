@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>@ViewBag.Title - 健和光电MES</title>
-
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+    </style>
     <link href="~/Content/main/elementui.css" rel="stylesheet" />
     <link href="~/Content/main/main.less" rel="stylesheet/less" type="text/css" />
     <script src="~/Scripts/main/vue.min.js"></script>
+    <script src="~/Scripts/main/limits.js"></script>
+    <script src="~/Scripts/main/main.js"></script>
     @RenderSection("cssStyle", false)
 </head>
 <body>
@@ -21,7 +27,7 @@
                     @*<span class="text">健和光电MES</span>*@
                 </a>
             </div>
-            <top-title :username="userName" :userid="userId" :admin="isAdmin" :limits="limitsList"></top-title>
+            <top-title :username="userName" :usernum="userNum" :userid="userId" :admin="isAdmin" :limits="limitsList" :screen="screenSize"></top-title>
         </el-header>
         <el-container>
             <el-aside class="leftMenu" v-show="leftMenuShow" v-bind:class="{ mobileLeftMenu: leftMenuShow }">
@@ -43,12 +49,18 @@
                     </el-row>
                 </el-main>
                 <el-footer class="bottomFooter">
-                    &copy;@DateTime.Now.Year - 健和光电MES&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;指定浏览器：
-                    <a href="~/MES_Data/ChromeCore_1277_3.0.1.6.exe">Chrome浏览器</a>，
-                    &nbsp;(火狐 for Windows)
-                    &nbsp;<a href="~/MES_Data/Firefox Setup x64.exe">64位</a>/
-                    &nbsp;<a href="~/MES_Data/Firefox Setup x86.exe">32位</a>/
-                    &nbsp;<a href="~/MES_Data/Firefox Setup XP.exe">XP版</a>
+                    &copy;@DateTime.Now.Year - 健和光电MES
+                    <span v-show="screenSize>992">
+                        &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;指定浏览器：
+                        <a href="~/MES_Data/ChromeCore_1277_3.0.1.6.exe">Chrome浏览器</a>，
+                        &nbsp;(火狐 for Windows)
+                        &nbsp;
+                        <a href="~/MES_Data/Firefox Setup x64.exe">64位</a>/
+                        &nbsp;
+                        <a href="~/MES_Data/Firefox Setup x86.exe">32位</a>/
+                        &nbsp;
+                        <a href="~/MES_Data/Firefox Setup XP.exe">XP版</a>
+                    </span>
                 </el-footer>
             </el-container>
         </el-container>
@@ -68,14 +80,12 @@
     <script src="~/Scripts/main/axios.min.js"></script>
     <script src="~/Scripts/main/print.ip.js"></script>
     <script src="~/Scripts/menu-list/menuList.js"></script>
-    <script src="~/Scripts/main/limits.js"></script>
-    <script src="~/Scripts/main/main.js"></script>
     @RenderSection("jsScript", false)
-    <script>
+    <script defer>
         //type="module"   ../.js/export
         //import { limit } from '../Scripts/main/limits.js'
-        //import { mixin } from '../Scripts/main/main.js'
-        let mixinArr = [limit, mixin];
+        //import { layout } from '../Scripts/main/main.js'
+        let mixinArr = [limit, layout];
         if (typeof app != 'undefined') mixinArr.push(app);
         var vm = new Vue({
             el: "#mainVM",
@@ -86,25 +96,50 @@
                 userName: '@sessionUserName',
                 userRole: '@sessionRole',
                 userDepartment: '@sessionDepartment'
+            },
+            mounted() {
+                setTimeout(() => {
+                    L2Dwidget.init({
+                        "model": {
+                            "scale": 0.1
+                        },
+                        "display": {
+                            "superSample": 2,
+                            "position": "right",
+                            "width": 80,
+                            "height": 120,
+                            "hOffset": 0,
+                            "vOffset": 0
+                        },
+                        "mobile": {
+                            "show": true,
+                            "scale": 0.5
+                        },
+                        "react": {
+                            "opacityDefault": 0.7,
+                            "opacityOnHover": 0.2
+                        }
+                    });
+                }, 0)
             }
         });
 
         // 添加请求拦截器
-        axios.interceptors.request.use(function (config) {
-            vm.mainLoading = true;
-            return config;
-        }, function (error) {
-            return Promise.reject(error);
-        });
+        //axios.interceptors.request.use(function (config) {
+        //    vm.mainLoading = true;
+        //    return config;
+        //}, function (error) {
+        //    return Promise.reject(error);
+        //});
 
-        // 添加响应拦截器
-        axios.interceptors.response.use(function (response) {
-            vm.mainLoading = false;
-            return response;
-        }, function (error) {
-            vm.mainLoading = false;
-            return Promise.reject(error);
-        });
+        //// 添加响应拦截器
+        //axios.interceptors.response.use(function (response) {
+        //    vm.mainLoading = false;
+        //    return response;
+        //}, function (error) {
+        //    vm.mainLoading = false;
+        //    return Promise.reject(error);
+        //});
 
         ////执行多个并发请求
 
@@ -121,5 +156,6 @@
         //    // 两个请求现在都执行完成
         //}));
     </script>
+    <script type="text/javascript" charset="utf-8" async="" src="https://cdn.jsdelivr.net/npm/live2d-widget@3.0.4/lib/L2Dwidget.min.js"></script>
 </body>
 </html>

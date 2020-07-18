@@ -1,0 +1,176 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class PlansController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        // GET: KPI
+        public ActionResult Index()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login2", "Users", new { col = "Plans", act = "Index" });
+            }
+            return View();
+        }
+        public ActionResult Section_Enter()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login2", "Users", new { col = "Plans", act = "Section_Enter" });
+            }
+            return View();
+        }
+
+        // GET: KPI/Details/5
+        public ActionResult Details(int id)
+        {
+            return View();
+        }
+
+        // GET: KPI/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: KPI/Create
+        [HttpPost]
+        public ActionResult Create(FormCollection collection)
+        {
+            try
+            {
+                // TODO: Add insert logic here
+
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                return View();
+            }
+        }
+
+        // GET: KPI/Edit/5
+        public ActionResult Edit(int id)
+        {
+            return View();
+        }
+
+        // POST: KPI/Edit/5
+        [HttpPost]
+        public ActionResult Edit(int id, FormCollection collection)
+        {
+            try
+            {
+                // TODO: Add update logic here
+
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                return View();
+            }
+        }
+
+        // GET: KPI/Delete/5
+        public ActionResult Delete(int id)
+        {
+            return View();
+        }
+
+        // POST: KPI/Delete/5
+        [HttpPost]
+        public ActionResult Delete(int id, FormCollection collection)
+        {
+            try
+            {
+                // TODO: Add delete logic here
+
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                return View();
+            }
+        }
+
+        #region 工段工序功能集合
+        //显示工段工序
+        public ActionResult DisplayPlanSectionParameter()
+        {
+            JArray result = new JArray();
+            var value = db.Plan_SectionParameter.ToList();
+            foreach (var item in value)
+            {
+                JObject obj = new JObject();
+                obj.Add("id", item.Id);
+                obj.Add("Process", item.Process);
+                obj.Add("Section", item.Section);
+                obj.Add("Table", item.Table);
+                result.Add(obj);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //输入工段工序
+        public string AddPlanSectionParameter(string Process, string Section)
+        {
+            var info = db.Plan_SectionParameter.Count(c => c.Process == Process && c.Section == Section);
+            if (info != 0)
+            {
+                return "已有重复工段工序";
+            }
+            Plan_SectionParameter parameter = new Plan_SectionParameter() { Process = Process, Section = Section, Createor = ((Users)Session["User"]) == null ? "测试人员" : ((Users)Session["User"]).UserName, CreateTime = DateTime.Now };
+            db.Plan_SectionParameter.Add(parameter);
+            db.SaveChanges();
+            return "true";
+        }
+
+        //修改工段工序
+        public string UpdatePlanSectionParameter(int id,string Process, string Section,string Table=null)
+        {
+            var info = db.Plan_SectionParameter.Find(id);
+            if (info == null)
+            {
+                return "找不到改信息记录";
+            }
+            //判断指标清单表是否有记录
+            var info2 = db.KPI_Indicators.Where(c => c.Process == info.Process && c.Section == info.Section).ToList();
+
+            info.Process = Process;
+            info.Section = Section;
+            info.Table = Table;
+
+            info2.ForEach(c => {
+                c.Section = Section;
+                c.Process = Process;
+                var temp= (c.ActualSQL.Substring(c.ActualSQL.LastIndexOf("from") + 5)).Split(' ');
+                c.ActualSQL.Replace(temp[0], Table);
+            });
+            db.SaveChanges();
+            return "true";
+        }
+
+        //删除工段工序
+        public string DeletePlanSectionParameter(int id)
+        {
+            var info = db.Plan_SectionParameter.Find(id);
+            if (info == null)
+            {
+                return "找不到改信息记录";
+            }
+            db.Plan_SectionParameter.Remove(info);
+            db.SaveChanges();
+            return "true";
+        }
+        #endregion
+    }
+}

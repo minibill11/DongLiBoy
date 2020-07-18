@@ -1,4 +1,4 @@
-﻿const mixin = {
+﻿const layout = {
     data: function () {
         return {
             mainLoading: false,//loading状态开关
@@ -14,6 +14,10 @@
     created: function () {
         //获取地址栏信息
         this.GetUrlParam();
+        if (!this.userName) {
+            let skipurl = this.urlPathName.split('/').filter(i => i);
+            if (skipurl) { location.href = `/Users/Login2?col=${skipurl[0]}&act=${skipurl.slice(1).join('/')}`; } else { location.href = '/Users/Login2'; };
+        };
         //处理菜单展开
         this.activeIndex = localStorage.getItem("menuIndexKey");
         this.openedsArr = JSON.parse(localStorage.getItem("menuIndexKeyPath"));

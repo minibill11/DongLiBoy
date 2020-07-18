@@ -1,0 +1,149 @@
+﻿@{
+    ViewBag.Title = "打印物料条码";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/warehouseMaterial/warehouse.less" />
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="QueryPrint" title="@ViewBag.Title"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center main">
+                <el-form :inline="true" :model="queryTable" size="small" @@submit.native.prevent>
+                    <el-form-item label="输入物料编号">
+                        <el-input placeholder="请输入物料编号"
+                                  v-model.trim="queryTable.materialNumber"
+                                  v-on:keyup.native.enter="getdata"
+                                  size="medium"
+                                  clearable>
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="getdata">查询</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="small"
+                          align="center"
+                          class="wareQueryTable"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号" align="center" width="40">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="MaterialNumber" label="物料编号" align="center" min-width="80">
+                    </el-table-column>
+                    <el-table-column label="操作" align="center" width="90">
+                        <template slot-scope="scope">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" size="mini" class="miniBtn">编辑</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_warehouseMenu.cshtml")
+    @RenderPage("_wareEdit.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/warehouseMaterial/warehouse.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,//控制页面loading等待状态
+                    tableList: [],//存储表格总数据
+                    queryTable: {
+                        materialNumber: "",
+                    },
+                    initialData: {}
+                }
+            },
+            mixins: [warehouse],
+            methods: {
+                getdata: function () {
+                    if (this.materialNumber == "") {
+                        return;
+                    };
+                    this.loading = true;
+                    axios.post("/Warehouse_Material/QueryData", {
+                        materialNumber: this.queryTable.materialNumber,
+                    }).then(res => {
+                        if (Object.keys(res.data).length > 0) {
+                            this.tableList = [];
+                            res.data['edit'] = false;
+                            this.tableList.push(res.data);
+                            this.$message.success("查询成功");
+                        } else {
+                            this.$message.success("此物料号无数据");
+                        };
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn(err);
+                        this.loading = false;
+                    });
+                },
+                //验证条码，录入信息，打印条码，
+                Modify_material(row) {
+                    //录入数据
+                    axios.post('/Warehouse_Material/Modify_material', {
+                        warehouse_Material: row,
+                    }).then(res => {
+                        if (res.data.tally) {
+                            this.$message.success('保存成功');
+                            console.log(res.data.warehouse_Material);
+                            row.edit = false;
+                            this.initialData = {};
+                        } else {
+                            this.$message.error('保存失败');
+                            this.cancelClick(row);
+                        };
+                    }).catch(err => {
+                        this.$message.error('保存出错');
+                        console.warn("post失败")
+                    });
+                },
+                //启动编辑
+                editClick(row) {
+                    for (let i of this.tableList) {
+                        if (i.edit) {
+                            this.$message.warning('存在正在编辑的行');
+                            return;
+                        };
+                    };
+                    this.initialData = {};
+                    this.initialData = { ...row };
+                    row.edit = true;
+                },
+                //取消编辑
+                cancelClick(row) {
+                    let item = row, ini = this.initialData;
+                    for (let i in ini) {
+                        item[i] = ini[i];
+                    };
+                    this.initialData = {};
+                },
+                //保存编辑
+                saveClick(row) {
+                    this.Modify_material(row);
+                },
+            }
+        };
+    </script>
+}

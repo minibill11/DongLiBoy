@@ -1,0 +1,204 @@
+﻿@{
+    ViewBag.Title = "打印物料条码";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/warehouseMaterial/warehouse.less" />
+}
+@*
+    H221-20060993
+    700B-0101
+*@
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="QueryPrint" title="@ViewBag.Title"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row>
+                <div class="inputframe">
+                    <span>料件编号：</span>
+                    <el-select v-model="lhVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in lhOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>生产日期：</span>
+                    <el-select v-model="sjVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in sjOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <span>批次：</span>
+                    <el-select v-model="pcVal" placeholder="输入内容可查询" filterable clearable size="medium">
+                        <el-option v-for="item in pcOptions"
+                                   :key="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="inputframe">
+                    <a href="/SMT_Sulderpaster/AddWareHouseBaseInfo"><el-button size="small" type="primary" class="el-icon-back" plain>返回</el-button></a>
+                    <el-button v-on:click="printBarcode" size="medium">打印选中条码</el-button>
+                </div>
+                <div class="inputframe" v-show="checkboxList.length!=0">
+                    <div class="divframe" style="text-align:center;min-height:0;">
+                        <el-checkbox @@change="handleCheckAllChange" size="mini" border style="padding:1px 3px;height:22px;margin:1px">全选</el-checkbox>
+                        <span style="color:#409EFF">条码清单：</span>
+                        <div style="max-height:200px;overflow:auto">
+                            <template v-for="item in checkboxList">
+                                <el-checkbox v-model="item.statu" size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item.value}}</el-checkbox>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </el-row>
+            <el-row class="text-center">
+                <el-col style="max-width:500px;">
+                    <ware-stock-component></ware-stock-component>
+                    <ware-print-component v-model="printData">
+                        <print-component v-model="printInfo"></print-component>
+                    </ware-print-component>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_warehouseMenu.cshtml")
+    @RenderPage("_wareEdit.cshtml")
+    @RenderPage("~/Views/ModuleManagement/_print.cshtml")
+    @RenderPage("_warePrint.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/warehouseMaterial/warehouse.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    printData: {
+                        list: [],
+                        num: '',
+                        discription: '',
+                    },
+                    lhVal: '',
+                    lhOptions: [],
+                    sjVal: '',
+                    sjOptions: [],
+                    pcVal: '',
+                    pcOptions: [],
+                    checkboxList: [],
+                    loading: false,
+                }
+            },
+            created() {
+                axios.post('/SMT_Sulderpaster/GetPrintAgainMaterialNumberList').then(res => {
+                    this.lhOptions = res.data;
+                }).catch(err => {
+                    console.warn("获取选择列表失败")
+                });
+            },
+            mounted: function () {
+                let localOrder = localStorage.getItem('lh');
+                if (localOrder != null) {
+                    this.lhVal = localOrder;
+                };
+            },
+            mixins: [warehouse],
+            methods: {
+                printBarcode() {
+                    this.loading = true;
+                    let printList = [], thisList = this.checkboxList;
+                    for (let i in thisList) {
+                        if (thisList[i].statu == true) {
+                            printList.push(thisList[i].value);
+                        };
+                    };
+
+                    if (printList.length == 0) {
+                        this.$message({
+                            showClose: true,
+                            message: "没有选中条码！",
+                            type: 'warning'
+                        });
+                        this.loading = false;
+                        return;
+                    };
+
+                    axios.post('/SMT_Sulderpaster/InsideBoxLable_Print', {
+                        barcodelist: printList,
+                        port: 9101,
+                    }).then(function (res) {
+                        console.log(res.data)
+                        let rtm = res.data[0].message;
+                        //成功存储和打印
+                        this.$message({
+                            showClose: true,
+                            message: rtm,
+                            type: 'success'
+                        });
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn("打印出错");
+                        this.loading = false;
+                    });
+                },
+                handleCheckAllChange: function (v) {
+                    //console.log(v)
+                    let checkList = this.checkboxList;
+                    for (let i in checkList) {
+                        checkList[i].statu = v;
+                    };
+                }
+            },
+
+            watch: {
+                lhVal: function (v) {
+                    this.sjVal = "";
+                    this.sjOptions = [];
+                    this.pcVal = "";
+                    this.pcOptions = [];
+                    localStorage.setItem('lh', v);
+                    axios.post('/SMT_Sulderpaster/GetPrintAgainLeaveFactoryTimeList', { materialNumber: v }).then(res => {
+                        this.sjOptions = res.data;
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    });
+                },
+                sjVal: function (v) {
+                    this.pcVal = "";
+                    this.pcOptions = [];
+                    axios.post('/SMT_Sulderpaster/GetPrintAgainBatchList', { materialNumber: this.lhVal, time: v }).then(res => {
+                        this.pcOptions = res.data;
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    });
+                },
+                pcVal: function (v) {
+                    this.checkboxList = [];
+                    axios.post('/SMT_Sulderpaster/DisplayPrintAgainBarcode', { materialNumber: this.lhVal, leaveFactoryTime: this.sjVal, batch: v }).then(res => {
+                        let rtd = res.data, LH = this.checkboxList;
+                        for (let i in rtd) {
+                            LH.push({
+                                value: rtd[i],
+                                statu: false
+                            });
+                        };
+                    }).catch(err => {
+                        console.warn("出错")
+                    });
+                }
+            }
+        };
+    </script>
+}
