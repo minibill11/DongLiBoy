@@ -1,0 +1,342 @@
+﻿@{
+    ViewBag.Title = "查看内/外箱标签";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .main .flex-item {
+            width: 320px;
+            padding-right: 0;
+            margin: 0 auto;
+        }
+
+        #img > img {
+            width: 300px;
+        }
+
+        .divframe {
+            width: 320px;
+            margin: 1px auto;
+            text-align: center;
+            border: 1px solid #ccc;
+            min-height: 300px;
+        }
+
+        .el-checkbox__label {
+            padding-left: 5px;
+        }
+    </style>
+
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="Again_Print" title="@ViewBag.Title"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="main">
+                <div class="flex-item">
+                    <label>订单号</label>
+                    <div>
+                        <el-autocomplete v-model.trim="selectOrdernum"
+                                         @@select="selectHandle"
+                                         :fetch-suggestions="querySearch"
+                                         :debounce="0"
+                                         size="medium"
+                                         placeholder="输入内容可查询"
+                                         highlight-first-item
+                                         clearable></el-autocomplete>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <label>装箱款式</label>
+                    <div>
+                        <el-select v-model="sideStatue"
+                                   @@change="selectHandle"
+                                   placeholder="请选择"
+                                   clearable
+                                   size="medium">
+                            <el-option label="纸箱" value="纸箱"></el-option>
+                            <el-option label="纸盒" value="纸盒"></el-option>
+                            <el-option label="外箱" value="外箱"></el-option>
+                        </el-select>
+                    </div>
+                </div>
+                <print-component v-model="printInfo"></print-component>
+                <div class="flex-item">
+                    <label>语言</label>
+                    <div>
+                        <el-select v-model.trim="leng" placeholder="请选择语言" clearable size="medium">
+                            <el-option v-for="item in lengOptions"
+                                       :key="item.value"
+                                       :value="item.value"></el-option>
+                        </el-select>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <div class="divframe" style="height:auto;min-height:0;max-height:100px;border:0;text-align:right;">
+                        <el-button v-on:click="clearList" size="mini" round>重置</el-button>
+                        <el-button v-on:click="selectHandle" size="mini" round>查找清单</el-button>
+                    </div>
+                </div>
+                <div class="divframe" style="text-align:center;min-height:0;max-height:200px;">
+                    <el-button v-on:click="barGetListData2" size="mini" round>查看勾选条码</el-button>
+                    <el-button v-on:click="print" size="mini" round>打印选中条码</el-button><br />
+                    <el-checkbox v-model="checkAll" @@change="handleCheckAllChange" size="mini" border style="padding:1px 3px;height:22px;margin:1px">全选</el-checkbox>
+                    <span style="color:#409EFF">此订单已存在条码：</span>
+                    <div style="max-height:150px;overflow:auto">
+                        <template v-for="item in orderList">
+                            <el-checkbox v-model="item.statu" size="mini" border style="padding:1px 3px;height:22px;margin:1px">{{item.value}}</el-checkbox>
+                        </template>
+                    </div>
+                </div>
+                <div>
+                    <div id="img"></div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_moduleMenu.cshtml")
+    @RenderPage("_print.cshtml")
+    @RenderPage("~/Views/Shared/_SelectInput.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    screenSize: document.body.clientWidth,
+                    loading: false,
+                    orderList: [],
+                    imgNum: 0,
+                    leng: '中/英',
+                    lengOptions: [{
+                        value: '中',
+                        label: '中'
+                    }, {
+                        value: '英',
+                        label: '英',
+                    }, {
+                        value: '中/英',
+                        label: '中/英'
+                    }],
+                    checkAll: false,
+                    selectOrdernum: '',
+                    sideStatue: '',
+                }
+            },
+            mixins: [setModuleManagement],
+            created: function () {
+                window.onresize = function () {
+                    vm.screenSize = document.body.clientWidth;
+                };
+            },
+            methods: {
+                //获取图片
+                barGetListData2: function () {
+                    let list = this.orderList, postList = [];
+                    if (list.length > 0) {
+                        for (let i in list) {
+                            if (list[i].statu == true) {
+                                postList.push(list[i].value);
+                            };
+                        };
+                        if (postList.length > 0) {
+                            document.getElementById('img').innerHTML = '';
+                            //$("#img>img").remove();
+                            this.loading = true;
+                            this.imgNum = 0;
+                            for (let i in postList) {
+                                this.getImg(postList[i], postList.length);
+                            };
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                message: '没有勾选查询清单！',
+                                type: 'error'
+                            });
+                        };
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '没有可查询清单！',
+                            type: 'error'
+                        });
+                    };
+                },
+                //显示图片方法
+                getImg: function (barcode, num) {
+                    let url = '', param = {};
+                    if (this.sideStatue == '外箱') {
+                        url = '/ModuleManagement/OutsideBoxLablePrintToImg';
+                        param = {
+                            outsidebarcode: barcode,
+                            leng: this.leng,
+                        };
+                    } else if (this.sideStatue == '纸箱' || this.sideStatue == '纸盒') {
+                        url = '/ModuleManagement/InsideBoxLablePrintToImg';
+                        param = {
+                            outsidebarcode: barcode,
+                            statue: this.sideStatue
+                        };
+                    };
+                    axios.post(url, param, {
+                        responseType: "arraybuffer",
+                    }).then(function (response) {
+                        //console.log(response.data)
+                        //将从后台获取的图片流进行转换
+                        return 'data:image/png;base64,' + btoa(
+                            new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                        );
+                    }).then(function (data) {
+                        //接收转换后的Base64图片
+                        //console.log(data);
+                        let cc = new Image();
+                        cc.src = data;
+                        document.getElementById("img").appendChild(cc);
+
+                        vm.imgNum++;
+                        if (vm.imgNum == num) {
+                            vm.loading = false;
+                        };
+                    }).catch(err => {
+                        vm.imgNum++;
+                        if (vm.imgNum == num) {
+                            vm.loading = false;
+                        };
+                        console.warn("显示失败");
+                    });
+                },
+                //打印
+                print: function (v) {
+                    let list = this.orderList, postList = [];
+                    if (list.length > 0) {
+                        for (let i in list) {
+                            if (list[i].statu == true) {
+                                postList.push(list[i].value);
+                            };
+                        };
+                        if (postList.length > 0) {
+                            this.loading = true;
+                            this.imgNum = 0;
+
+                            let url = '';
+                            if (this.sideStatue == '外箱') {
+                                url = '/ModuleManagement/OutsideBoxLablePrintAgain';
+                            } else if (this.sideStatue == '纸箱' || this.sideStatue == '纸盒') {
+                                url = '/ModuleManagement/InsideBoxLablePrintAgain';
+                            };
+                            for (let i in postList) {
+                                axios.post(url, {
+                                    outsidebarcode: postList[i],
+                                    leng: this.leng,
+                                    statue: this.sideStatue,
+                                    pagecount: this.printInfo.pagecount,
+                                    concentration: this.printInfo.concentration,
+                                    ip: this.printInfo.ip,
+                                    port: this.printInfo.port,
+                                }).then(res => {
+                                    if (res.data == '打印成功！') {
+                                        this.$message({
+                                            showClose: true,
+                                            message: res.data,
+                                            type: 'success'
+                                        });
+                                    } else {
+                                        this.$message({
+                                            showClose: true,
+                                            message: res.data,
+                                            type: 'error'
+                                        });
+                                    };
+                                    this.imgNum++;
+                                    if (this.imgNum == postList.length) {
+                                        this.loading = false;
+                                    };
+                                }).catch(err => {
+                                    this.$message({
+                                        showClose: true,
+                                        message: '打印出错！',
+                                        type: 'error'
+                                    });
+                                    this.imgNum++;
+                                    if (this.imgNum == postList.length) {
+                                        this.loading = false;
+                                    };
+                                });
+                            };
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                message: '没有勾选条码！',
+                                type: 'error'
+                            });
+                        };
+                    } else {
+                        this.$message({
+                            showClose: true,
+                            message: '条码清单为空！',
+                            type: 'error'
+                        });
+                    };
+                },
+                //重置
+                clearList: function () {
+                    document.getElementById('img').innerHTML = '';
+                    //$("#img>img").remove();
+                    let OL = this.orderList;
+                    for (let i in OL) {
+                        OL[i].statu = false;
+                    };
+                },
+                handleCheckAllChange: function (v) {
+                    //console.log(v)
+                    let checkList = this.orderList;
+                    for (let i in checkList) {
+                        checkList[i].statu = v;
+                    };
+                },
+                selectHandle() {
+                    if (this.checkSelectNull()) return;
+                    this.orderList = [];
+                    this.checkAll = false;
+                    axios.post('/ModuleManagement/DisplayPackage', { ordernum: this.selectOrdernum, statu: this.sideStatue }).then(res => {
+                        let rtd = res.data, OL = this.orderList;
+                        for (let i in rtd) {
+                            OL.push({
+                                value: rtd[i],
+                                statu: false
+                            });
+                        };
+                    }).catch(err => {
+                        console.warn("出错")
+                    });
+                },
+                checkSelectNull() {
+                    if (this.selectOrdernum == '' || this.sideStatue == '') {
+                        this.orderList = [];
+                        this.checkAll = false;
+                        return true;
+                    } else {
+                        return false;
+                    };
+                },
+            },
+            watch: {
+                selectOrdernum(v) {
+                    if (v == '') {
+                        this.orderList = [];
+                        this.checkAll = false;
+                    };
+                },
+            }
+        };
+    </script>
+}

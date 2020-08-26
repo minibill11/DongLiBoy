@@ -1,0 +1,534 @@
+﻿
+<script type="text/template" id="KPI_StemFrom_Input_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-input v-model="pasteExcel" placeholder="表格粘贴处" type="textarea" resize="none" rows="1" size="medium"
+                          v-loading="pasteLoading"></el-input>
+            </div>
+            <div class="table-top-right">
+                <el-date-picker v-model="changeAllTime"
+                                type="date"
+                                size="medium"
+                                placeholder="选择时间">
+                </el-date-picker>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      @*row-class-name="zero-padding"*@
+                      max-height="600"
+                      size="small"
+                      border>
+                <el-table-column type="index" label="序号"></el-table-column>
+                <el-table-column label="部门" min-width="110">
+                    <template slot-scope="scope">
+                        @*<el-input v-model.trim="scope.row.Department" size="mini"></el-input>*@
+                        <el-select v-model="scope.row.Department"
+                                   placeholder="请选择部门"
+                                   size="mini"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="班组" min-width="110">
+                    <template slot-scope="scope">
+                        @*<el-input v-model.trim="scope.row.Group" size="mini"></el-input>*@
+                        <el-select v-model="scope.row.Group"
+                                   placeholder="请选择班组"
+                                   size="mini"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in grouplist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="考核指标名称" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.IndicatorsName" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="指标定义" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.IndicatorsDefine" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="计算公式" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.ComputationalFormula" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="目标值" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.IndicatorsValue" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="目标值单位" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.IndicatorsValueUnit" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="数据名称" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.DataName" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="数据提供周期（天/周/月）" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.Cycle" size="mini">
+                            <el-option label="天" value="天"></el-option>
+                            <el-option label="周" value="周"></el-option>
+                            <el-option label="月" value="月"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="数据来源部门" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.SourceDepartment" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="数据录入人员" min-width="100">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.DataInputor" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="录入时间" min-width="140">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.DataInputTime" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="考核类型" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.IndicatorsType" size="mini">
+                            <el-option label="品质指标" value="品质指标"></el-option>
+                            <el-option label="效率指标" value="效率指标"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="考核工段" min-width="110">
+                    <template slot-scope="scope">
+                        @*<el-input v-model.trim="scope.row.Section" size="mini"></el-input>*@
+                        <el-select v-model="scope.row.Section"
+                                   placeholder="请选择工段"
+                                   @@change="getRowProcess(scope.row)"
+                                   size="mini"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in sectionlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="考核工序" min-width="110">
+                    <template slot-scope="scope">
+                        @*<el-input v-model.trim="scope.row.Process" size="mini"></el-input>*@
+                        <el-select v-model="scope.row.Process"
+                                   placeholder="请选择工序"
+                                   size="mini"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in scope.row.processlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="考核正常/异常" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.IndicatorsStatue" size="mini">
+                            <el-option label="正常" value="正常"></el-option>
+                            <el-option label="异常" value="异常"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="执行时间" min-width="140">
+                    <template slot-scope="scope">
+                        <el-date-picker v-model="scope.row.ExecutionTime"
+                                        type="date"
+                                        size="mini"
+                                        placeholder="选择时间">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="50" fixed="right">
+                    <template slot-scope="scope">
+                        <el-button @@click="deleteClick(scope.$index)" class="cbtn red" type="text">清除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-button type="primary" @@click="onInputSubmit" size="medium" :disabled="tableList.length==0">录入</el-button>
+                <el-button @@click="showChange" size="medium">取消</el-button>
+            </div>
+            <div class="table-bottom-right">
+                <el-button @@click="addRowVisible = true" class="addbtn" type="info" size="medium" plain>增加一行</el-button>
+            </div>
+        </el-row>
+        <el-row>
+            <el-dialog title="计划信息录入"
+                       @@close="close('ruleForm')"
+                       :visible.sync="addRowVisible">
+                <el-form label-width="30%"
+                         label-position="right"
+                         class="addRowDia"
+                         ref="ruleForm"
+                         size="medium"
+                         :rules="rules"
+                         :model="addRowForm">
+                    <el-form-item label="部门" prop="Department">
+                        <el-select v-model="addRowForm.Department"
+                                   placeholder="请选择部门"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="班组" prop="Group">
+                        <el-select v-model="addRowForm.Group"
+                                   placeholder="请选择班组"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in grouplist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="考核指标名称" prop="IndicatorsName">
+                        <el-input v-model="addRowForm.IndicatorsName"></el-input>
+                    </el-form-item>
+                    <el-form-item label="指标定义" prop="IndicatorsDefine">
+                        <el-input v-model="addRowForm.IndicatorsDefine"></el-input>
+                    </el-form-item>
+                    <el-form-item label="计算公式" prop="ComputationalFormula">
+                        <el-input v-model="addRowForm.ComputationalFormula"></el-input>
+                    </el-form-item>
+                    <el-form-item label="目标值" prop="IndicatorsValue">
+                        <el-input v-model="addRowForm.IndicatorsValue"></el-input>
+                    </el-form-item>
+                    <el-form-item label="目标值单位" prop="IndicatorsValueUnit">
+                        <el-input v-model="addRowForm.IndicatorsValueUnit"></el-input>
+                    </el-form-item>
+                    <el-form-item label="数据名称" prop="DataName">
+                        <el-input v-model="addRowForm.DataName"></el-input>
+                    </el-form-item>
+                    <el-form-item label="数据提供周期(天/周/月)" prop="Cycle">
+                        <el-select v-model="addRowForm.Cycle">
+                            <el-option label="天" value="天"></el-option>
+                            <el-option label="周" value="周"></el-option>
+                            <el-option label="月" value="月"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="数据来源部门" prop="SourceDepartment">
+                        <el-select v-model="addRowForm.SourceDepartment"
+                                   placeholder="请选择部门"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="数据录入人员" prop="DataInputor">
+                        <el-input v-model="addRowForm.DataInputor"></el-input>
+                    </el-form-item>
+                    <el-form-item label="录入时间" prop="DataInputTime">
+                        <el-input v-model="addRowForm.DataInputTime"></el-input>
+                    </el-form-item>
+                    <el-form-item label="考核类型" prop="IndicatorsType">
+                        <el-select v-model="addRowForm.IndicatorsType">
+                            <el-option label="品质指标" value="品质指标"></el-option>
+                            <el-option label="效率指标" value="效率指标"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="考核工段" prop="Section">
+                        <el-select v-model="addRowForm.Section"
+                                   placeholder="请选择工段"
+                                   @@change="getProcess"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in sectionlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="考核工序" prop="Process">
+                        <el-select v-model="addRowForm.Process"
+                                   placeholder="请选择工序"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in processlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="考核正常/异常" prop="IndicatorsStatue">
+                        <el-select v-model="addRowForm.IndicatorsStatue">
+                            <el-option label="正常" value="正常"></el-option>
+                            <el-option label="异常" value="异常"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="执行时间" prop="ExecutionTime">
+                        <el-date-picker v-model="addRowForm.ExecutionTime"
+                                        type="date"
+                                        placeholder="选择日期时间">
+                        </el-date-picker>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button @@click="addRowVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>
+        </el-row>
+    </el-row>
+</script>
+<script>
+    Vue.component('kpi-stemfrom-input-component', {
+        props: ['departmentlist', 'grouplist', 'sectionlist', 'processlist'],
+        template: document.getElementById("KPI_StemFrom_Input_Component"),
+        data: function () {
+            return {
+                pasteExcel: '',
+                tableList: [],
+                addRowForm: {
+                    Department: '',
+                    Group: '',
+                    IndicatorsName: '',
+                    IndicatorsDefine: '',
+                    ComputationalFormula: '',
+                    IndicatorsValue: '',
+                    IndicatorsValueUnit: '',
+                    DataName: '',
+                    Cycle: '',
+                    SourceDepartment: '',
+                    DataInputor: '',
+                    DataInputTime: '',
+                    IndicatorsType: '',
+                    Section: '',
+                    Process: '',
+                    IndicatorsStatue: '',
+                    ExecutionTime: null,
+                },
+                addRowVisible: false,
+                rules: {},
+                changeAllTime: null,
+                relationList: [],
+                pasteLoading: false
+            }
+        },
+        created() {
+            this.GetRelation();
+        },
+        mounted() {
+            const stringTest = [{ required: true, message: '不能为空', trigger: 'blur' }],
+                changeTest = [{ required: true, message: '不能为空', trigger: 'change' }],
+                numberTest = [
+                    { required: true, message: '数量不能为空', trigger: 'blur' },
+                    { type: 'number', message: '必须为数字值' }
+                ];
+            this.rules = {
+                Department: changeTest,
+                Group: changeTest,
+                IndicatorsName: stringTest,
+                IndicatorsDefine: stringTest,
+                ComputationalFormula: stringTest,
+                IndicatorsValue: stringTest,
+                IndicatorsValueUnit: stringTest,
+                DataName: stringTest,
+                Cycle: changeTest,
+                SourceDepartment: changeTest,
+                DataInputor: stringTest,
+                DataInputTime: changeTest,
+                IndicatorsType: changeTest,
+                Section: changeTest,
+                Process: changeTest,
+                IndicatorsStatue: changeTest,
+                ExecutionTime: changeTest,
+            };
+        },
+        methods: {
+            GetRelation() {
+                this.pasteLoading = true;
+                axios.post('/KPI/GetRelation').then(res => {
+                    this.relationList = res.data;
+                    this.pasteLoading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.pasteLoading = false;
+                });
+            },
+            onInputSubmit() {
+                vm.mainLoading = true;
+                if (!this.checkData()) {
+                    vm.mainLoading = false;
+                    return;
+                };
+                axios.post("/KPI/BacthAddKPIIndicators", { indicators: this.tableList }).then(res => {
+                    if (res.data == '新增成功') {
+                        setTimeout(() => {
+                            this.$emit("input", true);
+                            this.$message.success('录入成功');
+                            this.tableList = [];
+                            vm.mainLoading = false;
+                        }, 500);
+                    } else {
+                        this.$alert(res.data, {
+                            closeOnClickModal: true,
+                            closeOnPressEscape: true,
+                            type: "error",
+                        });
+                        vm.mainLoading = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                    vm.mainLoading = false;
+                });
+            },
+            //检查数据
+            checkData() {
+                for (let row of this.tableList) {
+                    for (let i of Object.values(row)) {
+                        if (i == '' || i == null) {
+                            this.$message.warning('数据不完整,请检查数据是否为空或为0');
+                            return false;
+                        };
+                    };
+                };
+                return true;
+            },
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.tableList = [];
+                    this.pasteExcel = '';
+                    this.$emit("input", true);
+                    vm.mainLoading = false;
+                }, 500);
+            },
+            //删除
+            deleteClick(index) {
+                this.tableList.splice(index, 1);
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.addRowForm.processlist = this.processlist;
+                        this.tableList.push({ ...this.addRowForm });
+                        this.addRowVisible = false;
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            },
+            getProcess(v) {
+                vm.GetProcessList(v);
+            },
+            getRowProcess(row) {
+                if (row.Section) {
+                    axios.post('/KPI/GetProcessList', { section: row.Section }).then(res => {
+                        row.processlist = res.data;
+                    }).catch(err => {
+                        row.processlist = [];
+                        console.warn(err);
+                    });
+                } else {
+                    row.Process = '';
+                    row.processlist = [];
+                };
+            },
+        },
+        watch: {
+            pasteExcel(val) {
+                if (val == '') {
+                    return false;
+                };
+                this.tableList = [];
+                let rows = val.split('\n');
+                rows.pop();
+                rows.forEach((v, i) => {
+                    let col = v.split("\t")
+                    rows[i] = col;
+                });
+                for (let i of rows) {
+                    let s = '', p = '';
+                    for (let r of this.relationList) {
+                        if (r.Department == i[0]) {
+                            for (let g of r.TGroup) {
+                                if (g.Group == i[1]) {
+                                    if (g.TSection.length == 1) {
+                                        s = g.TSection[0].Section;
+                                        if (g.TSection[0].TProcess.length == 1) {
+                                            p = g.TSection[0].TProcess[0].Process;
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                    this.tableList.push({
+                        Department: i[0],
+                        Group: i[1],
+                        IndicatorsName: i[2],
+                        IndicatorsDefine: i[3],
+                        ComputationalFormula: i[4],
+                        IndicatorsValue: i[5].match(/\d+\.?\d*/)[0],
+                        IndicatorsValueUnit: i[5].match(/(?<=\d+\.?\d*)[^\d\.]{1}/)[0],
+                        DataName: i[6],
+                        Cycle: i[7],
+                        SourceDepartment: i[8],
+                        DataInputor: i[9],
+                        DataInputTime: i[10],
+                        IndicatorsType: i[11],
+                        Section: s,
+                        Process: p,
+                        processlist: [],
+                        IndicatorsStatue: i[12],
+                        ExecutionTime: null,
+                    });
+                    this.getRowProcess(this.tableList[this.tableList.length - 1]);
+                };
+                this.pasteExcel = '';
+            },
+            changeAllTime(v) {
+                for (let i of this.tableList) {
+                    i.ExecutionTime = v;
+                };
+            },
+        },
+    });
+</script>

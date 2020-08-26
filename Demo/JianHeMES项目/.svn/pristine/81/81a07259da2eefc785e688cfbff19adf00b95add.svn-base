@@ -1,0 +1,163 @@
+﻿@{
+    ViewBag.Title = "部门设备详细时长表";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        <div class="eq-title">部门设备详细时长表</div>
+    </el-header>
+    <el-main class="main-box">
+        @* 查询选择框s *@
+        <div class="equipment-index-inputcontainer">
+            <div class="equipment-index-inputcontainer-item">
+                <div>使用部门：</div>
+                <el-select v-model="selete_department" size="mini" allow-create filterable clearable placeholder="请选择使用部门" style="width:130px;">
+                    <el-option v-for="item in department_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>日期：</div>
+                <el-date-picker placeholder="请输入日期"
+                                v-model="select_date"
+                                size="mini"
+                                type="month"
+                                clearable style="width:130px;">
+                </el-date-picker>
+            </div>
+            <el-button type="primary" size="mini" v-on:click="onGetData">查询</el-button>
+        </div>
+            <el-table v-bind:data="tableData"
+                      style="width: 100%"
+                      max-height="680px"
+                      border stripe>
+                <el-table-column type="index" width="50">
+                </el-table-column>
+                <el-table-column prop="Userdepartment"
+                                 label="使用部门">
+                </el-table-column>
+                <el-table-column prop="EquipmentNumber"
+                                 label="设备编号">
+                </el-table-column>
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称">
+                </el-table-column>
+                <el-table-column prop="Runtime"
+                                 label="运行时长">
+                </el-table-column>
+                <el-table-column prop="Runtime_percen"
+                                 label="运行占比">
+                </el-table-column>
+                <el-table-column prop="Downtime"
+                                 label="停机时长">
+                </el-table-column>
+                <el-table-column prop="Stop_percen"
+                                 label="停机占比">
+                </el-table-column>
+                <el-table-column prop="Maintentime"
+                                 label="维修时长">
+                </el-table-column>
+                <el-table-column prop="Maintentime_percen"
+                                 label="维修占比">
+                </el-table-column>
+            </el-table>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                selete_department: '',
+                select_date: new Date(),
+                department_options: [],
+                tableData: []
+            },
+            mounted() {
+                this.onGetAddress();
+                this.onGetDepartment();
+            },
+            watch: {
+
+            },
+            methods: {
+                //获取地址传参
+                onGetAddress() {
+                    let lastUrl = document.referrer;
+                    if (lastUrl.toLowerCase().indexOf("KPI_7S_Summarizing_Daily") == -1) {
+                        this.selete_department = getUrlParam('paramData');
+                        this.onGetData();
+                    }
+                },
+                //获取使用部门
+                onGetDepartment() {
+                    axios.post("/Equipment/Userdepartment_list").then(res => {
+                        //console.log(res.data);
+                        let option = [];
+                        res.data.forEach(item => {
+                            let obj = {
+                                label: item,
+                                value: item
+                            }
+                            option.push(obj);
+                        })
+                        this.department_options = option;
+                    })
+                },
+                //获取表格数据
+                onGetData() {
+                    if (this.selete_department == '') {
+                        this.$message.warning("请选择使用部门");
+                        return;
+                    } else {
+                        let dd = new Date(this.select_date);
+                        let param = {
+                            userDepartment: this.selete_department,
+                            year: dd.getFullYear(),
+                            month: dd.getMonth() + 1
+                        }
+                        axios.post("/Equipment/Equipment_EmployTime", param).then(res => {
+                            //console.log(res.data);
+                            let arr = [];
+                            res.data.forEach(item => {
+                                let obj = {
+                                    Userdepartment: this.selete_department,
+                                    EquipmentNumber: item.EquipmentNumber,
+                                    EquipmentName: item.EquipmentName,
+                                    Runtime: item.Devicetime[0].Runtime,
+                                    Runtime_percen: item.Devicetime[0].Runtime_percen,
+                                    Downtime: item.Devicetime[0].Downtime,
+                                    Stop_percen: item.Devicetime[0].Stop_percen,
+                                    Maintentime: item.Devicetime[0].Maintentime,
+                                    Maintentime_percen: item.Devicetime[0].Maintentime_percen
+                                }
+                                arr.push(obj);
+                            })
+                            this.tableData = arr;
+                            //console.log(this.tableData,88);
+                        })
+                    }
+                }
+            }
+        }
+        // 解析地址栏参数
+        function getUrlParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURI(r[2]); return '';
+        }
+    </script>
+}

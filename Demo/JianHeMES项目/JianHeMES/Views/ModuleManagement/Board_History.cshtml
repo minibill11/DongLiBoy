@@ -1,0 +1,120 @@
+﻿@{
+    ViewBag.Title = "模块历史看板";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module-board.less" />
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main>
+        <el-row class="table-top">
+            <div class="table-top-left" style="margin-bottom:10px">
+                <el-select v-model="ordernum.value"
+                           placeholder="订单查询"
+                           size="medium"
+                           multiple
+                           reserve-keyword
+                           collapse-tags
+                           filterable
+                           clearable>
+                    <el-option v-for="item in ordernum.list"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-button type="primary" size="medium" @@click="getData" plain>查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <a href="Board" target="_blank"><el-button type="primary" size="medium" plain>看板首页</el-button></a>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            @RenderPage("_board-table.cshtml")
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="boxcolor bggreen"></div><div>达到100%    &nbsp;&nbsp;</div>
+            <div class="boxcolor bgyellow"></div><div> 合格率范围为80%~90%      &nbsp;&nbsp;</div>
+            <div class="boxcolor bgred"></div><div> 合格率范围为< 80%&nbsp;&nbsp;</div>
+        </el-row>
+
+        <el-dialog title="查看文件"
+                   :visible.sync="dialogVisible"
+                   width="80%">
+            <el-image v-show="fileType=='img'" v-for="url in fileSrc.img" :key="url" :src="url" :preview-src-list="fileSrc.img" lazy></el-image>
+            <iframe v-show="fileType=='pdf'" id="pdfIframe" :src="fileSrc.pdf" style="width:100%;"></iframe>
+            <span slot="footer" class="dialog-footer">
+                <el-button @@click="dialogVisible = false" size="medium">关 闭</el-button>
+            </span>
+        </el-dialog>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_board.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    filterTableList: [],
+                    ordernum: { value: [], list: [] },
+                    dialogVisible: false,
+                    fileSrc: { img: [], pdf: '' },
+                    fileType: '',
+                }
+            },
+            mounted() { this.getOrderNumList() },
+            methods: {
+                openDialog(ordernum, type, name) {
+                    this.dialogVisible = true;
+                    if (name == '首件') {
+                        if (type == 'img') { this.getImgUrl(ordernum, '/OrderMgms/GetSMTSampleImg', 'SMTSample_Files') };
+                        if (type == 'pdf') { this.getPdfUrl(ordernum, '/OrderMgms/preview_SMTSample_pdf') };
+                    }
+                    if (name == '小样') {
+                        if (type == 'img') { this.getImgUrl(ordernum, '/OrderMgms/GetSmallSampleImg', 'SmallSample_Files') };
+                        if (type == 'pdf') { this.getPdfUrl(ordernum, '/OrderMgms/preview_SmallSample_pdf') };
+                    }
+                    if (name == '异常') {
+                        if (type == 'img') { this.getImgUrl(ordernum, '/OrderMgms/GetSMTAbnormalOrderImg', 'SMTAbnormalOrder_Files') };
+                        if (type == 'pdf') { this.getPdfUrl(ordernum, '/OrderMgms/GetSMTAbnormalOrderPDF') };
+                    };
+                },
+                getImgUrl(o, url, src) {
+                    axios.post(url, { ordernum: o }).then(res => {
+                        if (res.data == "图片文档未上传或不存在！") { this.$message(res.data) } else {
+                            this.fileType = 'img'; this.fileSrc.img = Object.values(res.data).map(v => `/MES_Data/${src}/${o}/${v}`);
+                        };
+                    }).catch(err => { this.$message("图片未上传！") });
+                },
+                getPdfUrl(o, url) {
+                    axios.post(url, { ordernum: o }).then(res => {
+                        if (res.data == "PDF文档未上传或不存在！") { this.$message(res.data) } else {
+                            this.fileType = 'pdf'; this.fileSrc.pdf = res.data; $("#pdfIframe").css({ "height": $(window).height() - 130 });
+                        };
+                    }).catch(err => { this.$message("PDF未上传！") });
+                },
+                getData() {
+                    if (this.ordernum.value == '') { this.$message("请选择订单号"); return }
+                    axios.post('/ModuleManagement/ModuleHistoryBoard', { ordernum: this.ordernum.value }).then(res => {
+                        this.filterTableList = res.data;
+                    }).catch(err => { this.$message("后台出错") });
+                },
+                getOrderNumList() {
+                    axios.post('/ModuleManagement/GetOrderNumList').then(res => {
+                        this.ordernum.list = res.data;
+                    }).catch(err => { console.warn(err); });
+                },
+            }
+        };
+    </script>
+}

@@ -1,0 +1,266 @@
+﻿@{
+    ViewBag.Title = "组织架构";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vue-org-tree/vueorgtree.css" rel="stylesheet" />
+    <style>
+        .main {
+            overflow: initial;
+        }
+
+            .main, .main .org-tree-container, .org-tree-node-label .org-tree-node-label-inner {
+                padding: 0;
+            }
+
+        .org-tree-node-label .org-tree-node-label-inner {
+            border-radius: 5px;
+            box-shadow: none;
+        }
+
+        .org-tree-node.is-leaf {
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+
+        .labelNodeDiv {
+            box-shadow: 0 1px 5px rgba(0,0,0,.15);
+            border-radius: 3px;
+        }
+
+        .org-tree-node-title, .org-tree-node-name, .org-tree-node-title-only, .org-tree-node-name-only {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            padding: 0 25px;
+            height: 28px;
+            font-size: 14px;
+        }
+
+        .org-tree-node-title-only, .org-tree-node-name-only {
+            height: 56px;
+            border-radius: 3px;
+        }
+
+        .org-tree-node-title, .org-tree-node-title-only {
+            background-color: #409eff;
+            color: #fff;
+            font-weight: bold;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+        }
+
+        .org-tree-node-name, .org-tree-node-name-only {
+            background-color: #ecf5ff;
+            border: 1px solid #fff;
+            border-top: 2px solid #fff;
+            height: 25px;
+            border-bottom-left-radius: 3px;
+            border-bottom-right-radius: 3px;
+        }
+
+        .org-tree-node-null {
+            border-left: 1px solid #999;
+            margin-left: 1px;
+            height: 52px;
+        }
+
+            .org-tree-node-null + .org-tree-node-btn {
+                display: none;
+            }
+
+        .org-tree-node:not(:first-child)::before, .org-tree-node:not(:last-child)::after, .org-tree-node-btn::before {
+            border-top: 1px solid #999;
+        }
+
+        .org-tree-node::after, .org-tree-node-children::before, .org-tree-node-btn::after {
+            border-left: 1px solid #999;
+        }
+
+        .collapsable .org-tree-node.collapsed .org-tree-node-label::after {
+            border-right: 1px solid #999;
+        }
+
+        .org-tree-node-btn {
+            border: 1px solid #999;
+            width: 18px;
+            height: 18px;
+            left: 51%;
+        }
+
+        .org-tree-node-children::before {
+            top: -5px;
+            height: 25px;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*菜单*@
+        <h3>@ViewBag.Title</h3>
+    </el-header>
+    <el-main class="main text-center" v-loading="loading">
+        <el-row style="margin:5px 0 15px;">
+            <el-col :span="24">
+                <el-select size="small" v-model="version" placeholder="请选择架构版本" @@change="versionChange">
+                    <el-option v-for="item in versionList"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+                <a href="~/Personnel_Framework/Index"><el-button size="small" type="success">旧版组织架构</el-button></a>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col :span="24">
+                <vue2-org-tree :data="data"
+                               :render-content="renderContent"
+                               @@on-expand="onExpand"
+                               label-class-name="labelClassName"
+                               collapsable
+                               @*@@on-node-click="onNodeClick"//(e,data)
+                               @@on-node-mouseover="onMouseover"//(e,data)
+                               @@on-node-mouseout="onMouseout"//(e,data)
+                               horizontal*@ />
+            </el-col>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/vue-org-tree/vueorgtree.js"></script>
+    <script>
+        //Framework2
+        const app = {
+            data: function () {
+                return {
+                    loading: false,
+                    data: {
+                        id: 0,
+                        title: '加载中',
+                        name: 'loading'
+                    },
+                    version: null,
+                    versionList: [],
+                }
+            },
+            created: function () {
+                this.getVersisonList();
+            },
+            mounted: function () {
+            },
+            methods: {
+                // 获取架构版本列表
+                getVersisonList() {
+                    axios.post("/Personnel_Framework/VersionList").then(res => {
+                        if (res.data.length > 0) {
+                            this.versionList = res.data
+                            this.version = this.versionList[0].value
+                            //this.getDefultInfos(this.versionList[0].value);
+                        } else {
+                            this.$notify({
+                                message: "暂无历史版本",
+                                type: "info"
+                            });
+                        };
+                        this.getFramework();
+                    });
+                },
+                // 选择架构版本
+                versionChange() {
+                    this.getFramework();
+                },
+                // 获取组织架构信息
+                getFramework() {
+                    this.loading = true;
+                    axios.post('/Personnel_Framework/Framework2', { version: this.version }).then(res => {
+                        this.data = res.data;
+                        this.onExpand('默认展开', this.data);
+                        this.loading = false;
+                    }).catch(err => {
+                        this.loading = false;
+                    });
+                },
+                // 渲染节点
+                renderContent(h, data) {
+                    //处理标题和名字 -为空情况
+                    if (data.title == null && data.name == null) {
+                        return h('div', { 'class': { 'org-tree-node-null': true, } }, '');
+                    };
+                    if (data.name == null) {
+                        return h('div', { 'class': { 'labelNodeDiv': true } }, [h('div', { 'class': { 'org-tree-node-title-only': true } }, data.title)]);
+                    };
+                    if (data.title == null) {
+                        return h('div', { 'class': { 'labelNodeDiv': true } }, [h('div', { 'class': { 'org-tree-node-name-only': true } }, data.name)]);
+                    };
+                    //if (data.title == null || data.name == null) {
+                    //    return h('div', { 'class': { 'labelNodeDiv': true } },
+                    //        [h('div', { 'class': { 'org-tree-node-title': true } }, data.title),
+                    //        h('div', { 'class': { 'org-tree-node-name': true } }, data.name)]);
+                    //};
+
+                    //处理name分别string/array情况
+                    if (typeof data.name == 'string') {
+                        return h('div', { 'class': { 'labelNodeDiv': true } },
+                            [h('div', { 'class': { 'org-tree-node-title': true } }, data.title),
+                            h('div', { 'class': { 'org-tree-node-name': true } }, data.name)]);
+                    } else if (Array.isArray(data.name)) {
+                        return h('div', { 'class': { 'labelNodeDiv': true } }, [
+                            h('div', { 'class': { 'org-tree-node-title': true, } }, data.title),
+                            data.name.map(i => { return h('div', { 'class': { 'org-tree-node-name': true, } }, i) }),
+                        ]);
+                    } else { return h('div', { 'class': { 'labelNodeDiv': true } }, '未知节点'); };
+                    //on: {
+                    //    click() { console.info('点击') }
+                    //},
+                    //domProps: {
+                    //    innerHTML: "<i class=\'el-icon-circle-plus\'>" + content+"</i>"
+                    //},
+                },
+                // 点击操作
+                onExpand(e, data) {
+                    if ('expand' in data) {
+                        data.expand = !data.expand;
+                        //收起来
+                        if (!data.expand && data.children) {
+                            this.collapse(data.children);
+                        };
+                    } else {
+                        this.$set(data, 'expand', true);
+                    };
+                    //打开
+                    if (data.expand && data.children) {
+                        this.spread(data.children);
+                    };
+                },
+                // 开
+                spread(list) {
+                    list.forEach(child => {
+                        if (child.title == null && child.name == null) {
+                            if (child.expand) {
+                                child.expand = true;
+                            } else {
+                                this.$set(child, 'expand', true);
+                            };
+                            child.children && this.spread(child.children);
+                        };
+                    });
+                },
+                // 收
+                collapse(list) {
+                    list.forEach(child => {
+                        if (child.expand) {
+                            child.expand = false;
+                        };
+                        child.children && this.collapse(child.children);
+                    });
+                },
+            },
+        };
+    </script>
+}

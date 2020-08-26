@@ -1,0 +1,373 @@
+﻿@{
+    ViewBag.Title = "直通率看板";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 14px;
+            line-height: 1.42857143;
+            color: #333;
+        }
+
+        .table > tbody > tr > td, .table > tbody > tr > th, .table > tfoot > tr > td, .table > tfoot > tr > th, .table > thead > tr > td, .table > thead > tr > th {
+            line-height: 1.42857143;
+            vertical-align: top;
+        }
+
+        .el-main {
+            padding: 0;
+            overflow: initial;
+        }
+
+        .table {
+            width: 100%;
+            background-color: transparent;
+        }
+
+        .el-divider--horizontal {
+            margin: 3px 0;
+        }
+
+        .queryDiv {
+            display: flex;
+            flex-flow: row wrap;
+            align-items: flex-end;
+            justify-content: center;
+            text-align: left;
+            margin: 0 0 10px 30px;
+        }
+
+        .queryText {
+            color: cadetblue;
+            font-size: 13px;
+        }
+
+        .smtgrid {
+            display: grid;
+            grid-template-columns: 50px 1fr;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table > tbody > tr > th, .tdtable > tr > th {
+            text-align: center;
+        }
+
+        .tdtable > tr > td, .tdtable > tr > th {
+            height: 25px;
+            line-height: 25px;
+            border: 1px solid #ddd;
+            border-right: 0;
+        }
+
+        .smtgrid .tdtable > tr > th:first-child {
+            border-left: 1px solid #ddd;
+        }
+
+        .tdtable > tr > th, .tdtable > tr > td {
+            min-width: 60px;
+        }
+
+        .table, .table > tbody > tr > td {
+            margin: 0;
+            padding: 0;
+        }
+
+        .tdtable > tr > th {
+            border-top: 0;
+        }
+
+            .tdtable > tr > th:first-child {
+                border-left: 0;
+            }
+
+        .table-bordered > tbody > tr > td, .table-bordered > tbody > tr > th, .table-bordered > tfoot > tr > td, .table-bordered > tfoot > tr > th, .table-bordered > thead > tr > td, .table-bordered > thead > tr > th {
+            border: 1px solid #ddd;
+        }
+    </style>
+
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center queryDiv">
+                <div>
+                    <span class="queryText">按平台查询:</span><br />
+                    <el-select v-model="queryTable.type" filterable clearable placeholder="请选择平台" size="small">
+                        <el-option v-for="item in options.type"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div>
+                    <span class="queryText">按时间范围:</span><br />
+                    <el-select v-model="queryTable.show" placeholder="请选择" style="width:100px;" size="small">
+                        <el-option v-for="item in options.show"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div v-show="queryTable.show=='y'">
+                    <el-date-picker v-model="queryTable.year"
+                                    type="year"
+                                    size="small"
+                                    placeholder="选择年">
+                    </el-date-picker>
+                </div>
+                <div v-show="queryTable.show=='m'">
+                    <el-date-picker v-model="queryTable.mouth"
+                                    type="month"
+                                    size="small"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                </div>
+                <div v-show="queryTable.show=='w'">
+                    <el-date-picker v-model="queryTable.week"
+                                    type="week"
+                                    size="small"
+                                    format="yyyy 第 WW 周"
+                                    placeholder="选择周">
+                    </el-date-picker>
+                </div>
+                <div v-show="queryTable.show=='d'">
+                    <el-date-picker v-model="queryTable.day"
+                                    type="date"
+                                    size="small"
+                                    placeholder="选择日期">
+                    </el-date-picker>
+                </div>
+                <div>
+                    <el-button type="primary" @@click="onQuerySubmit" size="small">查询</el-button>
+                </div>
+            </el-row>
+            <el-row class="text-center">
+                <table class="table table-bordered">
+                    <tr>
+                        <th>SMT</th>
+                        <th>后焊</th>
+                        <th>组装</th>
+                        <th>FQC</th>
+                        <th>老化</th>
+                        <th>校正</th>
+                        <th>外观</th>
+                    </tr>
+                    <tr v-for="list in tableList">
+                        <td>
+                            <div v-for="smt in list.smt" class="smtgrid">
+                                <div class="smtjob">
+                                    {{smt.jobname}}
+                                </div>
+                                <div><tdtable-component :sectionitem="smt.content" :isline="true"></tdtable-component></div>
+                            </div>
+                        </td>
+                        <td><tdtable-component :sectionitem="list.after" :haveabnormal="true"></tdtable-component></td>
+                        <td><tdtable-component :sectionitem="list.assemble"></tdtable-component></td>
+                        <td><tdtable-component :sectionitem="list.fqc"></tdtable-component></td>
+                        <td><tdtable-component :sectionitem="list.burnin"></tdtable-component></td>
+                        <td><tdtable-component :sectionitem="list.calibration"></tdtable-component></td>
+                        <td><tdtable-component :sectionitem="list.appearance"></tdtable-component></td>
+                    </tr>
+                </table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Shared/_SelectInput.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script type="text/template" id="tdTableComponent">
+        <table class="table tdtable">
+            <tr>
+                <th>{{isline?'线别':'组名'}}</th>
+                <th v-if="!haveabnormal">异常率</th>
+                <th>直通率</th>
+            </tr>
+            <tr v-if="sectionitem.length==0"><td colspan="3">暂无数据</td></tr>
+            <tr v-else v-for="item in sectionitem">
+                <td>{{item.group || item.line}}</td>
+                <td v-if="!haveabnormal">{{item.abnormal}}</td>
+                <td>{{item.passThrough}}</td>
+            </tr>
+        </table>
+    </script>
+    <script>
+        Vue.component('tdtable-component', {
+            props: ['sectionitem', 'haveabnormal', 'isline'],
+            template: document.getElementById("tdTableComponent")
+        });
+        const app = {
+            data: function () {
+                return {
+                    loading: false,//控制页面loading等待状态
+                    tableList: [],//存储表格总数据
+                    queryTable: {
+                        type: "",
+                        year: "",
+                        mouth: "",
+                        week: "",
+                        day: "",
+                        show: ""
+                    },
+                    options: {
+                        type: [],
+                        week: [],
+                        day: [],
+                        show: []
+                    },
+                }
+            },
+            created: function () {
+                //获取订单列表
+                this.getType();
+                this.options.show = [
+                    { label: "全部", value: "" },
+                    { label: "年", value: "y" },
+                    { label: "月", value: "m" },
+                    { label: "周", value: "w" },
+                    { label: "日", value: "d" }
+                ];
+            },
+            mounted: function () {
+
+            },
+            //函数方法
+            methods: {
+                //总表条件查询
+                onQuerySubmit() {
+                    this.loading = true;
+                    let parm = this.getParm();
+                    if (!parm.pass) {
+                        this.$message.warning(parm.mes);
+                        this.loading = false;
+                        return;
+                    };
+                    axios.post('/KPI/GetPassThrough', parm.parm).then(res => {
+                        console.log(JSON.parse(JSON.stringify(res.data)));
+                        this.tableList = res.data;
+                        this.loading = false;
+                        this.$message.success('查询成功！');
+                    }).catch(err => {
+                        console.warn("查询数据失败");
+                        this.loading = false;
+                    });
+                },
+                //处理查询参数
+                getParm() {
+                    //初始值
+                    let rtd = {
+                        pass: false,
+                        parm: {
+                            type: '',
+                            year: 0,
+                            mouth: 0,
+                            day: 0,
+                            week: false
+                        },
+                        mes: ''
+                    }, query = this.queryTable;
+                    //类型为空
+                    //if (query.type == '') {
+                    //};
+                    //选择全部
+                    if (query.show == '') {
+                        rtd.pass = true;
+                    };
+                    //选择年
+                    if (query.show == 'y') {
+                        if (query.year) {
+                            rtd.parm.year = query.year.getFullYear();
+                            rtd.pass = true;
+                        } else {
+                            rtd.mes = '请选择年';
+                        };
+                    };
+                    //选择月
+                    if (query.show == 'm') {
+                        if (query.mouth) {
+                            rtd.parm.year = query.mouth.getFullYear();
+                            rtd.parm.mouth = query.mouth.getMonth() + 1;
+                            rtd.pass = true;
+                        } else {
+                            rtd.mes = '请选择月';
+                        };
+                    };
+                    //选择周
+                    if (query.show == 'w') {
+                        rtd.parm.week = true;
+                        if (query.week) {
+                            rtd.parm.year = query.week.getFullYear();
+                            rtd.parm.mouth = query.week.getMonth() + 1;
+                            rtd.parm.day = query.week.getDate();
+                            rtd.pass = true;
+                        } else {
+                            rtd.mes = '请选择周';
+                        };
+                    };
+                    //选择日
+                    if (query.show == 'd') {
+                        if (query.day) {
+                            rtd.parm.year = query.day.getFullYear();
+                            rtd.parm.mouth = query.day.getMonth() + 1;
+                            rtd.parm.day = query.day.getDate();
+                            rtd.pass = true;
+                        } else {
+                            rtd.mes = '请选择日';
+                        };
+                    };
+                    //类型
+                    rtd.parm.type = query.type;
+                    //返回
+                    return rtd;
+                },
+                //获取订单号选择框下拉清单
+                getType() {
+                    axios.post('/KPI/GetPassThroughType').then(res => {
+                        this.options.type = res.data;
+                    }).catch(err => {
+                        console.warn("型号列表获取失败");
+                    });
+                },
+                //获取周选择框下拉清单
+                //GetWeek() {
+                //    axios.post('/KPI/GetPassThroughType', {
+                //        year: this.queryTable.year,
+                //        mouth: this.queryTable.mouth
+                //    }).then(res => {
+                //        this.options.week = res.data;
+                //    }).catch(err => {
+                //        console.warn("型号列表获取失败");
+                //    });
+                //},
+                queryDateClear() {
+                    this.queryTable.year = '';
+                    this.queryTable.mouth = '';
+                    this.queryTable.week = '';
+                    this.queryTable.day = '';
+                }
+            },
+            watch: {
+                "queryTable.show"(v) {
+                    this.queryDateClear();
+                }
+            }
+        };
+    </script>
+}

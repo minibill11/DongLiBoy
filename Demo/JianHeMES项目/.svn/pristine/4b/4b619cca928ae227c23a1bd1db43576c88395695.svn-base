@@ -1,0 +1,490 @@
+﻿
+<script type="text/template" id="KPI_Plan_Input_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-input v-model="pasteExcel" placeholder="表格粘贴处" type="textarea" resize="none" rows="1" size="medium"></el-input>
+            </div>
+            <div class="table-top-right">
+                <el-date-picker v-model="changeAllTime"
+                                type="date"
+                                size="medium"
+                                placeholder="选择时间">
+                </el-date-picker>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      @*row-class-name="zero-padding"*@
+                      max-height="600"
+                      size="medium"
+                      border>
+                <el-table-column type="index" label="序号" width="50"></el-table-column>
+                <el-table-column label="订单" min-width="120">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.OrderNum" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="部门" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Department" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="班组" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Group" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="工段" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Section" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="工序" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Process" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="品质/效率" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.IndicatorsType" size="mini">
+                            <el-option label="品质指标" value="品质指标"></el-option>
+                            <el-option label="效率指标" value="效率指标"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="检验部门" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.CheckDepartment" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="检验班组" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.CheckGroup" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="检查工段" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.CheckSection" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="检查工序" min-width="110">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.CheckProcess" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="检查数量" min-width="120">
+                    <template slot-scope="scope">
+                        <el-input-number v-model="scope.row.CheckNum"
+                                         :min="0"
+                                         controls-position="right"
+                                         size="mini"
+                                         style="width:auto"></el-input-number>
+                    </template>
+                </el-table-column>
+                <el-table-column label="抽检/全检" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.CheckType" size="mini">
+                            <el-option label="抽检" value="抽检"></el-option>
+                            <el-option label="全检" value="全检"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="计划数量" min-width="120">
+                    <template slot-scope="scope">
+                        <el-input-number v-model="scope.row.PlanNum"
+                                         :min="0"
+                                         controls-position="right"
+                                         size="mini"
+                                         style="width:auto"></el-input-number>
+                    </template>
+                </el-table-column>
+                <el-table-column label="计划完成时间" min-width="140">
+                    <template slot-scope="scope">
+                        <el-date-picker v-model="scope.row.PlanTime"
+                                        type="date"
+                                        size="mini"
+                                        placeholder="选择时间">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="50">
+                    <template slot-scope="scope">
+                        <el-button @@click="deleteClick(scope.$index)" class="cbtn red" type="text">清除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-button type="primary" @@click="onInputSubmit" size="medium" :disabled="tableList.length==0">录入</el-button>
+                <el-button @@click="showChange" size="medium">取消</el-button>
+            </div>
+            <div class="table-bottom-right">
+                <el-button @@click="addRowVisible = true" class="addbtn" type="info" size="medium" plain>增加一行</el-button>
+            </div>
+        </el-row>
+        <el-row>
+            <el-dialog title="计划信息录入"
+                       @@close="close('ruleForm')"
+                       :visible.sync="addRowVisible">
+                <el-form label-width="30%"
+                         label-position="right"
+                         class="addRowDia"
+                         ref="ruleForm"
+                         size="medium"
+                         :rules="rules"
+                         :model="addRowForm">
+                    <el-form-item label="订单" prop="OrderNum">
+                        <el-select v-model="addRowForm.OrderNum"
+                                   placeholder="请选择订单"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in ordernumlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="部门" prop="Department">
+                        <el-select v-model="addRowForm.Department"
+                                   placeholder="请选择部门"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="班组" prop="Group">
+                        <el-select v-model="addRowForm.Group"
+                                   placeholder="请选择班组"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in grouplist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="工段" prop="Section">
+                        <el-select v-model="addRowForm.Section"
+                                   placeholder="请选择工段"
+                                   @@change="getProcess"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in sectionlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="工序" prop="Process">
+                        <el-select v-model="addRowForm.Process"
+                                   placeholder="请选择工序"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in processlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="品质/效率" prop="IndicatorsType">
+                        <el-select v-model="addRowForm.IndicatorsType" @@change="changeIndicatorsType">
+                            <el-option label="品质指标" value="品质指标"></el-option>
+                            <el-option label="效率指标" value="效率指标"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="检验部门" prop="CheckDepartment">
+                        <el-select v-model="addRowForm.CheckDepartment"
+                                   placeholder="请选择检验部门"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="检验班组" prop="CheckGroup">
+                        <el-select v-model="addRowForm.CheckGroup"
+                                   placeholder="请选择检验班组"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in grouplist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="检查工段" prop="CheckSection">
+                        <el-select v-model="addRowForm.CheckSection"
+                                   placeholder="请选择工段"
+                                   @@change="getCheckProcess"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in sectionlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="检查工序" prop="CheckProcess">
+                        <el-select v-model="addRowForm.CheckProcess"
+                                   placeholder="请选择工序"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in checkProcesslist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="检查数量" prop="CheckNum">
+                        <el-input-number v-model="addRowForm.CheckNum"
+                                         :min="0"
+                                         style="width:auto"></el-input-number>
+                    </el-form-item>
+                    <el-form-item label="抽检/全检" prop="CheckType">
+                        <el-select v-model="addRowForm.CheckType">
+                            <el-option label="抽检" value="抽检"></el-option>
+                            <el-option label="全检" value="全检"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="计划数量" prop="PlanNum">
+                        <el-input-number v-model="addRowForm.PlanNum"
+                                         :min="0"
+                                         style="width:auto"></el-input-number>
+                    </el-form-item>
+                    <el-form-item label="计划完成时间" prop="PlanTime">
+                        <el-date-picker v-model="addRowForm.PlanTime"
+                                        type="date"
+                                        placeholder="选择日期时间">
+                        </el-date-picker>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button @@click="addRowVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>
+        </el-row>
+    </el-row>
+</script>
+<script>
+    Vue.component('kpi-plan-input-component', {
+        props: ['ordernumlist', 'departmentlist', 'grouplist', 'sectionlist', 'processlist'],
+        template: document.getElementById("KPI_Plan_Input_Component"),
+        data: function () {
+            return {
+                pasteExcel: '',
+                tableList: [],
+                addRowForm: {
+                    OrderNum: '',
+                    Department: '',
+                    Group: '',
+                    Section: '',
+                    Process: '',
+                    IndicatorsType: '',
+                    CheckDepartment: '',
+                    CheckGroup: '',
+                    CheckSection: '',
+                    CheckProcess: '',
+                    CheckNum: '',
+                    CheckType: '',
+                    PlanNum: '',
+                    PlanTime: null,
+                },
+                addRowVisible: false,
+                rules: {},
+                changeAllTime: null,
+                checkProcesslist: [],
+                ruleObj: null,
+            }
+        },
+        mounted: function () {
+            const stringTest = [{ required: true, message: '不能为空', trigger: 'blur' }],
+                changeTest = [{ required: true, message: '不能为空', trigger: 'change' }],
+                numberTest = [
+                    { required: true, message: '数量不能为空', trigger: 'blur' },
+                    { type: 'number', message: '必须为数字值' }
+                ];
+            this.ruleObj = {
+                pz: {
+                    OrderNum: changeTest,
+                    Department: changeTest,
+                    Group: changeTest,
+                    Section: changeTest,
+                    Process: changeTest,
+                    IndicatorsType: changeTest,
+                    CheckDepartment: changeTest,
+                    CheckGroup: changeTest,
+                    CheckSection: changeTest,
+                    CheckProcess: changeTest,
+                    CheckNum: numberTest,
+                    CheckType: changeTest,
+                    PlanNum: numberTest,
+                    PlanTime: changeTest,
+                }, xl: {
+                    OrderNum: changeTest,
+                    Department: changeTest,
+                    Group: changeTest,
+                    Section: changeTest,
+                    Process: changeTest,
+                    IndicatorsType: changeTest,
+                    PlanNum: numberTest,
+                    PlanTime: changeTest,
+                }
+            };
+            this.rules = this.ruleObj.pz;
+        },
+        methods: {
+            onInputSubmit() {
+                vm.mainLoading = true;
+                if (!this.checkData()) {
+                    vm.mainLoading = false;
+                    return;
+                };
+                axios.post("/Plans/AddPlan_FromKPI", { Record: this.tableList }).then(res => {
+                    if (res.data == '新增成功') {
+                        setTimeout(() => {
+                            this.$emit("input", true);
+                            this.$message.success('录入成功');
+                            this.tableList = [];
+                            vm.mainLoading = false;
+                        }, 500);
+                    } else {
+                        this.$alert(res.data, {
+                            closeOnClickModal: true,
+                            closeOnPressEscape: true,
+                            type: "error",
+                        });
+                        vm.mainLoading = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                    vm.mainLoading = false;
+                });
+            },
+            //检查数据
+            checkData() {
+                for (let row of this.tableList) {
+                    let type = row.IndicatorsType;
+                    for (let [key, value] of Object.entries(row)) {
+                        if (type == '效率指标') {
+                            if ((key != 'CheckDepartment' && key != 'CheckGroup' && key != 'CheckSection' && key != 'CheckProcess' && key != 'CheckNum' && key != 'CheckType')
+                                && (value == '' || value == null)) {
+                                this.$message.warning('数据不完整,请检查数据是否为空或为0');
+                                return false;
+                            };
+                        } else {
+                            if (value == '' || value == null) {
+                                this.$message.warning('数据不完整,请检查数据是否为空或为0');
+                                return false;
+                            };
+                        };
+                    };
+                };
+                return true;
+            },
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.tableList = [];
+                    this.$emit("input", true);
+                    vm.mainLoading = false;
+                }, 500);
+            },
+            //删除
+            deleteClick(index) {
+                this.tableList.splice(index, 1);
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.tableList.push({ ...this.addRowForm });
+                        this.addRowVisible = false;
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            },
+            getProcess(v) {
+                vm.GetProcessList(v);
+            },
+            getCheckProcess(v) {
+                axios.post('/KPI/GetProcessList', { section: v }).then(res => {
+                    this.checkProcesslist = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            changeIndicatorsType(v) {
+                if (v == '效率指标') {
+                    this.rules = this.ruleObj.xl;
+                } else {
+                    this.rules = this.ruleObj.pz;
+                };
+                this.$nextTick(() => {
+                    this.$refs['ruleForm'].clearValidate();
+                });
+            }
+        },
+        watch: {
+            pasteExcel(val) {
+                if (val == '') {
+                    return false;
+                };
+                this.tableList = [];
+                let rows = val.split('\n');
+                rows.pop();
+                rows.forEach((v, i) => {
+                    let col = v.split("\t")
+                    rows[i] = col;
+                });
+                for (let i of rows) {
+                    this.tableList.push({
+                        OrderNum: i[0],
+                        Department: i[1],
+                        Group: i[2],
+                        Section: i[3],
+                        Process: i[4],
+                        IndicatorsType: i[5],
+                        CheckDepartment: i[6],
+                        CheckGroup: i[7],
+                        CheckSection: i[8],
+                        CheckProcess: i[9],
+                        CheckNum: i[10],
+                        CheckType: i[11],
+                        PlanNum: i[12],
+                        PlanTime: i[13],
+                    });
+                };
+                this.pasteExcel = '';
+            },
+            changeAllTime(v) {
+                for (let i of this.tableList) {
+                    i.PlanTime = v;
+                };
+            }
+        },
+    });
+</script>
+

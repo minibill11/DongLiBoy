@@ -1,0 +1,223 @@
+﻿@{
+    ViewBag.Title = "KPI班组评优汇总表";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/KPI/KPI_TeamEvaluation.less" />
+    <style>
+        #app .el-table th {
+            padding: 3px 0;
+        }
+
+        .bt_form_flex {
+            display: flex;
+            flex-flow: row wrap;
+            margin-top: 10px;
+        }
+
+            .bt_form_flex > .el-form-item {
+                width: 380px;
+            }
+
+            .bt_form_flex .el-input__inner {
+                width: 180px;
+            }
+    </style>
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main v-loading="loading">
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-date-picker v-model="monthDate"
+                                placeholder="请选择日期"
+                                type="month"
+                                size="medium">
+                </el-date-picker>
+                <span>月度汇总</span>
+                <el-button type="primary" size="medium" @@click="DisplayTotal">查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <el-button type="success" @@click="exportExcel" size="medium" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      row-class-name="zero-padding"
+                      max-height="600"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号"></el-table-column>
+                <el-table-column prop="Department" label="部门"></el-table-column>
+                <el-table-column prop="Group" label="班组"></el-table-column>
+                <el-table-column label="效率指标">
+                    <el-table-column prop="EfficiencyIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="EfficiencyIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="EfficiencyActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="EfficiencyGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="EfficiencyGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="品质指标">
+                    <el-table-column prop="QualityIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="QualityIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="QualityActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="QualityGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="QualityGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="月流失率指标">
+                    <el-table-column prop="TurnoverIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="TurnoverIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="TurnoverActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="TurnoverGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="TurnoverGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="7S评比指标">
+                    <el-table-column prop="ComparisonIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="ComparisonIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="ComparisonActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="ComparisonGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="ComparisonGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column prop="TotalScore" label="合计总分"></el-table-column>
+                <el-table-column label="否定项">
+                    <el-table-column prop="Greater" label="总分不得低于90分"></el-table-column>
+                    <el-table-column prop="AvagePersonNum" label="平均人数(不得少于5人)"></el-table-column>
+                    <el-table-column prop="InductrialAccident" label="当月有无工伤事故"></el-table-column>
+                </el-table-column>
+                <el-table-column prop="Attendance" label="出勤率"></el-table-column>
+                <el-table-column prop="ViolationsMessage" label="行政违纪情况"></el-table-column>
+                <el-table-column prop="Ranking" label="排名"></el-table-column>
+                <el-table-column prop="Integral" label="积分"></el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+            </div>
+            <div class="table-bottom-right">
+            </div>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    @*<script src="~/Scripts/KPI/KPI_TeamEvaluation.js"></script>*@
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        const app = {
+            //mixins: [TeamEvaluation],
+            data: function () {
+                return {
+                    loading: false,//loading状态开关
+                    tableList: [],
+                    monthDate: null,
+                    excelJson: [],
+                }
+            },
+            created() {
+            },
+            mounted() {
+
+            },
+            methods: {
+                DisplayTotal() {
+                    this.loading = true;
+                    if (this.checkDateIsNull()) return;
+                    axios.post('/KPI/DisplayTotal', { time: this.monthDate }).then(res => {
+                        console.dir(res.data);
+                        this.tableList = res.data;
+                        this.excelJson = res.data;
+                        this.$message.success('查询成功');
+                        this.loading = false;
+                    }).catch(err => {
+                        this.loading = false;
+                        this.$message.error('后台报错');
+                    });
+                },
+                checkDateIsNull() {
+                    if (this.monthDate == '' || this.monthDate == null) {
+                        this.$message('未选择日期');
+                        return true;
+                    } else {
+                        return false;
+                    };
+                },
+                exportExcel() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Export_SummaryTable", {
+                        value: JSON.stringify(this.excelJson), year: y, month: m
+                    }, { responseType: "blob" }).then(res => {
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(new Blob([res.data]));
+                        link.style.display = 'none';
+                        link.download = `KPI班组评优汇总表${y}-${m}.xlsx`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+                },
+            }
+        };
+        $(function () {
+            //读取JSON文件数据
+            $.getJSON("/MES_Data/TemDate/ModuleProductionController.json", function (data) {
+                console.log(data);
+            });
+
+            //启动hub实时连接方法1
+            //var connection = $.connection.ProductionControlIndex;
+            //connection.client.sendProductionControlIndex = function (ProductionControlIndex) {
+            //    getDataJson(ProductionControlIndex);
+            //};
+            //$.connection.hub.start();
+
+            //启动hub实时连接方法2
+            //如果前后端为同一个端口，可不填参数。如果前后端分离，这里参数为服务器端的URL
+            var connection = $.hubConnection();
+            var Proxy = connection.createHubProxy('ModuleProductionControlIndex');
+            // ProductionControlIndex为后端定义，使用驼峰式命名，后端首字母必须大写
+            // sendProductionControlIndex 为后端ProductionControlIndex方法
+            Proxy.on('sendProductionControlIndex', function (v) {
+                console.log(v);
+            });
+            connection.start()
+                .done(function (v) {
+                    console.log('启动连接成功！' + v);
+                })
+                .fail(function (v) {
+                    console.log('启动连接失败' + v);
+                });
+
+            connection.error((error) => {
+                console.log("连接出错！" + error)
+            });
+
+            connection.reconnected(() => {
+                console.log('连接重新启动！')
+            });
+
+            connection.disconnected(() => {
+                console.log('断开连接！')
+            });
+
+            connection.received((data) => {
+                console.log('接收数据成功！')
+                //console.log(data)
+            });
+
+            connection.connectionSlow(() => {
+                console.log('数据连接流！')
+            });
+        });
+    </script>
+}
+

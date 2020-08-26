@@ -1,0 +1,315 @@
+﻿@{
+    ViewBag.Title = "KPI班组评优汇总表";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/KPI/KPI_TeamEvaluation.less" />
+    <style>
+        #app .el-table th {
+            padding: 3px 0;
+        }
+
+        .bt_form_flex {
+            display: flex;
+            flex-flow: row wrap;
+            margin-top: 10px;
+        }
+
+            .bt_form_flex > .el-form-item {
+                width: 380px;
+            }
+
+            .bt_form_flex .el-input__inner {
+                width: 180px;
+            }
+    </style>
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main v-loading="loading">
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-date-picker v-model="monthDate"
+                                placeholder="请选择日期"
+                                type="month"
+                                size="medium">
+                </el-date-picker>
+                <span>月度汇总</span>
+                <el-button type="primary" size="medium" @@click="DisplayTotal">查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <a href="/Plans/Section_Enter" target="_blank"><el-button type="primary" size="medium" plain>工段工序</el-button></a>
+                <a href="KPI_Daily?show=效率指标" target="_blank"><el-button type="primary" size="medium" plain>效率指标汇总表</el-button></a>
+                <a href="KPI_Daily?show=品质指标" target="_blank"><el-button type="primary" size="medium" plain>品质指标汇总表</el-button></a>
+                <a href="DeparturesNum_Index" target="_blank"><el-button type="primary" size="medium" plain>班组人员流失汇总表</el-button></a>
+                <a href="KPI_7S_Summarizing" target="_blank"><el-button type="primary" size="medium" plain>7S评比得分汇总表</el-button></a>
+                <el-button type="success" @@click="exportExcel" size="medium" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      row-class-name="zero-padding"
+                      max-height="600"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号"></el-table-column>
+                <el-table-column prop="Department" label="部门"></el-table-column>
+                <el-table-column prop="Group" label="班组"></el-table-column>
+                <el-table-column label="效率指标">
+                    <el-table-column prop="EfficiencyIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="EfficiencyIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="EfficiencyActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="EfficiencyGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="EfficiencyGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="品质指标">
+                    <el-table-column prop="QualityIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="QualityIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="QualityActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="QualityGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="QualityGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="月流失率指标">
+                    <el-table-column prop="TurnoverIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="TurnoverIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="TurnoverActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="TurnoverGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="TurnoverGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="7S评比指标">
+                    <el-table-column prop="ComparisonIndicatorsName" label="考核指标名称"></el-table-column>
+                    <el-table-column prop="ComparisonIndicatorsValue" label="权重"></el-table-column>
+                    <el-table-column prop="ComparisonActualScore" label="实际得分"></el-table-column>
+                    <el-table-column prop="ComparisonGoal" label="得分小计"></el-table-column>
+                    <el-table-column prop="ComparisonGoalScore" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column prop="TotalScore" label="合计总分"></el-table-column>
+                <el-table-column label="否定项">
+                    <el-table-column prop="Greater" label="总分不得低于90分"></el-table-column>
+                    <el-table-column prop="AvagePersonNum" label="平均人数(不得少于5人)"></el-table-column>
+                    <el-table-column prop="InductrialAccident" label="当月有无工伤事故"></el-table-column>
+                </el-table-column>
+                <el-table-column prop="Attendance" label="出勤率"></el-table-column>
+                <el-table-column prop="ViolationsMessage" label="行政违纪情况"></el-table-column>
+                <el-table-column prop="Ranking" label="排名"></el-table-column>
+                <el-table-column prop="Integral" label="积分"></el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-form class="bt_form_flex" size="medium">
+                    <el-form-item label="确认：">
+                        <el-select v-model="btFormValue.qr"
+                                   placeholder="请选择">
+                            <el-option v-for="item in btFormOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button type="primary">确认</el-button>
+                    </el-form-item>
+                    <el-form-item label="审核：">
+                        <el-select v-model="btFormValue.sh"
+                                   placeholder="请选择">
+                            <el-option v-for="item in btFormOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button type="primary">确认</el-button>
+                    </el-form-item>
+                    <el-form-item label="核准：">
+                        <el-select v-model="btFormValue.hz"
+                                   placeholder="请选择">
+                            <el-option v-for="item in btFormOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button type="primary">确认</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
+            <div class="table-bottom-right">
+            </div>
+        </el-row>
+        <el-row>
+            <h4>KPI页面链接</h4>
+            <table class="table">
+                <thead>
+                    <tr style="font-size:16px;font-weight:700;">
+                        <td>模块</td>
+                        <td>页面</td>
+                        <td>页面文件</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>人力资源</td>
+                        <td><a href="/KPI/HonorRoll_Index" target="_blank">光荣榜</a></td>
+                        <td>HonorRoll_Index</td>
+                    </tr>
+                    <tr>
+                        <td>人力资源</td>
+                        <td><a href="/KPI/DeparturesNum_Add" target="_blank">班组人员流失(输入)</a></td>
+                        <td>DeparturesNum_Add</td>
+                    </tr>
+                    <tr>
+                        <td>人力资源</td>
+                        <td><a href="/KPI/DeparturesNum_Index" target="_blank">班组人员流失汇总</a></td>
+                        <td>DeparturesNum_Index</td>
+                    </tr>
+                    <tr>
+                        <td>人力资源</td>
+                        <td><a href="/KPI/IntegralTable_Index" target="_blank">班组积分查询</a></td>
+                        <td>IntegralTable_Index</td>
+                    </tr>
+                    <tr></tr>
+                    <tr>
+                        <td>7S管理</td>
+                        <td><a href="/KPI/KPI_7S_GradeStandardInput" target="_blank">7S检查参考标准</a></td>
+                        <td>KPI_7S_GradeStandardInput</td>
+                    </tr>
+                    <tr>
+                        <td>7S管理</td>
+                        <td><a href="/KPI/KPI_7S_RegionInput" target="_blank">7S区域数据</a></td>
+                        <td>KPI_RegionInput</td>
+                    </tr>
+
+                    <tr>
+                        <td>7S管理</td>
+                        <td><a href="/KPI/KPI_7S_Summarizing" target="_blank">7S评比得分汇总表</a></td>
+                        <td>KPI_7S_Summarizing</td>
+                    </tr>
+                    <tr>
+                        <td>7S管理</td>
+                        <td><a href="/KPI/KPI_7S_RecordInput" target="_blank">7S部门班组数据录入</a></td>
+                        <td>KPI_RecordInput</td>
+                    </tr>
+                    <tr>
+                        <td>7S管理</td>
+                        <td><a href="/KPI/KPI_7S_Summarizing_Daily" target="_blank">7S日检/周检/巡检详细表</a></td>
+                        <td>KPI_7S_Summarizing_Daily</td>
+                    </tr>
+                    <tr></tr>
+                    <tr>
+                        <td>7S管理</td>
+                        <td><a href="/KPI/KPI_7S_Detail" target="_blank">7S班组扣分详细</a></td>
+                        <td>KPI_7S_Detail</td>
+                    </tr>
+                    <tr>
+                        <td>KPI</td>
+                        <td><a href="/KPI/KPI_Inspection" target="_blank">生产送检信息</a></td>
+                        <td>KPI_Inspection</td>
+                    </tr>
+                    <tr>
+                        <td>KPI</td>
+                        <td><a href="/KPI/KPI_StemFrom" target="_blank">数据来源统计表</a></td>
+                        <td>KPI_StemFrom</td>
+                    </tr>
+                    <tr>
+                        <td>KPI</td>
+                        <td><a href="/Plans/KPI_Plan" target="_blank">计划信息</a></td>
+                        <td>/Plans/KPI_Plan</td>
+                    </tr>
+                </tbody>
+            </table>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/KPI/KPI_TeamEvaluation.js"></script>
+    <script>
+        const app = {
+            mixins: [TeamEvaluation],
+            data: function () {
+                return {
+                    tableList: [],
+                    monthDate: null,
+                    btFormOptions: [{
+                        value: true,
+                        label: '通过'
+                    }, {
+                        value: false,
+                        label: '不通过'
+                    }],
+                    btFormValue: {
+                        qr: '',
+                        sh: '',
+                        hz: '',
+                    },
+                    excelJson: [],
+                }
+            },
+            created() {
+            },
+            mounted() {
+
+            },
+            methods: {
+                DisplayTotal() {
+                    if (this.checkDateIsNull()) return;
+                    axios.post('/KPI/DisplayTotal', { time: this.monthDate }).then(res => {
+                        console.dir(res.data);
+                        this.tableList = res.data;
+                        this.excelJson = res.data;
+                        this.$message.success('查询成功');
+                    }).catch(err => {
+
+                    });
+                },
+                checkDateIsNull() {
+                    if (this.monthDate == '' || this.monthDate == null) {
+                        this.$message('未选择日期');
+                        return true;
+                    } else {
+                        return false;
+                    };
+                },
+                exportExcel() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Export_SummaryTable", {
+                        value: JSON.stringify(this.excelJson), year: y, month: m
+                    }, { responseType: "blob" }).then(res => {
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(new Blob([res.data]));
+                        link.style.display = 'none';
+                        link.download = `KPI班组评优汇总表${y}-${m}.xlsx`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+                },
+                Audit_SummarySheet() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Audit_SummarySheet", {
+                        year: y, month: m, hrAudit: '', hrjudge: ''
+                    }).then(res => {
+                        if (res.data.Meg) {
+                            this.$message.success(res.data.Feg);
+                        } else {
+                            this.$message.error(res.data.Feg);
+                        };
+                    });
+                },
+                ADDSummaryTable() {
+
+                },
+            }
+        };
+    </script>
+}
+

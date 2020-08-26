@@ -1,0 +1,279 @@
+﻿@{
+    ViewBag.Title = "设备首页";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .el-card__body {
+            padding: 20px 0 0 0;
+        }
+
+        .chart-style {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title {
+            text-align: center;
+            padding: 10px;
+            background: #e4ecf7;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .card-title-select {
+            text-align: center;
+            padding: 10px;
+            color: #fff;
+            background: #409eff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .card-bg {
+            background: #fff;
+            cursor: pointer;
+        }
+
+            .card-bg:hover {
+                background: #f2f8ff;
+            }
+
+        .big {
+            width: 350px;
+            height: 300px;
+        }
+
+        .small {
+            width: 300px;
+            height: 250px;
+        }
+
+        .item-title-box {
+            width: 100%;
+            text-align: center;
+            padding: 30px 0 20px 0;
+        }
+
+        .item-title-box-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #303133;
+        }
+
+        .item-title {
+            text-align: center;
+            background: #e4ecf7;
+            padding: 4px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <eq-header-component :active="active"></eq-header-component>
+    </el-header>
+    <el-main class="main-box" v-loading="loading">
+        @*总图*@
+        <el-row :gutter="30">
+            <el-col :span="8" v-for="(item,index) in chartsList" :key="item.id">
+                <el-card class="card-bg">
+                    <div @@click="onChangeCard(item.title)">
+                        <div class="chart-style">
+                            <eq-card-component :id=`charts${item.id}` :chart="item.chart" size="big" :text="item.text" :value="item.value" :radius="radiusBig"></eq-card-component>
+                        </div>
+                        <div :class="selected==item.title?'card-title-select':'card-title'">{{item.title}}</div>
+                    </div>
+                </el-card>
+            </el-col>
+        </el-row>
+        <div class="item-title-box">
+            <div class="item-title-box-name">各部门{{selected}}</div>
+        </div>
+        @*子图*@
+        <el-row :gutter="30">
+            <el-col :span="6" v-for="(item,index) in chartsListItem" :key="item.id">
+                <div class="item-title">{{item.title}}</div>
+                <div class="chart-style">
+                    <eq-card-component :id=`chartsItem${item.id}` :chart="item.chart" size="small" :radius="radiusSmall"></eq-card-component>
+                </div>
+            </el-col>
+        </el-row>
+        @*子表*@
+        <div style="margin-top:30px;">
+            <el-table v-bind:data="tableData"
+                      style="width: 100%">
+                <el-table-column prop="UserDepartment"
+                                 label="使用部门"
+                                 width="150">
+                </el-table-column>
+                <el-table-column prop="Shuju.Runnumber"
+                                 label="运行数量"
+                                 width="110">
+                </el-table-column>
+                <el-table-column prop="Shuju.Run_Depar"
+                                 width="110"
+                                 label="运行占比">
+                </el-table-column>
+                <el-table-column prop="Shuju.Stopnumber"
+                                 label="停机数量"
+                                 width="110">
+                </el-table-column>
+                <el-table-column prop="Shuju.Stop_Depar"
+                                 label="停机占比"
+                                 width="110">
+                </el-table-column>
+                <el-table-column prop="Shuju.Maintnumber"
+                                 label="维修数量"
+                                 width="110">
+                </el-table-column>
+                <el-table-column prop="Shuju.Maint_Depar"
+                                 label="维修占比"
+                                 width="110">
+                </el-table-column>
+                <el-table-column prop="name"
+                                 label="操作"
+                                 width="110">
+                    <template slot-scope="scope">
+                        <el-button v-show="false" size="mini" type="primary">详细</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+    </el-main>
+</el-container>
+
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Equipment/_Eq_Header.cshtml")
+    @RenderPage("~/Views/Equipment/_Eq_Echarts_Card.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/echarts4.0.4.min.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,
+                    radiusBig: ['36%', '70%'],
+                    radiusSmall: ['22%', '50%'],
+                    active: "运行状态",
+                    selected: "设备稼动率汇总",
+                    chartsList: [
+                        {
+                            id: 0,
+                            title: '设备稼动率汇总',
+                            text:'总时长',
+                            value:'11456',  //总时长
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 234, name: '维修时长' },
+                                { value: 310, name: '停机时长' }
+                            ]
+                        }, {
+                            id: 1,
+                            title: '设备状态汇总',
+                            text: '设备数',
+                            value: '3345',  //设备数
+                            chart: [
+                                { value: 335, name: '运行' },
+                                { value: 310, name: '停机' },
+                                { value: 234, name: '维修' }
+                            ]
+                        }, {
+                            id: 2,
+                            title: '设备保养汇总',
+                            text: '设备数',
+                            value: '5567',
+                            chart: [
+                                { value: 335, name: '已保养' },
+                                { value: 310, name: '待保养' },
+                                { value: 234, name: '未保养' }
+                            ]
+                        }
+                    ],
+                    chartsListItem: [
+                        {
+                            id: 0,
+                            title: 'SMT部',
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 234, name: '维修时长' },
+                                { value: 310, name: '停机时长' }
+                            ]
+                        }, {
+                            id: 1,
+                            title: '总装一部',
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 310, name: '维修时长' },
+                                { value: 234, name: '停机时长' }
+                            ]
+                        },
+                        {
+                            id: 2,
+                            title: '总装二部',
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 310, name: '维修时长' },
+                                { value: 234, name: '停机时长' }
+                            ]
+                        },
+                        {
+                            id: 3,
+                            title: '配套加工部',
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 310, name: '维修时长' },
+                                { value: 234, name: '停机时长' }
+                            ]
+                        }, {
+                            id: 4,
+                            title: '品质部',
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 310, name: '维修时长' },
+                                { value: 234, name: '停机时长' }
+                            ]
+                        }, {
+                            id: 5,
+                            title: '技术部',
+                            chart: [
+                                { value: 335, name: '运行时长' },
+                                { value: 310, name: '维修时长' },
+                                { value: 234, name: '停机时长' }
+                            ]
+                        },
+                    ],
+                    tableData:[]
+                }
+            },
+            created() {
+                this.onGetData();
+            },
+            mounted() {
+
+            },
+            //函数方法
+            methods: {
+                onGetData() {
+                    axios.post("/Equipment/Equipment_Thecurrent").then(res => {
+                        //console.log(res.status);
+                        console.log(res.data)
+                    })
+                },
+                onChangeCard(val) {
+                    console.log(val)
+                    this.selected = val;
+                }
+            },
+        };
+    </script>
+}

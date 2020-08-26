@@ -1,0 +1,335 @@
+﻿@{
+    ViewBag.Title = "扫码点检";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        #app {
+            padding: 10px 10px 0 10px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 18px;
+        }
+
+        .form-box {
+            width: 100%;
+            padding: 10px 20px 0 20px;
+            box-sizing: border-box;
+        }
+
+        .form_button_box {
+            width: 100%;
+            padding: 10px 0 0 0;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .el-form-item {
+            display: flex;
+            margin-bottom: 4px;
+        }
+
+        .el-form-item__label {
+            padding: 0;
+        }
+
+        .success-btn, .success-btn:active .success-btn:focus, .success-btn:hover {
+            width: 215px;
+            background: #22c49e;
+            border-color: #22c49e;
+            color: #fff;
+        }
+
+        .info-btn.is-disabled, .info-btn:active .info-btn:focus, .info-btn:hover {
+            width: 215px;
+            background: #ccd3de;
+            border-color: #ccd3de;
+            color: #fff;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <div class="title">
+        扫码点检
+    </div>
+
+    @*表单*@
+    <div class="form-box">
+        <el-form :inline="true" :model="formInfo" label-position="left" label-width="90px">
+            <el-form-item label="保养周期：">
+                <el-select size="small" v-model="formInfo.CheckType" style="width:215px;"
+                           placeholder="请选择..">
+                    <el-option label="日保养" value="日保养"></el-option>
+                    <el-option label="周保养" value="周保养"></el-option>
+                    <el-option label="月保养" value="月保养"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="设备编号：">
+                <el-input size="small" v-model="formInfo.EquipmentNumber" clearable placeholder="请选择设备编号" style="width:215px;">
+                </el-input>
+            </el-form-item>
+            <el-form-item label="设备名称：">
+                <el-input size="small" v-model="formInfo.EquipmentName" placeholder="请选择设备名称" disabled style="width:215px;">
+                </el-input>
+            </el-form-item>
+            <el-form-item label="使用部门：">
+                <el-input size="small" v-model="formInfo.UserDepartment" placeholder="请选择使用部门" disabled style="width:215px;">
+                </el-input>
+            </el-form-item>
+            <el-form-item label="线别：">
+                <el-input size="small" v-model="formInfo.LineName" placeholder="请选择线别" disabled style="width:215px;">
+                </el-input>
+            </el-form-item>
+            <el-form-item label="日期：">
+                <el-date-picker size="small" v-model="formInfo.Date"
+                                type="date"
+                                placeholder="请选择日期" disabled style="width:215px;">
+                </el-date-picker>
+            </el-form-item>
+            <el-table v-loading="loading"
+                      v-bind:data="tableData"
+                      style="width: 100%"
+                      border stripe
+                      :cell-style="cellStyle"
+                      :span-method="onSpanMethod">
+                <el-table-column prop="project"
+                                 label="项目">
+                </el-table-column>
+                <el-table-column prop="operation"
+                                 label="操作方法">
+                </el-table-column>
+                <el-table-column label="保养">
+                    <template slot-scope="scope">
+                        <div v-if="formInfo.CheckType=='日保养'">
+                            <el-select size="mini" v-model="scope.row.mainte" placeholder="请选择...">
+                                <el-option v-for="item in day_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </div>
+                        <div v-if="formInfo.CheckType=='周保养'||formInfo.CheckType=='月保养'">
+                            <el-input size="mini" type="textarea" v-model="scope.row.mainte" placeholder="请输入内容...">
+                            </el-input>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-form-item label="保养人：">
+                <el-button size="small" class="success-btn" @@click="onSave">确认</el-button>
+            </el-form-item>
+            <el-form-item label="工程师：">
+                <el-button size="small" type="info" disabled style="width:215px;">确认</el-button>
+            </el-form-item>
+        </el-form>
+    </div>
+
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="https://cdn.jsdelivr.net/npm/xe-utils"></script>
+    <script>
+        const app = {
+            data() {
+                return {
+                    loading: false,
+                    day_options: [
+                        {
+                            label: '√',
+                            value: 1
+                        }, {
+                            label: '×',
+                            value: 2
+                        }, {
+                            label: '/',
+                            value: 3
+                        }, {
+                            label: ' ',
+                            value: 0
+                        }
+                    ],
+                    //提交筛选
+                    formInfo: {
+                        CheckType: '日保养',
+                        EquipmentNumber: 'AD040213',
+                        EquipmentName: '',
+                        UserDepartment: '',
+                        LineName: '',
+                        Date: new Date("2020-08-17"),
+                    },
+                    tableData: [],
+                    allData: []
+                    //Day_tableData: [],
+                    //Week_tableData: [],
+                    //Month_tableData: []
+
+                }
+            },
+            created() {
+            },
+            mounted() {
+                this.onGetScanCheck();
+            },
+            watch: {
+                'formInfo.CheckType': {
+                    handler() {
+                        this.onGetScanCheck();
+                    },
+                    deep: true
+                },
+                'formInfo.EquipmentNumber': {
+                    handler() {
+                        this.onGetScanCheck();
+                    },
+                    deep: true
+                }
+            },
+            //函数方法
+            methods: {
+                //格式化数据
+                formatTime(time) {
+                    //console.log(time)
+                    let date = new Date(time);
+                    return XEUtils.toDateString(date, 'yyyy-MM-dd')
+                },
+                //合并行
+                onSpanMethod({ columnIndex }) {
+                    //console.log(this.tableData.length);
+                    if (this.formInfo.CheckType == '周保养') {
+                        if (columnIndex == 2) {
+                            return {
+                                rowspan: this.tableData.length,
+                                colspan: 1
+                            }
+                        }
+                    }
+                },
+                //日保养背景色
+                cellStyle({ columnIndex }) {
+                    if (this.formInfo.CheckType == '日保养') {
+                        if (columnIndex === 2) {
+                            // 指定列号
+                            return 'background:#e6f8ea';
+                        }
+                    }
+                },
+                //根据设备编号获取扫码点检信息
+                onGetScanCheck() {
+                    this.loading = true;
+                    axios.post("/Equipment/Tally_ScanCode", {
+                        equipmentNumber: this.formInfo.EquipmentNumber,
+                        time: this.formInfo.Date,
+                        type: this.formInfo.CheckType,
+                    }).then(res => {
+                        console.log(res.data.Feg);
+                        this.allData = res.data.Feg;
+                        this.formInfo.EquipmentName = res.data.Feg.EquipmentName;
+                        this.formInfo.UserDepartment = res.data.Feg.UserDepartment;
+                        this.formInfo.LineName = res.data.Feg.LineName;
+                        this.onProcessData(res.data.Feg);
+                        this.loading = false;
+                    })
+                },
+                //根据当前日期判断第几周
+                onGetWeek() {
+                    let week;
+                    let dd = new Date(this.formInfo.Date).getDate();
+                    //判断当前日期为当月第几周
+                    if (dd > 0 && dd <= 8) {
+                        week = 1;
+                    } else if (dd > 8 && dd <= 16) {
+                        week = 2;
+                    } else if (dd > 16 && dd <= 24) {
+                        week = 3;
+                    } else if (dd > 24 && dd <= 32) {
+                        week = 4;
+                    }
+                    return week;
+                },
+                //处理数据
+                onProcessData(data) {
+                    let arr = [];
+                    let letter_list = [{ id: 1, letter: 'A' }, { id: 2, letter: 'B' }, { id: 3, letter: 'C' }, { id: 4, letter: 'D' }, { id: 5, letter: 'E' }, { id: 6, letter: 'F' }, { id: 7, letter: 'G' }, { id: 8, letter: 'H' }, { id: 9, letter: 'I' }, { id: 10, letter: 'J' }, { id: 11, letter: 'K' }];
+                    let obj, key1, key2, key3;
+                    let dd = new Date(this.formInfo.Date).getDate();
+                    let week = this.onGetWeek();
+                    letter_list.forEach(item => {
+                        if (this.formInfo.CheckType == "日保养") {
+                            key1 = `Day_project${item.id}`;
+                            key2 = `Day_opera${item.id}`;
+                            key3 = `Day_${item.letter}_${dd}`;
+                        }
+                        if (this.formInfo.CheckType == "周保养") {
+                            key1 = `Week_Check${item.id}`;
+                            key2 = `Week_Inspe${item.id}`;
+                            key3 = `Week_${week}`;
+                        }
+                        if (this.formInfo.CheckType == "月保养") {
+                            key1 = `Month_Project${item.id}`;
+                            key2 = `Month_Approach${item.id}`;
+                            key3 = `Month_${item.id}`;
+                        }
+                        //console.log(key1,key2,key3);
+                        obj = {
+                            project: data[key1],
+                            operation: data[key2],
+                            mainte: data[key3]
+                        }
+                        if (obj.project != null && obj.operation != null) {
+                            arr.push(obj);
+                        }
+                    })
+                    console.log(arr);
+                    this.tableData = arr;
+                },
+                //保养人保存数据
+                onSave() {
+                    this.$confirm('确认保存？').then(_ => {
+                        console.log(this.formInfo);
+                        console.log(this.tableData);
+                        let submitObj = new Object;
+                        let dd = new Date(this.formInfo.Date).getDate();
+                        let letter_list = [{ id: 1, letter: 'A' }, { id: 2, letter: 'B' }, { id: 3, letter: 'C' }, { id: 4, letter: 'D' }, { id: 5, letter: 'E' }, { id: 6, letter: 'F' }, { id: 7, letter: 'G' }, { id: 8, letter: 'H' }, { id: 9, letter: 'I' }, { id: 10, letter: 'J' }, { id: 11, letter: 'K' }];
+                        if (this.formInfo.CheckType == '日保养') {
+                            let mankey = `Day_Mainte_${dd}`
+                            submitObj[mankey] = this.userName;
+                            letter_list.forEach((item, index) => {
+                                let maintekey = `Day_${item.letter}_${dd}`;
+                                submitObj[maintekey] = this.tableData[index].mainte;
+                            //console.log(submitObj);
+                            })
+                        }
+                        if (this.formInfo.CheckType == '周保养') {
+                            let week = this.onGetWeek();
+                            let mankey = `Week_Main_${week}`,
+                                maintekey = `Week_${week}`;
+                            submitObj[mankey] = this.userName;
+                            submitObj[maintekey] = this.tableData[0].mainte;
+                        }
+                        if (this.formInfo.CheckType == '月保养') {
+                            let mankey = `Month_main_1`;
+                            submitObj[mankey] = this.userName;
+                            this.tableData.forEach((item, index) => {
+                                let maintekey = `Month_${index}`;
+                                submitObj[maintekey] = item.mainte;
+                            });
+                            submitObj[maintekey] = this.tableData[0].mainte;
+                        }
+                        console.log(submitObj,55555);
+                    }).catch(_ => {
+
+                    })
+                }
+            }
+        };
+    </script>
+}

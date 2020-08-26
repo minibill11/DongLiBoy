@@ -1,0 +1,599 @@
+﻿@{
+    ViewBag.Title = "内箱装箱确认";
+}
+
+@*  <summary>
+    1.内箱装箱操作页面
+    2.选择订单号后可以看见已完成的内箱装箱列表
+    2.输入一个内箱需要装箱的条码数量，然后进行扫码进行装箱（先扫模组条码，再扫内箱条码，进行配对）
+    </summary>*@
+
+@*<script src="~/Scripts/vue.js"></script>*@
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+
+<style>
+    /*全局样式*/
+    *, body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    #app {
+        padding: 50px 0 0;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-main {
+        min-height: 600px;
+        padding: 20px 0 0;
+    }
+
+    [v-cloak] {
+        display: none;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .inputframe {
+        width: 300px;
+        text-align: right;
+        margin: 1px auto;
+    }
+
+    .el-input {
+        width: 220px;
+    }
+
+    .divframe {
+        width: 300px;
+        margin: 1px auto;
+        text-align: center;
+        border: 1px solid #ccc;
+        max-height: 300px;
+    }
+
+    a:hover {
+        text-decoration: none;
+        color: #000;
+    }
+
+    .el-button--small {
+        padding: 8px 12px;
+    }
+
+    .el-table th {
+        font-size: 13px;
+        padding: 5px 0;
+        background-color: #f4df42;
+        color: #000;
+        text-align: center;
+    }
+
+    .el-table td {
+        font-size: 13px;
+        padding: 2px 0;
+        text-align: center;
+    }
+
+    .el-table .cell, .el-table--border td:first-child .cell {
+        padding: 0;
+    }
+
+    .el-table .warning-row {
+        background: #fcd2d2;
+    }
+
+    .el-table .success-row {
+        background: #f0f9eb;
+    }
+
+    .green {
+        color: #67c23a;
+    }
+
+    .red {
+        color: #f56c6c;
+    }
+
+    .adiv {
+        display: inline-block;
+    }
+
+    .el-message-box {
+        width: 300px;
+    }
+
+    .el-message {
+        min-width: 300px;
+    }
+
+    @@media screen and (max-width: 768px) {
+        .el-message, .el-notification, .el-message-box {
+            min-width: 90%;
+            max-width: 90%;
+        }
+
+        .el-select-dropdown__wrap {
+            max-height: 82px;
+        }
+
+        .el-select-dropdown__item {
+            font-size: 13px;
+            height: 28px;
+            line-height: 28px;
+        }
+
+        .el-select-dropdown__list {
+            padding: 0;
+        }
+    }
+
+    .el-autocomplete ul li {
+        text-align: center;
+    }
+</style>
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <div v-show="screenSize>=768">
+                <h2 class="text-center">@ViewBag.Title</h2>
+            </div>
+            <div v-show="screenSize<768">
+                <h3 style="margin:10px 0 0;">@ViewBag.Title</h3>
+            </div>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="text-center">
+                    <div class="inputframe">
+                        <span>班组：</span>
+                        <group-select></group-select>
+                    </div>
+                    <div class="inputframe">
+                        <span>订单号：</span>
+                        <select-input v-model.trim="selectVal" v-bind:disabled="mozutable.length>0" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium" @@select-val="selectHandle"></select-input>
+                    </div>
+                    <div class="inputframe">
+                        <span class="inputtext">条码数量：</span>
+                        <el-input-number v-model.trim="barCount"
+                                         size="medium"
+                                         :min="1"
+                                         style="width:auto"
+                                         :disabled="mozutable.length>0"
+                                         clearable>
+                        </el-input-number>
+                    </div>
+                    <div class="inputframe">
+                        <el-button size="medium" @@click="clear">重置</el-button>
+                        <el-button size="medium" @@click="confirmCheck">确认</el-button>
+                    </div>
+                </div>
+            </el-row>
+            <el-row style="text-align:center;margin-top:5px;">
+                <div style="display:inline-block">
+                    @* 内箱条码扫码框 *@
+                    <div class="inputframe" v-if="mozutable.length==barCount">
+                        <span>内箱条码：</span>
+                        <el-input placeholder="请输入条码号"
+                                  v-model.trim="innerVal"
+                                  style="text-align:right;display:inline-block;"
+                                  onKeyUp="value=value.replace(/[^A-Za-z0-9]/g, '')"
+                                  v-on:keyup.enter.native="innerscan"
+                                  size="medium"
+                                  :disabled="innertable.length==barCount"
+                                  autofocus
+                                  clearable>
+                        </el-input>
+                    </div>
+                    @* 模组条码扫码框 *@
+                    <div class="inputframe" v-else>
+                        <span>模组条码：</span>
+                        <el-input placeholder="请输入模组号"
+                                  v-model.trim="printMozhu"
+                                  style="text-align:right;display:inline-block;"
+                                  v-on:keyup.enter.native="mozuscan"
+                                  size="medium"
+                                  :disabled="mozutable.length==barCount"
+                                  autofocus
+                                  clearable>
+                        </el-input>
+                    </div>
+                    @* 内箱对比框 *@
+                    <div class="divframe">
+                        <el-table :data="mozutable"
+                                  border
+                                  :row-class-name="tableRowClassName">
+                            <el-table-column prop="barcode"
+                                             label="条码号"
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column prop="boxcode"
+                                             label="箱体号">
+                            </el-table-column>
+                            <el-table-column prop="edit"
+                                             label=""
+                                             width="50">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,mozutable)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;"
+                                               :class="scope.row.status=='success'?'green':scope.row.status=='warning'?'red':''">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                    <div class="divframe">
+                        <el-table :data="innertable"
+                                  border
+                                  :row-class-name="tableRowClassName"
+                                  :header-row-style="headerRowStyle">
+                            <el-table-column prop="barcode"
+                                             label="条码号"
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column prop="boxcode"
+                                             label="箱体号">
+                            </el-table-column>
+                            <el-table-column prop="edit"
+                                             label=""
+                                             width="50">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row, innertable)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;"
+                                               :class="scope.row.status=='success'?'green':scope.row.status=='warning'?'red':''">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </div>
+            </el-row>
+            @* 已完成内箱装箱列表 *@
+            <el-row style="text-align:center;margin-top:10px;">
+                <div class="divframe" style="text-align:left">
+                    <el-table :data="confirmList"
+                              :default-sort="{prop: 'barcode', order: 'ascending'}"
+                              :max-height="250">
+                        <el-table-column :label=`已完成内箱装箱列表（数量:${confirmList.length}）`>
+                            <el-table-column prop="barcode"
+                                             label="条码号"
+                                             sortable
+                                             width="150">
+                            </el-table-column>
+                            <el-table-column prop="boxcode"
+                                             sortable
+                                             label="箱体号">
+                            </el-table-column>
+                        </el-table-column>
+                    </el-table>
+                    @*<span v-if="confirmList.length!=0" style="margin-left:15px">数量：{{confirmList.length}}</span>*@
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+
+@*  引入组件：
+    1/_SelectInput，下拉选择框组件
+*@
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            innerVal: "",//内箱条码扫码框值
+            printMozhu: "",//模组条码扫码框值
+            selectOptions: [],//订单号下拉列表
+            selectVal: '',//订单号
+            mozutable: [],//模组条码集合
+            innertable: [],//内箱条码集合
+            screenSize: document.body.clientWidth,//屏幕宽度
+            loading: false,
+            barCount: 2,//内箱数量
+            confirmList: []//已完成内箱装箱列表
+        },
+        created: function () {
+            //获取订单号选择框下拉清单
+            axios.post('/Packagings/GetOrderList').then(rer => {
+                this.selectOptions = rer.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+            //获取屏幕大小，并存储在app.screenSize上
+            window.onresize = function () {
+                app.screenSize = document.body.clientWidth;
+            };
+        },
+        mounted: function () {
+            //获取浏览器本地存储的订单号
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.selectVal = localOrder;
+                this.selectHandle(this.selectVal);
+            };
+            //获取浏览器本地存储的内箱数量
+            let localbarCount = localStorage.getItem('innerCount');
+            if (localbarCount != null) {
+                this.barCount = localbarCount;
+            };
+        },
+        methods: {
+            //模组条码扫码验证方法
+            mozuscan: function () {
+                if (this.printMozhu.length == 15) {
+                    this.loading = true;
+                    //检查重复
+                    for (let i in this.mozutable) {
+                        if (this.mozutable[i].barcode == this.printMozhu) {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                dangerouslyUseHTMLString: true,
+                                message: '<h4 style="margin:0">已有重复条码！</h4>',
+                                type: 'warning'
+                            });
+                            this.loading = false;
+                            return;
+                        };
+                    };
+
+                    //验证条码号和所选订单是否匹配
+                    axios.post('/Packagings/IsCheckBarcode',
+                        {
+                            ordernum: this.selectVal,
+                            barcode: this.printMozhu,
+                            isInner: true,
+                        }
+                    ).then(res => {
+                        if (res.data == true) {
+                            this.getNum(this.printMozhu, this.mozutable, "printMozhu");
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                dangerouslyUseHTMLString: true,
+                                message: '<h4 style="margin:0">' + res.data + '</h4>',
+                                type: 'error'
+                            });
+                            this.loading = false;
+                        };
+                    }).catch(err => {
+                        console.warn("验证失败")
+                    });
+                };
+            },
+            //内箱条码扫码验证方法
+            innerscan: function () {
+                if (this.innerVal.length == 15) {
+                    this.loading = true;
+                    //检查重复
+                    for (let i in this.innertable) {
+                        if (this.innertable[i].barcode == this.innerVal) {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                dangerouslyUseHTMLString: true,
+                                message: '<h4 style="margin:0">已有重复条码！</h4>',
+                                type: 'warning'
+                            });
+                            this.loading = false;
+                            return;
+                        };
+                    };
+
+                    //验证条码号和所选订单是否匹配
+                    axios.post('/Packagings/IsCheckBarcode',
+                        {
+                            ordernum: this.selectVal,
+                            barcode: this.innerVal,
+                            isInner: true,
+                        }
+                    ).then(res => {
+                        if (res.data == true) {
+                            this.getNum(this.innerVal, this.innertable, "innerVal");
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                dangerouslyUseHTMLString: true,
+                                message: '<h4 style="margin:0">' + res.data + '</h4>',
+                                type: 'error'
+                            });
+                            this.loading = false;
+                        };
+                    }).catch(err => {
+                        console.warn("验证失败")
+                    });
+                };
+            },
+            //获取箱体号
+            getNum: function (bar, table, text) {
+                axios.post('/Packagings/GetModulbarCode',
+                    { barcode: bar }
+                ).then(res => {
+                    //console.log(res.data)
+                    table.push({
+                        barcode: bar,
+                        boxcode: res.data.module,
+                        status: ""
+                    });
+                    if (text == "printMozhu") {
+                        this.printMozhu = "";
+                    } else {
+                        this.innerVal = "";
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("获取模组号失败")
+                });
+            },
+            //删除行
+            deleteRow: function (index, row, data) {
+                data.splice(index, 1);
+            },
+            //确认按钮
+            confirmCheck: function () {
+                if ($("#banzuGroup").val() == "") {
+                    this.$message.warning("请选择班组");
+                    this.loading = false;
+                    return;
+                };
+                let mozu = this.mozutable, inner = this.innertable, iswarning = 0;
+                //验证模组表
+                for (let m in mozu) {
+                    let isok = 0;
+                    for (let i in inner) {
+                        if (mozu[m].barcode == inner[i].barcode) {
+                            mozu[m].status = "success";
+                            isok = 1;
+                        };
+                    };
+                    if (isok == 0) {
+                        mozu[m].status = "warning";
+                        iswarning++;
+                    };
+                };
+                //验证内箱表
+                for (let i in inner) {
+                    let isok = 0;
+                    for (let m in mozu) {
+                        if (inner[i].barcode == mozu[m].barcode) {
+                            inner[i].status = "success";
+                            isok = 1;
+                        };
+                    };
+                    if (isok == 0) {
+                        inner[i].status = "warning";
+                        iswarning++;
+                    };
+                };
+
+                if (iswarning == 0) {
+                    //存入记录
+                    let packingInnerChecks = [];
+                    for (let i in mozu) {
+                        packingInnerChecks.push({
+                            OrderNum: this.selectVal,
+                            Barcode: mozu[i].barcode,
+                            ModuleNum: mozu[i].boxcode,
+                        });
+                    };
+
+                    axios.post('/Packagings/InnerBoxCheck',
+                        {
+                            packing_InnerChecks: packingInnerChecks,
+                            Department1: $("#banzuDepartment").val(),
+                            Group: $("#banzuGroup").val()
+                        }
+                    ).then(res => {
+                        //console.log(res.data);
+                        if (res.data == true) {
+                            this.$confirm('<h4 style="margin:0">是否进行下一组验证?</h4>', '确认成功!', {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'success',
+                                center: true,
+                                dangerouslyUseHTMLString: true,
+                            }).then(() => {
+                                this.clear();
+                            }).catch(() => {
+                            });
+                        } else {
+                            this.$message({
+                                showClose: true,
+                                duration: 5000,
+                                dangerouslyUseHTMLString: true,
+                                message: '<h4 style="margin:0">' + res.data + '</h4>',
+                                type: 'error'
+                            });
+                        };
+                    }).catch(err => {
+                        console.warn("确认失败")
+                    });
+                } else {
+                    this.$message({
+                        showClose: true,
+                        duration: 5000,
+                        dangerouslyUseHTMLString: true,
+                        message: '<h4 style="margin:0">检验完成，共有' + iswarning + '个条码不对！</h4>',
+                        type: 'error'
+                    });
+                };
+
+            },
+            //行颜色
+            tableRowClassName({ row, rowIndex }) {
+                if (row.status == "success") {
+                    return 'success-row';
+                } else if (row.status == "warning") {
+                    return 'warning-row';
+                };
+                return '';
+            },
+            //表头样式
+            headerRowStyle({ row, rowIndex }) {
+                return 'display:none';
+            },
+            //重置
+            clear: function () {
+                this.innerVal = "";
+                this.printMozhu = "";
+                this.mozutable = [];
+                this.innertable = [];
+                this.getConfirmList(this.selectVal);
+                this.$message({
+                    showClose: true,
+                    dangerouslyUseHTMLString: true,
+                    message: '<h4 style="margin:0">重置完毕</h4>'
+                });
+            },
+            //获取已完成内箱装箱列表清单
+            getConfirmList: function (v) {
+                axios.post('/Packagings/GetBarcodeList',
+                    { ordernum: v }
+                ).then(res => {
+                    this.confirmList = res.data;
+                }).catch(err => {
+                    console.warn("获取列表失败")
+                });
+            },
+            //将订单号存储到本地浏览器
+            selectHandle: function (v) {
+                if (v != "") {
+                    localStorage.setItem('Order', v);
+                };
+            }
+        },
+        watch: {
+            //监听订单号
+            selectVal: function (v) {
+                this.getConfirmList(v);
+            },
+            //监听内箱数量
+            barCount: function (v) {
+                localStorage.setItem("innerCount", v)
+            }
+        },
+    });
+</script>

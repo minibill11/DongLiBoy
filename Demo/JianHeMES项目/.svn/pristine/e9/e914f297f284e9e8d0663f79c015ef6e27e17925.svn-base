@@ -1,0 +1,580 @@
+﻿@{
+    ViewBag.Title = "模块实时看板";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module-board.less" />
+    <link href="~/Content/styleFile/jquery.artZoom.css" rel="stylesheet" />
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-select v-model="ordernum.value"
+                           placeholder="订单筛选"
+                           size="medium"
+                           multiple
+                           collapse-tags
+                           filterable
+                           clearable>
+                    <el-option v-for="item in ordernum.list"
+                               :key="item"
+                               :label="item"
+                               :value="item">
+                    </el-option>
+                </el-select>
+                <el-select v-model="platformType.value"
+                           placeholder="平台筛选"
+                           size="medium"
+                           multiple
+                           collapse-tags
+                           filterable
+                           clearable>
+                    <el-option v-for="item in platformType.list"
+                               :key="item"
+                               :label="item"
+                               :value="item">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="table-top-right">
+                <a href="Board_History" target="_blank"><el-button type="primary" size="medium" plain>历史记录</el-button></a>
+                <div class="now-time">{{nowTime}}</div>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="filterTableList"
+                      row-class-name="zero-padding"
+                      max-height="600"
+                      size="small"
+                      border>
+                <el-table-column type="index" label="序号" min-width="50"></el-table-column>
+                <el-table-column prop="OrderNum" label="订单号" min-width="100">
+                    <template slot-scope="scope">
+                        <a :href=`/OrderMgms/Details/${scope.row.Id}` target="_blank">{{scope.row.OrderNum}}</a>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="PlatformType" label="平台型号" min-width="80"></el-table-column>
+                <el-table-column prop="Models" label="模块数" min-width="80"></el-table-column>
+                <el-table-column prop="PlanInputTime" label="开始生产时间" min-width="100">
+                    <template slot-scope="scope">
+                        {{scope.row.PlanInputTime.split('T')[0]}}
+                    </template>
+                </el-table-column>
+                <el-table-column label="SMT">
+                    <el-table-column prop="SMTFirstSample_Description" label="首件">
+                        <template slot-scope="scope">
+                            <board-table-btn-component :state="scope.row.SMTFirstSample_Description"
+                                                       :jpg="scope.row.SMTFirstSample_DescriptionJpg"
+                                                       :pdf="scope.row.SMTFirstSample_DescriptionPdf"
+                                                       :ordernum="scope.row.OrderNum"
+                                                       nametype="首件"></board-table-btn-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="HandSampleScedule" label="小样">
+                        <template slot-scope="scope">
+                            <el-popover placement="left"
+                                        title="小样报告"
+                                        trigger="hover"
+                                        offset="50"
+                                        :disabled="scope.row.HandSampleSceduleReport=='false'"
+                                        :open-delay="0"
+                                        :close-delay="0">
+                                <div>
+                                    <template v-for="i in scope.row.HandSampleSceduleReport">
+                                        <a :href="'/Small_Sample/Display?id='+i.id" target="_blank">
+                                            <el-button size="small" type="success" style="margin:0 2px;">{{i.Name}}</el-button>
+                                        </a>
+                                    </template>
+                                </div>
+                                <board-table-btn-component slot="reference"
+                                                           :state="scope.row.HandSampleScedule"
+                                                           :jpg="scope.row.HandSampleSceduleJpg"
+                                                           :pdf="scope.row.HandSampleScedulePdf"
+                                                           :ordernum="scope.row.OrderNum"
+                                                           nametype="小样"
+                                                           :xyreport="scope.row.HandSampleSceduleReport"></board-table-btn-component>
+                            </el-popover>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.SmtArray" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.SmtArray" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.SmtArray" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="SMTAbnormal_Description" label="异常">
+                        <template slot-scope="scope">
+                            <board-table-btn-component :state="scope.row.SMTAbnormal_Description"
+                                                       :jpg="scope.row.SMTAbnormal_DescriptionJpg"
+                                                       :pdf="scope.row.SMTAbnormal_DescriptionPdf"
+                                                       :ordernum="scope.row.OrderNum"
+                                                       nametype="异常"></board-table-btn-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="AI">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.AI" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.AI" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.AI" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="后焊">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.After" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.After" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.After" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.After" keyname="Sampling"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="灌胶前电测">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Before" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Before" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Before" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Before" keyname="Sampling"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="灌胶后电测">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Later" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Later" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Later" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Later" keyname="Sampling"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="老化">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.BurnIn" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.BurnIn" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.BurnIn" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="外观电测">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Appearance" keyname="Line"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Appearance" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.Appearance" keyname="Pass"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="包装">
+                    <el-table-column prop="InsideTheBox" label="内箱">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.InsideTheBox" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="OutsideTheBox" label="外箱">
+                        <template slot-scope="scope">
+                            <board-table-component :data="scope.row.OutsideTheBox" keyname="Complete"></board-table-component>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="Warehouse" label="入库/出库">
+                    <template slot-scope="scope">
+                        <board-table-component :data="scope.row.Warehouse" keyname="Complete"></board-table-component>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="CompleteTime" label="完成时间"></el-table-column>
+                <el-table-column prop="Timespan" label="生产时长"></el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="boxcolor bggreen"></div><div>达到100%    &nbsp;&nbsp;</div>
+            <div class="boxcolor bgyellow"></div><div> 合格率范围为80%~90%      &nbsp;&nbsp;</div>
+            <div class="boxcolor bgred"></div><div> 合格率范围为< 80%&nbsp;&nbsp;</div>
+        </el-row>
+
+        <el-dialog title="查看文件"
+                   :visible.sync="dialogVisible"
+                   width="80%">
+            <div id="contentModal" class="modal-body text-center">
+                <iframe id="pdfIframe" name="pdfIframe" src="" style="width:100%;"></iframe>
+            </div>
+            <span slot="footer" class="dialog-footer">
+                <el-button @@click="dialogVisible = false" size="medium">关 闭</el-button>
+            </span>
+        </el-dialog>
+        <div id="setPdf"></div>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_boardTable.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+    <script src="~/Scripts/imgJS/jquery.artZoom.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    tableList: [],
+                    ordernum: { value: '', list: [] },
+                    platformType: { value: '', list: [] },
+                    nowTime: '',
+                    dialogVisible: false,
+                }
+            },
+            mounted() { this.setNowTime(); this.hubConnection() },
+            computed: {
+                filterTableList() {
+                    const ini = this.tableList, ov = this.ordernum.value, pv = this.platformType.value; let o, p;
+                    o = ini.filter(r => { if (ov == null || ov == '') { return r } else { if (ov.includes(r.OrderNum)) return r } });
+                    p = o.filter(r => { if (pv == null || pv == '') { return r } else { if (pv.includes(r.PlatformType)) return r } });
+                    return p;
+                },
+            },
+            methods: {
+                //SMT异常
+                imgModal_SMTAbnormal: function (OrderNumVal) {
+                    vm.dialogVisible = true;
+                    $(".imgRotateDiv").remove();
+                    $("#pdfIframe").hide();
+                    $.ajax({
+                        url: "/OrderMgms/GetSMTAbnormalOrderImg",
+                        type: "post",
+                        data: {
+                            ordernum: OrderNumVal,
+                        },
+                        success: function (returnVal) {
+                            if (returnVal == "此SMT异常单订单图片尚未上传！") {
+                                alert(returnVal)
+                            } else {
+                                var json = JSON.parse(returnVal);
+                                for (var img in json) {
+                                    $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                        '<img class="imgModalc artZoom" src="/MES_Data/SMTAbnormalOrder_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该异常订单照片尚未上传！" />' +
+                                        '</div>');
+                                };
+                                $('.artZoom').artZoom({
+                                    path: '/SMTAbnormalOrder_Files/',	// 设置artZoom图片文件夹路径
+                                    preload: true,		// 设置是否提前缓存视野内的大图片
+                                    blur: true,			// 设置加载大图是否有模糊变清晰的效果
+                                    // 语言设置
+                                    left: '左旋转',		// 左旋转按钮文字
+                                    right: '右旋转',		// 右旋转按钮文字
+                                    source: '看原图'		// 查看原图按钮文字
+                                });
+                            };
+                        },
+                        error: function (err) {
+                            alert("SMT异常订单图片尝未上传！", err);
+                        }
+                    });
+                    //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+                },
+                //小样
+                imgModal_SmallSample: function (OrderNumVal) {
+                    vm.dialogVisible = true;
+                    $(".imgRotateDiv").remove();
+                    $("#pdfIframe").hide();
+                    $.ajax({
+                        url: "/OrderMgms/GetSmallSampleImg",
+                        type: "post",
+                        data: {
+                            ordernum: OrderNumVal,
+                        },
+                        success: function (returnVal) {
+                            if (returnVal == "图片文档未上传或不存在！") {
+                                alert(returnVal)
+                            } else {
+                                var json = JSON.parse(returnVal);
+                                for (var img in json) {
+                                    $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                        '<img class="imgModalc artZoom" src="/MES_Data/SmallSample_Files/' + OrderNumVal + '/' + json[img] + '" style="width:100%;" alt="该小样订单照片尚未上传！" />' +
+                                        '</div>');
+                                };
+                                $('.artZoom').artZoom({
+                                    path: '/SmallSample_Files/',	// 设置artZoom图片文件夹路径
+                                    preload: true,		// 设置是否提前缓存视野内的大图片
+                                    blur: true,			// 设置加载大图是否有模糊变清晰的效果
+                                    // 语言设置
+                                    left: '左旋转',		// 左旋转按钮文字
+                                    right: '右旋转',		// 右旋转按钮文字
+                                    source: '看原图'		// 查看原图按钮文字
+                                });
+                            };
+                        },
+                        error: function (err) {
+                            alert("小样订单图片尝未上传！", err);
+                        }
+                    });
+                    //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+                },
+                //首件系列
+                imgModal_SMT: function (OrderNumVal) {
+                    vm.dialogVisible = true;
+                    $(".imgRotateDiv").remove();
+                    $("#pdfIframe").hide();
+                    $.ajax({
+                        url: "/OrderMgms/GetSMTSampleImg",
+                        type: "post",
+                        data: {
+                            ordernum: OrderNumVal,
+                        },
+                        success: function (returnVal) {
+                            if (returnVal == "图片文档未上传或不存在！") {
+                                alert(returnVal)
+                            } else {
+                                var json = JSON.parse(returnVal);
+                                for (var img in json) {
+                                    $("#contentModal").append('<div class="imgRotateDiv" >' +
+                                        '<img class="imgModalc artZoom" src="/MES_Data/SMTSample_Files/' + OrderNumVal + '/' + json[img] + '?' + Math.random() + '" style="width:100%;" alt="该组装首件照片尚未上传！" />' +
+                                        '</div>');
+                                };
+                                $('.artZoom').artZoom({
+                                    path: '/SMTSample_Files/',	// 设置artZoom图片文件夹路径
+                                    preload: true,		// 设置是否提前缓存视野内的大图片
+                                    blur: true,			// 设置加载大图是否有模糊变清晰的效果
+                                    // 语言设置
+                                    left: '左旋转',		// 左旋转按钮文字
+                                    right: '右旋转',		// 右旋转按钮文字
+                                    source: '看原图'		// 查看原图按钮文字
+                                });
+                            };
+                        },
+                        error: function (err) {
+                            alert("SMT首件图片未上传！", err);
+                        }
+                    });
+                    //this.imgSrc = "/OrderMgms/GetImg?ordernum=" + ordernum;
+                },
+                //SMT异常
+                pdfModal_SMTAbnormal: function (OrderNumVal) {
+                    vm.dialogVisible = true;
+                    $(".imgRotateDiv").remove();
+                    $("#pdfIframe").show();
+                    $.ajax({
+                        url: "/OrderMgms/GetSMTAbnormalOrderPDF",
+                        type: "post",
+                        cache: false,
+                        data: {
+                            ordernum: OrderNumVal,
+                        },
+                        success: function (address) {
+                            if (address == "此SMT异常单pdf版文件尚未上传，无pdf文件可下载！") {
+                                alert(address)
+                            } else {
+                                $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=' + address + '?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                                document.getElementById("temporary").click();
+                                $("#temporary").remove();
+                                $("#pdfIframe").css({ "height": $(window).height() - 130 });
+                            };
+                        },
+                        error: function (err) {
+                            alert("查看SMT异常订单PDF失败", err);
+                        }
+                    });
+                },
+                //小样
+                pdfModal_SmallSample: function (OrderNumVal) {
+                    vm.dialogVisible = true;
+                    $(".imgRotateDiv").remove();
+                    $("#pdfIframe").show();
+                    $.ajax({
+                        url: "/OrderMgms/preview_SmallSample_pdf",
+                        type: "post",
+                        cache: false,
+                        data: {
+                            ordernum: OrderNumVal,
+                        },
+                        success: function (address) {
+                            if (address == "pdf文档未上传或不存在！") {
+                                alert(address)
+                            } else {
+                                $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=' + address + '?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                                document.getElementById("temporary").click();
+                                $("#temporary").remove();
+                                $("#pdfIframe").css({ "height": $(window).height() - 130 });
+                            };
+                        },
+                        error: function (err) {
+                            alert("查看小样PDF失败", err);
+                        }
+                    });
+                },
+                //SMT首件
+                pdfModal_SMT: function (OrderNumVal) {
+                    vm.dialogVisible = true;
+                    $(".imgRotateDiv").remove();
+                    $("#pdfIframe").show();
+                    $.ajax({
+                        url: "/OrderMgms/preview_SMTSample_pdf",
+                        type: "post",
+                        cache: false,
+                        data: {
+                            ordernum: OrderNumVal,
+                        },
+                        success: function (address) {
+                            if (address == "此SMT首件pdf版文件尚未上传，无pdf文件可下载！") {
+                                alert(address)
+                            } else {
+                                $("#setPdf").append('<a id="temporary" href="../../Scripts/pdf.js/web/viewer.html?file=' + address + '?' + Math.random() + '" target="pdfIframe" style="display:none"></a>');
+                                document.getElementById("temporary").click();
+                                $("#temporary").remove();
+                                $("#pdfIframe").css({ "height": $(window).height() - 130 });
+                            };
+                        },
+                        error: function (err) {
+                            alert("查看SMT首件PDF失败", err);
+                        }
+                    });
+                },
+                imgRotate: function (obj) {
+                    //创建一个画布
+                    var oc = document.createElement('canvas');
+                    var pc = oc.getContext('2d');
+                    oc.width = obj.width;
+                    oc.height = obj.height;
+                    obj.parentNode.replaceChild(oc, obj);
+                    pc.drawImage(obj, 0, 0);
+                    inPut[1].onclick = function () {
+                        num++; if (num > 3) { num = 0; } change();
+                    }
+                    inPut[0].onclick = function () { num--; if (num < 0) { num = 3; } change(); }
+                    function change() {
+                        switch (num) {
+                            case 1: oc.width = obj.height; oc.height = obj.width; pc.rotate(90 * Math.PI / 180); pc.drawImage(obj, 0, -obj.height); break;
+                            case 2: oc.width = obj.width; oc.height = obj.height; pc.rotate(180 * Math.PI / 180); pc.drawImage(obj, -obj.width, -obj.height); break;
+                            case 3: oc.width = obj.height; oc.height = obj.width; pc.rotate(270 * Math.PI / 180); pc.drawImage(obj, -obj.width, 0); break;
+                            case 0: oc.width = obj.width; oc.height = obj.height; pc.rotate(360 * Math.PI / 180); pc.drawImage(obj, 0, 0); break;
+                        }
+                    }
+
+                },
+                openDialog(ordernum, type, name) {
+                    if (name == '首件') {
+                        if (type == 'img') { this.imgModal_SMT(ordernum) };
+                        if (type == 'pdf') { this.pdfModal_SMT(ordernum) };
+                    }
+                    if (name == '小样') {
+                        if (type == 'img') { this.imgModal_SmallSample(ordernum) };
+                        if (type == 'pdf') { this.pdfModal_SmallSample(ordernum) };
+
+                    }
+                    if (name == '异常') {
+                        if (type == 'img') { this.imgModal_SMTAbnormal(ordernum) };
+                        if (type == 'pdf') { this.pdfModal_SMTAbnormal(ordernum) };
+
+                    };
+                },
+                setNowTime() {
+                    Date.prototype.Format = function (fmt) {
+                        let o = { 'M+': this.getMonth() + 1, 'd+': this.getDate(), 'h+': this.getHours(), 'm+': this.getMinutes(), 's+': this.getSeconds(), 'q+': Math.floor((this.getMonth() + 3) / 3), 'S': this.getMilliseconds() };
+                        if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + '').substr(4 - RegExp.$1.length));
+                        for (var k in o) if (new RegExp('(' + k + ')').test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (('00' + o[k]).substr(('' + o[k]).length))); return fmt;
+                    }; setInterval(() => { this.nowTime = new Date().Format('yyyy-MM-dd hh:mm:ss') }, 1000);
+                },
+                handleData(v) {
+                    let vd = v, ol = [], pl = [];
+                    for (let i of vd) { ol.push(i.OrderNum); pl.push(i.PlatformType); };
+                    this.ordernum.list = [...new Set(ol)]; this.platformType.list = [...new Set(pl)];
+                    this.tableList = vd;
+                },
+                hubConnection() {
+                    //读取JSON文件数据
+                    $.getJSON('/MES_Data/TemDate/ModuleProductionController.json', v => { this.handleData(v); console.log(v); });
+                    //如果前后端为同一个端口,可不填参数;如果前后端分离,这里参数为服务器端的URL.
+                    const connection = $.hubConnection(), Proxy = connection.createHubProxy('ModuleProductionControlIndex');
+                    Proxy.on('sendProductionControlIndex', v => { this.handleData(v) });
+                    connection.start().done(v => { console.log('启动连接成功！' + v); }).fail(v => { console.log('启动连接失败' + v); });
+                    connection.error(err => { console.log('连接出错！' + err) });
+                    connection.reconnected(() => { console.log('连接重新启动！') });
+                    connection.disconnected(() => { console.log('断开连接！') });
+                    connection.received((data) => { console.log('接收数据成功！') });
+                    connection.connectionSlow(() => { console.log('数据连接流！') });
+                },
+            }
+        };
+    </script>
+}

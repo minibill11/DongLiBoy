@@ -1,0 +1,874 @@
+﻿@{
+    ViewBag.Title = "部门班组数据录入";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        #app {
+            padding: 20px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .form-box {
+            width: 100%;
+            padding: 20px 0 0 0;
+        }
+
+        .form_button_box {
+            width: 100%;
+            padding: 10px 0 0 0;
+        }
+
+        .el-form-item {
+            margin-bottom: 10px;
+        }
+        /*    表格*/
+        .table-height {
+            width: 100%;
+            overflow-x: auto;
+            height: 62vh;
+        }
+
+        .img-upload {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .option-box {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .row-pointsDeducted {
+            color: red;
+            font-size: 16px;
+        }
+
+        .el-upload--picture-card {
+            width: 80px;
+            height: 80px;
+            line-height: 80px;
+        }
+
+        .el-upload-list--picture-card .el-upload-list__item {
+            width: 80px;
+            height: 80px;
+        }
+
+        .el-dialog__body {
+            padding: 0 20px;
+        }
+        /*        弹出确认信息*/
+        .comfirm-form {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+            .comfirm-form .comfirm-form-item {
+                color: navy;
+                font-size: 16px;
+                margin-right: 16px;
+            }
+
+        .comfirm-form-item span {
+            color: #8a8a8a;
+        }
+
+        .pointsDeducted_item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    </style>
+}
+
+<div id="app">
+    <div class="title">
+        部门班组数据录入
+    </div>
+
+    @*表单*@
+    <div class="form-box">
+        <el-form :inline="true" :model="formInfo" label-position="right" label-width="100px">
+            <div>
+                <el-form-item label="检查类型：">
+                    <el-select size="small" v-model="formInfo.Check_Type"
+                               placeholder="日检"
+                               v-on:change="$refs.xTable.resetColumn()"
+                               style="width:150px;">
+                        <el-option label="日检" value="日检"></el-option>
+                        <el-option label="周检" value="周检"></el-option>
+                        <el-option label="巡检" value="巡检"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="检查时间：">
+                    <el-date-picker size="small" type="date" value-format='yyyy-MM-dd' placeholder="选择日期" v-model="formInfo.Date" style="width:150px;"></el-date-picker>
+                </el-form-item>
+                <el-form-item label="检查人：">
+                    <el-input v-for="(item,index) in check_person_list" :key="item.id" size="small" v-model="item.name" placeholder="请输入" style="width:100px;">
+                        <i slot="suffix" class="el-input__icon el-icon-delete" @@click="deleteCheckPerson(item.id)"></i>
+                    </el-input>
+                    <el-button size="small" type="primary" @@click="addCheckPerson">添加检查人</el-button>
+                </el-form-item>
+            </div>
+            <div>
+                <el-form-item label="部门：">
+                    <el-select size="small" v-model="formInfo.Department" placeholder="请选择部门" style="width:150px;">
+                        <el-option v-for="item in department_options"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="位置：">
+                    <el-select size="small" v-model="formInfo.Position" placeholder="请选择位置" style="width:150px;">
+                        <el-option v-for="item in position_options"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="区域号：">
+                    <el-select size="small" v-model="formInfo.District" placeholder="请选择区域号" style="width:150px;">
+                        <el-option v-for="item in district_options"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                @*<el-form-item label="责任人：">
+                        <el-input size="small" v-model="formInfo.ResponsiblePerson" placeholder="请输入" style="width:150px;"></el-input>
+                    </el-form-item>*@
+            </div>
+            @*表格*@
+            <div class="table-height">
+                <vxe-table border
+                           ref="xTable"
+                           size="small"
+                           height="auto"
+                           align="center"
+                           :data="tableData">
+                    <vxe-table-column type="seq" title="序号" width="50"></vxe-table-column>
+                    <vxe-table-column title="7S扣分类型" field="PointsDeducted_Type" width="140">
+                        <template v-slot="{ row }">
+                            {{row.PointsDeducted_Type}}
+                            <span style="color: #8EA0B8;">（-{{getGarde(row.PointsDeducted_Type)}}分/个）</span>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="请选择扣分参考标准" field="PointsDeducted_Item" min-width="660">
+                        <template v-slot="{ row,rowIndex }">
+                            <el-checkbox-group v-model="row.PointsDeducted_Item" class="option-box" v-on:change="onSelectItem(row,rowIndex)">
+                                <el-checkbox v-for="item in row.selectoption" :label="item" :key="item">
+                                    {{item}}
+                                </el-checkbox>
+                            </el-checkbox-group>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="问题描述" field="ProblemDescription" width="200">
+                        <template v-slot="{ row }">
+                            <el-input type="textarea"
+                                      autosize
+                                      placeholder="请输入内容"
+                                      v-model="row.ProblemDescription">
+                            </el-input>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="扣分" field="PointsDeducted" width="80" class-name="row-pointsDeducted" :formatter="formatterPoints">
+                    </vxe-table-column>
+                    <vxe-table-column title="改善前图片" field="BeforeImprovement" width="200">
+                        <template v-slot="{ row,rowIndex  }">
+                            <div class="img-upload">
+                                <div class="el-upload-list__item-thumbnail" v-for="(url,index) in row.BeforeImprovement"
+                                     :key="index">
+                                    <el-tooltip class="item" effect="dark" content="单击可预览图片，右击可删除图片" placement="top-start">
+                                        <el-image style="width:70px;height:70px;margin:2px"
+                                                  fit="cover"
+                                                  :preview-src-list="row.BeforeImprovement"
+                                                  :src="url"
+                                                  v-on:contextmenu.prevent="onDelete(url,row,rowIndex,1)" lazy>
+                                        </el-image>
+                                    </el-tooltip>
+                                </div>
+                                <el-button size="mini" type="primary" v-on:click="addImg(row,rowIndex,1)">添加照片</el-button>
+                            </div>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="改善后图片" field="AfterImprovement" width="200">
+                        <template v-slot="{ row,rowIndex }">
+                            <div class="img-upload">
+                                <div class="el-upload-list__item-thumbnail" v-for="(url,index) in row.AfterImprovement"
+                                     :key="index">
+                                    <el-tooltip class="item" effect="dark" content="单击可预览图片，右击可删除图片" placement="top-start">
+                                        <el-image style="width:70px;height:70px;margin:2px"
+                                                  fit="cover"
+                                                  :preview-src-list="row.AfterImprovement"
+                                                  :src="url"
+                                                  v-on:contextmenu.prevent="onDelete(url,row,rowIndex,2)" lazy>
+                                        </el-image>
+                                    </el-tooltip>
+                                </div>
+                                <el-button size="mini" type="primary" v-on:click="addImg(row,rowIndex,2)">添加照片</el-button>
+                            </div>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="限期整改时间" field="RectificationTime" width="150">
+                        <template v-slot="{ row }">
+                            <el-date-picker size="small" v-model="row.RectificationTime"
+                                            type="date"
+                                            style="width:130px;"
+                                            placeholder="选择日期">
+                            </el-date-picker>
+                        </template>
+                    </vxe-table-column>
+                </vxe-table>
+            </div>
+            @*底部*@
+            <div class="form_button_box">
+                <el-button size="small" type="primary" @@click="onOpenMessage">提交信息</el-button>
+                <el-button size="small" @@click="onReset">取消</el-button>
+            </div>
+        </el-form>
+        <!--上传照片-->
+        <el-dialog v-bind:visible.sync="dialogVisible" width="500px">
+            <el-upload action="/KPI/ImageUpload"
+                       list-type="picture-card"
+                       multiple
+                       :file-list="fileList"
+                       :auto-upload="false"
+                       :on-change="selectFile"
+                       :on-preview="handlePictureCardPreview"
+                       :on-remove="handleRemove">
+                <i class="el-icon-plus"></i>
+            </el-upload>
+            <span slot="footer" class="dialog-footer">
+                <el-button @@click="onCancel">取 消</el-button>
+                <el-button type="primary" @@click="uploadFile">上传图片</el-button>
+            </span>
+        </el-dialog>
+        <el-dialog :visible.sync="showVisible">
+            <img width="100%" :src="dialogImageUrl" alt="">
+        </el-dialog>
+        @*确认信息*@
+        <el-dialog title="确认信息"
+                   :visible.sync="dialogMessage"
+                   width="80%">
+            <div class="comfirm-form">
+                <div class="comfirm-form-item"><span>检查类型：</span>{{this.formInfo.Check_Type}}</div>
+                <div class="comfirm-form-item"><span>检查日期：</span>{{this.formInfo.Date}}</div>
+                <div class="comfirm-form-item"><span>检查人：</span>{{this.formInfo.Check_Person}}</div>
+                <div class="comfirm-form-item"> <span>部门：</span>{{this.formInfo.Department}}</div>
+                <div class="comfirm-form-item"><span>位置：</span>{{this.formInfo.Position}}</div>
+                <div class="comfirm-form-item"><span>区域：</span>{{this.formInfo.District}}</div>
+                @*<div class="comfirm-form-item"><span>责任人：</span>{{this.formInfo.ResponsiblePerson}}</div>*@
+            </div>
+            <vxe-table border
+                       size="small"
+                       align="center"
+                       :data="submitData">
+                <vxe-table-column type="seq" title="序号" width="50"></vxe-table-column>
+                <vxe-table-column title="7S扣分类型" field="PointsDeducted_Type" width="120">
+                </vxe-table-column>
+                <vxe-table-column title="扣分参考标准" field="PointsDeducted_Item" min-width="240">
+                    <template v-slot="{ row }">
+                        <div class="pointsDeducted_item" v-for="(item,index) in row.PointsDeducted_Item" :key="index"><span>{{index+1}}.{{item}}</span></div>
+                    </template>
+                </vxe-table-column>
+                <vxe-table-column title="问题描述" field="ProblemDescription" width="140">
+                </vxe-table-column>
+                <vxe-table-column title="扣分" field="PointsDeducted" width="80" class-name="row-pointsDeducted" :formatter="formatterPoints">
+                </vxe-table-column>
+                <vxe-table-column title="改善前图片" field="BeforeImprovement" width="200">
+                    <template v-slot="{ row,rowIndex  }">
+                        <div class="img-upload">
+                            <div class="el-upload-list__item-thumbnail" v-for="(url,index) in row.BeforeImprovement"
+                                 :key="index">
+                                <el-image style="width:70px;height:70px;margin:2px"
+                                          fit="cover"
+                                          :preview-src-list="row.BeforeImprovement"
+                                          :src="url">
+                                </el-image>
+                            </div>
+                        </div>
+                    </template>
+                </vxe-table-column>
+                <vxe-table-column title="改善后图片" field="AfterImprovement" width="200">
+                    <template v-slot="{ row,rowIndex }">
+                        <div class="img-upload">
+                            <div class="el-upload-list__item-thumbnail" v-for="(url,index) in row.AfterImprovement"
+                                 :key="index">
+                                <el-image style="width:70px;height:70px;margin:2px"
+                                          fit="cover"
+                                          :preview-src-list="row.AfterImprovement"
+                                          :src="url">
+                                </el-image>
+                            </div>
+                        </div>
+                    </template>
+                </vxe-table-column>
+                <vxe-table-column title="限期整改时间" field="RectificationTime" width="120" :formatter="formatTime">
+                </vxe-table-column>
+            </vxe-table>
+            <span slot="footer" class="dialog-footer">
+                <el-button @@click="dialogMessage = false">取消</el-button>
+                <el-button type="primary" @@click="onSubmit">确认上传</el-button>
+            </span>
+        </el-dialog>
+        @*重复提示*@
+        <el-dialog :visible.sync="dialogRepeat"
+                   width="40%">
+            <span>{{formInfo.Department}}该区域{{formInfo.District}}，已存在<span style="color:red">{{tip}}</span>等记录重复，是否还要继续上传？</span>
+            <span slot="footer" class="dialog-footer">
+                <el-button @@click="onCancelConfirm">取 消</el-button>
+                <el-button type="primary" @@click="onConfirm">确 定</el-button>
+            </span>
+        </el-dialog>
+    </div>
+
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="https://cdn.jsdelivr.net/npm/xe-utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vxe-table"></script>
+
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    //检查人动态添加、删除
+                    index: 1,
+                    check_person_list: [
+                        { id: 0, name: '' }
+                    ],
+                    //下拉选项
+                    department_options: [],
+                    district_options: [],
+                    position_options: [],
+                    //上传图片
+                    dialogImageUrl: '',
+                    showVisible: false,
+                    dialogVisible: false, //控制图片上传弹框
+                    fileList: [],
+                    files: [],           //存储选中的照片
+                    filename: [],
+                    uploadType: '',     //图片位置（改善前、改善后）
+                    uploadRow: '',      //选中图片所在行
+                    uploadIndex: '',     //选中行
+                    //确认信息
+                    dialogMessage: false,
+                    submitData: [],
+                    //提示重复
+                    dialogRepeat: false,
+                    tip: '',
+                    //提交筛选
+                    formInfo: {
+                        Check_Type: '',  //检查类型
+                        Date: '',   //检查日期
+                        Department: '',      //部门
+                        Position: '',   // 位置
+                        District: '',     //区域
+                        //ResponsiblePerson: '',      //责任人
+                        Check_Person: '',      //检查人
+                    },
+                    //7s扣分项表
+                    tableData: []
+                }
+            },
+            created: function () {
+                this.onGetData();
+                this.onGetDepartmentData();
+            },
+            mounted: function () {
+
+            },
+            watch: {
+                'formInfo.Department': {
+                    handler(val) {
+                        if (val != '') {
+                            this.onGetPosition();
+                        }
+                    },
+                    deep: true
+                },
+                'formInfo.Position': {
+                    handler(val) {
+                        if (val != '') {
+                            this.onGetDistrictData();
+                        }
+                    },
+                    deep: true
+                },
+                'formInfo.Check_Type': {
+                    handler(val) {
+                        //console.log(val)
+                        if (val != '') {
+                            this.onGetData();
+                            if (val == '日检') {
+                                this.$refs.xTable.hideColumn(this.$refs.xTable.getColumnByField('PointsDeducted'));
+                                this.$refs.xTable.hideColumn(this.$refs.xTable.getColumnByField('RectificationTime'));
+                            }
+                            if (val == '周检' || val == '巡检') {
+                                this.$refs.xTable.hideColumn(this.$refs.xTable.getColumnByField('AfterImprovement'));
+                            }
+                        }
+                    },
+                    deep: true
+                }
+            },
+            //函数方法
+            methods: {
+
+                //获取初始化下拉数据
+                onGetDepartmentData() {
+                    axios.post('/KPI/GetDepartmentList').then(res => {
+                        res.data.shift();
+                        //console.log(res)
+                        this.department_options = res.data;
+                    })
+                },
+                onGetDistrictData() {
+                    axios.post('/KPI/GetDistrictList', { department: this.formInfo.Department, position: this.formInfo.Position }).then(res => {
+                        res.data.shift();
+                        //console.log(res)
+                        this.district_options = res.data;
+                    })
+                },
+                onGetPosition() {
+                    axios.post('/KPI/GetPositionList', { department: this.formInfo.Department }).then(res => {
+                        //console.log(res)
+                        res.data.shift();
+                        this.position_options = res.data;
+                    })
+                },
+                //添加检查人
+                addCheckPerson() {
+                    this.check_person_list.push({
+                        id: this.index,
+                        name: ''
+                    });
+                    this.index += 1;
+                    //console.log(this.check_person_list);
+                },
+                deleteCheckPerson(val) {
+                    //console.log(val);
+                    let arr = this.check_person_list;
+                    let newArr = [];
+                    for (let i = 0; i < arr.length; i++) {
+                        let j = arr[i];
+                        if (j.id != val) {
+                            newArr.push(j);
+                        }
+                    }
+                    this.check_person_list = newArr;
+                    //console.log(this.check_person_list);
+                },
+                onTipCheck() {
+                    let arr = [];
+                    this.check_person_list.map(item => {
+                        if (item.name != '') {
+                            arr.push(item.name);
+                        }
+                    })
+                    if (arr.length == 0) {
+                        this.$message.warning('请填写至少一个检查人！');
+                        return;
+                    } else {
+                        this.formInfo.Check_Person = arr.toString();
+                        //console.log(this.formInfo.Check_Person);
+                    }
+                },
+                //获取表格选项
+                onGetData() {
+                    axios.post('/KPI/GetInputData').then(res => {
+                        //console.log(res.data)
+                        this.tableData = res.data
+                    })
+                },
+                //分数
+                getGarde(val) {
+                    switch (val) {
+                        case '整理':
+                            return 0.5;
+                            break;
+                        case '整顿':
+                            return 0.5;
+                            break;
+                        case '清洁':
+                            return 0.5;
+                            break;
+                        case '清扫':
+                            return 0.5;
+                            break;
+                        case '安全':
+                            return 1;
+                            break;
+                        case '节约':
+                            return 1;
+                            break;
+                        case '素养':
+                            return 1;
+                            break;
+                    }
+                },
+                //扣分计算
+                onSelectItem(row, rowIndex) {
+                    if (this.formInfo.Check_Type != '日检' && this.formInfo.Check_Type != '') {
+                        //console.log(rowIndex);
+                        let grade_item = this.getGarde(row.PointsDeducted_Type);
+                        let count = row.PointsDeducted_Item.length;
+                        let grade = grade_item * count;
+                        if (grade == 0) {
+                            this.tableData[rowIndex].PointsDeducted = '';
+                        } else {
+                            this.tableData[rowIndex].PointsDeducted = grade;
+                        }
+                    }
+                },
+                //添加图片
+                addImg(row, rowIndex, val) {
+                    //console.log(rowIndex );
+                    if (this.onTip()) {
+                        this.dialogVisible = true;
+                        if (val == 1) {
+                            this.uploadType = '改善前';
+                        }
+                        if (val == 2) {
+                            this.uploadType = '改善后';
+                        }
+                        this.files = fileList = [];
+                        this.filename = [];
+                        this.uploadRow = row;
+                        this.uploadIndex = rowIndex;
+                    }
+
+                },
+                //选取文件方法
+                selectFile(file) {
+                    this.files.push(file.raw);
+                    this.filename.push(file.name);
+                },
+                //移除临时图片
+                handleRemove(file) {
+                    //console.log(file, fileList);
+                    for (let i in this.files) {
+                        if (this.files[i].uid == file.uid) {
+                            this.files.splice(i, 1)
+                        }
+                    }
+                    for (let i in this.filename) {
+                        if (this.filename[i] == file.name) {
+                            this.filename.splice(i, 1)
+                        }
+                    }
+                },
+                //查看临时图片
+                handlePictureCardPreview(file) {
+                    this.dialogImageUrl = file.url;
+                    this.showVisible = true;
+                },
+                //取消上传
+                onCancel() {
+                    this.fileList = [];
+                    this.dialogVisible = false;
+                },
+                //确认上传图片
+                uploadFile() {
+                    this.$loading({
+                        lock: true,
+                        text: '上传ing...',
+                        spinner: 'el-icon-loading',
+                        background: 'rgba(0, 0, 0, 0.7)'
+                    });
+                    this.formInfo.Date.toString();
+                    //console.log(this.formInfo);
+                    let fd = new FormData();
+                    fd.append('department', this.formInfo.Department)
+                    fd.append('position', this.formInfo.Position)
+                    fd.append('check_date', this.formInfo.Date)
+                    fd.append('check_Type', this.formInfo.Check_Type)
+                    fd.append('district', this.formInfo.District)
+                    fd.append('pointsDeducted_Type', this.uploadRow.PointsDeducted_Type)
+                    fd.append('uploadType', this.uploadType)
+                    let param = {
+                        'department': this.formInfo.Department,
+                        'position': this.formInfo.Position,
+                        'check_date': this.formInfo.Date,
+                        'check_Type': this.formInfo.Check_Type,
+                        'district': this.formInfo.District,
+                        'pointsDeducted_Type': this.uploadRow.PointsDeducted_Type,
+                        'uploadType': this.uploadType
+                    }
+                    //console.log(param, 9999999);
+                    this.filename.forEach(file => { fd.append("pictureFile", file); })
+                    j = 0;
+                    this.files.forEach(item => { fd.append("UploadFile_Ingredients" + j, item); j++; })
+                    axios.post('/KPI/ImageUpload', fd).then(res => {
+                        //console.log(res)
+                        if (res.data == 'True') {
+                            this.$message.success('图片上传成功！');
+                            this.dialogVisible = false;
+                            this.onGetImg(param);
+                            this.files = this.fileList = this.filename = [];
+                            this.$loading().close();
+                        } else {
+                            this.$message.error('图片上传失败');
+                            this.dialogVisible = false;
+                            this.$loading().close();
+                        }
+                    })
+                },
+                //获取图片
+                onGetImg(param) {
+                    axios.post('/KPI/QueryImage', param).then(res => {
+                        //console.log(res.data,88888888)
+                        let arr = this.tableData[this.uploadIndex];
+                        if (param.uploadType == '改善前') {
+                            arr.BeforeImprovement = res.data;
+                            this.$forceUpdate()
+                        }
+                        if (param.uploadType == '改善后') {
+                            arr.AfterImprovement = res.data;
+                            this.$forceUpdate()
+                        }
+                    })
+                },
+                //删除图片
+                onDelete(url, row, rowIndex, val) {
+                    //console.log(this.files, 1212);
+                    //console.log(this.filename, 5656);
+                    //console.log(row.BeforeImprovement, 5656);
+                    //console.log(url,000);
+                    if (val == 1) {
+                        this.uploadType = '改善前';
+                    }
+                    if (val == 2) {
+                        this.uploadType = '改善后';
+                    }
+                    this.$confirm('确认删除该图片？')
+                        .then(_ => {
+                            this.uploadIndex = rowIndex;
+                            let param = {
+                                'path': url,
+                                'department': this.formInfo.Department,
+                                'position': this.formInfo.Position,
+                                'check_date': this.formInfo.Date,
+                                'check_Type': this.formInfo.Check_Type,
+                                'district': this.formInfo.District,
+                                'pointsDeducted_Type': row.PointsDeducted_Type,
+                                'uploadType': this.uploadType
+                            }
+                            this.$loading({
+                                lock: true,
+                                text: '删除ing...',
+                                spinner: 'el-icon-loading',
+                                background: 'rgba(0, 0, 0, 0.7)'
+                            });
+                            axios.post('/KPI/DeleteImg', param).then(res => {
+                                //console.log(res)
+                                if (res.data = "删除成功") {
+                                    for (var k in param) {
+                                        if (k == 'path') {
+                                            delete param[k];
+                                        }
+                                    }
+                                    this.onGetImg(param)
+                                    this.$loading().close();
+                                }
+                            })
+                        }).catch(_ => {
+                            this.$loading().close();
+                        }
+                        );
+                },
+                //提示
+                onTip() {
+                    if (this.formInfo.Check_Type == '') {
+                        this.$message.warning('请选择检查类型!')
+                        return false;
+                    } else if (this.formInfo.Date == '') {
+                        this.$message.warning('请选择检查日期！');
+                        return false;
+                    } else if (this.formInfo.Department == '') {
+                        this.$message.warning('请选择部门！');
+                        return false;
+                    }
+                    else if (this.formInfo.Position == '') {
+                        this.$message.warning('请选择位置!')
+                        return false;
+                    } else if (this.formInfo.District == '') {
+                        this.$message.warning('请选择区域号!')
+                        return false;
+                    }
+                    else {
+                        return true;
+                    }
+                },
+                //判断是否上传照片
+                onCheckUpload() {
+                    let type = this.formInfo.Check_Type;
+                    let row = this.tableData;
+                    for (let i = 0; i < row.length; i++) {
+                        if (row[i].PointsDeducted_Item.length > 0) {
+                            //console.log(444444)
+                            if (type == '日检') {
+                                if (row[i].BeforeImprovement == '' || row[i].AfterImprovement == '') {
+                                    this.$message.warning('请在对应选项上传图片！')
+                                    return false;
+                                }
+                            }
+                            if (type == '周检' || type == '巡检') {
+                                if (row[i].BeforeImprovement == '') {
+                                    this.$message.warning('请在对应选项上传图片！')
+                                    return false;
+                                } else {
+                                    if (row[i].RectificationTime == '') {
+                                        this.$message.warning('请选择限期整改时间！')
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return true;
+                },
+                //格式化数据
+                formatTime({ cellValue }) {
+                    return XEUtils.toDateString(cellValue, 'yyyy-MM-dd')
+                },
+                formatterPoints({ cellValue }) {
+                    if (cellValue != '' || cellValue != 0) {
+                        return -cellValue;
+                    }
+                },
+                //取消当前信息
+                onReset() {
+                    this.$confirm('确认清空当前信息？').then(_ => {
+                        this.formInfo = {
+                            Check_Type: '',  //检查类型
+                            Date: '',   //检查日期
+                            Department: '',      //部门
+                            Position: '',   // 位置
+                            District: '',     //区域
+                            //ResponsiblePerson: '',      //责任人
+                            Check_Person: ''
+                        },
+                            this.onGetData();
+                    }).catch();
+
+                },
+                //弹出确认信息
+                onOpenMessage() {
+                    if (this.onTip()) {
+                        this.onTipCheck();
+                        //if (this.formInfo.ResponsiblePerson == '') {
+                        //    this.$message.warning('请填写责任人！');
+                        //    return;
+                        //}
+                        if (this.onCheckUpload()) {
+                            let [...submitData] = this.tableData;
+                            for (let i = 0; i < submitData.length; i++) {
+                                if (submitData[i].PointsDeducted_Item.length == 0) {
+                                    submitData.splice(i, 1);
+                                    i--;
+                                }
+                            }
+                            if (submitData.length == 0) {
+                                this.$message.warning('请在7S参考标准勾选7S扣分选项！');
+                                this.onGetData();
+                                return;
+                            } else {
+                                this.submitData = submitData;
+                                //console.log(submitData, 99999999999);
+                                axios.post('/KPI/Check_Record', { record: submitData, formInfo: this.formInfo }).then(res => {
+                                    //console.log(res.data, 111111111);
+                                    if (res.data.length == 0) {
+                                        this.dialogMessage = true;
+                                    } else {
+                                        this.tip = res.data.toString();
+                                        this.dialogRepeat = true;
+                                    }
+                                })
+                            }
+                        }
+                    }
+                },
+                //重复记录提示取消上传
+                onCancelConfirm() {
+                    this.dialogRepeat = false;
+                },
+                onConfirm() {
+                    this.dialogRepeat = false;
+                    this.dialogMessage = true;
+                },
+                //提交表单
+                onSubmit() {
+                    let submitData = this.submitData;
+                    for (let i = 0; i < submitData.length; i++) {
+                        let PointsDeducted_Item = submitData[i].PointsDeducted_Item;
+                        let str = PointsDeducted_Item.join("|");
+                        //console.log('str', str);
+                        submitData[i].PointsDeducted_Item = str;
+                    }
+                    //console.log('submitData', submitData);
+                    let newd = JSON.parse(JSON.stringify(submitData, ['PointsDeducted_Type', 'PointsDeducted_Item', 'ProblemDescription', 'RectificationTime', 'Rectification_Confim', 'PointsDeducted']));
+                    //let newData = [];
+                    //for (let i = 0; i < newd.length; i++) {
+                    //    let json = JSON.parse((JSON.stringify(newd[i]) + JSON.stringify(this.formInfo)).replace(/}{/, ','));
+                    //    newData.push(json);
+                    //}
+                    //console.log('newd', newd);
+                    this.$loading({
+                        lock: true,
+                        text: '提交ing...',
+                        spinner: 'el-icon-loading',
+                        background: 'rgba(0, 0, 0, 0.7)'
+                    });
+                    axios.post('/KPI/RecordInput', { record: newd, formInfo: this.formInfo }).then(res => {
+                        if (res.data == '保存成功！') {
+                            this.$message.success('保存成功！');
+                            this.formInfo = {
+                                Check_Type: '',  //检查类型
+                                Date: '',   //检查日期
+                                Department: '',      //部门
+                                Position: '',   // 位置
+                                District: '',     //区域
+                                //ResponsiblePerson: '',      //责任人
+                                Check_Person: ''
+                            };
+                            this.submitData = [];
+                            this.index = 1;
+                            this.check_person_list = [
+                                { id: 0, name: '' }
+                            ];
+                            this.onGetData();
+                            this.$loading().close();
+                            this.dialogMessage = false;
+                        } else {
+                            this.$loading().close();
+                            this.$message.error('保存失败！');
+                        }
+                    })
+
+
+                }
+            }
+        };
+    </script>
+}

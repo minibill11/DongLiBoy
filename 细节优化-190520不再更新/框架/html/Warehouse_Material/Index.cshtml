@@ -1,0 +1,473 @@
+﻿@model IEnumerable<JianHeMES.Models.Warehouse_Material_BaseInfo>
+@{
+    ViewBag.Title = "物料查询";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        h2 {
+            text-align: center;
+            font-size: 1.8rem;
+        }
+
+        h3 {
+            margin-top: 10px !important;
+        }
+
+        .moduleMenu .el-menu {
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: center;
+        }
+
+        .el-form-item {
+            margin-bottom: 2px;
+        }
+
+        table tbody tr td {
+            padding: 2px !important;
+            margin: 2px;
+        }
+
+        .el-textarea__inner {
+            margin: 0 auto;
+        }
+
+        @@media screen and (min-width:800px) {
+            .Ccontainer {
+                display: flex;
+                justify-content: center;
+                width: 80%;
+                margin: 0 auto;
+            }
+
+            .searchListContainer {
+                width: 100%;
+            }
+
+            .test {
+                width: 70%;
+            }
+
+            .testbtn {
+                margin-left: 15%;
+                margin-top: 2px;
+            }
+
+            .leftCcontainer {
+                width: 40%;
+                max-height: 580px;
+                box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+                /*background-color:cyan;*/
+            }
+
+            .rightContainer {
+                width: 40%;
+                max-height: 580px;
+                overflow: auto;
+                box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+                margin-left: 8px;
+                /*background-color:greenyellow;*/
+            }
+        }
+
+        @@media screen and (max-width:410px) {
+            .test {
+                width: 100%;
+            }
+
+            .testbtn {
+                margin-left: 0%;
+                margin-top: 2px;
+            }
+        }
+    </style>
+}
+<div id="app">
+    <el-container>
+        <el-header class="text-center" style="height:auto !important;">
+            @*菜单*@
+            <module-menu-component name="Index" title="@ViewBag.Title"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center">
+                <div class="Ccontainer">
+                    @* 左测表格 *@
+                    <div v-show="flag" class="leftCcontainer">
+                        <el-form model="ruleForm" status-icon ref="ruleForm" label-width="70px" class="demo-ruleForm">
+                            <el-form-item label="物料编号" prop="img01">
+                                <el-input id="searchinput" size="small" type="text" v-model="ruleForm.img01" autocomplete="off"></el-input>
+                                <el-button v-on:click="search" id="search" size="mini" type="success">查询</el-button>
+                                <el-button v-on:click="clearinfos" id="clearinfos" size="mini" type="primary">清空</el-button>
+                                <el-button v-on:click="records" id="records" size="mini" type="primary">记录</el-button>
+                                <el-button v-on:click="searchList" id="searchList" size="mini" type="primary">品名查询</el-button>
+                            </el-form-item>
+                            <el-form-item label="品名" prop="ima02">
+                                <el-input size="small" disabled type="text" v-model="ruleForm.ima02" autocomplete="off"></el-input>
+                            </el-form-item>
+                            <el-form-item label="规格" prop="ima021">
+                                <el-input size="small" disabled type="textarea" v-model="ruleForm.ima021"></el-input>
+                            </el-form-item>
+                            <el-form-item label="仓库" prop="img02">
+                                <el-input size="small" disabled type="text" v-model="ruleForm.img02" autocomplete="off"></el-input>
+                            </el-form-item>
+                            <el-form-item label="库位" prop="img03">
+                                <el-input style="width:150px;" size="small" type="text" v-model="ruleForm.img03" autocomplete="off"></el-input>
+                                <el-button v-on:click="saveChange" size="mini" type="success">保存</el-button>
+                            </el-form-item>
+                            <el-form-item label="批号" prop="img04">
+                                {{ruleForm.img04}}
+                            </el-form-item>
+                            <el-form-item label="库存数量" prop="checkPass">
+                                {{count}}
+                            </el-form-item>
+                            <el-form-item label="库存单位" prop="checkPass">
+                                {{ruleForm.img09}}
+                            </el-form-item>
+                            <el-form-item label="参考号码" prop="checkPass">
+                                {{ruleForm.img05}}
+                            </el-form-item>
+                            <el-form-item label="有效期" prop="checkPass">
+                                {{ruleForm.img18 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="供应商" prop="checkPass">
+                                未提供
+                            </el-form-item>
+
+                        </el-form>
+                    </div>
+                    @* 右侧表单 *@
+                    <div v-show="flag" class="rightContainer">
+                        <el-form model="ruleForm2" status-icon ref="ruleForm2" label-width="155px" class="demo-ruleForm2">
+                            <el-form-item label="参考序号" prop="checkPass">
+                                {{ruleForm2.img06}}
+                            </el-form-item>
+                            <el-form-item label="收货数量" prop="checkPass">
+                                {{ruleForm2.img08}}
+                            </el-form-item>
+                            <el-form-item label="采购单位/生产单位" prop="checkPass">
+                                {{ruleForm2.img07}}
+                            </el-form-item>
+                            <el-form-item label="制造日期" prop="checkPass">
+                                {{ruleForm2.img13 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="最近一次盘点日期" prop="checkPass">
+                                {{ruleForm2.img14 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="最近一次收料日期" prop="checkPass">
+                                {{ruleForm2.img15 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="最近一次发料日期" prop="checkPass">
+                                {{ruleForm2.img16 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="最近一次异动日期" prop="checkPass">
+                                {{ruleForm2.img17 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="库存等级" prop="checkPass">
+                                {{ruleForm2.img19}}
+                            </el-form-item>
+                            <el-form-item label="单位数量换算率" prop="checkPass">
+                                {{ruleForm2.img20}}
+                            </el-form-item>
+                            <el-form-item label="单位数量换算率-对料件库存单" prop="checkPass">
+                                {{ruleForm2.img21}}
+                            </el-form-item>
+                            <el-form-item label="仓储类别" prop="checkPass">
+                                {{ruleForm2.img22}}
+                            </el-form-item>
+                            <el-form-item label="是否为可用仓储" prop="checkPass">
+                                {{ruleForm2.img23}}
+                            </el-form-item>
+                            <el-form-item label="是否为ＭＲＰ可用仓储" prop="checkPass">
+                                {{ruleForm2.img24}}
+                            </el-form-item>
+                            <el-form-item label="保税与否" prop="checkPass">
+                                {{ruleForm2.img25}}
+                            </el-form-item>
+                            <el-form-item label="仓储所属会计科目" prop="checkPass">
+                                {{ruleForm2.img26}}
+                            </el-form-item>
+                            <el-form-item label="工单发料优先顺序" prop="checkPass">
+                                {{ruleForm2.img27}}
+                            </el-form-item>
+                            <el-form-item label="销售出货优先顺序" prop="checkPass">
+                                {{ruleForm2.img28}}
+                            </el-form-item>
+                            <el-form-item label="直接材料成本" prop="checkPass">
+                                {{ruleForm2.img30}}
+                            </el-form-item>
+                            <el-form-item label="间接材料成本" prop="checkPass">
+                                {{ruleForm2.img31}}
+                            </el-form-item>
+                            <el-form-item label="厂外加工材料成本" prop="checkPass">
+                                {{ruleForm2.img32}}
+                            </el-form-item>
+                            <el-form-item label="厂外加工人工成本" prop="checkPass">
+                                {{ruleForm2.img33}}
+                            </el-form-item>
+                            <el-form-item label="库存单位对成本单位的转换率" prop="checkPass">
+                                {{ruleForm2.img34}}
+                            </el-form-item>
+                            <el-form-item label="专案号码" prop="checkPass">
+                                {{ruleForm2.img35}}
+                            </el-form-item>
+                            <el-form-item label="外观编号" prop="checkPass">
+                                {{ruleForm2.img36}}
+                            </el-form-item>
+                            <el-form-item label="呆滞日期" prop="checkPass">
+                                {{ruleForm2.img37 | YMD}}
+                            </el-form-item>
+                            <el-form-item label="备注" prop="checkPass">
+                                {{ruleForm2.img38}}
+                            </el-form-item>
+                        </el-form>
+                    </div>
+
+                    @* 列表查询 *@
+                    <div v-show="!flag" class="searchListContainer">
+                        <div style="display:flex;justify-content:center">
+                            <span style="height:28px;line-height:28px;">物料编号：</span>
+                            <el-input style="width:150px;margin-right:10px;" placeholder="请输入物料编号"
+                                      size="mini"
+                                      v-model="Enumbers"
+                                      clearable>
+                            </el-input>
+                            <span style="height:28px;line-height:28px;">物料品名：</span>
+                            <el-input style="width:150px;margin-right:10px;" placeholder="请输入物料品名"
+                                      size="mini"
+                                      v-model="Ename"
+                                      clearable>
+                            </el-input>
+                            <el-button type="primary" size="mini" @@click="getList">查询</el-button>
+                            <el-button class="testbtn" size="mini" @@click="goback">返回</el-button>
+                        </div>
+                        <div class="test" style="margin:10px auto;display:flex;justify-content:center;flex-wrap:wrap;">
+                            <el-table v-bind:data="tableData"
+                                      max-height="600"
+                                      v-loading="enameloading"
+                                      style="width: 100%;">
+                                <el-table-column prop="img01"
+                                                 label="料件编号"
+                                                 width="140">
+                                </el-table-column>
+                                <el-table-column prop="ima02"
+                                                 label="物料品名"
+                                                 min-width="180">
+                                </el-table-column>
+                                @*<el-table-column prop="ima021"
+                                                     label="物料规格">
+                                    </el-table-column>*@
+                                <el-table-column prop="img02"
+                                                 width="80"
+                                                 label="仓库编号">
+                                </el-table-column>
+                                <el-table-column prop="img03"
+                                                 width="80"
+                                                 label="储位">
+                                </el-table-column>
+                                <el-table-column prop="img10"
+                                                 width="80"
+                                                 label="库存数量">
+                                </el-table-column>
+                                <el-table-column width="80"
+                                                 label="操作">
+                                    <template slot-scope="scope">
+                                        <el-button type="success" size="mini" @@click="gobackToDetials(scope.row)">详细</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </div>
+                </div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_warehouseMenu.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+    <script src="~/Content/styleFile/warehouseMaterial/warehouse.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    ruleForm: {
+                        pass: '',
+                        checkPass: '',
+                        age: '',
+
+                    },
+                    ruleForm2: {},
+                    flag: true,
+                    tableData: [],
+                    Enumbers: "",
+                    Ename: "",
+                    count: 0,
+                    enameloading: false
+                }
+            },
+            mixins: [warehouse],
+            mounted: function () {
+                $("#searchinput").focus();
+            },
+            methods: {
+                // 根据物料编号查找
+                getInfos(nums) {
+                    axios.post("/Warehouse_Material/QueryMaterial", { material: nums }).then(res => {
+                        console.log(res.data)
+                        this.count = 0
+                        if (res.data.length > 0) {
+                            this.ruleForm = res.data[0];
+                            this.ruleForm2 = res.data[0];
+                            for (i = 0; i < res.data.length; i++) {
+                                this.count += res.data[i].img10;
+                            };
+                        } else {
+                            this.$notify({
+                                message: "查无数据",
+                                type: "warning"
+                            })
+                        }
+                    }).catch(err => {
+                        this.$notify({
+                            message: "网络错误",
+                            type: "warning"
+                        })
+                    })
+                },
+                // 保存修改库位
+                saveChange() {
+                    if (this.ruleForm.img03 !== '') {
+                        axios.post("/Warehouse_Material/ModifyLocation", { material: this.ruleForm.img01, position: this.ruleForm.img03 }).then(res => {
+                            console.log(res.data)
+                            if (res.data.Site == true) {
+                                this.$notify({
+                                    message: "修改成功！",
+                                    type: "success"
+                                })
+                            } else {
+                                this.$notify({
+                                    message: "ERP的库位号和MES的库位号不一样,修改失败！",
+                                    type: "warning"
+                                })
+                            }
+
+                        }).catch(err => {
+                            this.$notify({
+                                message: "网络错误！",
+                                type: "warning"
+                            })
+                        })
+                    } else {
+                        this.$notify({
+                            message: "请填写库位号！",
+                            type: "warning"
+                        })
+                    }
+
+                },
+                // 查询按钮
+                search() {
+                    if (this.ruleForm.img01 == "" || this.ruleForm.img01 == null) {
+                        this.$notify({
+                            message: "请输入查询信息!",
+                            type: "warning",
+                            //position:"bottom"
+                        });
+                    } else {
+                        this.getInfos(this.ruleForm.img01)
+                    }
+
+                },
+                // 清空
+                clearinfos() {
+                    this.ruleForm = {};
+                    this.ruleForm2 = {};
+                    $("#searchinput").focus();
+                },
+                // 记录
+                records() {
+                    window.location.href = "/Warehouse_Material/Create"
+                },
+                // 列表查询
+                searchList() {
+                    this.flag = false
+                },
+                //返回
+                goback() {
+                    this.flag = true
+                },
+                //查询物料列表
+                getList() {
+                    if (this.Enumbers == '' && this.Ename == "") {
+                        this.$notify({
+                            message: "请输入查询信息!",
+                            type: "warning",
+                            //position:"bottom"
+                        });
+                    } else {
+                        this.enameloading = true;
+                        axios.post("/Warehouse_Material/QueryMaterialNumName", { materialNumber: this.Enumbers, materialName: this.Ename }).then(res => {
+                            console.log(res.data);
+                            this.tableData = res.data;
+                            this.enameloading = false;
+                        }).catch(err => {
+                            this.enameloading = false;
+                            this.$notify({
+                                message: "网络错误!",
+                                type: "warning",
+                                //position:"bottom"
+                            });
+                        })
+                    };
+                },
+                // 点击详细
+                gobackToDetials(item) {
+                    console.log(item.img01);
+                    if (item.img01 == '') {
+                        this.$notify({
+                            message: "物料编号为空!",
+                            type: "warning",
+                            //position:"bottom"
+                        });
+                    } else {
+                        this.flag = true;
+                        this.ruleForm.img01 = item.img01;
+                        $("#search").click();
+                    }
+                }
+            },
+        };
+        Vue.filter('YMD', function (val) {
+            if (val == null) return '';
+            if (val.indexOf("9999") != -1) {
+                return '无期限'
+            } else {
+                let dd = new Date(val);
+                let year = dd.getFullYear();
+                let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+                let days = dd.getDate().toString().padStart(2, 0);
+                let hours = dd.getHours().toString().padStart(2, 0);
+                let minius = dd.getMinutes().toString().padStart(2, 0);
+                let seconds = dd.getSeconds().toString().padStart(2, 0);
+                return `${year}-${month}-${days}`
+            }
+        });
+        // 监听回车事件
+        document.onkeydown = function (event) {
+            var e = event || window.event;    // 兼容IE
+            if (e && e.keyCode == 13) { //回车键的键值为13
+                if (vm.flag) {
+                    $("#search").click();
+                } else {
+                    vm.getList();
+                }
+            }
+        };
+    </script>
+}

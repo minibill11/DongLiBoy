@@ -1,0 +1,412 @@
+﻿@{
+    ViewBag.Title = "库存金额";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/tableStyle/StockAmount.less" />
+    <style>
+        #app {
+            padding: 15px 15px 0 15px;
+            font-family: '微软雅黑';
+        }
+        .select {
+            margin: 20px;
+        }
+        .el-table .warning-row {
+            background: #eff2f7;
+            font-size: 25px !important;
+            font-weight: 700;
+        }
+
+        .table {
+            width: 100%;
+        }
+
+        .el-table__header tr, .el-table__header th {
+            padding: 0;
+            height: 25px;
+            line-height: 20px;
+        }
+
+        .el-table td div {
+            font-size: 12px;
+            color: #293038
+        }
+
+        .el-form-item {
+            font-weight: 200
+        }
+
+        .bt_form_flex {
+            display: flex;
+            flex-flow: row wrap;
+            margin-top: 10px;
+        }
+
+            .bt_form_flex > .el-form-item {
+                width: 380px;
+            }
+
+            .bt_form_flex .el-input__inner {
+                width: 150px;
+            }
+
+        .el-form-item__label {
+            color: #000000;
+            font-weight: 600
+        }
+    </style>
+}
+<div id="app">
+    <el-header class="text-center">
+        <h3>月度库存金额</h3>
+        <sa-header :active="active"></sa-header>
+    </el-header>
+    <div class="select">
+        <span style="font-size:small">已生成报告：</span>
+        <el-date-picker v-model="inputDate"
+                        type="month"
+                        placeholder="选择录入日期"
+                        size="small"
+                        style="width:150px">
+        </el-date-picker>
+        <el-button type="primary" size="small" v-on:click="GetData">查询</el-button>
+        <el-button type="danger" size="small" plain @@click="deleteReport" v-bind:disabled="tableDate.length==0" v-show="deleteRoles==true">删除</el-button>
+    </div>
+    <el-table :data="tableDate" max-height="574" class="table" :row-class-name="tableRowClassName" :header-cell-style="{'text-align':'center'}">
+        <el-table-column prop="Category"
+                         label="类别"
+                         width="100">
+        </el-table-column>
+        <el-table-column prop="Category_Detail"
+                         label="分类明细"
+                         width="150">
+        </el-table-column>
+        <el-table-column prop=""
+                         label="库龄"
+                         width="180">
+            <el-table-column prop="OneMonth"
+                             label="1个月以内"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="TwoMonths"
+                             label="2-3个月"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="FourMonths"
+                             label="4-6个月"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="SevenMonths"
+                             label="7-12个月"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="OneYear"
+                             label="1-2年"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="TwoYears"
+                             label="2-3年"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="ThreeYears"
+                             label="3-5年"
+                             width="130"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="FiveYears"
+                             label="5年以上"
+                             width="125"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="AmountTotal"
+                             label="合计金额"
+                             width="140"
+                             align="right">
+            </el-table-column>
+        </el-table-column>
+        <el-table-column prop="RecordNum"
+                         label="记录条数"
+                         width="120"
+                         align="right">
+        </el-table-column>
+        <el-table-column prop="Remark"
+                         label="备注">
+        </el-table-column>
+    </el-table>
+    <el-row class="table-bottom">
+        <div class="table-bottom-left">
+            <el-form class="bt_form_flex" size="small">
+                <el-form-item label="财务审核：" class="ite">
+                    <el-select v-model="finance_Assessed"
+                               placeholder="请选择" v-show="(finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过')&&caiwu==true" v-bind:disabled="tableDate.length==0">
+                        <el-option v-for="item in Options"
+                                   :key="item.value"
+                                   :value="item.label">
+                        </el-option>
+                    </el-select>
+                    <lable v-show="finance_Assessed!=null&&(finance_Assessed==1||finance_Assessed==2)">{{arr.Finance_Assessor+" / "}}{{arr.Finance_Assessed_Date|timeFilter}}{{" "+arr.Finance_Assessed_Reason}}</lable>
+                    <el-button type="success" v-show="(finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过')&&caiwu==true" @@click="Confirm(1)">确认</el-button>
+                </el-form-item>
+
+                <el-form-item label="PMC审核：">
+                    <el-select v-model="pmc_Assessed"
+                               placeholder="请选择" v-show="(pmc_Assessed==null||pmc_Assessed=='通过'||pmc_Assessed=='不通过')&&pmc==true" v-bind:disabled="tableDate.length==0">
+                        <el-option v-for="item in Options"
+                                   :key="item.value"
+                                   :value="item.label">
+                        </el-option>
+                    </el-select>
+                    <lable v-show="pmc_Assessed!=null&&(pmc_Assessed==1||pmc_Assessed==2)">{{arr.PMC_Assessor+" / "}}{{arr.PMC_Assessed_Date|timeFilter}}{{" "+arr.PMC_Assessed_Reason}}</lable>
+                    <el-button type="success" v-show="(pmc_Assessed==null||pmc_Assessed=='通过'||pmc_Assessed=='不通过')&&pmc==true" @@click="Confirm(2)">确认</el-button>
+                </el-form-item>
+
+                <el-form-item label="中心总监审核：">
+                    <el-select v-model="director_Approved"
+                               placeholder="请选择" v-bind:disabled="finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过'||pmc_Assessed==null ||pmc_Assessed=='通过'||pmc_Assessed=='不通过'" v-show="(director_Approved==null||director_Approved=='通过'||director_Approved=='不通过')&&zongjian==true">
+                        <el-option v-for="item in Options"
+                                   :key="item.value"
+                                   :value="item.label">
+                        </el-option>
+                    </el-select>
+                    <lable v-show="director_Approved!=null&&(director_Approved==1||director_Approved==2)">{{arr.Director_Approver+" / "}}{{arr.Director_Approved_Date|timeFilter}}{{" "+arr.Director_Approved_Reason}}</lable>
+                    <el-button type="success" @@click="Confirm(3)" v-bind:disabled="director_Approved==null" v-show="(director_Approved==null||director_Approved=='通过'||director_Approved=='不通过')&&zongjian==true">确认</el-button>
+                </el-form-item>
+
+                <el-form-item label="工厂厂长核准：">
+                    <el-select v-model="factoryManager_Approved"
+                               placeholder="请选择" v-bind:disabled="finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过'||pmc_Assessed==null ||pmc_Assessed=='通过'||pmc_Assessed=='不通过'||director_Approved==null||director_Approved=='通过'||director_Approved=='不通过'" v-show="(factoryManager_Approved==null||factoryManager_Approved=='通过'||factoryManager_Approved=='不通过')&&changzhang==true">
+                        <el-option v-for="item in Options"
+                                   :key="item.value"
+                                   :value="item.label">
+                        </el-option>
+                    </el-select>
+                    <lable v-show="factoryManager_Approved!=null&&(factoryManager_Approved==1||factoryManager_Approved==2)">{{arr.FactoryManager_Approver+" / "}}{{arr.FactoryManager_Approved_Date|timeFilter}}{{" "+arr.FactoryManager_Approved_Reason}}</lable>
+                    <el-button type="success" @@click="Confirm(4)" v-bind:disabled="factoryManager_Approved==null" v-show="(factoryManager_Approved==null||factoryManager_Approved=='通过'||factoryManager_Approved=='不通过')&&changzhang==true">确认</el-button>
+                </el-form-item>
+            </el-form>
+        </div>
+        <div class="table-bottom-right">
+        </div>
+    </el-row>
+    <el-dialog title="提示" v-bind:visible.sync="assVisible" width="400px">
+        <span slot="title">
+            <h3 style="text-align:center;">不通过原因</h3>
+            <el-form label-position="labelPosition" label-width="80px">
+                <el-form-item label="原因：" style="margin-top:25px">
+                    <el-input v-model="reason" size="small" style="width:250px;" type="textarea"></el-input>
+                </el-form-item>
+            </el-form>
+        </span>
+        <span slot="footer" class="dialog-footer">
+            <el-button v-on:click="assVisible=false" size="small">取 消</el-button>
+            <el-button type="primary" v-on:click="assVisible=false" size="small">添 加</el-button>
+        </span>
+    </el-dialog>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_SA_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        Vue.filter("timeFilter", function (val) {
+            if (!val) return '';
+            let dd = new Date(val);
+            let yy = dd.getFullYear();
+            let mm = (dd.getMonth() + 1).toString().padStart(2, 0);
+            let ds = dd.getDate().toString().padStart(2, 0);
+            return `${yy}-${mm}-${ds}`
+        })
+        const app = {
+            data: function () {
+                return {
+                    active: "",
+                    tableDate: [],
+                    inputDate: "",
+                    //value: "",
+                    //options: [],
+                    factoryManager_Approved: null,
+                    director_Approved: null,
+                    pmc_Assessed: null,
+                    finance_Assessed: null,
+                    Options: [{ value: '选项1', label: '通过' }, { value: '选项2', label: '不通过' }],
+                    arr: {},
+                    assVisible: false,
+                    reason: '',
+                    caiwu: false,//财务审核
+                    pmc: false,//PMC审核
+                    zongjian: false,//中心总监审核
+                    changzhang: false,//工厂厂长核准
+                    deleteRoles: false,//删除报告权限
+                }
+            },
+            mounted: function () {
+                //权限设置
+                var roles = JSON.parse(localStorage.getItem("rigths"))
+                if (checkRoles(roles, '库存金额财务审核')) {
+                    this.caiwu = true
+                };
+                if (checkRoles(roles, '库存金额PMC审核')) {
+                    this.pmc = true
+                };
+                if (checkRoles(roles, '库存金额中心总监审核')) {
+                    this.zongjian = true
+                };
+                if (checkRoles(roles, '库存金额工厂厂长核准')) {
+                    this.changzhang = true
+                };
+                if (checkRoles(roles, '库存金额删除报告')) {
+                    this.deleteRoles = true
+                };
+                // 若是从修改包装页面进来，就获取地址栏上的外箱号
+                let lastUrl = document.referrer;
+                if (lastUrl.toLowerCase().indexOf("StockAmount_Index") == -1) {
+                    this.inputDate = getUrlParam('time') 
+                    this.GetData()
+                };
+            },
+            methods: {
+                //查询
+                GetData() {
+                    this.tableDate = []
+                    this.finance_Assessed = this.pmc_Assessed = this.director_Approved = this.factoryManager_Approved = null;
+                    axios.post("/Warehouse_Material/StockAmount_Query", { date:this.inputDate}).then(res => {
+                        this.tableDate = JSON.parse(res.data.table)
+                        if (this.tableDate.length > 0) {
+                            this.$message.success("查询成功！");
+                        } else {
+                            this.$message.error("暂无数据！");
+                        }
+                        let obj = JSON.parse(res.data.res);
+                        this.arr = obj[0]
+                        let record = obj[0]
+                        if (record.Finance_Assessed == true) {
+                            this.finance_Assessed = '1'
+                        } else if (record.Finance_Assessed == false) {
+                            this.finance_Assessed = '2'
+                        };
+                        if (record.PMC_Assessed == true) {
+                            this.pmc_Assessed = '1'
+                        } else if (record.PMC_Assessed == false) {
+                            this.pmc_Assessed = '2'
+                        };
+                        if (record.Director_Approved == true) {
+                            this.director_Approved = '1'
+                        } else if (record.Director_Approved == false) {
+                            this.director_Approved = '2'
+                        };
+                        if (record.FactoryManager_Approved == true) {
+                            this.factoryManager_Approved = '1'
+                        } else if (record.FactoryManager_Approved == false) {
+                            this.factoryManager_Approved = '2'
+                        };
+                    })
+                },
+                //处理合计行的样式
+                tableRowClassName({ row, rowIndex }) {
+                    if (row.FiveYears == "全部合计" || row.FiveYears == "汇总结果求和") {
+                        return 'warning-row';
+                    }
+                    return '';
+                },
+                //审核、核准方法
+                Confirm(str) {
+                    let res = null;
+                    if (this.finance_Assessed == "通过" || this.pmc_Assessed == "通过" || this.director_Approved == "通过" || this.factoryManager_Approved == "通过") {
+                        res = true
+                    } else if (this.finance_Assessed == "不通过" || this.pmc_Assessed == "不通过" || this.director_Approved == "不通过" || this.factoryManager_Approved == "不通过") {
+                        res = false
+                        if (this.reason == '') {
+                            this.$message.error("原因不能为空！");
+                            return;
+                        }
+                    } else {
+                        str == 4 ? this.$message.error("请选择核准内容") : this.$message.error("请选择审核内容");
+                        return;
+                    }
+                    axios.post("/Warehouse_Material/Approve", { id: this.arr.Id, reason: this.reason, approve_Type: str, approve_Result: res }).then(res => {
+                        console.log(res.data)
+                        if (res.data == "审核成功！" || res.data == "核准成功！") {
+                            this.$message.success(res.data);
+                            this.reason = '';
+                            this.GetData()
+                        }
+                        else {
+                            this.$message.error(res.data);
+                        }
+                    })
+                },
+                //删除报告
+                deleteReport() {
+                    let comfirm = confirm(`确认删除此报告吗？`);
+                    if (comfirm) {
+                        axios.post("/Warehouse_Material/DeleteReport", { date: this.inputDate }).then(res => {
+                            if (res.data == "删除成功！") {
+                                this.$message.success(res.data);
+                                this.tableDate = []
+                                this.finance_Assessed = this.pmc_Assessed = this.director_Approved = this.factoryManager_Approved = null;
+                            } else {
+                                this.$message.error(res.data);
+                            }
+                        })
+                    }
+                }
+            },
+            watch: {
+                //控制弹框显示
+                finance_Assessed() {
+                    if (this.finance_Assessed == "不通过") {
+                        this.assVisible = true
+                    }
+                },
+                pmc_Assessed() {
+                    if (this.pmc_Assessed == "不通过") {
+                        this.assVisible = true
+                    }
+                },
+                director_Approved() {
+                    if (this.director_Approved == "不通过") {
+                        this.assVisible = true
+                    }
+                },
+                factoryManager_Approved() {
+                    if (this.factoryManager_Approved == "不通过") {
+                        this.assVisible = true
+                    }
+                },
+                inputDate() {
+                    if (this.inputDate == null) {
+                        this.tableDate = []
+                        this.finance_Assessed = this.pmc_Assessed = this.director_Approved = this.factoryManager_Approved = null;
+                    };                   
+                },              
+            }
+        };
+        //检测权限方法
+        function checkRoles(list, roleName) {
+            var flag = false
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        flag = true
+                    }
+                }
+            }
+            return flag
+        }
+        // 解析地址栏参数
+        function getUrlParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURI(r[2]); return '';
+        }
+    </script>
+}

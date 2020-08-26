@@ -1,0 +1,652 @@
+﻿using Microsoft.AspNet.SignalR;
+using Microsoft.AspNet.SignalR;
+using Microsoft.AspNet.SignalR.Hubs;
+using System.Data;
+using System.Data.Entity;
+using Newtonsoft.Json.Linq;
+using System.Net;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Web.Mvc;
+using System.Web;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using JianHeMES.Models;
+using System.IO;
+using JianHeMES.Controllers;
+//using JianHeMESEntities.Areas.KongYaHT.Models;
+
+namespace JianHeMESEntities.Hubs
+{
+    //ProductionControlIndex生产监控首页
+    #region --------------------------------ModuleProductionControlIndex生产监控首页-------------------------------------
+
+    [HubName("ModuleProductionControlIndex")]
+    public class ModuleProductionControlIndex : Hub
+    {
+        // Is set via the constructor on each creation
+        private ModuleProductionControlIndexBroadcaster ModuleProductionControlIndexBroadcaster_broadcaster;
+        public ModuleProductionControlIndex()
+            : this(ModuleProductionControlIndexBroadcaster.ModuleProductionControlIndexInstance)
+        {
+        }
+        public ModuleProductionControlIndex(ModuleProductionControlIndexBroadcaster ModuleProductionControlIndexbroadcaster)
+        {
+            ModuleProductionControlIndexBroadcaster_broadcaster = ModuleProductionControlIndexbroadcaster;
+        }
+    }
+
+    /// <summary>
+    /// 数据广播器
+    /// </summary>
+    public class ModuleProductionControlIndexBroadcaster
+    {
+        private readonly static Lazy<ModuleProductionControlIndexBroadcaster> ModuleProductionControlIndex_instance =
+            new Lazy<ModuleProductionControlIndexBroadcaster>(() => new ModuleProductionControlIndexBroadcaster());
+
+        private readonly IHubContext ModuleProductionControlIndex_hubContext;
+
+        private Timer ModuleProductionControlIndex_broadcastLoop;
+
+
+        public ModuleProductionControlIndexBroadcaster()
+        {
+            // 获取所有连接的句柄，方便后面进行消息广播
+            ModuleProductionControlIndex_hubContext = GlobalHost.ConnectionManager.GetHubContext<ModuleProductionControlIndex>();
+            // Start the broadcast loop
+            ModuleProductionControlIndex_broadcastLoop = new Timer(
+                ModuleProductionControlIndexBroadcastShape,
+                null,
+                0,
+                120000);
+        }
+
+        private void ModuleProductionControlIndexBroadcastShape(object state)
+        {
+            JArray ProductionControlIndex1 = QueryExcution();
+
+            //if (!aa)
+            //{
+            //    JObject ProductionControlIndex = GetNewInfo();
+            //    ProductionControlIndex_hubContext.Clients.All.sendProductionControlIndex(ProductionControlIndex);
+            //}
+            //else
+            //{
+            ModuleProductionControlIndex_hubContext.Clients.All.sendProductionControlIndex(ProductionControlIndex1);
+            // }
+            //广播发送JSON数据
+
+        }
+
+        public static ModuleProductionControlIndexBroadcaster ModuleProductionControlIndexInstance
+        {
+            get
+            {
+                return ModuleProductionControlIndex_instance.Value;
+            }
+        }
+
+        #region-----------查询数据方法
+        public class TempInfo
+        {
+            public string OrderNum { get; set; }
+            public string OldOrderNum { get; set; }
+            public string Section { get; set; }
+            public string ToOrderNum { get; set; }
+            public string BarCodesNum { get; set; }
+            public string OldBarCodesNum { get; set; }
+            public DateTime? Endtime { get; set; }
+            public DateTime? BeginTime { get; set; }
+            public DateTime? UpdateDate { get; set; }
+            public bool Finsh { get; set; }
+            public bool Repetition { get; set; }
+            public string Abnormal { get; set; }
+        }
+        public JArray QueryExcution()
+        {
+
+            JArray ProductionControlIndex = new JArray();   //创建JSON对象
+
+            //取出数据
+            ApplicationDbContext db = new ApplicationDbContext();
+            CommonalityController comm = new CommonalityController();
+            CommonController com = new CommonController();
+            List<OrderMgm> OrderList_All = db.OrderMgm.Where(c => c.Models != 0).ToList();//.OrderBy(c => c.BarCodeCreated)
+            List<OrderMgm> OutputOrderList = new List<OrderMgm>();
+            List<OrderMgm> ExpectList = new List<OrderMgm>();
+            List<OrderMgm> ExpectList2 = new List<OrderMgm>();
+            if (Directory.Exists(@"D:\MES_Data\TemDate\") == false)//如果不存在就创建订单文件夹
+            {
+                Directory.CreateDirectory(@"D:\MES_Data\TemDate\");
+            }
+            /*
+            #region 取值
+            var Excepboard = db.ModuleBoard.Where(c => c.IsComplete == true).Select(c => c.Ordernum).Distinct().ToList();
+            var board = db.ModuleBoard.Where(c => c.IsComplete == false).Select(c => new TempInfo { OrderNum = c.Ordernum, Section = c.Section, UpdateDate = c.UpdateDate }).ToList();
+            #endregion
+            ;
+            //把2017-TEST-1放入排除清单中
+            ExpectList.Add(OrderList_All.Where(c => c.OrderNum == "2017-TEST-1").FirstOrDefault());
+            ExpectList.AddRange(OrderList_All.Where(c => Excepboard.Contains(c.OrderNum)).ToList());
+
+
+            //----------------------------------------------------------------------------------
+
+            OutputOrderList = OrderList_All.Except(ExpectList).ToList();
+            var time = DateTime.Now;
+            int span = 20;
+            int i = 1;
+            JArray array = new JArray();
+            if (File.Exists(@"D:\MES_Data\TemDate\ModuleProductionController.json") == true)
+            {
+                var json = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\ModuleProductionController.json");
+                array = JsonConvert.DeserializeObject<JArray>(json);
+            }
+            foreach (var item in OutputOrderList)
+            {
+                var OrderNum = new JObject();
+                //完成时间
+                var warehouseccount = db.Warehouse_Join.Where(c => c.OrderNum == item.OrderNum && c.State == "模块" && c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                var outsiderule = db.ModulePackageRule.Where(c => c.OrderNum == item.OrderNum && c.Statue == "外箱").Count() == 0 ? 0 : db.ModulePackageRule.Where(c => c.OrderNum == item.OrderNum && c.Statue == "外箱").Sum(c => c.Quantity);
+                if (warehouseccount!=0&&warehouseccount >= outsiderule)//判断时候出库完成
+                {
+                    var maxtime = db.Warehouse_Join.Where(c => c.OrderNum == item.OrderNum && c.State == "模块" && c.IsOut == true).Max(c => c.WarehouseOutDate);
+                    if ((DateTime.Now - maxtime).Value.TotalHours > 24)//判断是否已经出库24小时,是的话不参与
+                    {
+                        var updateboard = db.ModuleBoard.Where(c => c.Ordernum == item.OrderNum).ToList();
+                        updateboard.ForEach(c => c.IsComplete = true);
+                        db.SaveChanges();
+                        continue;
+                    }
+                    OrderNum.Add("CompleteTime", maxtime);
+                    OrderNum.Add("Timespan", maxtime - item.PlanInputTime);
+                }
+                else
+                {
+                    OrderNum.Add("CompleteTime", null);
+                    OrderNum.Add("Timespan", null);
+                }
+                //存入JSON对象
+                OrderNum.Add("Id", item.ID);
+                OrderNum.Add("OrderNum", item.OrderNum);
+                OrderNum.Add("PlatformType", item.PlatformType);
+                OrderNum.Add("Models", item.Models);
+                OrderNum.Add("PlanInputTime", item.PlanInputTime);
+
+                #region SMT
+                #region---------------------SMT首样部分
+                var SMTFirstSample_Description = item.SMTFirstSample_Description;
+
+                OrderNum.Add("SMTFirstSample_Description", SMTFirstSample_Description);
+                if (!string.IsNullOrEmpty(SMTFirstSample_Description))
+                {
+                    if (!comm.CheckJpgExit(item.OrderNum, "SMTSample_Files"))
+                        OrderNum.Add("SMTFirstSample_DescriptionJpg", "true");
+                    else
+                        OrderNum.Add("SMTFirstSample_DescriptionJpg", "false");
+
+                    if (!comm.CheckpdfExit(item.OrderNum, "SMTSample_Files"))
+                        OrderNum.Add("SMTFirstSample_DescriptionPdf", "true");
+                    else
+                        OrderNum.Add("SMTFirstSample_DescriptionPdf", "false");
+                }
+                #endregion
+
+                #region------------------------- SMT首样
+                //小样进度
+                OrderNum.Add("HandSampleScedule", item.HandSampleScedule);
+                //是否有图片
+                if (comm.CheckJpgExit(item.OrderNum, "SmallSample_Files"))
+                    OrderNum.Add("HandSampleSceduleJpg", "false");
+                else
+                    OrderNum.Add("HandSampleSceduleJpg", "true");
+                //是否有PDF文件
+                if (comm.CheckpdfExit(item.OrderNum, "SmallSample_Files"))
+                    OrderNum.Add("HandSampleScedulePdf", "false");
+                else
+                    OrderNum.Add("HandSampleScedulePdf", "true");
+
+                //是否有小样报告
+                var sample = db.Small_Sample.OrderBy(c => c.Id).Where(c => (c.OrderNumber == item.OrderNum || c.OrderNumber.Contains(item.OrderNum)) && c.Approved != null && c.ApprovedResult == true).ToList();
+                if (sample.Count != 0)
+                {
+                    JArray sampleJarray = new JArray();
+                    int k = 1;
+                    foreach (var sampleitem in sample)
+                    {
+                        JObject sampleJobject = new JObject();
+                        sampleJobject.Add("id", sampleitem.Id);
+                        sampleJobject.Add("Name", "NO." + k);
+                        k++;
+                        sampleJarray.Add(sampleJobject);
+                    }
+                    OrderNum.Add("HandSampleSceduleReport", sampleJarray);
+                }
+                else
+                    OrderNum.Add("HandSampleSceduleReport", "false");
+                #endregion
+
+                #region------------------------- SMT异常
+                var SMTAbnormal_Description = item.SMTAbnormal_Description;
+                OrderNum.Add("SMTAbnormal_Description", SMTAbnormal_Description);
+                if (!string.IsNullOrEmpty(SMTAbnormal_Description))
+                {
+                    if (!comm.CheckJpgExit(item.OrderNum, "SMTAbnormalOrder_Files"))
+                        OrderNum.Add("SMTAbnormal_DescriptionJpg", "true");
+                    else
+                        OrderNum.Add("SMTAbnormal_DescriptionJpg", "false");
+
+                    if (!comm.CheckpdfExit(item.OrderNum, "SMTAbnormalOrder_Files"))
+                        OrderNum.Add("SMTAbnormal_DescriptionPdf", "true");
+                    else
+                        OrderNum.Add("SMTAbnormal_DescriptionPdf", "false");
+                }
+                #endregion
+
+
+                var smtinfo = board.Where(c => c.Section == "SMT").Select(c => c.UpdateDate).FirstOrDefault();
+
+                if (smtinfo == null || (time - smtinfo).Value.TotalSeconds <= span)
+                {
+                    var ModelNum = 0;
+                    var NormalNumSum = 0;
+                    var AbnormalNumSum = 0;
+                    var jobcontenlist = db.SMT_ProductionData.Where(c => c.OrderNum == item.OrderNum).Select(c => c.JobContent).Distinct().ToList();
+                    JArray SmtArray = new JArray();
+                    foreach (var jobconten in jobcontenlist)
+                    {
+                        JObject FinishRateitem = new JObject();
+                        if (jobconten == "灯面" || jobconten == "IC面")
+                        {
+                            ModelNum = item.Models;
+                        }
+                        else if (jobconten.Contains("转接卡") == true)
+                        {
+                            ModelNum = item.AdapterCard;
+                        }
+                        else if (jobconten.Contains("电源") == true)
+                        {
+                            ModelNum = item.Powers;
+                        }
+                        //对应工作内容良品总数
+                        if (db.SMT_ProductionData.Count(c => c.OrderNum == item.OrderNum && c.JobContent == jobconten) == 0)
+                        {
+                            AbnormalNumSum = 0;
+                            NormalNumSum = 0;
+                        }
+                        else
+                        {
+                            NormalNumSum = db.SMT_ProductionData.Where(c => c.OrderNum == item.OrderNum && c.JobContent == jobconten).Sum(c => c.NormalCount);
+
+                            //对应工作内容不良品总数
+                            AbnormalNumSum = db.SMT_ProductionData.Where(c => c.OrderNum == item.OrderNum && c.JobContent == jobconten).Sum(c => c.AbnormalCount);
+                        }
+                        //面
+                        FinishRateitem.Add("Line", jobconten);
+                        //总完成率
+                        FinishRateitem.Add("CompleteRate", ModelNum == 0 ? "" : (((decimal)(NormalNumSum + AbnormalNumSum)) / ModelNum * 100).ToString("F2") + "%");
+                        //总完成率分母
+                        FinishRateitem.Add("CompleteInfo", (NormalNumSum + AbnormalNumSum) + "/" + ModelNum);
+                        //总合格率
+                        FinishRateitem.Add("PassRate", (AbnormalNumSum + NormalNumSum) == 0 ? "" : ((decimal)NormalNumSum / (NormalNumSum + AbnormalNumSum) * 100).ToString("F2") + "%");
+                        //总合格率分子
+                        FinishRateitem.Add("PassInfo", NormalNumSum + "/" + (NormalNumSum + AbnormalNumSum));
+                        FinishRateitem.Add("SamplingRate", null);
+                        FinishRateitem.Add("SamplingInfo", null);
+
+                        SmtArray.Add(FinishRateitem);
+
+
+                    }
+                    OrderNum.Add("SmtArray", SmtArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("SmtArray", obj["SmtArray"]);
+
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("SmtArray", temp);
+
+                }
+                #endregion
+
+                #region AI
+                var AIinfo = board.Where(c => c.Section == "AI").Select(c => c.UpdateDate).FirstOrDefault();
+                if (AIinfo == null || (time - AIinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+                    var line = db.ModuleAI.Where(c => c.Ordernum == item.OrderNum).Select(c => c.AbnormalResultMessage).Distinct().ToList();
+                    foreach (var lineitem in line)
+                    {
+                        var info = db.ModuleAI.Where(c => c.Ordernum == item.OrderNum && c.AbnormalResultMessage == lineitem).Select(c => c.IsAbnormal).ToList();
+                        JObject obj = new JObject();
+                        obj.Add("Line", lineitem);
+                        obj.Add("CompleteRate", Math.Round((double)info.Count / item.Models, 2));
+                        obj.Add("CompleteInfo", info.Count + "/" + item.Models);
+                        obj.Add("PassRate", Math.Round((double)info.Count(c => c == true) / item.Models, 2));
+                        obj.Add("PassInfo", info.Count(c => c == true) + "/" + item.Models);
+                        obj.Add("SamplingRate", null);
+                        obj.Add("SamplingInfo", null);
+                        itemArray.Add(obj);
+                    }
+                    OrderNum.Add("AI", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("AI", obj["AI"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("AI", temp);
+                }
+                #endregion
+
+                #region  后焊
+                var afterinfo = board.Where(c => c.Section == "后焊").Select(c => c.UpdateDate).FirstOrDefault();
+                if (afterinfo == null || (time - afterinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+                    var line = db.AfterWelding.Where(c => c.Ordernum == item.OrderNum).Select(c => c.Line).Distinct().ToList();
+                    foreach (var lineitem in line)
+                    {
+                        var info = db.AfterWelding.Where(c => c.Ordernum == item.OrderNum && c.Line == lineitem).Select(c => c.IsAbnormal).ToList();
+                        var aftersamp = db.ModuleSampling.Count(c => c.Ordernum == item.OrderNum && c.Section == "后焊");
+                        JObject obj = new JObject();
+                        obj.Add("Line", lineitem);
+                        obj.Add("CompleteRate", Math.Round((double)info.Count / item.Models, 2));
+                        obj.Add("CompleteInfo", info.Count + "/" + item.Models);
+                        obj.Add("PassRate", Math.Round((double)info.Count(c => c == true) / item.Models, 2));
+                        obj.Add("PassInfo", info.Count(c => c == true) + "/" + item.Models);
+                        obj.Add("SamplingRate", Math.Round((double)aftersamp / info.Count, 2));
+                        obj.Add("SamplingInfo", aftersamp + "/" + info.Count);
+                        itemArray.Add(obj);
+                    }
+                    OrderNum.Add("After", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("After", obj["After"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("After", temp);
+                }
+                #endregion
+
+                #region  灌胶前电测
+                var belowinfo = board.Where(c => c.Section == "灌胶前电检").Select(c => c.UpdateDate).FirstOrDefault();
+                if (belowinfo == null || (time - belowinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+
+                    var info1 = db.ElectricInspection.Where(c => c.Ordernum == item.OrderNum && c.Section == "灌胶前电检").Select(c => c.ElectricInspectionResult).ToList();
+                    if (info1.Count != 0)
+                    {
+                        var beforesamp = db.ModuleSampling.Count(c => c.Ordernum == item.OrderNum && c.Section == "灌胶前电检");
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", Math.Round((double)info1.Count / item.Models, 2));
+                        obj.Add("CompleteInfo", info1.Count + "/" + item.Models);
+                        obj.Add("PassRate", Math.Round((double)info1.Count(c => c == true) / item.Models, 2));
+                        obj.Add("PassInfo", info1.Count(c => c == true) + "/" + item.Models);
+                        obj.Add("SamplingRate", Math.Round((double)beforesamp / info1.Count, 2));
+                        obj.Add("SamplingInfo", beforesamp + "/" + info1.Count);
+                        itemArray.Add(obj);
+                    }
+                    OrderNum.Add("Before", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("Before", obj["Before"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("Before", temp);
+                }
+                #endregion
+
+                #region  灌胶后电测
+                var blowinfo = board.Where(c => c.Section == "模块电检").Select(c => c.UpdateDate).FirstOrDefault();
+                if (blowinfo == null || (time - blowinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+
+                    var info2 = db.ElectricInspection.Where(c => c.Ordernum == item.OrderNum && c.Section == "模块电检").Select(c => c.ElectricInspectionResult).ToList();
+                    if (info2.Count != 0)
+                    {
+                        var latersamp = db.ModuleSampling.Count(c => c.Ordernum == item.OrderNum && c.Section == "模块电检");
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", Math.Round((double)info2.Count / item.Models, 2));
+                        obj.Add("CompleteInfo", info2.Count + "/" + item.Models);
+                        obj.Add("PassRate", Math.Round((double)info2.Count(c => c == true) / item.Models, 2));
+                        obj.Add("PassInfo", info2.Count(c => c == true) + "/" + item.Models);
+                        obj.Add("SamplingRate", Math.Round((double)latersamp / info2.Count, 2));
+                        obj.Add("SamplingInfo", latersamp + "/" + info2.Count);
+                        itemArray.Add(obj);
+                    }
+
+                    OrderNum.Add("Later", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("Later", obj["Later"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("Later", temp);
+                }
+                #endregion
+
+                #region  老化
+                var burninfo = board.Where(c => c.Section == "老化").Select(c => c.UpdateDate).FirstOrDefault();
+                if (burninfo == null || (time - burninfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+
+                    var info3 = db.ModuleBurnIn.Where(c => c.Ordernum == item.OrderNum && c.BurnInEndTime != null).Select(c => c.BurninResult).ToList();
+                    if (info3.Count != 0)
+                    {
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", Math.Round((double)info3.Count / item.Models, 2));
+                        obj.Add("CompleteInfo", info3.Count + "/" + item.Models);
+                        obj.Add("PassRate", Math.Round((double)info3.Count(c => c == true) / item.Models, 2));
+                        obj.Add("PassInfo", info3.Count(c => c == true) + "/" + item.Models);
+                        obj.Add("SamplingRate", null);
+                        obj.Add("SamplingInfo", null);
+                        itemArray.Add(obj);
+                    }
+                    OrderNum.Add("BurnIn", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("BurnIn", obj["BurnIn"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("BurnIn", temp);
+                }
+                #endregion
+
+                #region  外观电检
+                var appinfo = board.Where(c => c.Section == "外观电检").Select(c => c.UpdateDate).FirstOrDefault();
+                if (appinfo == null || (time - appinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+
+                    var info4 = db.ElectricInspection.Where(c => c.Ordernum == item.OrderNum && c.Section == "外观电检").Select(c => c.ElectricInspectionResult).ToList();
+                    if (info4.Count != 0)
+                    {
+                        var appsamp = db.ModuleSampling.Count(c => c.Ordernum == item.OrderNum && c.Section == "外观电检");
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", Math.Round((double)info4.Count / item.Models, 2));
+                        obj.Add("CompleteInfo", info4.Count + "/" + item.Models);
+                        obj.Add("PassRate", Math.Round((double)info4.Count(c => c == true) / item.Models, 2));
+                        obj.Add("PassInfo", info4.Count(c => c == true) + "/" + item.Models);
+                        obj.Add("SamplingRate", null);
+                        obj.Add("SamplingInfo", null);
+                        itemArray.Add(obj);
+                    }
+
+                    OrderNum.Add("Appearance", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("Appearance", obj["Appearance"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("Appearance", temp);
+                }
+                #endregion
+
+                #region  内箱
+                var insideinfo = board.Where(c => c.Section == "纸箱").Select(c => c.UpdateDate).FirstOrDefault();
+                if (insideinfo == null || (time - insideinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+
+                    var info5 = db.ModuleInsideTheBox.Where(c => c.OrderNum == item.OrderNum && c.Statue == "纸箱").Select(c => c.InnerBarcode).Distinct().ToList().Count();
+                    if (info5 != 0)
+                    {
+                        var rule = db.ModulePackageRule.Where(c => c.OrderNum == item.OrderNum && c.Statue == "纸箱").Sum(c => c.Quantity);
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", rule == 0 ? 0 : Math.Round((double)info5 / rule, 2));
+                        obj.Add("CompleteInfo", info5 + "/" + rule);
+                        obj.Add("PassRate", null);
+                        obj.Add("PassInfo", null);
+                        obj.Add("SamplingRate", null);
+                        obj.Add("SamplingInfo", null);
+                        itemArray.Add(obj);
+                    }
+
+                    OrderNum.Add("InsideTheBox", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("InsideTheBox", obj["InsideTheBox"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("InsideTheBox", temp);
+                }
+                #endregion
+
+                #region  外箱
+                var outsideinfo = board.Where(c => c.Section == "外箱").Select(c => c.UpdateDate).FirstOrDefault();
+                if (outsideinfo == null || (time - outsideinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+
+                    var info6 = db.ModuleOutsideTheBox.Where(c => c.OrderNum == item.OrderNum).Select(c => c.OutsideBarcode).Distinct().ToList().Count();
+                    if (info6 != 0)
+                    {
+                        var rule2 = db.ModulePackageRule.Where(c => c.OrderNum == item.OrderNum && c.Statue == "外箱").Sum(c => c.Quantity);
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", rule2 == 0 ? 0 : Math.Round((double)info6 / rule2, 2));
+                        obj.Add("CompleteInfo", info6 + "/" + rule2);
+                        obj.Add("PassRate", null);
+                        obj.Add("PassInfo", null);
+                        obj.Add("SamplingRate", null);
+                        obj.Add("SamplingInfo", null);
+                        itemArray.Add(obj);
+                    }
+
+                    OrderNum.Add("OutsideTheBox", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("OutsideTheBox", obj["OutsideTheBox"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("OutsideTheBox", temp);
+                }
+                #endregion
+
+                #region  出入库
+                var warehouseinfo = board.Where(c => c.Section == "外箱").Select(c => c.UpdateDate).FirstOrDefault();
+                if (warehouseinfo == null || (time - warehouseinfo).Value.TotalSeconds <= span)
+                {
+                    JArray itemArray = new JArray();
+                    var join = db.Warehouse_Join.Count(c => c.OrderNum == item.OrderNum && c.State == "模块");
+                    if (join != 0)
+                    {
+                        var wareshouseout = db.Warehouse_Join.Count(c => c.OrderNum == item.OrderNum && c.State == "模块" && c.IsOut == true);
+                        JObject obj = new JObject();
+                        obj.Add("Line", null);
+                        obj.Add("CompleteRate", join == 0 ? 0 : Math.Round((double)wareshouseout / join, 2));
+                        obj.Add("CompleteInfo", join + "/" + wareshouseout);
+                        obj.Add("PassRate", null);
+                        obj.Add("PassInfo", null);
+                        obj.Add("SamplingRate", null);
+                        obj.Add("SamplingInfo", null);
+                        itemArray.Add(obj);
+                    }
+
+                    OrderNum.Add("Warehouse", itemArray);
+                }
+                else if (array.Count != 0)
+                {
+                    var obj = array.Where(c => c["OrderNum"].ToString() == item.OrderNum).FirstOrDefault();
+                    OrderNum.Add("Warehouse", obj["Warehouse"]);
+                }
+                else
+                {
+                    JArray temp = new JArray();
+                    OrderNum.Add("Warehouse", temp);
+                }
+                #endregion
+
+                ProductionControlIndex.Add(OrderNum);
+                i++;
+            }
+
+
+    */
+
+
+
+
+
+            string output2 = Newtonsoft.Json.JsonConvert.SerializeObject(ProductionControlIndex, Newtonsoft.Json.Formatting.Indented);
+            System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\ProductionController.json", output2);
+
+            return ProductionControlIndex;
+
+
+        }
+
+
+        #endregion
+
+    }
+
+    #endregion
+}

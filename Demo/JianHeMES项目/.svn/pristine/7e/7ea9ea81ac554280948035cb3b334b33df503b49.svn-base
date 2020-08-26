@@ -1,0 +1,115 @@
+﻿
+@{
+    ViewBag.Title = "设备点检记录";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .check-box {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+        .check-item-box {
+            display:flex;
+            align-items:center;
+        }
+        .check-box-item {
+            margin-right:35px;
+            display: flex;
+            align-items: center;
+        } 
+        .check-box-item span{
+            font-weight:bold;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        <div class="eq-title">设备点检保养记录表</div>
+    </el-header>
+    <el-main class="main-box" v-loading="loading">
+        @* 筛选框s *@
+        <div class="check-box">
+            <div class="check-item-box">
+                <div class="check-box-item">
+                    <span>设备名称：</span>{{EquipmentName}}
+                </div>
+                <div class="check-box-item">
+                    <span>部门：</span>{{UserDepartment}}
+                </div>
+                <div class="check-box-item">
+                    <span>线别：</span>{{LineNum}}
+                </div>
+                <div class="check-box-item">
+                    <span>设备编号：</span>{{EquipmentNumber}}
+                </div>
+                <div class="check-box-item">
+                    <span>时间：</span>
+                    <el-date-picker v-model="select_date"
+                                    disabled
+                                    size="mini"
+                                    type="month"
+                                    style="width:130px;"
+                                    placeholder="选择年月">
+                    </el-date-picker>
+                </div>
+            </div>
+            <el-button size="mini" type="primary" plain>查看对应月保养</el-button>
+        </div>
+        @*表格*@
+
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                select_date: '',
+                loading: false,
+                //设备信息
+                EquipmentName: '',   //设备名称
+                UserDepartment:'',  //部门
+                EquipmentNumber: '',  //设备编号
+                LineNum: '',   //线别
+            },
+            mounted() {
+                //获取地址传参
+                this.EquipmentNumber = getUrlParam('num');
+                this.select_date = new Date(getUrlParam('date'));
+                console.log(this.EquipmentName);
+                this.getMachineInfos();
+            },
+            watch: {
+
+            },
+            methods: {
+                // 根据设备编号获取设备信息
+                getMachineInfos() {
+                    axios.post("/Equipment/Particulars", { equipmentNumber: this.EquipmentNumber }).then(res => {
+                        console.log(res.data)
+                        this.EquipmentName = res.data[0].EquipmentName;
+                        this.UserDepartment = res.data[0].UserDepartment;
+                        this.LineNum = res.data[0].LineNum;
+                    })
+                },
+            }
+        }
+        // 解析地址栏参数
+        function getUrlParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURI(r[2]); return '';
+        }
+    </script>
+}

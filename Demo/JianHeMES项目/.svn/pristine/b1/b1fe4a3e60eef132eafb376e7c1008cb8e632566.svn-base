@@ -1,0 +1,325 @@
+﻿@{
+    ViewBag.Title = "直通率看板";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        #app {
+            max-width: 1300px;
+        }
+
+            #app .el-main {
+                padding: 0 10px;
+            }
+
+        .queryDiv {
+            display: flex;
+            flex-flow: row wrap;
+            align-items: flex-end;
+            justify-content: center;
+            text-align: left;
+            margin: 0 0 10px 30px;
+        }
+
+        .queryText {
+            color: cadetblue;
+            font-size: 13px;
+        }
+
+        .mokuai {
+            display: flex;
+            flex-flow: column wrap;
+            max-height: 650px;
+        }
+
+            .mokuai > .el-card {
+                width: 48%;
+            }
+
+        .el-card {
+            border: none;
+            margin-bottom: 10px;
+        }
+
+        .el-card__header, .el-card__body {
+            padding: 5px 0 0;
+            text-align: center;
+            border: none;
+            background-color: #409EFF;
+        }
+
+        .card-header-span {
+            color: #fff !important;
+        }
+
+        .el-table td, .el-table th {
+            padding: 0;
+            text-align: center
+        }
+
+        .section-title {
+            padding-bottom: 5px;
+            color: #3d3e40;
+            font-weight: 500;
+        }
+
+        .card-header-span {
+            color: #7892b5;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题*@
+            <h2>@ViewBag.Title</h2>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center queryDiv">
+                <div>
+                    <span class="queryText">查询方式:</span><br />
+                    <el-select v-model="values.queryType" placeholder="请选择" size="small" @@change="changeQueryType">
+                        <el-option v-for="item in options.queryType"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div v-show="values.queryType=='o'">
+                    <span class="queryText">按订单号查询:</span><br />
+                    <el-select v-model="values.ordernum" filterable clearable placeholder="请选择订单号" size="small">
+                        <el-option v-for="item in options.ordernum"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div v-show="values.queryType=='t'">
+                    <span class="queryText">按平台查询:</span><br />
+                    <el-select v-model="values.type" filterable clearable placeholder="请选择平台" size="small">
+                        <el-option v-for="item in options.type"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div v-show="values.queryType=='t'">
+                    <span class="queryText">按时间范围:</span><br />
+                    <el-select v-model="values.timeType" placeholder="请选择" style="width:100px;" size="small" @@change="queryDateClear">
+                        <el-option v-for="item in options.timeType"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div v-show="values.queryType=='t' && values.timeType=='y'">
+                    <el-date-picker v-model="values.year"
+                                    type="year"
+                                    size="small"
+                                    placeholder="选择年">
+                    </el-date-picker>
+                </div>
+                <div v-show="values.queryType=='t' && values.timeType=='m'">
+                    <el-date-picker v-model="values.mouth"
+                                    type="month"
+                                    size="small"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                </div>
+                <div>
+                    <el-button type="primary" @@click="onQuerySubmit" size="small">查询</el-button>
+                </div>
+            </el-row>
+            <el-row :gutter="12">
+                <el-col v-for="section in tableList" :span="section.seaction=='模块段'?16:8">
+                    <el-row class="text-center">
+                        <h3 class="section-title">{{section.seaction}}</h3>
+                    </el-row>
+                    <zitable-component :section="section.seaction" :content="section.content"></zitable-component>
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Shared/_SelectInput.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script type="text/template" id="ziTableComponent">
+        <el-row :class="{mokuai:section=='模块段',mozu:section=='模组段'}">
+            <el-card v-for="c in content" shadow="always">
+                <div slot="header" class="clearfix">
+                    <span class="card-header-span">{{c.title}}</span>
+                </div>
+                <el-table :data="c.array"
+                          border>
+                    <el-table-column prop="group"
+                                     label="组名">
+                    </el-table-column>
+                    <el-table-column prop="passThrough"
+                                     label="直通率">
+                    </el-table-column>
+                    <el-table-column prop="abnormal"
+                                     label="异常率">
+                    </el-table-column>
+                </el-table>
+            </el-card>
+        </el-row>
+    </script>
+    <script>
+        Vue.component('zitable-component', {
+            props: ['section', 'content'],
+            template: document.getElementById("ziTableComponent")
+        });
+        const app = {
+            data: function () {
+                return {
+                    loading: false,//控制页面loading等待状态
+                    tableList: [],//存储表格总数据
+                    values: {
+                        queryType: '',
+                        ordernum: '',
+                        type: '',
+                        timeType: '',
+                        year: '',
+                        mouth: '',
+                    },
+                    options: {
+                        queryType: [],
+                        ordernum: [],
+                        type: [],
+                        timeType: [],
+                    },
+                }
+            },
+            created: function () {
+                this.getOrdernum();
+                this.getType();
+                this.options.queryType = [
+                    { label: "按订单查询", value: "o" },
+                    { label: "按平台查询", value: "t" },
+                ];
+                this.options.timeType = [
+                    { label: "全部", value: "" },
+                    { label: "年", value: "y" },
+                    { label: "月", value: "m" },
+                ];
+            },
+            mounted: function () {
+                let localZhitonglvQueryType = localStorage.getItem('zhitonglvQueryType');
+                if (localZhitonglvQueryType != null) {
+                    this.values.queryType = localZhitonglvQueryType;
+                };
+            },
+            //函数方法
+            methods: {
+                //总表条件查询
+                onQuerySubmit() {
+                    this.loading = true;
+                    let parm = this.getParm();
+                    if (!parm.pass) {
+                        this.$message.warning(parm.mes);
+                        this.loading = false;
+                        return;
+                    };
+                    axios.post('/KPI/GetPassThrough2', parm.parm).then(res => {
+                        console.log(JSON.parse(JSON.stringify(res.data)));
+                        this.tableList = res.data;
+                        this.loading = false;
+                        this.$message.success('查询成功！');
+                    }).catch(err => {
+                        console.warn("查询数据失败");
+                        this.loading = false;
+                    });
+                },
+                //处理查询参数
+                getParm() {
+                    //初始值
+                    let rtd = {
+                        pass: false,
+                        parm: {
+                            ordernum: '',
+                            type: '',
+                            year: 0,
+                            mouth: 0,
+                        },
+                        mes: ''
+                    }, query = this.values;
+                    //区分
+                    if (query.queryType == 'o') {
+                        if (query.ordernum == '') {
+                            rtd.mes = '请选择订单号';
+                            return rtd;
+                        } else {
+                            rtd.pass = true;
+                            rtd.parm.ordernum = query.ordernum;
+                        };
+                    };
+                    if (query.queryType == 't') {
+                        if (query.type == '') {
+                            rtd.mes = '请选择平台';
+                            return rtd;
+                        } else {
+                            rtd.parm.type = query.type;
+                        };
+                        //选择全部
+                        if (query.timeType == '') {
+                            rtd.pass = true;
+                        };
+                        //选择年
+                        if (query.timeType == 'y') {
+                            if (query.year) {
+                                rtd.parm.year = query.year.getFullYear();
+                                rtd.pass = true;
+                            } else {
+                                rtd.mes = '请选择年';
+                            };
+                        };
+                        //选择月
+                        if (query.timeType == 'm') {
+                            if (query.mouth) {
+                                rtd.parm.year = query.mouth.getFullYear();
+                                rtd.parm.mouth = query.mouth.getMonth() + 1;
+                                rtd.pass = true;
+                            } else {
+                                rtd.mes = '请选择月';
+                            };
+                        };
+                    };
+                    //返回
+                    return rtd;
+                },
+                //获取类型选择框下拉清单
+                getType() {
+                    axios.post('/KPI/GetPassThroughType').then(res => {
+                        this.options.type = res.data;
+                    }).catch(err => {
+                        console.warn("型号列表获取失败");
+                    });
+                },
+                //获取订单号选择框下拉清单
+                getOrdernum() {
+                    axios.post('/Packagings/GetOrderList').then(res => {
+                        this.options.ordernum = res.data;
+                    }).catch(err => {
+                        console.warn("型号列表获取失败");
+                    });
+                },
+                queryDateClear() {
+                    this.values.year = '';
+                    this.values.mouth = '';
+                },
+                changeQueryType(v) {
+                    localStorage.setItem('zhitonglvQueryType', v);
+                },
+            }
+        };
+    </script>
+}

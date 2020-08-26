@@ -1,0 +1,251 @@
+﻿@{
+    ViewBag.Title = "7S评比得分汇总表";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        #app {
+            padding: 20px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .action-box {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            align-content: center;
+            justify-content: space-between;
+        }
+
+        .table-height {
+            width: 100%;
+            height: 72vh;
+        }
+        /*        表格*/
+        .col-blue {
+            background-color: #2db7f5;
+            color: #fff;
+        }
+
+        .col--gutter {
+            background-color: #2db7f5;
+        }
+
+        .col-color-red {
+            color: red;
+        }
+            .col-color-red:hover {
+                cursor: pointer;
+                text-decoration: underline;
+            }
+    </style>
+}
+
+<div id="app">
+    <div class="title">
+        7S评比得分汇总表
+    </div>
+
+    @*操作栏*@
+    <div class="action-box">
+        <div class="action-box-left">
+            <el-select size="small" v-model="select_department" placeholder="请选择部门" style="width:150px;">
+                <el-option v-for="item in department_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-select size="small" v-model="select_position" placeholder="请选择位置" style="width:150px;">
+                <el-option v-for="item in position_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-select size="small" v-model="select_district" placeholder="请选择区域号" style="width:150px;">
+                <el-option v-for="item in district_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-date-picker size="small" v-model="select_month"
+                            type="month"
+                            placeholder="请选择月份" style="width:150px;">
+            </el-date-picker>
+            <el-button size="small" type="primary" @@click="onQueryData">查询</el-button>
+
+        </div>
+        <div class="action-box-right">
+            <el-button size="small" type="primary" plain @@click="onToTurn('日检')">日报表汇总</el-button>
+            <el-button size="small" type="primary" plain @@click="onToTurn('周检')">周检表汇总</el-button>
+            <el-button size="small" type="primary" plain @@click="onToTurn('巡检')">巡检表汇总</el-button>
+            <el-button size="small" type="success" plain>导出EXCEL表</el-button>
+        </div>
+    </div>
+
+    @*表格*@
+    <div class="table-height">
+        <vxe-table border
+                   show-footer
+                   stripe
+                   size="mini"
+                   height="auto"
+                   align="center"
+                   :header-cell-class-name="headerCellClassName"
+                   :data="tableData">
+            <vxe-table-column type="seq" title="序号" width="50"></vxe-table-column>
+            <vxe-table-column title="部门" field="Department" width="100"></vxe-table-column>
+            <vxe-table-column title="位置" field="Position" width="100"></vxe-table-column>
+            <vxe-table-column title="区域号" field="District" width="60"></vxe-table-column>
+            <vxe-table-column title="扣分类型">
+                <vxe-table-column title="日检扣分" field="Grade_daily">
+                    <template v-slot="{ row }">
+                        <div class="col-color-red" v-if="row.Grade_daily!=''" @@click="onSelectData(row,'日检')">-{{row.Grade_daily}}</div>
+                    </template>
+                </vxe-table-column>
+                <vxe-table-column title="周检扣分" field="Grade_week">
+                    <template v-slot="{ row }">
+                        <div class="col-color-red" v-if="row.Grade_week!=''" @@click="onSelectData(row,'周检')">-{{row.Grade_week}}</div>
+                    </template>
+                </vxe-table-column>
+                <vxe-table-column title="巡检扣分" field="Grade_random">
+                    <template v-slot="{ row }">
+                        <div class="col-color-red" v-if="row.Grade_random!=''" @@click="onSelectData(row,'巡检')">-{{row.Grade_random}}</div>
+                    </template>
+                </vxe-table-column>
+                <vxe-table-column title="限期末整改扣分" field="Grade_NotCorrected" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="重复出现扣分" field="Repetition" :formatter="formatterPoints"></vxe-table-column>
+            </vxe-table-column>
+            <vxe-table-column title="月末得分" field="TotalPoints" width="80"></vxe-table-column>
+        </vxe-table>
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="https://cdn.jsdelivr.net/npm/xe-utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vxe-table"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    select_department: '',
+                    department_options: [],
+                    select_position: '',
+                    position_options: [],
+                    select_district: '',
+                    district_options: [],
+                    select_month: '',
+                    tableData: []
+                }
+            },
+            created: function () {
+                this.onGetDepartmentData();
+            },
+            mounted: function () {
+
+            },
+            watch: {
+                select_department(val) {
+                    if (val != '') {
+                        this.select_position = '',
+                            this.select_district = ''
+                        this.onGetDistrictData();
+                        this.onGetPosition();
+                    }
+                },
+                select_position(val) {
+                    if (val != '') {
+                        this.select_district = ''
+                        this.onGetDistrictData();
+                    }
+                }
+            },
+            //函数方法
+            methods: {
+                //获取初始化下拉数据
+                onGetDepartmentData() {
+                    axios.post('/KPI/GetDepartmentList').then(res => {
+                        //console.log(res)
+                        res.data.shift();
+                        this.department_options = res.data;
+                    })
+                },
+                onGetDistrictData() {
+                    axios.post('/KPI/GetDistrictList', { department: this.select_department, position: this.select_position }).then(res => {
+                        //console.log(res)
+                        this.district_options = res.data;
+                    })
+                },
+                onGetPosition() {
+                    axios.post('/KPI/GetPositionList', { department: this.select_department }).then(res => {
+                        //console.log(res)
+                        //res.data.shift();
+                        this.position_options = res.data;
+                    })
+                },
+                //判断筛选
+                onTip() {
+                    if (this.select_department == '') {
+                        this.$message.warning('请选择部门！');
+                        return false;
+                    }
+                    else if (this.select_month == '') {
+                        this.$message.warning('请选择月份！');
+                        return false;
+                    } else {
+                        return true;
+                    }
+                },
+                //查询数据
+                onQueryData() {
+                    if (this.onTip()) {
+                        let param = {
+                            department: this.select_department,
+                            position: this.select_position,
+                            district: this.select_district,
+                            date: this.select_month
+                        }
+                        axios.post('/KPI/KPI_7S_SummarySheet', param).then(res => {
+                            console.log(res)
+                            this.tableData = res.data;
+                        })
+                    }
+                },
+                //表头
+                headerCellClassName({ column }) {
+                    if (column.property === 'TotalPoints') {
+                        return 'col-blue'
+                    }
+                },
+                //格式化
+                formatterPoints({ cellValue }) {
+                    if (cellValue != '' || cellValue!=0) {
+                        return -cellValue;
+                    }
+                },
+                //选择分数查询
+                onSelectData(row, val) {
+                    console.log(val);
+                    window.open("/KPI/KPI_7S_Summarizing_Daily?check_type=" + val + "&department=" + row.Department + "&position=" + row.Position + "&district=" + row.District + "&date=" + this.select_month );
+                },
+                //跳转
+                onToTurn(val) {
+                    //console.log(val);
+                    window.open("/KPI/KPI_7S_Summarizing_Daily?check_type=" + val + "&department=" + this.select_department + "&position=" + this.select_position + "&district=" + this.select_district + "&date=" + this.select_month);
+
+                }
+            }
+        };
+    </script>
+}

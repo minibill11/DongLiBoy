@@ -1,0 +1,245 @@
+﻿@{
+    ViewBag.Title = "7S日检记录查询";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+
+        #app {
+            padding: 20px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .action-box {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            align-content: center;
+            justify-content: space-between;
+        }
+
+        .action-box-left {
+            width: 100%;
+        }
+        /*     .action-box-left .el-select {
+                width: 150px;
+            }*/
+
+        .action-box-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .el-image-viewer__close {
+            color: #fff;
+        }
+        /*    表格*/
+        .table-height {
+            width: 100%;
+        }
+
+        .col-blue {
+            background: rgba(64, 158, 255, 1) !important;
+            color: #fff;
+        }
+
+        .col-red {
+            color: red;
+            cursor: pointer;
+        }
+
+            .col-red:hover {
+                text-decoration: underline;
+            }
+        .record {
+            font-size: 20px;
+            color: #2bcfaa;
+            cursor: pointer;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <div class="title">
+        7S日检记录查询
+    </div>
+
+    @*操作栏*@
+    <div class="action-box">
+        <div class="action-box-left">
+            <el-select size="small" v-model="select_department" placeholder="请选择部门" style="width:150px;">
+                <el-option v-for="item in department_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-date-picker size="small" v-model="select_month"
+                            type="month"
+                            placeholder="请选择月份" style="width:150px;">
+            </el-date-picker>
+            <el-button size="small" type="primary" v-on:click="onQueryData">查询</el-button>
+        </div>
+    </div>
+
+    @*表格*@
+    <div class="table-height">
+        <el-table v-loading="loading"
+                  :data="tableData"
+                  size="mini"
+                  max-height="660px">
+            <el-table-column type="index" width="50">
+            </el-table-column>
+            <el-table-column prop="Department"
+                             label="部门"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="Position"
+                             show-overflow-tooltip
+                             label="位置">
+            </el-table-column>
+            <el-table-column prop="District"
+                             label="区域"
+                             width="60">
+            </el-table-column>
+            <el-table-column :label="check_name" min-width="200">
+                <el-table-column v-for="(item, index) in tableColumn"
+                                 :key="index+Math.random()"
+                                 :prop="item.field"
+                                 :label="item.title"
+                                 width="42">
+                    <template slot-scope="scope">
+                        <div class="record" @@click="onToDetail(scope.row,item.title)">{{scope.row[item.field]=='true'?'√':''}}</div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+        </el-table>
+
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,
+                    select_department: '全部部门',
+                    department_options: [],
+                    select_month: '',
+                    check_name: '检查扣分',
+                    tableColumn: [],
+                    allData: [],
+                    tableData: []
+                }
+            },
+            created: function () {
+                this.onGetDepartmentData();
+                let dd = new Date();
+                let year = dd.getFullYear();
+                let month = dd.getMonth() + 1;
+                //console.log(year, month);
+                this.select_month =  year+ '-' + month + '-01';
+
+            },
+            mounted: function () {
+                this.onQueryData();
+            },
+            watch: {
+            },
+            //函数方法
+            methods: {
+                //获取初始化下拉数据
+                onGetDepartmentData() {
+                    axios.post('/KPI/GetDepartmentList').then(res => {
+                        //console.log(res)
+                        this.department_options = res.data;
+                    })
+                },
+                //日期表头改变
+                onChangeTitle() {
+                    let month = new Date(this.select_month).getMonth() + 1;
+                    //console.log(month)
+                    this.check_name = '检查扣分（' + month + '月)'
+                },
+                //判断筛选
+                onTip() {
+                    if (this.select_month == '') {
+                        this.$message.warning('请选择月份！');
+                        return false;
+                    } else {
+                        return true;
+                    }
+                },
+                //查询数据
+                onQueryData() {
+                    if (this.onTip()) {
+                        this.loading = true;
+                        let param = {
+                            department: this.select_department,
+                            date: new Date(this.select_month)
+                        };
+                        axios.post('/KPI/DailyRecord_Query', param).then(res => {
+                            //console.log(res.data, 1111);
+                            if (res.data.length != 0) {
+                                this.loading = false;
+                                this.onChangeTitle();
+                                let tableData = res.data;
+                                let len = tableData[0].DailyRecord.length;
+                                //处理表头
+                                let list = [];
+                                for (let index = 0; index < len; index++) {
+                                    list.push({
+                                        title: index + 1 + '日',
+                                        field: 'data' + index
+                                    })
+                                }
+                                this.tableColumn = list;
+                                //处理数据
+                                for (let k = 0; k < tableData.length; k++) {
+                                    for (let j = 0; j < len; j++) {
+                                        let key = "data" + j;
+                                        tableData[k][key] = tableData[k].DailyRecord[j];
+                                    }
+                                }
+                                //console.log(tableData);
+                                //tableData[1].data12 = true;
+                                this.tableData = tableData;
+                                this.$message.success('查询成功！');
+                            } else {
+                                this.loading = false;
+                                this.$message.info('暂无记录！');
+                                this.onChangeTitle();
+                                this.tableData = [];
+                            }
+
+                        })
+                    }
+                },
+                //跳转详细
+                onToDetail(row, val) {
+                    let dd = new Date(this.select_month);
+                    let num = parseInt(val);
+                    dd.setDate(num);
+                    //console.log(dd);
+                    window.location.href = "/KPI/KPI_7S_Detail?check_type=日检&department=" + row.Department + "&position=" + row.Position + "&district=" + row.District + "&date=" + dd + "&query_type=日&week=";
+                }
+
+            }
+
+        };
+
+    </script>
+}

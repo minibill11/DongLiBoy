@@ -1,0 +1,2496 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Data.Entity;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Web;
+using System.Web.Mvc;
+using static JianHeMES.Areas.kongya.Controllers.KongYaController;
+
+namespace JianHeMES.Controllers
+{
+    public class KPIController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController comm = new CommonalityController();
+        // GET: KPI
+        public ActionResult Index()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "Index" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_Case_Show()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login2", "Users", new { col = "KPI", act = "KPI_7S_Summarizing" });
+            }
+            return View();
+        }
+        // GET: KPI/Details/5
+        public ActionResult Details(int id)
+        {
+            return View();
+        }
+
+        // GET: KPI/Create
+        public ActionResult Create()
+        {
+            return View();
+        }
+
+        // POST: KPI/Create
+        [HttpPost]
+        public ActionResult Create(FormCollection collection)
+        {
+            try
+            {
+                // TODO: Add insert logic here
+
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                return View();
+            }
+        }
+
+        // GET: KPI/Edit/5
+        public ActionResult Edit(int id)
+        {
+            return View();
+        }
+
+        // POST: KPI/Edit/5
+        [HttpPost]
+        public ActionResult Edit(int id, FormCollection collection)
+        {
+            try
+            {
+                // TODO: Add update logic here
+
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                return View();
+            }
+        }
+
+        // GET: KPI/Delete/5
+        public ActionResult Delete(int id)
+        {
+            return View();
+        }
+
+        // POST: KPI/Delete/5
+        [HttpPost]
+        public ActionResult Delete(int id, FormCollection collection)
+        {
+            try
+            {
+                // TODO: Add delete logic here
+
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                return View();
+            }
+        }
+        #region 直通率
+        public class Temp
+        {
+            public string Name { get; set; }
+            public string OrderNum { get; set; }
+            public string JobContent { get; set; }
+            public string BarCodesNum { get; set; }
+            public string Group { get; set; }
+            public bool Finish { get; set; }
+            public int Passcount { get; set; }
+            public int AbnormalCount { get; set; }
+        }
+        //各工序直通率查询首页
+        public ActionResult GetPassThrough()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "GetPassThrough" });
+            }
+            return View();
+        }
+
+
+        //各工序直通率查询
+        public ActionResult GetPassThrough2(string type, int year, int mouth, string ordernum)
+        {
+            var orderlist = new List<string>();
+            if (!string.IsNullOrEmpty(ordernum))
+            {
+                orderlist.Add(ordernum);
+            }
+            else
+            {
+                var info = db.OrderMgm.Where(c => c.PlatformType == type).ToList();
+
+                if (year != 0)
+                {
+                    info = info.Where(c => c.ContractDate.Year == year).ToList();
+                }
+                if (mouth != 0)
+                {
+                    info = info.Where(c => c.ContractDate.Month == mouth).ToList();
+
+                }
+                orderlist = info.Select(c => c.OrderNum).ToList();
+            }
+            JArray total = new JArray();
+            JArray array = new JArray();
+            JObject result = new JObject();
+            result.Add("seaction", "模块段");
+            //smt直通率
+            var smt = db.SMT_ProductionData.Where(c => orderlist.Contains(c.OrderNum)).Select(c => c.JobContent).Distinct().ToList();
+            foreach (var jobcontent in smt)
+            {
+                JObject content = new JObject();
+                var linenumlist = db.SMT_ProductionData.Where(c => orderlist.Contains(c.OrderNum) && c.JobContent == jobcontent).Select(c => new Temp { Group = c.LineNum.ToString(), Passcount = c.NormalCount, AbnormalCount = c.AbnormalCount, Name = "SMT" }).Distinct().ToList();
+                content = GetPassThroughitem(jobcontent, linenumlist);
+                array.Add(content);
+            }
+            //AI直通率
+            var ai = db.ModuleAI.Where(c => orderlist.Contains(c.Ordernum)).Select(c => new Temp { Group = c.Machine, Finish = c.IsAbnormal, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("AI", ai));
+            //后焊直通率
+            var group = db.AfterWelding.Where(c => orderlist.Contains(c.Ordernum)).Select(c => new Temp { Group = c.Group, Finish = c.IsAbnormal, BarCodesNum = c.ModuleBarcode }).ToList();
+
+            array.Add(GetPassThroughitem("后焊", group));
+            //后焊抽检直通率
+            var groupSampl = db.AfterWelding.Where(c => orderlist.Contains(c.Ordernum) && c.IsSampling == true).Select(c => new Temp { Group = c.Group, Finish = c.SamplingResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("后焊抽检", groupSampl));
+            //灌胶前电测
+            var Electric1 = db.ElectricInspection.Where(c => orderlist.Contains(c.Ordernum) && c.Section == "灌胶前电检").Select(c => new Temp { Group = c.Group, Finish = c.ElectricInspectionResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("灌胶前电检", Electric1));
+            //模块电测
+            var Electric2 = db.ElectricInspection.Where(c => orderlist.Contains(c.Ordernum) && c.Section == "模块电检").Select(c => new Temp { Group = c.Group, Finish = c.ElectricInspectionResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("模块电检", Electric2));
+            //模块送检
+            var Electric3 = db.ElectricInspection.Where(c => orderlist.Contains(c.Ordernum) && c.Section == "模块电检" && c.IsSampling == true && c.ElectricInspectionResult == true).Select(c => new Temp { Group = c.Group, Finish = c.SamplingResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("模块送检", Electric3));
+            //模块老化
+            var burn = db.ModuleBurnIn.Where(c => orderlist.Contains(c.Ordernum) && c.BurnInEndTime != null).Select(c => new Temp { Group = c.Group, Finish = c.BurninResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("模块老化", burn));
+            //模块老化送检
+            var burnSampl = db.ModuleBurnIn.Where(c => orderlist.Contains(c.Ordernum) && c.BurnInEndTime != null && c.IsSampling == true && c.BurninResult == true
+            ).Select(c => new Temp { Group = c.Group, Finish = c.SamplingResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("老化送检", burnSampl));
+            //外观电检
+            var Electric4 = db.ElectricInspection.Where(c => orderlist.Contains(c.Ordernum) && c.Section == "外观电检").Select(c => new Temp { Group = c.Group, Finish = c.ElectricInspectionResult, BarCodesNum = c.ModuleBarcode }).ToList();
+            array.Add(GetPassThroughitem("外观电检", Electric4));
+
+            result.Add("content", array);
+            total.Add(result);
+            result = new JObject();
+            array = new JArray();
+            result.Add("seaction", "模组段");
+            //组装直通率
+            var assemblessgrou = db.Assemble.Where(c => orderlist.Contains(c.OrderNum) && c.PQCCheckFT != null && c.RepetitionPQCCheck == false).Select(c => new Temp { Group = c.Group, BarCodesNum = c.BoxBarCode, Finish = c.PQCCheckFinish }).ToList();
+            array.Add(GetPassThroughitem("组装", assemblessgrou));
+
+            //FQC直通率
+            var fqcgroup = db.FinalQC.Where(c => orderlist.Contains(c.OrderNum) && c.FQCCheckFT != null && c.RepetitionFQCCheck == false).Select(c => new Temp { Group = c.Group, BarCodesNum = c.BarCodesNum, Finish = c.FQCCheckFinish }).ToList();
+            array.Add(GetPassThroughitem("FQC", fqcgroup));
+
+
+            //老化直通率
+            var burngroup = db.Burn_in.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null).Select(c => new Temp { Group = c.Group, BarCodesNum = c.BarCodesNum, Finish = c.OQCCheckFinish }).ToList();
+            array.Add(GetPassThroughitem("老化", burngroup));
+            //校正直通率
+            var calibgroup = db.CalibrationRecord.Where(c => orderlist.Contains(c.OrderNum) && c.FinishCalibration != null && c.RepetitionCalibration == false).Select(c => new Temp { Group = c.Group, BarCodesNum = c.BarCodesNum, Finish = c.Normal }).ToList();
+            array.Add(GetPassThroughitem("校正", calibgroup));
+            //外观直通率
+            var appearangroup = db.Appearance.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null).Select(c => new Temp { Group = c.Group, BarCodesNum = c.BarCodesNum, Finish = c.OQCCheckFinish }).ToList();
+            array.Add(GetPassThroughitem("外观", appearangroup));
+            result.Add("content", array);
+            total.Add(result);
+
+            return Content(JsonConvert.SerializeObject(total));
+        }
+
+        public JObject GetPassThroughitem(string name, List<Temp> temps)
+        {
+            JObject result = new JObject();
+            result.Add("title", name);
+            JArray array = new JArray();
+            List<string> groupitem = temps.Select(c => c.Group).Distinct().ToList();
+            groupitem = groupitem.OrderBy(c => c).ToList();
+            foreach (var item in groupitem)
+            {
+                JObject obj = new JObject();
+                if (temps.Count(c => c.Name == "SMT") != 0)
+                {
+                    obj.Add("group", item);
+                    var totalinfo = temps.Where(c => c.Group == item).ToList();
+                    var totalNum = totalinfo.Sum(c => c.AbnormalCount) + totalinfo.Sum(c => c.Passcount);
+                    //直通率
+                    var info = temps.Where(c => c.Group == item).Select(c => c.Passcount).ToList();
+                    var passtrough = info.Sum();
+                    obj.Add("passThrough", totalNum == 0 ? "-%" : Math.Round((double)passtrough * 100 / totalNum, 2) + "%");
+
+                    //异常率
+                    var info2 = temps.Where(c => c.Group == item).Select(c => c.AbnormalCount).ToList();
+                    var abnormal = info2.Sum();
+                    obj.Add("abnormal", totalNum == 0 ? "-%" : Math.Round((double)abnormal * 100 / totalNum, 2) + "%");
+
+                    array.Add(obj);
+                }
+                else if (item == "")
+                    continue;
+                else if (string.IsNullOrEmpty(item))
+                {
+                    obj.Add("group", "没有班组");
+                    int totalNum = temps.Count(c => c.Group == item || c.Group == "");
+                    //合格率
+                    var abnormal = temps.Where(c => (c.Group == item || c.Group == "") && c.Finish == false).Select(c => c.BarCodesNum).ToList();
+
+                    //直通率
+                    var pass = temps.Where(c => (c.Group == item || c.Group == "") && c.Finish == true).Count();
+
+                    var info = temps.Where(c => (c.Group == item || c.Group == "") && c.Finish == true && !abnormal.Contains(c.BarCodesNum)).ToList();
+                    var passtrough = info.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+
+                    obj.Add("passThrough", totalNum == 0 ? "-%" : Math.Round((double)passtrough * 100 / totalNum, 2) + "%");
+                    obj.Add("abnormal", totalNum == 0 ? "-%" : Math.Round((double)pass * 100 / totalNum, 2) + "%");
+
+                    array.Add(obj);
+                }
+                else
+                {
+                    obj.Add("group", item);
+                    int totalNum = temps.Count(c => c.Group == item);
+                    //异常率
+                    var abnormal = temps.Where(c => c.Group == item && c.Finish == false).Select(c => c.BarCodesNum).ToList();
+
+                    var pass = temps.Where(c => (c.Group == item || c.Group == "") && c.Finish == true).Count();
+
+                    //直通率
+                    var info = temps.Where(c => c.Group == item && c.Finish == true && !abnormal.Contains(c.BarCodesNum)).ToList();
+                    var passtrough = info.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    obj.Add("passThrough", totalNum == 0 ? "-%" : Math.Round((double)passtrough * 100 / totalNum, 2) + "%");
+                    obj.Add("abnormal", totalNum == 0 ? "-%" : Math.Round((double)pass * 100 / totalNum, 2) + "%");
+
+                    array.Add(obj);
+                }
+            }
+            if (temps.Count(c => c.Name == "SMT") != 0)
+            {
+                //合计直通率
+                JObject totalobj = new JObject();
+                totalobj.Add("group", "合计");
+                var total = temps.Sum(c => c.AbnormalCount) + temps.Sum(c => c.Passcount);
+                var totalpasstrough = temps.Sum(c => c.Passcount);
+                var totalabnormal = temps.Sum(c => c.AbnormalCount);
+
+                totalobj.Add("passThrough", temps.Count == 0 ? "-%" : Math.Round((double)totalpasstrough * 100 / total, 2) + "%");
+
+                //合计异常率
+                totalobj.Add("abnormal", temps.Count == 0 ? "-%" : Math.Round((double)totalabnormal * 100 / total, 2) + "%");
+                array.Add(totalobj);
+            }
+            else
+            {
+                //合计直通率
+                JObject totalobj = new JObject();
+                totalobj.Add("group", "合计");
+                var totalabnormal = temps.Where(c => c.Finish == false).Select(c => c.BarCodesNum).ToList();
+                var totalpasstrough = temps.Where(c => c.Finish == true && !totalabnormal.Contains(c.BarCodesNum)).GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                totalobj.Add("passThrough", temps.Count == 0 ? "-%" : Math.Round((double)totalpasstrough * 100 / temps.Count, 2) + "%");
+                var pass = temps.Where(c => c.Finish == true).Count();
+                //合计异常率
+                totalobj.Add("abnormal", temps.Count == 0 ? "-%" : Math.Round((double)pass * 100 / temps.Count, 2) + "%");
+                array.Add(totalobj);
+            }
+            result.Add("array", array);
+            return result;
+        }
+
+        [HttpPost]
+        public ActionResult GetPassThrough(string type, int year, int mouth, bool week, int day, string ordernum)
+        {
+            var orderlist = new List<string>();
+            if (!string.IsNullOrEmpty(ordernum))
+            {
+                orderlist.Add(ordernum);
+            }
+            else
+            {
+                var info = db.OrderMgm.Where(c => c.PlatformType == type).ToList();
+                if (week)
+                {
+                    var starttime = new DateTime(year, mouth, day);
+                    var endtime = starttime.AddDays(7);
+                    info = info.Where(c => c.ContractDate >= starttime && c.ContractDate <= endtime).ToList();
+                }
+                else
+                {
+                    if (year != 0)
+                    {
+                        info = info.Where(c => c.ContractDate.Year == year).ToList();
+                    }
+                    if (mouth != 0)
+                    {
+                        info = info.Where(c => c.ContractDate.Month == mouth).ToList();
+
+                    }
+                    if (day != 0)
+                    {
+                        info = info.Where(c => c.ContractDate.Day == day).ToList();
+                    }
+                }
+
+                orderlist = info.Select(c => c.OrderNum).ToList();
+            }
+            JArray arr = new JArray();
+            JObject obj = new JObject();
+            //smt直通率
+            var smt = db.SMT_ProductionData.Where(c => orderlist.Contains(c.OrderNum)).Select(c => c.JobContent).Distinct().ToList();
+            JArray smtarray = new JArray();
+            foreach (var jobcontent in smt)
+            {
+                JObject content = new JObject();
+                content.Add("jobname", jobcontent);
+                JArray contenitem = new JArray();
+                var linenumlist = db.SMT_ProductionData.Where(c => orderlist.Contains(c.OrderNum) && c.JobContent == jobcontent).Select(c => c.LineNum).Distinct().ToList();
+                foreach (var item in linenumlist)
+                {
+                    JObject smtitem = new JObject();
+                    var smtinfo = db.SMT_ProductionData.Where(c => orderlist.Contains(c.OrderNum) && c.JobContent == jobcontent && c.LineNum == item).ToList();
+                    var total = smtinfo.Sum(c => c.NormalCount) + smtinfo.Sum(c => c.AbnormalCount);
+                    var passcount = smtinfo.Sum(c => c.NormalCount);
+                    var abnormal = smtinfo.Sum(c => c.AbnormalCount);
+                    smtitem.Add("line", item);
+                    smtitem.Add("passThrough", total == 0 ? "-%" : Math.Round((double)passcount * 100 / total, 2) + "%");
+                    smtitem.Add("abnormal", total == 0 ? "-%" : Math.Round((double)abnormal * 100 / total, 2) + "%");
+                    contenitem.Add(smtitem);
+                }
+                content.Add("content", contenitem);
+                smtarray.Add(content);
+            }
+            obj.Add("smt", smtarray);
+            //后焊直通率
+            var group = db.AfterWelding.Where(c => orderlist.Contains(c.Ordernum)).Select(c => c.Group).Distinct().ToList();
+            JArray afterArray = new JArray();
+            foreach (var after in group)
+            {
+                if (after == "")
+                    continue;
+                JObject item = new JObject();
+                if (string.IsNullOrEmpty(after))
+                {
+                    var aftertotelcount = db.AfterWelding.Count(c => orderlist.Contains(c.Ordernum) && (c.Group == after || c.Group == ""));
+                    var afterPassThrough = db.AfterWelding.Count(c => orderlist.Contains(c.Ordernum) && c.IsAbnormal == false && c.Group == after);
+                    item.Add("group", "没有分配班组的数据");//组
+                    item.Add("passThrough", aftertotelcount == 0 ? "-%" : Math.Round((double)afterPassThrough / aftertotelcount, 2) + "%");
+                }
+                else
+                {
+                    var aftertotelcount = db.AfterWelding.Count(c => orderlist.Contains(c.Ordernum) && c.Group == after);
+                    var afterPassThrough = db.AfterWelding.Count(c => orderlist.Contains(c.Ordernum) && c.IsAbnormal == false && c.Group == after);
+                    item.Add("group", after);//组
+                    item.Add("passThrough", aftertotelcount == 0 ? "-%" : Math.Round((double)afterPassThrough / aftertotelcount, 2) + "%");
+                }
+                afterArray.Add(item);
+            }
+            obj.Add("after", afterArray);
+            //组装直通率
+            var assemblessgrou = db.Assemble.Where(c => orderlist.Contains(c.OrderNum) && c.PQCCheckFT != null && c.RepetitionPQCCheck == false).Select(c => c.Group).Distinct().ToList();
+            JArray assmebless = new JArray();
+            foreach (var assembless in assemblessgrou)
+            {
+                if (assembless == "")
+                    continue;
+                JObject item = new JObject();
+                if (string.IsNullOrEmpty(assembless))
+                {
+                    var assemblesscount = db.Assemble.Where(c => orderlist.Contains(c.OrderNum) && c.PQCCheckFT != null && c.RepetitionPQCCheck == false && (c.Group == assembless || c.Group == "")).ToList();
+                    var assemblesstotal = assemblesscount.Select(c => c.BoxBarCode).Distinct().Count();
+                    var assemblessPasscount = assemblesscount.GroupBy(c => c.BoxBarCode).Where(c => c.Count() < 2).ToList().Count();
+                    var assemblessAbnormal = assemblesscount.Where(c => c.PQCCheckFinish == false).Count();
+                    item.Add("group", "没有分配班组的数据");
+                    item.Add("passThrough", assemblesstotal == 0 ? "-%" : Math.Round((double)assemblessPasscount * 100 / assemblesstotal, 2) + "%");
+                    item.Add("abnormal", assemblesstotal == 0 ? "-%" : Math.Round((double)assemblessAbnormal * 100 / assemblesstotal, 2) + "%");
+                }
+                else
+                {
+                    var assemblesscount = db.Assemble.Where(c => orderlist.Contains(c.OrderNum) && c.PQCCheckFT != null && c.RepetitionPQCCheck == false && c.Group == assembless).ToList();
+                    var assemblesstotal = assemblesscount.Select(c => c.BoxBarCode).Distinct().Count();
+                    var assemblessPasscount = assemblesscount.GroupBy(c => c.BoxBarCode).Where(c => c.Count() < 2).ToList().Count();
+                    var assemblessAbnormal = assemblesscount.Where(c => c.PQCCheckFinish == false).Count();
+                    item.Add("group", assembless);
+                    item.Add("passThrough", assemblesstotal == 0 ? "-%" : Math.Round((double)assemblessPasscount * 100 / assemblesstotal, 2) + "%");
+                    item.Add("abnormal", assemblesstotal == 0 ? "-%" : Math.Round((double)assemblessAbnormal * 100 / assemblesstotal, 2) + "%");
+                }
+                assmebless.Add(item);
+            }
+            obj.Add("assemble", assmebless);
+
+            //FQC直通率
+            var fqcgroup = db.FinalQC.Where(c => orderlist.Contains(c.OrderNum) && c.FQCCheckFT != null && c.RepetitionFQCCheck == false).Select(c => c.Group).Distinct().ToList();
+            JArray fqcarray = new JArray();
+            foreach (var fqcitem in fqcgroup)
+            {
+                if (fqcitem == "")
+                    continue;
+                JObject item = new JObject();
+                if (string.IsNullOrEmpty(fqcitem))
+                {
+                    var FQCcount = db.FinalQC.Where(c => orderlist.Contains(c.OrderNum) && c.FQCCheckFT != null && c.RepetitionFQCCheck == false && (c.Group == fqcitem || c.Group == "")).ToList();
+                    var FQCtotal = FQCcount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var FQCPasscount = FQCcount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var FQCAbnormal = FQCcount.Where(c => c.FQCCheckFinish == false).Count();
+                    item.Add("group", "没有分配班组的数据");
+                    item.Add("passThrough", FQCtotal == 0 ? "-%" : Math.Round((double)FQCPasscount * 100 / FQCtotal, 2) + "%");
+                    item.Add("abnormal", FQCtotal == 0 ? "-%" : Math.Round((double)FQCAbnormal * 100 / FQCtotal, 2) + "%");
+                }
+                else
+                {
+                    var FQCcount = db.FinalQC.Where(c => orderlist.Contains(c.OrderNum) && c.FQCCheckFT != null && c.RepetitionFQCCheck == false && c.Group == fqcitem).ToList();
+                    var FQCtotal = FQCcount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var FQCPasscount = FQCcount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var FQCAbnormal = FQCcount.Where(c => c.FQCCheckFinish == false).Count();
+                    item.Add("group", fqcitem);
+                    item.Add("passThrough", FQCtotal == 0 ? "-%" : Math.Round((double)FQCPasscount * 100 / FQCtotal, 2) + "%");
+                    item.Add("abnormal", FQCtotal == 0 ? "-%" : Math.Round((double)FQCAbnormal * 100 / FQCtotal, 2) + "%");
+                }
+                fqcarray.Add(item);
+            }
+            obj.Add("fqc", fqcarray);
+            //老化直通率
+            var burngroup = db.Burn_in.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null).Select(c => c.Group).Distinct().ToList();
+            JArray burnArray = new JArray();
+            foreach (var burnitem in burngroup)
+            {
+                if (burnitem == "")
+                    continue;
+                JObject item = new JObject();
+                if (string.IsNullOrEmpty(burnitem))
+                {
+                    var burncount = db.Burn_in.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null && (c.Group == burnitem || c.Group == "")).ToList();
+                    var burntotal = burncount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var burnPasscount = burncount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var burnAbnormal = burncount.Where(c => c.OQCCheckFinish == false).Count();
+                    item.Add("group", "没有分配班组的数据");
+                    item.Add("passThrough", burntotal == 0 ? "-%" : Math.Round((double)burnPasscount * 100 / burntotal, 2) + "%");
+                    item.Add("abnormal", burntotal == 0 ? "-%" : Math.Round((double)burnAbnormal * 100 / burntotal, 2) + "%");
+                }
+                else
+                {
+                    var burncount = db.Burn_in.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null && c.Group == burnitem).ToList();
+                    var burntotal = burncount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var burnPasscount = burncount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var burnAbnormal = burncount.Where(c => c.OQCCheckFinish == false).Count();
+                    item.Add("group", burnitem);
+                    item.Add("passThrough", burntotal == 0 ? "-%" : Math.Round((double)burnPasscount * 100 / burntotal, 2) + "%");
+                    item.Add("abnormal", burntotal == 0 ? "-%" : Math.Round((double)burnAbnormal * 100 / burntotal, 2) + "%");
+                }
+                burnArray.Add(item);
+
+            }
+            obj.Add("burnin", burnArray);
+            //校正直通率
+            var calibgroup = db.CalibrationRecord.Where(c => orderlist.Contains(c.OrderNum) && c.FinishCalibration != null && c.RepetitionCalibration == false).Select(c => c.Group).Distinct().ToList();
+            JArray calibArray = new JArray();
+            foreach (var calibitem in calibgroup)
+            {
+                if (calibitem == "")
+                    continue;
+                JObject item = new JObject();
+                if (string.IsNullOrEmpty(calibitem))
+                {
+                    var calibcount = db.CalibrationRecord.Where(c => orderlist.Contains(c.OrderNum) && c.FinishCalibration != null && c.RepetitionCalibration == false && (c.Group == calibitem || c.Group == "")).ToList();
+                    var calibtotal = calibcount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var calibPasscount = calibcount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var calibAbnormal = calibcount.Where(c => c.Normal == false).Count();
+                    item.Add("group", "没有分配班组的数据");
+                    item.Add("passThrough", calibtotal == 0 ? "-%" : Math.Round((double)calibPasscount * 100 / calibtotal, 2) + "%");
+                    item.Add("abnormal", calibtotal == 0 ? "-%" : Math.Round((double)calibAbnormal * 100 / calibtotal, 2) + "%");
+                }
+                else
+                {
+                    var calibcount = db.CalibrationRecord.Where(c => orderlist.Contains(c.OrderNum) && c.FinishCalibration != null && c.RepetitionCalibration == false && c.Group == calibitem).ToList();
+                    var calibtotal = calibcount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var calibPasscount = calibcount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var calibAbnormal = calibcount.Where(c => c.Normal == false).Count();
+                    item.Add("group", calibitem);
+                    item.Add("passThrough", calibtotal == 0 ? "-%" : Math.Round((double)calibPasscount * 100 / calibtotal, 2) + "%");
+                    item.Add("abnormal", calibtotal == 0 ? "-%" : Math.Round((double)calibAbnormal * 100 / calibtotal, 2) + "%");
+                }
+                calibArray.Add(item);
+            }
+            obj.Add("calibration", calibArray);
+            //外观直通率
+            var appearangroup = db.Appearance.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null).Select(c => c.Group).Distinct().ToList();
+            JArray appearanArray = new JArray();
+            foreach (var appearanitem in appearangroup)
+            {
+                if (appearanitem == "")
+                    continue;
+                JObject item = new JObject();
+                if (string.IsNullOrEmpty(appearanitem))
+                {
+                    var appearancount = db.Appearance.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null && (c.Group == appearanitem || c.Group == "")).ToList();
+                    var appearantotal = appearancount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var appearanPasscount = appearancount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var appearanAbnormal = appearancount.Where(c => c.OQCCheckFinish == false).Count();
+                    item.Add("group", "没有分配班组的数据");
+                    item.Add("passThrough", appearantotal == 0 ? "-%" : Math.Round((double)appearanPasscount * 100 / appearantotal, 2) + "%");
+                    item.Add("abnormal", appearantotal == 0 ? "-%" : Math.Round((double)appearanAbnormal * 100 / appearantotal, 2) + "%");
+                }
+                else
+                {
+                    var appearancount = db.Appearance.Where(c => orderlist.Contains(c.OrderNum) && c.OQCCheckFT != null && c.Group == appearanitem).ToList();
+                    var appearantotal = appearancount.Select(c => c.BarCodesNum).Distinct().Count();
+                    var appearanPasscount = appearancount.GroupBy(c => c.BarCodesNum).Where(c => c.Count() < 2).ToList().Count();
+                    var appearanAbnormal = appearancount.Where(c => c.OQCCheckFinish == false).Count();
+                    item.Add("group", appearanitem);
+                    item.Add("passThrough", appearantotal == 0 ? "-%" : Math.Round((double)appearanPasscount * 100 / appearantotal, 2) + "%");
+                    item.Add("abnormal", appearantotal == 0 ? "-%" : Math.Round((double)appearanAbnormal * 100 / appearantotal, 2) + "%");
+                }
+                appearanArray.Add(item);
+            }
+            obj.Add("appearance", appearanArray);
+            arr.Add(obj);
+            return Content(JsonConvert.SerializeObject(arr));
+        }
+        [HttpPost]
+        //通过年月,找到当月有几个周
+        public ActionResult GetWeek(int year, int mouth)
+        {
+            var time = new DateTime(year, mouth, 1);
+            var lastday = DateTime.DaysInMonth(year, mouth);
+            var index = (int)time.DayOfWeek == 0 ? 7 : (int)time.DayOfWeek;//当月1号是星期几
+            var firstweekLastday = 7 - index + 1;//得到第一周的最后一天
+            var week = Math.Ceiling((decimal)(lastday - firstweekLastday) / 7) + 1;
+            JArray result = new JArray();
+            for (var i = 1; i <= week; i++)
+            {
+                JObject List = new JObject();
+                List.Add("value", i);
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //平台列表
+        public ActionResult GetPassThroughType()
+        {
+            var type = db.OrderMgm.Select(c => c.PlatformType).Distinct().ToList();
+            JArray result = new JArray();
+            foreach (var item in type)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #endregion
+
+        #region---KPI班组流失率
+        public ActionResult DeparturesNum_Index()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "DeparturesNum_Index" });
+            }
+            return View();
+        }
+
+        //批量上传班组流失率
+        public ActionResult DeparturesNum(List<KPI_TurnoverRate> turnoverRates, DateTime dateLoss)
+        {
+            JObject loss = new JObject();
+            JArray copy = new JArray();
+            string rates = null;
+            if (turnoverRates.Count > 0 && dateLoss != null)
+            {
+                foreach (var item in turnoverRates)
+                {
+                    if (db.KPI_TurnoverRate.Count(c => c.Department == item.Department && c.Group == item.Group && c.DateLoss == dateLoss) > 0)
+                    {
+                        rates = rates + item.Department + "," + item.Group + "," + dateLoss + "的记录重复了";
+                        copy.Add(rates);
+                    }
+                }
+                if (rates != null)
+                {
+                    loss.Add("meg", false);
+                    loss.Add("feg", copy);
+                    return Content(JsonConvert.SerializeObject(loss));
+                }
+                foreach (var it in turnoverRates)
+                {
+                    it.DateLoss = dateLoss;
+                    db.SaveChanges();
+                }
+                db.KPI_TurnoverRate.AddRange(turnoverRates);
+                int count = db.SaveChanges();
+                if (count > 0)
+                {
+                    loss.Add("meg", true);
+                    loss.Add("feg", "保存成功！");
+                    loss.Add("loss", JsonConvert.SerializeObject(turnoverRates));
+                    return Content(JsonConvert.SerializeObject(loss));
+                }
+                else
+                {
+                    loss.Add("meg", false);
+                    loss.Add("feg", "保存出错！");
+                    return Content(JsonConvert.SerializeObject(loss));
+                }
+            }
+            loss.Add("meg", false);
+            loss.Add("feg", "数据错误/人员流失日期为空");
+            return Content(JsonConvert.SerializeObject(loss));
+        }
+
+        //查询班组人员流失汇总表
+        public ActionResult Turnover_CheckSshift(int? year, int? month)
+        {
+            JObject Rate = new JObject();
+            JArray table = new JArray();
+            JObject retul = new JObject();
+            var checkList = db.KPI_TurnoverRate.Select(c => c.Department).Distinct().ToList();
+            List<KPI_TurnoverRate> Turnover = new List<KPI_TurnoverRate>();
+            int averageNum = 0;//平均人数
+            int turnoverMonth = 0;//月流失人数
+            double actual = 0;//实际得分
+            double differences = 0;//与目标值的差异
+            double subtotal = 0;//得分小计
+            foreach (var ite in checkList)
+            {
+                var group = db.KPI_TurnoverRate.Where(c => c.Department == ite).Select(c => c.Group).Distinct().ToList();
+                foreach (var it in group)
+                {
+                    if (year != 0 && month != 0)
+                    {
+                        Turnover = db.KPI_TurnoverRate.Where(c => c.DateLoss.Year == year && c.DateLoss.Month == month && c.Department == ite && c.Group == it).ToList();
+                    }
+                    if (year != 0 && month == 0)
+                    {
+                        Turnover = db.KPI_TurnoverRate.Where(c => c.DateLoss.Year == year && c.Department == ite && c.Group == it).ToList();
+                    }
+                    if (Turnover.Count > 0)
+                    {
+                        foreach (var item in Turnover)
+                        {
+                            //Id
+                            Rate.Add("Id", item.Id == 0 ? 0 : item.Id);
+                            //被考核部门
+                            Rate.Add("Department", ite == null ? null : ite);
+                            //班组
+                            Rate.Add("Group", it == null ? null : it);
+                            //指标名称
+                            var indexName = db.KPI_Indicators.Where(c => c.Department == ite && c.Group == it && c.SourceDepartment == "人力资源部").Select(c => c.IndicatorsName).FirstOrDefault();
+                            Rate.Add("IndicatorsName", indexName == null ? null : indexName);
+                            //目标值
+                            var indicators = db.KPI_Indicators.Where(c => c.Department == ite && c.Group == it && c.IndicatorsName == indexName).Select(c => c.IndicatorsValue).FirstOrDefault();
+                            Rate.Add("IndicatorsValue", indicators);
+                            //数据来源部门
+                            Rate.Add("SourceDepartment", "人力资源部");
+                            //月初人数
+                            Rate.Add("BeginNumber", item.BeginNumber == 0 ? 0 : item.BeginNumber);
+                            //月末人数
+                            Rate.Add("EndNumber", item.EndNumber == 0 ? 0 : item.EndNumber);
+                            //平均人数
+                            averageNum = (item.BeginNumber + item.EndNumber) / 2;
+                            Rate.Add("AverageNum", averageNum == 0 ? 0 : averageNum);
+                            //流失日期
+                            Rate.Add("DateLoss", item.DateLoss);
+                            //流失人数
+                            Rate.Add("LossNumber", item.LossNumber == 0 ? 0 : item.LossNumber);
+                            //月流失人数
+                            turnoverMonth = turnoverMonth + item.LossNumber;
+                            //月流失率（实际得分）
+                            actual = actual + (turnoverMonth / averageNum);
+                            //与目标值的差异
+                            double indicators_sum = indicators;
+                            differences = differences + (indicators_sum - actual);
+                            Rate.Add("Differences", differences == 0 ? 0 : differences);
+                            //得分小计
+                            if (actual <= indicators_sum)
+                            {
+                                subtotal = 100;
+                                Rate.Add("Subtotal", subtotal);
+                            }
+                            else if (actual > indicators_sum)
+                            {
+                                subtotal = 100 - (indicators_sum - differences);
+                                Rate.Add("Subtotal", subtotal);
+                            }
+                            table.Add(Rate);
+                            Rate = new JObject();
+                        }
+                    }
+                }
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+
+        // 导出班组人员流失汇总表(Excel)
+
+
+        #endregion
+
+        #region--7S
+
+        #region--页面       
+        public ActionResult KPI_7S_Summarizing()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_Summarizing" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_GradeStandardQuery()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_GradeStandardQuery" });
+            }
+            return View();
+        }
+        public ActionResult KPI_7S_GradeStandardInput()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_GradeStandardInput" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_RegionQuery()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_RegionQuery" });
+            }
+            return View();
+        }
+        public ActionResult KPI_7S_RegionInput()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_RegionInput" });
+            }
+            return View();
+        }
+        public ActionResult KPI_7S_RecordInput()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_RecordInput" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_Detail()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_Detail" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_Summarizing_Daily()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_Summarizing_Daily" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_Summarizing_Weekly()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_Summarizing_Weekly" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_Summarizing_Random()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_Summarizing_Random" });
+            }
+            return View();
+        }
+
+        public ActionResult KPI_7S_MonthDetail()
+        {
+            if (Session["User"] == null)
+            {
+                return RedirectToAction("Login", "Users", new { col = "KPI", act = "KPI_7S_MonthDetail" });
+            }
+            return View();
+        }
+
+
+        #endregion
+
+        #region---检查参考标准
+
+        #region--检查参考标准数据录入   
+        [HttpPost]
+        public ActionResult ReferenceStandard_Input(List<KPI_7S_ReferenceStandard> record)
+        {
+            if (record.Count > 0)
+            {
+                int savecout = 0;
+                foreach (var item in record)
+                {
+                    //检验记录是否存在
+                    if (db.KPI_7S_ReferenceStandard.Count(c => c.PointsType == item.PointsType && c.ReferenceStandard == item.ReferenceStandard) < 1)
+                    {
+                        item.InputTime = DateTime.Now;
+                        item.InputPerson = ((Users)Session["User"]).UserName;
+                        db.SaveChanges();
+                        db.KPI_7S_ReferenceStandard.Add(item);
+                        savecout += db.SaveChanges();
+                    }
+                }
+                if (savecout > 0) return Content("保存成功！");
+                else return Content("保存失败！");
+            }
+            else return Content("传入参数为空！");
+        }
+        #endregion
+
+        #region--检查参考标准查询
+        [HttpPost]
+        public ActionResult ReferenceStandard_query(string[] pointsType)
+        {
+            List<KPI_7S_ReferenceStandard> newList = new List<KPI_7S_ReferenceStandard>();
+            var record = db.KPI_7S_ReferenceStandard.ToList();
+            if (pointsType != null)
+            {
+                foreach (var item in pointsType)
+                {
+                    var list = record.Where(c => c.PointsType == item).ToList();
+                    newList = newList.Concat(list).ToList();
+                }
+            }
+            return Content(JsonConvert.SerializeObject(newList));
+        }
+        #endregion
+
+        #region--检查参考标准修改
+        [HttpPost]
+        public ActionResult ReferenceStandard_modify(int id, string pointsType, string referenceStandard)
+        {
+            if (id != 0 && !String.IsNullOrEmpty(pointsType) && !String.IsNullOrEmpty(referenceStandard))
+            {
+                var record = db.KPI_7S_ReferenceStandard.Where(c => c.Id == id).FirstOrDefault();
+                record.PointsType = pointsType;
+                record.ReferenceStandard = referenceStandard;
+                record.ModifyPerson = ((Users)Session["User"]).UserName;
+                record.ModifyTime = DateTime.Now;
+                int count = db.SaveChanges();
+                if (count > 0) return Content("修改成功！");
+                else return Content("修改失败！");
+            }
+            else return Content("传入参数为空");
+        }
+        #endregion
+
+        #region--检查参考标准删除
+        [HttpPost]
+        public ActionResult ReferenceStandard_delete(int id)
+        {
+            var removeList = db.KPI_7S_ReferenceStandard.Where(c => c.Id == id).ToList();
+            UserOperateLog operaterecord = new UserOperateLog();
+            operaterecord.OperateDT = DateTime.Now;
+            operaterecord.Operator = ((Users)Session["User"]).UserName;
+            operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除了7S扣分类型为：" + removeList.FirstOrDefault().PointsType + "的扣分参照标准项,标准项为：" + removeList.FirstOrDefault().ReferenceStandard + "记录Id为：" + removeList.FirstOrDefault().Id + ".";
+            db.KPI_7S_ReferenceStandard.RemoveRange(removeList);
+            db.UserOperateLog.Add(operaterecord);//保存删除日志
+            int count = db.SaveChanges();
+            if (count > 0) return Content("删除成功！");
+            else return Content("删除失败！");
+        }
+        #endregion
+
+        #endregion
+
+        #region---区域数据
+
+        #region---区域数据录入
+        [HttpPost]
+        public ActionResult Region_Input(List<KPI_7S_DistrictPosition> record)
+        {
+            if (record.Count > 0)
+            {
+                int savecout = 0;
+                foreach (var item in record)
+                {
+                    //检验记录是否存在
+                    if (db.KPI_7S_DistrictPosition.Count(c => c.Department == item.Department && c.Group == item.Group && c.Position == item.Position && c.District == item.District) < 1)
+                    {
+                        item.InputTime = DateTime.Now;
+                        item.InputPerson = ((Users)Session["User"]).UserName;
+                        db.SaveChanges();
+                        db.KPI_7S_DistrictPosition.Add(item);
+                        savecout += db.SaveChanges();
+                    }
+                }
+                if (savecout > 0) return Content("保存成功！");
+                else return Content("保存失败！");
+            }
+            else return Content("传入参数为空！");
+        }
+        #endregion
+
+        #region---区域数据修改
+        [HttpPost]
+        /// department 部门
+        /// position  位置
+        /// district  区域号
+        public ActionResult Region_modify(int id, string department, string position, int district, string group)
+        {
+            if (id != 0 && !String.IsNullOrEmpty(department) && !String.IsNullOrEmpty(position) && district != 0)
+            {
+                //检查修改记录的是否已存在
+                if (db.KPI_7S_DistrictPosition.Count(c => c.Department == department && c.Position == position && c.District == district && c.Group == group) < 1)
+                {
+                    var record = db.KPI_7S_DistrictPosition.Where(c => c.Id == id).FirstOrDefault();
+                    record.Department = department;//部门
+                    record.Position = position;//位置
+                    record.District = district;//区域号
+                    record.Group = group;//班组
+                    record.ModifyPerson = ((Users)Session["User"]).UserName;//修改人
+                    record.ModifyTime = DateTime.Now;//修改时间
+                    int count = db.SaveChanges();
+                    if (count > 0) return Content("修改成功！");
+                    else return Content("修改失败！");
+                }
+                else return Content("修改失败，记录已存在！");
+            }
+            else
+            {
+                return Content("传入参数为空！");
+            }
+        }
+
+        #endregion
+
+        #region---区域数据删除
+        [HttpPost]
+        public ActionResult Region_delete(int id)
+        {
+            var removeList = db.KPI_7S_DistrictPosition.Where(c => c.Id == id).ToList();
+            UserOperateLog operaterecord = new UserOperateLog();
+            operaterecord.OperateDT = DateTime.Now;
+            operaterecord.Operator = ((Users)Session["User"]).UserName;
+            operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除了7S区域表中的：" + removeList.FirstOrDefault().Department + "，" + removeList.FirstOrDefault().Position + "位置的区域记录，区域号为：" + removeList.FirstOrDefault().District + "，记录Id为：" + removeList.FirstOrDefault().Id + ".";
+            db.KPI_7S_DistrictPosition.RemoveRange(removeList);
+            db.UserOperateLog.Add(operaterecord);//保存删除日志
+            int count = db.SaveChanges();
+            if (count > 0) return Content("删除成功！");
+            else return Content("删除失败！");
+        }
+        #endregion
+
+        #region---区域数据查询
+        [HttpPost]
+        /// department  部门
+        /// district    区域号
+        public ActionResult Region_query(string department, int? district)
+        {
+            IEnumerable<KPI_7S_DistrictPosition> recordList = db.KPI_7S_DistrictPosition;
+            if (!String.IsNullOrEmpty(department))
+            {
+                recordList = recordList.Where(c => c.Department == department).ToList();
+            }
+            if (district != null)
+            {
+                recordList = recordList.Where(c => c.District == district).ToList();
+            }
+            var res = recordList.Select(c => new { c.Id, c.Department, c.Position, c.District, c.Group }).ToList();
+            return Content(JsonConvert.SerializeObject(res));
+        }
+        #endregion
+
+        #region--获取部门下拉列表
+        public ActionResult GetDepartmentList()
+        {
+            var departmentList = db.KPI_7S_DistrictPosition.Select(c => c.Department).Distinct().ToList();
+            JArray result = new JArray();
+            foreach (var item in departmentList)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+                List.Add("label", item);
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #endregion
+
+        #region--根据部门获取区域号下拉列表
+        [HttpPost]
+        public ActionResult GetDistrictList(string department)
+        {
+            if (!String.IsNullOrEmpty(department))
+            {
+                var districtList = db.KPI_7S_DistrictPosition.Where(c => c.Department == department).Select(c => c.District).Distinct().ToList();
+                JArray result = new JArray();
+                JObject record = new JObject();
+                if (districtList.Count > 0)
+                {
+                    record.Add("value", "");
+                    record.Add("label", "全部区域");
+                    result.Add(record);
+                }
+                foreach (var item in districtList)
+                {
+                    JObject List = new JObject();
+                    List.Add("value", item);
+                    List.Add("label", item);
+                    result.Add(List);
+                }
+                return Content(JsonConvert.SerializeObject(result));
+            }
+            else return Content("传入数据为空！");
+        }
+        #endregion
+
+        #endregion
+
+        #region---日检、周检、巡检数据录入
+        public class selectOption
+        {
+            public string Check_Type { get; set; }//检查类型
+            public DateTime Date { get; set; }//检查时间
+            public int Week { get; set; }//第几周
+            public string Department { get; set; }//部门
+            public string Position { get; set; }//位置
+            public int District { get; set; } //区域号
+            public string ResponsiblePerson { get; set; }//责任人
+        }
+        [HttpPost]
+        public ActionResult RecordInput(List<KPI_7S_Record> record, selectOption formInfo)
+        {
+            if (record.Count > 0 && formInfo != null)
+            {
+                JArray weekday = new JArray();
+                weekday = getWeekNumInMonth(formInfo.Date);
+                int savecout = 0;
+                var list = db.KPI_7S_Record.Where(c => c.Year == formInfo.Date.Year && c.Month == formInfo.Date.Month && c.Check_Type != "日检").ToList();                   
+                foreach (var item in record)
+                {
+                    item.Department = formInfo.Department;//部门
+                    item.Group = formInfo.Position;//班组
+                    item.Position = formInfo.Position;//位置
+                    item.District = formInfo.District;//区域号
+                    item.Date = formInfo.Date;//检查日期
+                    item.Check_Type = formInfo.Check_Type;//检查类型
+                    item.PointsDeducted = 0;//扣分
+                    if (formInfo.Check_Type != "周检")
+                    {
+                        item.Week = Convert.ToInt32(weekday[1]);//第几周
+                    }                       
+                    item.Year = formInfo.Date.Year;//年
+                    item.Month = formInfo.Date.Month;//月
+                    item.ResponsiblePerson = formInfo.ResponsiblePerson;//责任人                      
+                    item.InputPerson = ((Users)Session["User"]).UserName;//录入人
+                    item.InputTime = DateTime.Now;//录入时间 
+                    if (formInfo.Check_Type != "日检") {
+                        //检验是否有重复出现的问题
+                        if (list.Where(c => c.Department == formInfo.Department && c.Position == formInfo.Position && c.District == formInfo.District && c.PointsDeducted_Type == item.PointsDeducted_Type && c.PointsDeducted_Item == item.PointsDeducted_Item).Count() > 0)
+                        {
+                            item.RepetitionPointsDeducted = 2;
+                        }
+                    }                      
+                    db.SaveChanges();
+                    db.KPI_7S_Record.Add(item);
+                    savecout += db.SaveChanges();
+                }
+                if (savecout > 0) return Content("保存成功！");
+                else return Content("保存失败！");              
+            }
+            else return Content("传入数据为空！");
+        }
+        #endregion
+
+        #region---日检、周检、巡检图片上传
+        [HttpPost]
+        /// <param name="pictureFile">图片</param>
+        /// <param name="department">部门</param>
+        /// <param name="position">位置</param>
+        /// <param name="check_date">检查日期</param>
+        /// <param name="check_Type">检查类型（日检、周检、抽检）</param>
+        /// <param name="pointsDeducted_Type">7S扣分类型（整理、整顿、清洁、清扫、安全、节约、素养）</param>
+        /// <param name="uploadType">上传类型（改善前、改善后）</param>
+        /// <returns></returns>
+        public bool ImageUpload(List<string> pictureFile, string department, string position, DateTime check_date, string check_Type, string pointsDeducted_Type, string uploadType)
+        {
+            string datatime = check_date.Year.ToString() + "." + check_date.Month.ToString() + "." + check_date.Day.ToString();
+            if (Request.Files.Count > 0 && !String.IsNullOrEmpty(department) && !String.IsNullOrEmpty(position) && !String.IsNullOrEmpty(check_Type) && !String.IsNullOrEmpty(pointsDeducted_Type) && !String.IsNullOrEmpty(uploadType))
+            {
+                if (Directory.Exists(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\") == false)//判断总路径是否存在
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\");//创建总路径
+                };
+
+                if (Directory.Exists(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\") == false)//判断图片路径是否存在
+                {
+                    Directory.CreateDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\");//创建图片路径
+                }
+                foreach (var item in pictureFile)
+                {
+                    HttpPostedFileBase file = Request.Files["UploadFile_Ingredients" + pictureFile.IndexOf(item)];
+                    var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();
+                    List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\");//遍历文件夹中的个数
+                    if (fileType == ".jpg")//判断文件后缀
+                    {
+                        int jpg_count = filesInfo.Where(c => c.Name.StartsWith(uploadType + "_") && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").Count();
+                        file.SaveAs(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\" + uploadType + "_" + (jpg_count + 1) + fileType);//文件追加命名
+                    }
+                    else if (fileType == ".pdf")
+                    {
+                        int pdf_count = filesInfo.Where(c => c.Name.StartsWith(uploadType + "_") && c.Name.Substring(c.Name.Length - 4, 4) == ".pdf").Count();
+                        file.SaveAs(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\" + uploadType + "_" + (pdf_count + 1) + fileType);//文件追加命名
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        public ActionResult QueryImage(string department, string position, DateTime check_date, string check_Type, string pointsDeducted_Type, string uploadType)
+        {
+            string datatime = check_date.Year.ToString() + "." + check_date.Month.ToString() + "." + check_date.Day.ToString();
+            JObject result = new JObject();
+            JObject pictureAddress_list = new JObject();
+            JObject drawFiles_list = new JObject();
+            List<FileInfo> draw_files = null;
+            if (Directory.Exists(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\"))//判断图纸的总路径是否存在
+            {
+                draw_files = comm.GetAllFilesInDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\");//遍历图纸文件夹的文件个数
+            }
+            if (draw_files != null)
+            {
+                JArray drawjpg_list = new JArray();//用于存放后缀为.jpg图纸的数组                   
+                foreach (var i in draw_files)
+                {
+                    string path1 = @"/MES_Data/7S/" + check_date.Year.ToString() + "/" + check_date.Month.ToString() + "/" + check_Type + "/" + datatime + "/" + department + "/" + position + "/" + pointsDeducted_Type + "/" + uploadType + "/" + i;//组合出路径                                       
+                    drawjpg_list.Add(path1);
+                }
+                drawFiles_list.Add("drawjpg_list", drawjpg_list);
+            }
+            if (drawFiles_list != null)
+            {
+                return Content(JsonConvert.SerializeObject(drawFiles_list));
+            }
+            else
+            {
+                return Content("上传图片失败！");
+            }
+        }
+
+        #region--- 获取录入数据
+        [HttpPost]
+        public ActionResult GetInputData()
+        {
+            JArray recordList1 = new JArray();
+            var list = db.KPI_7S_ReferenceStandard.OrderByDescending(c => c.PointsType).ToList();
+            var list1 = list.Select(c => c.PointsType).Distinct().ToList();
+            foreach (var item in list1)
+            {
+                JObject record = new JObject();
+                JArray selectoption = new JArray();
+                JArray option = new JArray();
+                var list2 = list.Where(c => c.PointsType == item).ToList();
+                foreach (var i in list2)
+                {
+                    selectoption.Add(i.ReferenceStandard);
+                }
+                record.Add("PointsDeducted_Type", item);
+                record.Add("PointsDeducted_Item", option);
+                record.Add("selectoption", selectoption);
+                record.Add("ProblemDescription", "");
+                record.Add("PointsDeducted", "");//扣分
+                record.Add("BeforeImprovement", "");//改善前
+                record.Add("AfterImprovement", "");//改善后
+                record.Add("RectificationTime", "");//限期整改时间
+                record.Add("Rectification_Confim", "");//整改结果
+                recordList1.Add(record);
+            }
+            return Content(JsonConvert.SerializeObject(recordList1));
+
+        }
+        #endregion
+
+        #endregion
+
+        #region--- 删除照片法
+        [HttpPost]
+        public ActionResult DeleteImg(string path, string department, string position, DateTime check_date, string check_Type, string pointsDeducted_Type, string uploadType)//path(路径)
+        {
+            string datatime = check_date.Year.ToString() + "." + check_date.Month.ToString() + "." + check_date.Day.ToString();
+            if (!String.IsNullOrEmpty(path))
+            {
+                string fileType = path.Substring(path.Length - 4, 4);//扩展名
+                string old_path = @"D:" + path.Replace('/', '\\');//整个文件路径
+                FileInfo path_file = new FileInfo(old_path);//建立文件对象
+                int serial_N = Convert.ToInt16(path_file.Name.Split('_')[1].Split('.')[0]);//文件序号
+                string new_path = @"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "_Delete_File\\";//新目录路径
+                if (Directory.Exists(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "_Delete_File\\") == false)　//目录是否存在
+                {
+
+                    Directory.CreateDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "_Delete_File\\");
+                    FileInfo new_file = new FileInfo(new_path + uploadType + "_1" + fileType);
+                    path_file.CopyTo(new_file.FullName);//复制文件到新目录
+                    path_file.Delete();//删除原文件
+                    List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\");
+                    int filecount = filesInfo.Where(c => c.Extension == fileType).Count();//文件夹里的文件个数
+                    for (int i = serial_N; i < filecount + 1; i++)
+                    {
+                        string filepath = @"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\" + uploadType + "_" + (i + 1) + fileType;
+                        string newfilepath = @"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\" + uploadType + "_" + i + fileType;
+                        System.IO.File.Move(filepath, newfilepath);
+                    }
+                }
+                else  //已有删除目录时，修改文件名
+                {
+                    List<FileInfo> filesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "_Delete_File\\");
+                    int count = filesInfo.Where(c => c.Extension == fileType).Count();
+                    FileInfo new_file = new FileInfo(new_path + uploadType + "_" + (count + 1) + fileType);
+                    path_file.CopyTo(new_file.FullName);//复制文件到新目录
+                    path_file.Delete();//删除原文件
+                    List<FileInfo> picturefilesInfo = comm.GetAllFilesInDirectory(@"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\");
+                    int filecount = picturefilesInfo.Where(c => c.Extension == fileType).Count();//文件夹里的文件个数
+                    for (int i = serial_N; i < filecount + 1; i++)
+                    {
+                        string filepath = @"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\" + uploadType + "_" + (i + 1) + fileType;
+                        string newfilepath = @"D:\MES_Data\7S\" + check_date.Year.ToString() + "\\" + check_date.Month.ToString() + "\\" + check_Type + "\\" + datatime + "\\" + department + "\\" + position + "\\" + pointsDeducted_Type + "\\" + uploadType + "\\" + uploadType + "_" + i + fileType;
+                        System.IO.File.Move(filepath, newfilepath);
+                    }
+                }
+                return Content("删除成功");
+            }
+            else
+            {
+                return Content("没有路径");
+            }
+        }
+        #endregion
+
+        #region--根据部门获取位置下拉列表
+        [HttpPost]
+        public ActionResult GetPositionList(string department)
+        {
+            if (!String.IsNullOrEmpty(department))
+            {
+                var positionList = db.KPI_7S_DistrictPosition.Where(c => c.Department == department).Select(c => c.Position).Distinct().ToList();
+                JArray result = new JArray();
+                foreach (var item in positionList)
+                {
+                    JObject List = new JObject();
+                    List.Add("value", item);
+                    List.Add("label", item);
+                    result.Add(List);
+                }
+                return Content(JsonConvert.SerializeObject(result));
+            }
+            else return Content("传入数据为空！");
+        }
+        #endregion
+
+        public void KPI_7S_daily()
+        {
+            DateTime time = new DateTime(2020-7-1);
+            if (DateTime.Now.Hour == 17 && DateTime.Now.Minute == 03)  //如果当前时间是14点00分
+            {
+                var list = db.KPI_7S_DistrictPosition.ToList();
+                var depList = list.Select(c => c.Department).Distinct().ToList();//先找出部门
+                var allList = db.KPI_7S_Record.Where(c => c.Month == time.Month && c.Check_Type == "日检").ToList();//查找当月所有记录
+                foreach (var item in depList)
+                {
+                    var record = list.Where(c => c.Department == item).Select(c => new { c.Department, c.Position, c.District }).ToList();//找出部门位置区域
+                    //判断今天是否有记录
+                    if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == time.Day).Count() == 0)
+                    {
+                        JArray weekday = new JArray();
+                        weekday = getWeekNumInMonth(time);
+                        //string week = GetWeekDes((int)time.DayOfWeek);
+                        if (Convert.ToInt32(weekday[1]) == 1)//若果等于第一周
+                        {
+                            if (Convert.ToInt32(weekday[0]) == 3)//判断第一周有3天 等于三天就查询前两是否有提交,只要有一天有记录，那么本周这个部门的所有区域都不扣分
+                            {                               
+                                if (time.DayOfWeek.ToString() == "Friday")
+                                {
+                                    DateTime yesterday = time.AddDays(-1);//昨天
+                                    DateTime beforeday = time.AddDays(-2);//前天
+                                    if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == yesterday.Day && c.PointsDeducted_Type != null).Count() == 0)//判断昨天是否有上传
+                                    {
+                                        if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday.Day && c.PointsDeducted_Type != null).Count() == 0)//判断前天是否有，等于零没有
+                                        {                                           
+                                            List<KPI_7S_Record> newList = new List<KPI_7S_Record>();
+                                            KPI_7S_Record newRecord = new KPI_7S_Record();
+                                            foreach (var j in record)
+                                            {
+                                                newRecord.Department = j.Department;//部门
+                                                newRecord.Group = j.Position;//班组
+                                                newRecord.Position = j.Position;//位置
+                                                newRecord.District = j.District;//区域号
+                                                newRecord.Check_Type = "日检";//检查类型
+                                                newRecord.Date = DateTime.Now;//日期
+                                                newRecord.PointsDeducted_Type = null;//扣分类型
+                                                newRecord.PointsDeducted_Item = null;//7S扣分项
+                                                newRecord.ProblemDescription = DateTime.Now.ToString("yyyy-MM-dd") + ",未交日报表扣分";//问题描述
+                                                newRecord.PointsDeducted = 3;//7S扣分
+                                                newRecord.ResponsiblePerson = null;//责任人
+                                                newRecord.InputPerson = null;//录入人
+                                                newRecord.InputTime = DateTime.Now;//录入时间
+                                                newRecord.RectificationTime = null;// 限期整改时间
+                                                newRecord.RectificationResults = null;//整改结果描述
+                                                newRecord.RectificationPerson = null;
+                                                newRecord.ModifyTime = null;
+                                                newRecord.RectificationPoints = 0;
+                                                newRecord.RepetitionPointsDeducted = 0;
+                                                newRecord.Week = Convert.ToInt32(weekday[1]);
+                                                newRecord.Year = DateTime.Now.Year;
+                                                newRecord.Month = DateTime.Now.Month;
+                                                newRecord.Remark = null;//备注
+                                                newList.Add(newRecord);
+                                                newRecord = new KPI_7S_Record();
+                                            }
+                                            db.KPI_7S_Record.AddRange(newList);
+                                            db.SaveChanges();
+                                        }
+                                    }
+                                }
+                            }
+                            else if (Convert.ToInt32(weekday[0]) == 4)//如果第一周有4天，本周从星期二开始
+                            {
+                                if (time.DayOfWeek.ToString() == "Thursday" || time.DayOfWeek.ToString() == "Friday") {
+                                    DateTime yesterday = time.AddDays(-1);//昨天
+                                    DateTime beforeday = time.AddDays(-2);//前天
+                                    DateTime beforeday1 = time.AddDays(-3);//大前天
+                                    int submitNum = 1;//本来今天没交，星期二星期三都不进来检查是否有提交，星期四第三天没交就进来检查
+                                    if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == yesterday.Day&&c.PointsDeducted_Type!=null).Count() == 0)//昨天
+                                    {
+                                        submitNum++;
+                                    }
+                                    if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday.Day && c.PointsDeducted_Type != null).Count() == 0)//前天
+                                    {
+                                        submitNum++;
+                                    }
+                                    if (time.DayOfWeek.ToString() == "Friday") {
+                                        if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday1.Day && c.PointsDeducted_Type != null).Count() == 0)//大前天
+                                        {
+                                            submitNum++;
+                                        }
+                                    }
+                                    if (submitNum >= 3) {                                      
+                                        List<KPI_7S_Record> newList = new List<KPI_7S_Record>();
+                                        KPI_7S_Record newRecord = new KPI_7S_Record();
+                                        foreach (var j in record)
+                                        {
+                                            newRecord.Department = j.Department;//部门
+                                            newRecord.Group = j.Position;//班组
+                                            newRecord.Position = j.Position;//位置
+                                            newRecord.District = j.District;//区域号
+                                            newRecord.Check_Type = "日检";//检查类型
+                                            newRecord.Date = DateTime.Now;//日期
+                                            newRecord.PointsDeducted_Type = null;//扣分类型
+                                            newRecord.PointsDeducted_Item = null;//7S扣分项
+                                            newRecord.ProblemDescription = DateTime.Now.ToString("yyyy-MM-dd") + ",未交日报表扣分";//问题描述
+                                            newRecord.PointsDeducted = 3;//7S扣分
+                                            newRecord.ResponsiblePerson = null;//责任人
+                                            newRecord.InputPerson = null;//录入人
+                                            newRecord.InputTime = DateTime.Now;//录入时间
+                                            newRecord.RectificationTime = null;// 限期整改时间
+                                            newRecord.RectificationResults = null;//整改结果描述
+                                            newRecord.RectificationPerson = null;
+                                            newRecord.ModifyTime = null;
+                                            newRecord.RectificationPoints = 0;
+                                            newRecord.RepetitionPointsDeducted = 0;
+                                            newRecord.Week = Convert.ToInt32(weekday[1]);
+                                            newRecord.Year = DateTime.Now.Year;
+                                            newRecord.Month = DateTime.Now.Month;
+                                            newRecord.Remark = null;//备注
+                                            newList.Add(newRecord);
+                                            newRecord = new KPI_7S_Record();
+                                        }
+                                        db.KPI_7S_Record.AddRange(newList);
+                                        db.SaveChanges();
+                                    }
+                                }
+                            }
+                            else if (Convert.ToInt32(weekday[0]) == 5)//如果第一周有5天
+                            {
+                                if (time.DayOfWeek.ToString() == "Wednesday" || time.DayOfWeek.ToString() == "Thursday" || time.DayOfWeek.ToString() == "Friday") {
+                                    DateTime yesterday = time.AddDays(-1);//昨天
+                                    DateTime beforeday = time.AddDays(-2);//前天
+                                    DateTime beforeday1 = time.AddDays(-3);//前前天
+                                    DateTime beforeday2 = time.AddDays(-4);//前前前天
+                                    //如果星期三没交，就检查前两天是否提交
+                                    int submitNum = 1;//星期三没交初始值等于1
+                                    if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == yesterday.Day && c.PointsDeducted_Type != null).Count() == 0)//昨天
+                                    {
+                                        submitNum++;
+                                    }
+                                    if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday.Day && c.PointsDeducted_Type != null).Count() == 0)//前天
+                                    {
+                                        submitNum++;
+                                    }
+                                    if (time.DayOfWeek.ToString() == "Thursday") {
+                                        if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday1.Day && c.PointsDeducted_Type != null).Count() == 0)//前前天
+                                        {
+                                            submitNum++;
+                                        }
+                                    }
+                                    if (time.DayOfWeek.ToString() == "Thursday") {
+                                        if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday1.Day && c.PointsDeducted_Type != null).Count() == 0)//前前天
+                                        {
+                                            submitNum++;
+                                        }
+                                        if (allList.Where(c => c.Department == item && c.Date.Year == time.Year && c.Date.Month == time.Month && c.Date.Day == beforeday2.Day && c.PointsDeducted_Type != null).Count() == 0)//前前前天
+                                        {
+                                            submitNum++;
+                                        }
+                                    }
+                                    if (submitNum >= 3) {
+                                        List<KPI_7S_Record> newList = new List<KPI_7S_Record>();
+                                        KPI_7S_Record newRecord = new KPI_7S_Record();
+                                        foreach (var j in record)
+                                        {
+                                            newRecord.Department = j.Department;//部门
+                                            newRecord.Group = j.Position;//班组
+                                            newRecord.Position = j.Position;//位置
+                                            newRecord.District = j.District;//区域号
+                                            newRecord.Check_Type = "日检";//检查类型
+                                            newRecord.Date = DateTime.Now;//日期
+                                            newRecord.PointsDeducted_Type = null;//扣分类型
+                                            newRecord.PointsDeducted_Item = null;//7S扣分项
+                                            newRecord.ProblemDescription = DateTime.Now.ToString("yyyy-MM-dd") + ",未交日报表扣分";//问题描述
+                                            newRecord.PointsDeducted = 3;//7S扣分
+                                            newRecord.ResponsiblePerson = null;//责任人
+                                            newRecord.InputPerson = null;//录入人
+                                            newRecord.InputTime = DateTime.Now;//录入时间
+                                            newRecord.RectificationTime = null;// 限期整改时间
+                                            newRecord.RectificationResults = null;//整改结果描述
+                                            newRecord.RectificationPerson = null;
+                                            newRecord.ModifyTime = null;
+                                            newRecord.RectificationPoints = 0;
+                                            newRecord.RepetitionPointsDeducted = 0;
+                                            newRecord.Week = Convert.ToInt32(weekday[1]);
+                                            newRecord.Year = DateTime.Now.Year;
+                                            newRecord.Month = DateTime.Now.Month;
+                                            newRecord.Remark = null;//备注
+                                            newList.Add(newRecord);
+                                            newRecord = new KPI_7S_Record();
+                                        }
+                                        db.KPI_7S_Record.AddRange(newList);
+                                        db.SaveChanges();
+                                    }
+                                }                              
+                            }
+                        }
+                    }
+                }
+            }
+            Thread.CurrentThread.Join(new TimeSpan(0, 1, 0));//阻止设定时间
+        }
+
+
+        //获取第几周   
+        public JArray getWeekNumInMonth(DateTime daytime)
+        {
+            JArray res = new JArray();
+            int dayInMonth = daytime.Day;            
+            DateTime firstDay = daytime.AddDays(1 - daytime.Day);//本月第一天            
+            int weekday = (int)firstDay.DayOfWeek == 0 ? 7 : (int)firstDay.DayOfWeek;//本月第一天是周几           
+            int firstWeekEndDay = 7 - (weekday - 1);//本月第一周有几天                     
+            int diffday = dayInMonth - firstWeekEndDay;//当前日期和第一周之差
+            diffday = diffday > 0 ? diffday : 1;           
+            int WeekNumInMonth = ((diffday % 7) == 0 ? (diffday / 7 - 1) : (diffday / 7)) + 1 + (dayInMonth > firstWeekEndDay ? 1 : 0);//当前是第几周,如果整除7就减一天
+            if (WeekNumInMonth == 1)
+            {
+                int weekdays = firstWeekEndDay - 2;//去掉周末两天
+                res.Add(weekdays);
+            }
+            else if (WeekNumInMonth == 2 || WeekNumInMonth == 3)
+            {//2.3周都是7天
+                res.Add(5);
+            }
+            else if (WeekNumInMonth == 4)//
+            {
+
+            }
+            else if (WeekNumInMonth == 5)
+            {
+
+            }
+            else if (WeekNumInMonth == 6)
+            {
+
+            }          
+            res.Add(WeekNumInMonth);
+            return res;
+        }
+        //获取本周的周一日期
+        public string GetThisWeekMonday()
+        {
+            DateTime date = DateTime.Now;
+            DateTime firstDate = System.DateTime.Now;
+            switch (date.DayOfWeek)
+            {
+                case System.DayOfWeek.Monday:
+                    firstDate = date;
+                    break;
+                case System.DayOfWeek.Tuesday:
+                    firstDate = date.AddDays(-1);
+                    break;
+                case System.DayOfWeek.Wednesday:
+                    firstDate = date.AddDays(-2);
+                    break;
+                case System.DayOfWeek.Thursday:
+                    firstDate = date.AddDays(-3);
+                    break;
+                case System.DayOfWeek.Friday:
+                    firstDate = date.AddDays(-4);
+                    break;
+                case System.DayOfWeek.Saturday:
+                    firstDate = date.AddDays(-5);
+                    break;
+                case System.DayOfWeek.Sunday:
+                    firstDate = date.AddDays(-6);
+                    break;
+            }
+            return firstDate.ToString("yyyy-MM-dd");
+        }
+        #endregion
+
+        #region 指标名称清单数据录入 
+        //显示
+        public ActionResult DisplayKPIIndicators(DateTime? time)
+        {
+            JArray result = new JArray();
+            List<KPI_Indicators> value;
+            if (time == null)
+            {
+                var timecheck = db.KPI_Indicators.Max(c => c.ExecutionTime);
+                value = db.KPI_Indicators.Where(c => c.ExecutionTime == timecheck).ToList();
+            }
+            else
+            {
+                value = db.KPI_Indicators.Where(c => c.ExecutionTime == time).ToList();
+            }
+            foreach (var item in value)
+            {
+                JObject obj = new JObject();
+                obj.Add("Department", item.Department);//部门
+                obj.Add("Group", item.Group);//班组
+                obj.Add("IndicatorsName", item.IndicatorsName);//指标名
+                obj.Add("IndicatorsDefine", item.IndicatorsDefine);//指标定义
+                obj.Add("ComputationalFormula", item.ComputationalFormula);//指标计算工时
+                obj.Add("IndicatorsValue", item.IndicatorsValue);//目标值
+                obj.Add("DataName", item.DataName);//数据名称
+                obj.Add("Cycle", item.Cycle);//数据周期
+                obj.Add("SourceDepartment", item.SourceDepartment);//来源部门
+                obj.Add("DataInputor", item.DataInputor);//录入人
+                obj.Add("DataInputTime", item.DataInputTime);//录入时间
+                obj.Add("IndicatorsType", item.IndicatorsType);//考核类型  品质或效率
+                obj.Add("Process", item.Process);//考核工段
+                obj.Add("Section", item.Section);//考核工序
+                obj.Add("IndicatorsStatue", item.IndicatorsStatue);//考核异常或者正常
+                //obj.Add("QualityStatue", item.QualityStatue);//品质考核类型, 直通 或者合格率
+
+                result.Add(obj);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //单个新增
+        public string SingleAddKPIIndicators(KPI_Indicators indicators)
+        {
+            var info = db.KPI_Indicators.Count(c => c.Department == indicators.Department && c.Group == indicators.Group && c.IndicatorsType == indicators.IndicatorsType && c.ExecutionTime == indicators.ExecutionTime);
+            if (info != 0)
+            {
+                return "已有重复数据";
+            }
+
+            db.KPI_Indicators.Add(indicators);
+            db.SaveChanges();
+            return "true";
+        }
+
+        //增加一个新版本
+        public string BacthAddKPIIndicators(List<KPI_Indicators> indicators)
+        {
+            var num = db.KPI_Indicators.Count(c => c.ExecutionTime == indicators.FirstOrDefault().ExecutionTime);
+            if (num != 0)
+            {
+                return "已有重复的版本信息";
+            }
+            db.KPI_Indicators.AddRange(indicators);
+            db.SaveChanges();
+            return "true";
+        }
+
+        //修改
+        public string UpdateKPIIndicators(KPI_Indicators indicators)
+        {
+            var info = db.KPI_Indicators.Find(indicators.Id);
+            var check = db.KPI_Indicators.Count(c => c.Department == indicators.Department && c.Group == indicators.Group && c.IndicatorsName == indicators.IndicatorsName && c.ExecutionTime == indicators.ExecutionTime);
+            if (check != 0)
+            {
+                return "已有重复数据";
+            }
+            if (info.ExecutionTime != indicators.ExecutionTime)
+            {
+                db.KPI_Indicators.Add(indicators);
+                db.SaveChanges();
+                return "修改成功";
+            }
+            else
+            {
+                db.Entry(indicators).State = EntityState.Modified;
+                db.SaveChanges();
+                return "修改成功";
+            }
+        }
+
+        //删除 
+        public void DeleteKPIIndicators(int id)
+        {
+            var deleteinfo = db.KPI_Indicators.Find(id);
+            db.KPI_Indicators.Remove(deleteinfo);
+            db.SaveChanges();
+        }
+
+        //导出到EXCEL表
+        public FileContentResult OutputExcel(DateTime time)
+        {
+            var recordList = db.KPI_Indicators.Where(c => c.ExecutionTime == time).ToList();
+
+            //导出表格名称
+            string tableName = "班组数据表";
+
+            tableName = tableName + "(按" + time + "时间查找)";
+
+            if (recordList.Count() > 0)
+            {
+                string[] columns = { "部门", "班组", "考核指标名", "指标定义", "计算公式", "目标值", "数据名称", "数据提供周期(天/周/月)", "数据来源部门", "数据录入人员", "录入时间", "考核类型", "考核工段", "考核工序", "考核正常/异常", "执行时间" };
+                byte[] filecontent = ExcelExportHelper.ExportExcel(recordList, tableName, false, columns);
+                return File(filecontent, ExcelExportHelper.ExcelContentType, tableName + ".xlsx");
+            }
+            else
+            {
+                List<KPI_Indicators> at1 = new List<KPI_Indicators>();
+                at1[0].Department = "没有找到相关记录！";
+                string[] columns = { "部门", "班组", "考核指标名", "指标定义", "计算公式", "目标值", "数据名称", "数据提供周期(天/周/月)", "数据来源部门", "数据录入人员", "录入时间", "考核类型", "考核工段", "考核工序", "考核正常/异常", "执行时间" };
+                byte[] filecontent = ExcelExportHelper.ExportExcel(at1, tableName, false, columns);
+                return File(filecontent, ExcelExportHelper.ExcelContentType, tableName + ".xlsx");
+            }
+        }
+
+        #endregion
+
+        #region 品质效率实际记录
+        //显示
+        public ActionResult DisplayActualRecord(string ordernum, string deparment, string group, string process, string section, DateTime? time)
+        {
+            JArray result = new JArray();
+            var totalvalue = db.KPI_ActualRecord.ToList();
+            if (!string.IsNullOrEmpty(ordernum))
+            {
+                totalvalue = totalvalue.Where(c => c.OrderNum == ordernum).ToList();
+            }
+            if (!string.IsNullOrEmpty(deparment))
+            {
+                totalvalue = totalvalue.Where(c => c.Department == deparment).ToList();
+            }
+            if (!string.IsNullOrEmpty(group))
+            {
+                totalvalue = totalvalue.Where(c => c.Group == group).ToList();
+            }
+            if (!string.IsNullOrEmpty(process))
+            {
+                totalvalue = totalvalue.Where(c => c.Process == process).ToList();
+            }
+            if (!string.IsNullOrEmpty(section))
+            {
+                totalvalue = totalvalue.Where(c => c.Section == section).ToList();
+            }
+
+            if (time != null)
+            {
+                totalvalue = totalvalue.Where(c => c.ActualTime == time).ToList();
+            }
+            foreach (var item in totalvalue)
+            {
+                JObject obj = new JObject();
+                obj.Add("OrderNum", item.OrderNum); //订单
+                obj.Add("Department", item.Department);//部门
+                obj.Add("Group", item.Group);//班组
+                obj.Add("Process", item.Process);//工段
+                obj.Add("Section", item.Section);//工序
+                obj.Add("IndicatorsType", item.IndicatorsType);//品质或者效率
+                obj.Add("ActualNormalNum", item.ActualNormalNum);//正常数量
+                obj.Add("ActualAbnormalNum", item.ActualAbnormalNum);//异常数量
+                obj.Add("Message", item.ActualAbnormalDescription);//异常信息
+                result.Add(obj);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //新增
+        public string AddActualRecord(KPI_ActualRecord actualRecord)
+        {
+            var info = db.KPI_ActualRecord.Count(c => c.ActualTime == actualRecord.ActualTime && c.OrderNum == actualRecord.OrderNum && c.Department == actualRecord.Department && c.Group == actualRecord.Group && c.Process == actualRecord.Process && c.Section == actualRecord.Section);
+            if (info != 0)
+            {
+                return "已有重复记录";
+
+            }
+            actualRecord.ActualCreateor = ((Users)Session["User"]) == null ? "张三" : ((Users)Session["User"]).UserName;
+            actualRecord.ActualCreateTime = DateTime.Now;
+            db.KPI_ActualRecord.Add(actualRecord);
+            db.SaveChanges();
+            return "true";
+
+        }
+        //修改,时间不能修改
+        public string UpdateActualRecord(int id, KPI_ActualRecord actualRecord)
+        {
+            var info = db.KPI_ActualRecord.Find(id);
+            if (info == null)
+            {
+                return "没有找到数据";
+            }
+            info.OrderNum = actualRecord.OrderNum;
+            info.Department = actualRecord.Department;
+            info.Group = actualRecord.Group;
+            info.Process = actualRecord.Process;
+            info.Section = actualRecord.Section;
+            info.IndicatorsType = actualRecord.IndicatorsType;
+            info.ActualNormalNum = actualRecord.ActualNormalNum;
+            info.ActualAbnormalNum = actualRecord.ActualAbnormalNum;
+            info.ActualTime = actualRecord.ActualTime;
+            info.ActualAbnormalDescription = actualRecord.ActualAbnormalDescription;
+
+            db.SaveChanges();
+            return "true";
+
+        }
+
+        //删除
+
+        public string DeleteActualRecord(int id)
+        {
+            var info = db.KPI_ActualRecord.Find(id);
+            if (info == null)
+            {
+                return "找不到该信息";
+            }
+            db.KPI_ActualRecord.Remove(info);
+            db.SaveChanges();
+            return "true";
+        }
+
+        #endregion
+
+        #region  KPI显示
+        public class TempIndicators
+        {
+            public string Department { get; set; }
+            public string Group { get; set; }
+            public double IndicatorsValue { get; set; }
+            public string IndicatorsName { get; set; }
+            public string SourceDepartment { get; set; }
+            public string IndicatorsType { get; set; }
+            public string Cycle { get; set; }
+            public string IndicatorsValueUnit { get; set; }
+            public string Process { get; set; }
+            public string Section { get; set; }
+            public string IndicatorsStatue { get; set; }
+        }
+
+        public class TempValue
+        {
+            public string Department { get; set; }
+            public string Group { get; set; }
+            public string Process { get; set; }
+            public string Section { get; set; }
+            public DateTime? Time { get; set; }
+            public int Num { get; set; }
+            public int AbNum { get; set; }
+
+        }
+
+        //总表显示
+        public ActionResult DisplayTotal(DateTime time)
+
+        {
+            JObject result = new JObject();
+            //拿到对的版本
+            var version = db.KPI_Indicators.Where(c => c.ExecutionTime < time).Select(c => c.ExecutionTime).Distinct().ToList();
+            if (version != null)
+            {
+                //取值
+                var exetime = version.Max();
+                var total = db.KPI_Indicators.Where(c => c.ExecutionTime == exetime).Select(c => new TempIndicators { Department = c.Department, Group = c.Group, Cycle = c.Cycle, IndicatorsValueUnit = c.IndicatorsValueUnit, IndicatorsName = c.IndicatorsName, IndicatorsValue = c.IndicatorsValue, SourceDepartment = c.SourceDepartment, Process = c.Process, Section = c.Section, IndicatorsType = c.IndicatorsType });
+
+                var PlanValue = db.Plan_FromKPI.Where(c => c.PlanTime.Value.Year == time.Year).Select(c => new TempValue { Department = c.Department, Group = c.Group, Process = c.Process, Section = c.Section, Time = c.PlanTime, Num = c.PlanNum });
+
+                var ActualValue = db.KPI_ActualRecord.Where(c => c.ActualTime.Value.Year == time.Year).Select(c => new TempValue { Department = c.Department, Group = c.Group, Process = c.Process, Section = c.Section, Time = c.ActualTime, Num = c.ActualNormalNum });
+
+                //  var KpiInfo = db.KPI_TotalDisplay.Select(c => new TempValue { Department = c.Department, Group = c.Group, Process = c.Process, Section = c.Section, Time = c.ActualTime, Num = c.ActualNormalNum });
+
+                JArray DayArray = new JArray();
+                var deparment = total.Select(c => c.Department).Distinct();
+                foreach (var dep in deparment)
+                {
+                    var group = total.Where(c => c.Department == dep).Select(c => c.Group).Distinct();
+                    foreach (var groupitem in group)
+                    {
+                        JObject obj = new JObject();
+                        obj.Add("Department", dep);
+                        obj.Add("Group", groupitem);
+                        //效率指标
+                        var efficiency = total.Where(c => c.Department == dep && c.Group == groupitem && c.IndicatorsType == "效率").FirstOrDefault();
+                        obj.Add("EfficiencyIndicatorsName", efficiency.IndicatorsName);
+                        obj.Add("EfficiencyIndicatorsValue", efficiency.IndicatorsValue + efficiency.IndicatorsValueUnit);
+                        int PlanTotalValue = 0;
+                        int ActualTotalValue = 0;
+                        var totalday = DateTime.DaysInMonth(time.Year, time.Month);
+                        for (var i = 1; i <= totalday; i++)
+                        {
+                            var Ftime = new DateTime(time.Year, time.Month, i);
+                            //计划
+                            var plancount = PlanValue.Where(c => c.Process == efficiency.Process && c.Section == efficiency.Section && c.Department == dep && c.Group == groupitem && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+
+                            //实际
+                            var actualcount = ActualValue.Where(c => c.Process == efficiency.Process && c.Section == efficiency.Section && c.Department == dep && c.Group == groupitem && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+                            PlanTotalValue = PlanTotalValue + plancount;
+                            ActualTotalValue = ActualTotalValue + actualcount;
+
+                        }
+                        obj.Add("EfficiencyActualScore", Math.Round((decimal)ActualTotalValue / PlanTotalValue, 2));//实际得分
+                        obj.Add("EfficiencyGoal", (ActualTotalValue / PlanTotalValue) - efficiency.IndicatorsValue > 0 ? 100 : 0);//单项得分
+                        obj.Add("EfficiencyGoalScore", (ActualTotalValue / PlanTotalValue) - efficiency.IndicatorsValue > 0 ? 35 : 0);//得分小计
+                        //品质指标
+                        var quality = total.Where(c => c.Department == dep && c.Group == groupitem && c.IndicatorsType == "品质").FirstOrDefault();
+                        obj.Add("QualityIndicatorsName", quality.IndicatorsName);
+                        obj.Add("QualityIndicatorsValue", quality.IndicatorsValue + quality.IndicatorsValueUnit);
+                        int qualityPlanTotalValue = 0;
+                        int qualityActualTotalValue = 0;
+                        var qualitytotalday = DateTime.DaysInMonth(time.Year, time.Month);
+                        for (var i = 1; i <= totalday; i++)
+                        {
+                            var Ftime = new DateTime(time.Year, time.Month, i);
+                            //计划
+                            var plancount = PlanValue.Where(c => c.Process == efficiency.Process && c.Section == efficiency.Section && c.Department == dep && c.Group == groupitem && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+
+                            //实际
+                            var actualcount = ActualValue.Where(c => c.Process == efficiency.Process && c.Section == efficiency.Section && c.Department == dep && c.Group == groupitem && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+                            qualityPlanTotalValue = qualityPlanTotalValue + plancount;
+                            qualityActualTotalValue = qualityActualTotalValue + actualcount;
+
+                        }
+                        obj.Add("QualityActualScore", Math.Round((decimal)qualityActualTotalValue / qualityPlanTotalValue, 2));//实际得分
+                        obj.Add("QualityGoal", (qualityActualTotalValue / qualityPlanTotalValue) - quality.IndicatorsValue > 0 ? 100 : 0);//单项得分
+                        obj.Add("QualityGoalScore", (qualityActualTotalValue / qualityPlanTotalValue) - quality.IndicatorsValue > 0 ? 35 : 0);//得分小计
+                        DayArray.Add(obj);
+                    }
+                }
+                result.Add("DayArray", DayArray);
+
+
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //效率效率指标显示
+        public ActionResult DiasplyEfficiency(DateTime time, string stuta)
+        {
+            JObject result = new JObject();
+            //拿到对的版本
+            var version = db.KPI_Indicators.Where(c => c.ExecutionTime < time).Select(c => c.ExecutionTime).Distinct().ToList();
+            if (version != null)
+            {
+                //取值
+                var exetime = version.Max();
+                var total = db.KPI_Indicators.Where(c => c.ExecutionTime == exetime && c.IndicatorsType == stuta).Select(c => new TempIndicators { Department = c.Department, Group = c.Group, Cycle = c.Cycle, IndicatorsValueUnit = c.IndicatorsValueUnit, IndicatorsName = c.IndicatorsName, IndicatorsValue = c.IndicatorsValue, SourceDepartment = c.SourceDepartment, Process = c.Process, Section = c.Section, IndicatorsStatue = c.IndicatorsStatue });
+
+                var PlanValue = db.Plan_FromKPI.Where(c => c.IndicatorsType == stuta && c.PlanTime.Value.Year == time.Year).Select(c => new TempValue { Department = c.Department, Group = c.Group, Process = c.Process, Section = c.Section, Time = c.PlanTime, Num = c.PlanNum });
+
+                var ActualValue = db.KPI_ActualRecord.Where(c => c.IndicatorsType == stuta && c.ActualTime.Value.Year == time.Year).Select(c => new TempValue { Department = c.Department, Group = c.Group, Process = c.Process, Section = c.Section, Time = c.ActualTime, Num = c.ActualNormalNum, AbNum = c.ActualAbnormalNum });
+
+
+                //拿到日数据
+                JArray DayArray = new JArray();
+                var deparment = total.Where(c => c.Cycle == "天" && c.IndicatorsValueUnit == "%").Select(c => c.Department).Distinct();
+                foreach (var dep in deparment)
+                {
+                    var group = total.Where(c => c.Cycle == "天" && c.IndicatorsValueUnit == "%" && c.Department == dep).Select(c => c.Group).Distinct();
+                    foreach (var groupitem in group)
+                    {
+                        var dayvalue = total.Where(c => c.Cycle == "天" && c.IndicatorsValueUnit == "%" && c.Department == dep && c.Group == groupitem).FirstOrDefault();
+                        JObject obj = new JObject();
+                        obj.Add("Department", dayvalue.Department);
+                        obj.Add("Group", dayvalue.Group);
+                        obj.Add("IndicatorsName", dayvalue.IndicatorsName);
+                        obj.Add("IndicatorsValue", dayvalue.IndicatorsValue + dayvalue.IndicatorsValueUnit);
+                        obj.Add("SourceDepartment", dayvalue.SourceDepartment);
+                        JArray planvalue = new JArray(); //计划数据
+                        JArray actualvalue = new JArray();//实际数据
+                        int PlanTotalValue = 0;
+                        int ActualTotalValue = 0;
+                        var totalday = DateTime.DaysInMonth(time.Year, time.Month);
+                        for (var i = 1; i <= totalday; i++)
+                        {
+                            var Ftime = new DateTime(time.Year, time.Month, i);
+                            //计划
+                            var plancount = PlanValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+                            var actualcount = 0;
+                            //实际
+                            if (dayvalue.IndicatorsStatue == "正常" || dayvalue.IndicatorsStatue == null)
+                            {
+                                actualcount = ActualValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+                            }
+                            else
+                            {
+                                actualcount = ActualValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.AbNum).FirstOrDefault();
+                            }
+                            PlanTotalValue = PlanTotalValue + plancount;
+                            ActualTotalValue = ActualTotalValue + actualcount;
+                            planvalue.Add(plancount);
+                            actualvalue.Add(actualcount);
+                        }
+
+                        obj.Add("PlanValue", planvalue);//每月计划数
+                        obj.Add("PlanTotalValue", PlanTotalValue);//月总计划数
+                        obj.Add("ActualValue", actualvalue);//每月实际数
+                        obj.Add("ActualTotalValue", ActualTotalValue);//月总实际数
+                        obj.Add("ActualScore", Math.Round((decimal)ActualTotalValue / PlanTotalValue, 2));//实际得分
+                        obj.Add("DifferencesValue", (ActualTotalValue / PlanTotalValue) - dayvalue.IndicatorsValue);//与目标值差异
+                        obj.Add("Goal", (ActualTotalValue / PlanTotalValue) - dayvalue.IndicatorsValue > 0 ? 100 : 0);//得分小计
+
+                        DayArray.Add(obj);
+                    }
+                }
+                result.Add("DayArray", DayArray);
+
+                //拿到月数据
+                JArray MouthArray = new JArray();
+                var deparment2 = total.Where(c => c.Cycle == "月" && c.IndicatorsValueUnit == "%").Select(c => c.Department).Distinct();
+                foreach (var dep in deparment2)
+                {
+                    var group = total.Where(c => c.Cycle == "月" && c.IndicatorsValueUnit == "%" && c.Department == dep).Select(c => c.Group).Distinct();
+                    foreach (var groupitem in group)
+                    {
+                        var dayvalue = total.Where(c => c.Cycle == "月" && c.IndicatorsValueUnit == "%" && c.Department == dep && c.Group == groupitem).FirstOrDefault();
+                        JObject obj = new JObject();
+                        obj.Add("Department", dayvalue.Department);
+                        obj.Add("Group", dayvalue.Group);
+                        obj.Add("IndicatorsName", dayvalue.IndicatorsName);
+                        obj.Add("IndicatorsValue", dayvalue.IndicatorsValue + dayvalue.IndicatorsValueUnit);
+                        obj.Add("SourceDepartment", dayvalue.SourceDepartment);
+                        JArray planvalue = new JArray(); //计划数据
+                        JArray actualvalue = new JArray();//实际数据
+                        int PlanTotalValue = 0;
+                        int ActualTotalValue = 0;
+                        for (var i = 1; i <= 12; i++)
+                        {
+                            var Ftime = new DateTime(time.Year, i, 1);
+                            //计划
+                            var plancount = PlanValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+
+                            var actualcount = 0;
+                            //实际
+                            if (dayvalue.IndicatorsStatue == "正常" || dayvalue.IndicatorsStatue == null)
+                            {
+                                actualcount = ActualValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+                            }
+                            else
+                            {
+                                actualcount = ActualValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.AbNum).FirstOrDefault();
+                            }
+
+                            PlanTotalValue = PlanTotalValue + plancount;
+                            ActualTotalValue = ActualTotalValue + actualcount;
+                            planvalue.Add(plancount);
+                            actualvalue.Add(actualcount);
+                        }
+                        obj.Add("PlanValue", planvalue);//每年计划数
+                        obj.Add("PlanTotalValue", PlanTotalValue);//年总计划数
+                        obj.Add("ActualValue", actualvalue);//每年实际数
+                        obj.Add("ActualTotalValue", ActualTotalValue);//年总实际数
+                        obj.Add("ActualScore", Math.Round((decimal)ActualTotalValue / PlanTotalValue, 2));//实际得分
+                        obj.Add("DifferencesValue", (ActualTotalValue / PlanTotalValue) - dayvalue.IndicatorsValue);//与目标值差异
+                        obj.Add("Goal", (ActualTotalValue / PlanTotalValue) - dayvalue.IndicatorsValue > 0 ? 100 : 0);//得分小计
+
+                        MouthArray.Add(obj);
+                    }
+                }
+                result.Add("MouthArray", MouthArray);
+
+                //拿到单/笔/次数据
+                JArray OneOfTimeArray = new JArray();
+                var deparment3 = total.Where(c => c.Cycle == "天" && c.IndicatorsValueUnit != "%").Select(c => c.Department).Distinct();
+                foreach (var dep in deparment3)
+                {
+                    var group = total.Where(c => c.Cycle == "天" && c.IndicatorsValueUnit != "%" && c.Department == dep).Select(c => c.Group).Distinct();
+                    foreach (var groupitem in group)
+                    {
+                        var dayvalue = total.Where(c => c.Cycle == "天" && c.IndicatorsValueUnit != "%" && c.Department == dep && c.Group == groupitem).FirstOrDefault();
+                        JObject obj = new JObject();
+                        obj.Add("Department", dayvalue.Department);
+                        obj.Add("Group", dayvalue.Group);
+                        obj.Add("IndicatorsName", dayvalue.IndicatorsName);
+                        obj.Add("IndicatorsValue", dayvalue.IndicatorsValue + dayvalue.IndicatorsValueUnit);
+                        obj.Add("SourceDepartment", dayvalue.SourceDepartment);
+                        //JArray planvalue = new JArray(); //计划数据
+                        JArray actualvalue = new JArray();//实际数据
+                        //int PlanTotalValue = 0;
+                        int ActualTotalValue = 0;
+                        var totalday = DateTime.DaysInMonth(time.Year, time.Month);
+                        for (var i = 1; i <= totalday; i++)
+                        {
+                            var Ftime = new DateTime(time.Year, time.Month, i);
+                            var actualcount = 0;
+                            //实际
+                            if (dayvalue.IndicatorsStatue == "正常" || dayvalue.IndicatorsStatue == null)
+                            {
+                                actualcount = ActualValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.Num).FirstOrDefault();
+                            }
+                            else
+                            {
+                                actualcount = ActualValue.Where(c => c.Process == dayvalue.Process && c.Section == dayvalue.Section && c.Department == dayvalue.Department && c.Group == dayvalue.Group && c.Time.Value == Ftime).Select(c => c.AbNum).FirstOrDefault();
+                            }
+
+                            ActualTotalValue = ActualTotalValue + actualcount;
+                            actualvalue.Add(actualcount);
+                        }
+                        obj.Add("ActualValue", actualvalue);//每月实际数
+                        obj.Add("ActualTotalValue", ActualTotalValue);//月总实际数
+                        obj.Add("ActualScore", Math.Round(ActualTotalValue / dayvalue.IndicatorsValue, 2));//实际得分
+                        obj.Add("DifferencesValue", (ActualTotalValue / dayvalue.IndicatorsValue) - dayvalue.IndicatorsValue);//与目标值差异
+                        obj.Add("Goal", (ActualTotalValue / dayvalue.IndicatorsValue) - dayvalue.IndicatorsValue > 0 ? 100 : 0);//得分小计
+
+                        DayArray.Add(obj);
+                    }
+                }
+                result.Add("OneOfTimeArray", OneOfTimeArray);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+
+        //月流失率显示
+
+        //7s显示
+
+        #endregion
+
+        #region---班组评优月度汇总表方法（四个指标的汇总及审核操作方法）
+
+        //班组评优月度汇总表历史查询
+        public ActionResult HistoryQuery(int? year, int? month)
+        {
+            JObject table = new JObject();
+            JArray retul = new JArray();
+            JObject code = new JObject();
+            var queryList = db.KPI_MonthlyIndicators.ToList();
+            if (year != 0 && month != 0)
+            {
+                queryList = queryList.Where(c => c.Year == year && c.Month == month).ToList();
+            }
+            if (year != 0 && month == 0)
+            {
+                queryList = queryList.Where(c => c.Year == year).ToList();
+            }
+            if (queryList.Count > 0)
+            {
+                foreach (var item in queryList)
+                {
+                    //id
+                    table.Add("Id", item.Id == 0 ? 0 : item.Id);
+                    //被考核部门
+                    table.Add("Department", item.Department == null ? null : item.Department);
+                    //班组
+                    table.Add("Group", item.Group == null ? null : item.Group);
+                    //效率指标
+                    table.Add("Efficiency_Indicators", item.Efficiency_Indicators == null ? null : item.Efficiency_Indicators);
+                    //指标名称(效率)
+                    table.Add("Efficiency_IndexName", item.Efficiency_IndexName == null ? null : item.Efficiency_IndexName);
+                    //目标值(效率)
+                    table.Add("Efficiency_Target", item.Efficiency_Target == 0 ? 0 : item.Efficiency_Target);
+                    //实际完成值(效率)
+                    table.Add("Efficiency_Actual", item.Efficiency_Actual == 0 ? 0 : item.Efficiency_Actual);
+                    //单项得分(效率)
+                    table.Add("Efficiency_Single", item.Efficiency_Single == 0 ? 0 : item.Efficiency_Single);
+                    //得分小计(效率)
+                    table.Add("Efficiency_Score", item.Efficiency_Score == 0 ? 0 : item.Efficiency_Score);
+
+                    //品质指标
+                    table.Add("Quality_Indicators", item.Quality_Indicators == null ? null : item.Quality_Indicators);
+                    //指标名称(品质)
+                    table.Add("Quality_IndexName", item.Quality_IndexName == null ? null : item.Quality_IndexName);
+                    //目标值(品质)
+                    table.Add("Quality_Target", item.Quality_Target == 0 ? 0 : item.Quality_Target);
+                    //实际完成值(品质)
+                    table.Add("Quality_Actual", item.Quality_Actual == 0 ? 0 : item.Quality_Actual);
+                    //单项得分(品质)
+                    table.Add("Quality_Single", item.Quality_Single == 0 ? 0 : item.Quality_Single);
+                    //得分小计(品质)
+                    table.Add("Quality_Score", item.Quality_Score == 0 ? 0 : item.Quality_Score);
+
+                    //月度流失率指标
+                    table.Add("Turnover_Indicators", item.Turnover_Indicators == null ? null : item.Turnover_Indicators);
+                    //指标名称(品质)
+                    table.Add("Turnover_IndexName", item.Turnover_IndexName == null ? null : item.Turnover_IndexName);
+                    //目标值(品质)
+                    table.Add("Turnover_Target", item.Turnover_Target == 0 ? 0 : item.Turnover_Target);
+                    //实际完成值(品质)
+                    table.Add("Turnover_Actual", item.Turnover_Actual == 0 ? 0 : item.Turnover_Actual);
+                    //单项得分(品质)
+                    table.Add("Turnover_Single", item.Turnover_Single == 0 ? 0 : item.Turnover_Single);
+                    //得分小计(品质)
+                    table.Add("Turnover_Score", item.Turnover_Score == 0 ? 0 : item.Turnover_Score);
+
+                    //7S评比指标
+                    table.Add("Comparison_Indicators", item.Comparison_Indicators == null ? null : item.Comparison_Indicators);
+                    //指标名称(品质)
+                    table.Add("Comparison_IndexName", item.Comparison_IndexName == null ? null : item.Comparison_IndexName);
+                    //目标值(品质)
+                    table.Add("Comparison_Target", item.Comparison_Target == 0 ? 0 : item.Comparison_Target);
+                    //实际完成值(品质)
+                    table.Add("Comparison_Actual", item.Comparison_Actual == 0 ? 0 : item.Comparison_Actual);
+                    //单项得分(品质)
+                    table.Add("Comparison_Single", item.Comparison_Single == 0 ? 0 : item.Comparison_Single);
+                    //得分小计(品质)
+                    table.Add("Comparison_Score", item.Comparison_Score == 0 ? 0 : item.Comparison_Score);
+
+                    //合计总分
+                    table.Add("TotalScore", item.TotalScore == 0 ? 0 : item.TotalScore);
+                    //平均人数（不少于5人）
+                    table.Add("AvagePersonNum", item.AvagePersonNum == 0 ? 0 : item.AvagePersonNum);
+                    //当月有无工伤事故
+                    table.Add("InductrialAccident", item.InductrialAccident == 0 ? 0 : item.InductrialAccident);
+                    //出勤率
+                    table.Add("Attendance", item.Attendance == 0 ? 0 : item.Attendance);
+                    //行政违规情况
+                    table.Add("ViolationsMessage", item.ViolationsMessage == null ? null : item.ViolationsMessage);
+                    //排名
+                    table.Add("Ranking", item.Ranking == 0 ? 0 : item.Ranking);
+                    //积分
+                    table.Add("Integral", item.integral == 0 ? 0 : item.integral);
+                }
+                //审核列表
+                var auditList = db.KPI_ReviewSummary.Where(c => c.Year == year && c.Month == month).ToList();
+                foreach (var it in auditList)
+                {
+                    //考核人部门
+                    code.Add("Department_audit", it.Department == null ? null : it.Department);
+                    //负责人审核
+                    code.Add("HRAudit", it.HRAudit == null ? null : it.HRAudit);
+                    //审核时间
+                    code.Add("HRAuditDate", it.HRAuditDate == null ? null : it.HRAuditDate);
+                    retul.Add(code);
+                    code = new JObject();
+                }
+                table.Add("Code", retul);
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+
+        //批准后保存班组评优月度汇总表
+        public ActionResult ADDSummaryTable(List<KPI_MonthlyIndicators> indicators, int year, int month)
+        {
+            JObject table = new JObject();
+            if (indicators.Count > 0 && year != 0 && month != 0)
+            {
+                foreach (var item in indicators)
+                {
+                    item.Year = year;
+                    item.Month = month;
+                    db.SaveChanges();
+                }
+                db.KPI_MonthlyIndicators.AddRange(indicators);
+                int count = db.SaveChanges();
+                if (count > 0)
+                {
+                    table.Add("mes", true);
+                    table.Add("feg", "保存成功");
+                    table.Add("con", JsonConvert.SerializeObject(indicators));
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+                else
+                {
+                    table.Add("mes", false);
+                    table.Add("feg", "保存失败");
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+            }
+            table.Add("mes", false);
+            table.Add("feg", "数据错误");
+            return Content(JsonConvert.SerializeObject(table));
+        }
+
+        //审核班组评优月度汇总表方法
+        public ActionResult Audit_SummarySheet(int year, int month, string hrAudit)
+        {
+            JObject review = new JObject();
+            if (year != 0 && month != 0 && hrAudit != null)
+            {
+                KPI_ReviewSummary summary = new KPI_ReviewSummary();
+                var audit = db.KPI_ReviewSummary.Where(c => c.Year == year && c.Month == month && c.HRAudit == hrAudit).FirstOrDefault();
+                if (audit == null)
+                {
+                    summary.Year = year;
+                    summary.Month = month;
+                    summary.HRAudit = hrAudit;
+                    summary.Department = ((Users)Session["hrAudit"]).Department;
+                    summary.HRAuditDate = DateTime.Now;
+                    db.KPI_ReviewSummary.Add(summary);
+                    int count = db.SaveChanges();
+                    if (count > 0)
+                    {
+                        review.Add("Meg", true);
+                        review.Add("Feg", "审核成功！");
+                        review.Add("HRAudit", hrAudit);
+                        review.Add("HRAuditDate", summary.HRAuditDate);
+                        return Content(JsonConvert.SerializeObject(review));
+                    }
+                    else
+                    {
+                        review.Add("Meg", false);
+                        review.Add("Feg", "审核失败！");
+                        return Content(JsonConvert.SerializeObject(review));
+                    }
+                }
+                else
+                {
+                    review.Add("Meg", false);
+                    review.Add("Feg", year + "年" + month + "月" + "的月度指标汇总数据，您已审核！");
+                    return Content(JsonConvert.SerializeObject(review));
+                }
+            }
+            review.Add("Meg", false);
+            review.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(review));
+        }
+
+        //导出班组评优月度汇总表(Excel)
+
+        #endregion
+
+        #region---光荣榜（优秀班组）
+
+        //上传优秀班组图片
+        public bool UploadFile_KPI(int year, int month, int ranking, string group)
+        {
+            string rankingList = "第" + ranking + "名";
+            string datetime = year + "年" + month + "月";
+            if (Request.Files.Count > 0)//判断请求文件是否大于0
+            {
+                HttpPostedFileBase file = Request.Files["UploadFile_KPI"];//获取上传内容
+                var fileType = file.FileName.Substring(file.FileName.Length - 4, 4).ToLower();//截取文件名的后缀
+                if (year != 0 && month != 0 && group != null && rankingList != null)
+                {
+                    //判断该文件夹是否等于false（有没有该文件夹）
+                    if (Directory.Exists(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\") == false)//如果不存在就创建订单文件夹
+                    {
+                        //创建文件夹
+                        Directory.CreateDirectory(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\");
+                    }
+                    if (fileType == ".pdf")
+                    {
+                        //把文件保存到对应的文件夹下
+                        file.SaveAs(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + group + "\\" + rankingList + ".pdf");
+                    }
+                    if (fileType == ".jpg")
+                    {
+                        //把文件保存到对应的文件夹下
+                        file.SaveAs(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + group + "\\" + rankingList + ".jpg");
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        //优秀班组图片更换(替换)上传
+        public bool UploadFile_KPI_Replace(string OrignFile, int year, int month, int ranking, string group)
+        {
+            bool retul = true;
+            string rankingList = "第" + ranking + "名";
+            string datetime = year + "年" + month + "月";
+            var filename = OrignFile.Substring(OrignFile.LastIndexOf('/') + 1);//以最后一个斜杠截取路径（只保留文件名）
+            if (Directory.Exists(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + group + "\\已替换文件\\") == false)
+            {
+                Directory.CreateDirectory(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + group + "\\已替换文件\\");
+            }
+            var NewFile = @"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + group + "\\已替换文件\\" + filename;
+            try
+            {
+                var conversion = OrignFile.Replace("/", "\\");//把旧文件路径的斜杠（/）替换成这个斜杠（\）
+                System.IO.File.Move("D:" + conversion, NewFile);//把旧文件移动到NewFile这个文件夹下
+            }
+            catch //捕捉异常
+            {
+                retul = false;
+            }
+            if (!UploadFile_KPI(year, month, ranking, group))//判断调用的方法是否有这些参数
+            {
+                retul= false;
+            }
+            return retul;
+        }
+
+        //显示月度优秀班组前三名的数据和图片
+        public ActionResult Monthly_ExcellentTeam(int year, int month)
+        {
+            JObject groupList = new JObject();
+            JArray table = new JArray();
+            if (year != 0 && month != 0)
+            {
+                var rankingList = db.KPI_MonthlyIndicators.Where(c => c.Year == year && c.Month == month && c.Ranking != 0).Select(c => new { c.Department, c.Group, c.Ranking, c.Id }).ToList();
+                if (rankingList.Count > 0)
+                {
+                    foreach (var item in rankingList)
+                    {
+                        string datetime = year + "年" + month + "月";
+                        var ranking = "第" + item.Ranking + "名";
+                        //id
+                        groupList.Add("Id", item.Id == 0 ? 0 : item.Id);
+                        //部门
+                        groupList.Add("Department", item.Department == null ? null : item.Department);
+                        //班组
+                        groupList.Add("Group", item.Group == null ? null : item.Group);
+                        //名次                      
+                        groupList.Add("Ranking", ranking == null ? null : ranking);
+                        //图片路径                       
+                        if (Directory.Exists(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + item.Group + "\\" + rankingList) == false)
+                        {
+                            groupList.Add("Path", null);
+                        }
+                        else
+                        {
+                            List<FileInfo> fileInfos = comm.GetAllFilesInDirectory(@"D:\MES_Data\优秀班组光荣榜\" + datetime + "\\" + item.Group + "\\" + rankingList);
+
+                            string path = @"/MES_Data/优秀班组光荣榜/" + datetime + "/" + item.Group + "/" + rankingList;//组合出路径
+                            var filetype = path.Split('.');//将组合出来的路径以点分隔，方便下一步判断后缀
+                            if (filetype[1] == "jpg")//后缀为jpg
+                            {
+                                groupList.Add("Path", path == null ? null : path);
+                            }
+                            else //后缀为其他
+                            {
+                                groupList.Add("Path", path == null ? null : path);
+                            }
+                        }
+                        table.Add(groupList);
+                        groupList = new JObject();
+                    }
+                }
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+
+        #endregion
+
+        #region---班组评优月度积分统计表
+
+        //查看班组评优月度积分统计表
+        public ActionResult IntegralTable(int year, int month)
+        {
+            JObject table = new JObject();
+            JObject userJobject = new JObject();
+            var dataList = db.KPI_MonthlyIndicators.Where(c => c.Year == year && c.Month <= month).ToList();
+            int k = 0;
+            int combined = 0;
+            var departmentlist = dataList.Select(c => c.Department).Distinct().ToList();
+            foreach (var item in departmentlist)//循环被考核部门
+            {
+                var DG_list = dataList.Where(c => c.Department == item).Select(c => c.Group).Distinct().ToList();
+                foreach (var ite in DG_list)//循环被考核部门的班组
+                {
+                    var tarodlist = dataList.Where(c => c.Department == item && c.Group == ite).OrderBy(c => c.Month).ToList();
+                    //ID
+                    table.Add("Id", tarodlist.FirstOrDefault().Id == 0 ? 0 : tarodlist.FirstOrDefault().Id);
+                    //部门
+                    table.Add("Department", tarodlist.FirstOrDefault().Department == null ? null : tarodlist.FirstOrDefault().Department);
+                    //班组
+                    table.Add("Group", tarodlist.FirstOrDefault().Group == null ? null : tarodlist.FirstOrDefault().Group);
+                    foreach (var da in tarodlist)//循环月份
+                    {
+                        //月份积分
+                        table.Add(da.Month.ToString(), da.integral);
+                        combined = combined + da.integral;
+                    }
+                    //年度积分合计
+                    table.Add("Integral", combined == 0 ? 0 : combined);
+                    userJobject.Add(k.ToString(), table);
+                    table = new JObject();
+                    k++;
+                }
+            }
+            return Content(JsonConvert.SerializeObject(userJobject));
+        }
+
+        //导出班组评优月度积分统计表(Excel)
+
+
+        #endregion
+
+        #region 列表
+        //拿到工序列表
+        public ActionResult GetProcessList()
+        {
+            var orders = db.Plan_SectionParameter.OrderByDescending(m => m.Id).Select(m => m.Process).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        //根据工序拿到工段
+        public ActionResult GetSectionList(string Process)
+        {
+            var orders = db.Plan_SectionParameter.OrderByDescending(m => m.Id).Where(c => c.Process == Process).Select(m => m.Section).ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return Content(JsonConvert.SerializeObject(result));
+        }
+        #endregion
+    }
+}

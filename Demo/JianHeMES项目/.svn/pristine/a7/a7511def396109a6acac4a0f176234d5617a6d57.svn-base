@@ -1,0 +1,289 @@
+﻿@{
+    ViewBag.Title = "7S区域数据";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        #app {
+            padding: 20px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .action-box {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            align-content: center;
+            justify-content: space-between;
+        }
+
+        .action-box-left {
+            width: 100%;
+        }
+
+        .action-box-right {
+            display: flex;
+            align-items: center;
+        }
+
+            .action-box-right .textinput {
+                margin-right: 10px;
+            }
+
+        .table-height {
+            width: 100%;
+            height: 70vh;
+        }
+        /*    表格*/
+    </style>
+}
+
+<div id="app">
+    <div class="title">
+        7S区域数据
+    </div>
+
+    @*操作栏*@
+    <div class="action-box">
+        <div class="action-box-left">
+            <el-select v-model="select_department" placeholder="请选择部门">
+                <el-option v-for="item in department_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="select_district" placeholder="请选择区域">
+                <el-option v-for="item in district_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="action-box-right" v-if="!button_falg">
+            <el-button type="primary" plain v-on:click="onEntry">批量录入</el-button>
+        </div>
+        <div class="action-box-right" v-if="button_falg">
+            <textarea v-model="inputInfo" class="textinput" placeholder="表格粘贴处..."></textarea>
+            <el-button type="primary" plain v-on:click="onUpload">确认上传</el-button>
+            <el-button type="info" plain v-on:click="onCancel">取消</el-button>
+        </div>
+    </div>
+
+    @*表格*@
+    <div class="table-height">
+        <vxe-grid border
+                  keep-source
+                  show-footer
+                  ref="xGrid"
+                  size="small"
+                  height="auto"
+                  align="center"
+                  :edit-config="{trigger: 'manual', mode: 'row', showStatus: true}"
+                  :columns="tableColumn"
+                  :data="tableData">
+            <template v-slot:operation="{ row }">
+                <template v-if="$refs.xGrid.isActiveByRow(row)">
+                    <vxe-button status="primary" title="保存" v-on:click="saveRowEvent(row)">保存</vxe-button>
+                </template>
+                <template v-else>
+                    <vxe-button title="编辑" v-on:click="editRowEvent(row)">编辑</vxe-button>
+                </template>
+                <vxe-button title="删除" v-on:click="removeRowEvent(row)">删除</vxe-button>
+            </template>
+
+        </vxe-grid>
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="https://cdn.jsdelivr.net/npm/xe-utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vxe-table"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    select_department: '',
+                    department_options: [],
+                    select_district: '',
+                    district_options: [],
+                    button_falg: false,
+                    inputInfo: null,
+                    tableColumn: [
+                        { title: '序号', type: 'seq', width: 50 },
+                        { title: '部门', field: 'Department', editRender: { name: 'input' } },
+                        { title: '班组', field: 'Group', editRender: { name: 'input' } },
+                        { title: '位置', field: 'Position', editRender: { name: 'input' } },
+                        { title: '区域', field: 'District', editRender: { name: 'input' } },
+                        {
+                            title: '操作', field: 'action', width: 240, slots: {
+                                default: 'operation'
+                            }
+                        }
+                    ],
+                    tableData: []
+                }
+            },
+            created: function () {
+                this.onGetDepartmentData();
+            },
+            mounted: function () {
+
+            },
+            watch: {
+                //监听批量上传粘贴的数据
+                inputInfo(val) {
+                    if (val != null) {
+                        var valOfPaste = val.split("\n");
+                        valOfPaste.pop();
+                        var initDatas = [];
+                        valOfPaste.forEach((item, i) => {
+                            var items = item.split("\t");
+                            initDatas.push(items)
+                        });
+                        initDatas.forEach(item => {
+                            let obj = {
+                                Department: item[0], Group: item[1], Position: item[2], District: item[3]
+                            };
+                            this.tableData.push(obj);
+                        })
+                    }
+
+                },
+                select_department(val) {
+                    if (val != '') {
+                        this.select_district = '';
+                        this.button_falg = false;
+                        this.inputInfo = null;
+                        this.onGetDistrictData();
+                        this.onQueryData();
+                    } else {
+                        this.tableData = [];
+                    }
+                },
+                select_district(val) {
+                    if (this.select_department != '') {
+                        this.onQueryData();
+                    }
+
+                }
+            },
+            //函数方法
+            methods: {
+                //获取初始化下拉数据
+                onGetDepartmentData() {
+                    axios.post('/KPI/GetDepartmentList').then(res => {
+                        //console.log(res)
+                        this.department_options = res.data;
+                    })
+                },
+                onGetDistrictData() {
+                    axios.post('/KPI/GetDistrictList', { department: this.select_department }).then(res => {
+                        //console.log(res)
+                        this.district_options = res.data;
+                    })
+                },
+                //查询数据
+                onQueryData() {
+                    axios.post('/KPI/Region_query', {
+                        department: this.select_department, district: this.select_district
+                    }).then(res => {
+                        //console.log(res)
+                        this.tableData = res.data
+                    })
+                },
+                //批量录入
+                onEntry() {
+                    this.select_department = '';
+                    this.select_district = '';
+                    this.district_options = [];
+                    this.tableData = [];
+                    this.button_falg = true;
+                },
+                //确认上传
+                onUpload() {
+                    if (this.tableData.length != 0) {
+                        axios.post('/KPI/Region_Input', {
+                            record: this.tableData
+                        }).then(res => {
+                            console.log(res)
+                            if (res.data == "保存成功！") {
+                                this.$message.success('上传成功！');
+                                this.onCancel();
+                                this.onGetDepartmentData();
+                            }
+                            if (res.data == "保存失败！") {
+                                this.$message.error('上传失败！数据已存在，请不要重复上传！');
+                            }
+
+                        })
+                    } else {
+                        this.$message.error('没有数据可以上传，请在表格粘贴数据哦~');
+                    }
+                },
+                //取消批量录入
+                onCancel() {
+                    this.inputInfo = null;
+                    this.button_falg = false;
+                    this.tableData = [];
+                },
+
+                //表格编辑，保存，删除
+                editRowEvent(row) {
+                    this.$refs.xGrid.setActiveRow(row);
+                },
+                saveRowEvent(row) {
+                    this.$refs.xGrid.clearActived().then(() => {
+                        if (this.button_falg == true) {
+                            this.$message.success('修改成功！');
+                        } else {
+                            axios.post('/KPI/Region_modify', {
+                                id: row.Id, department: row.Department, group: row.Group, position: row.Position, district: row.District
+                            }).then(res => {
+                                if (res.data == "修改成功!") {
+                                    this.onGetDepartmentData();
+                                    this.$message.success('修改成功！');
+                                }
+
+                            })
+                        }
+                    })
+                },
+                removeRowEvent(row) {
+                    this.$XModal.confirm('您确定要删除该数据?').then(type => {
+                        if (type === 'confirm') {
+                            this.$refs.xGrid.remove(row);
+                            if (this.button_falg == true) {
+                                this.$message.success('删除成功！');
+                                this.tableData = this.$refs.xGrid.$refs.xTable.afterFullData;
+                                console.log(this.tableData, 111);
+                            } else {
+                                axios.post('/KPI/Region_delete', {
+                                    id: row.Id
+                                }).then(res => {
+                                    if (res.data == "删除成功!") {
+                                        this.onGetDepartmentData();
+                                        this.$message.success('删除成功！');
+                                    }
+
+                                })
+
+                            }
+                        }
+                    })
+
+                }
+            }
+        };
+    </script>
+}

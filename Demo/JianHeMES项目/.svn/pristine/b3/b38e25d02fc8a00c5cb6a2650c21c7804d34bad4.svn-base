@@ -1,0 +1,407 @@
+﻿@{
+    ViewBag.Title = "7S汇总表";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        #app {
+            padding: 20px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .action-box {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            align-content: center;
+            justify-content: space-between;
+        }
+
+        .action-box-left {
+            width: 100%;
+        }
+        /*     .action-box-left .el-select {
+                width: 150px;
+            }*/
+
+        .action-box-right {
+            display: flex;
+            align-items: center;
+        }
+        /*    表格*/
+        .table-height {
+            width: 100%;
+            height: 70vh;
+        }
+
+        .col-blue {
+            background: rgba(64, 158, 255, 1) !important;
+            color: #fff;
+        }
+
+        .col-red {
+            color: red;
+            cursor: pointer;
+        }
+
+            .col-red:hover {
+                text-decoration: underline;
+            }
+    </style>
+}
+
+<div id="app">
+    <div class="title">
+        7S{{select_check_type}}汇总表
+    </div>
+
+    @*操作栏*@
+    <div class="action-box">
+        <div class="action-box-left">
+            <el-select v-model="select_check_type" placeholder="请选择检查类型">
+                <el-option label="日检" value="日检"></el-option>
+                <el-option label="周检" value="周检"></el-option>
+                <el-option label="巡检" value="巡检"></el-option>
+            </el-select>
+            <el-select v-model="select_department" placeholder="请选择部门">
+                <el-option v-for="item in department_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="select_position" placeholder="请选择位置">
+                <el-option v-for="item in position_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-select v-model="select_district" placeholder="请选择区域号">
+                <el-option v-for="item in district_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-date-picker v-model="select_month"
+                            type="month"
+                            placeholder="请选择月份">
+            </el-date-picker>
+            <el-button type="primary" v-on:click="onQueryData">查询</el-button>
+        </div>
+        <div class="action-box-right">
+            <el-button type="primary" plain v-on:click="onToRecordInput">部门录入</el-button>
+            <el-button type="success" plain v-on:click="onExport">导出EXCEL表</el-button>
+        </div>
+    </div>
+
+    @*表格*@
+    <div class="table-height">
+        <el-table :data="tableData"
+                  :header-cell-class-name="headerCellClassName"
+                  height="100%">
+            <el-table-column type="index" width="50" fixed="left">
+            </el-table-column>
+            <el-table-column prop="Department"
+                             label="部门"
+                             width="100" fixed="left">
+            </el-table-column>
+            <el-table-column prop="Position"
+                             label="位置"
+                             width="160" fixed="left">
+            </el-table-column>
+            <el-table-column prop="District"
+                             label="区域"
+                             width="60" fixed="left">
+            </el-table-column>
+            <el-table-column :label="check_name">
+                <el-table-column v-for="(item, index) in tableColumn"
+                                 :key="index+Math.random()"
+                                 :prop="item.field"
+                                 :label="item.title"
+                                 :width="item.width"
+                                 fixed="center">
+                    <template slot-scope="scope">
+                        <div v-if="select_check_type!='周检'&&getRowData(scope.row,item.field)!=0" class="col-red" @@click="onSelectData(scope.row,0,item.title)">{{getRowData(scope.row,item.field)}}</div>
+                        <div v-if="select_check_type=='周检'&&getRowData(scope.row,item.field)!=0" class="col-red" @@click="onSelectData(scope.row,2,item.title)">{{getRowData(scope.row,item.field)}}</div>
+                    </template>
+                </el-table-column>
+            </el-table-column>
+            <el-table-column prop="GradeSum"
+                             label="扣分合计"
+                             width="80" fixed="right">
+                <template slot-scope="scope">
+                    <div class="col-red" v-if="scope.row.GradeSum!=''" @@click="onSelectData(scope.row,1)">-{{scope.row.GradeSum}}</div>
+                </template>
+            </el-table-column>
+        </el-table>
+
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    select_check_type: '',
+                    select_department: '',
+                    department_options: [],
+                    select_position: '',
+                    position_options: [],
+                    select_district: '',
+                    district_options: [],
+                    select_month: '',
+                    check_name: '检查扣分',
+                    tableColumn: [],
+                    allData: [],
+                    tableData: [
+                    ],
+                    count: 0
+                }
+            },
+            created: function () {
+                this.onGetAddress();
+                this.onGetDepartmentData();
+
+            },
+            mounted: function () {
+
+            },
+            watch: {
+                select_month(val) {
+                    if (val != '') {
+                        let month = val.getMonth() + 1;
+                        //console.log(month)
+                        this.check_name = '检查扣分（' + month + '月)'
+                    }
+                },
+                select_department(val) {
+                    if (val != '') {
+                        this.onGetDistrictData();
+                        this.onGetPosition();
+                    }
+                    if (val == '全部部门') {
+                        this.select_position = '',
+                            this.select_district = ''
+                    }
+                },
+                select_position(val) {
+                    if (val != '') {
+                        this.onGetDistrictData();
+                    }
+                }
+            },
+            //函数方法
+            methods: {
+                //获取地址传参
+                onGetAddress() {
+                    let lastUrl = document.referrer;
+                    if (lastUrl.toLowerCase().indexOf("KPI_7S_Summarizing") == -1) {
+                        this.select_check_type = getUrlParam('check_type')
+                        this.select_department = getUrlParam('department')
+                        this.select_position = getUrlParam('position')
+                        this.select_district = getUrlParam('district')
+                        this.select_month = getUrlParam('date')
+                        this.onQueryData();
+                    };
+                },
+                //获取初始化下拉数据
+                onGetDepartmentData() {
+                    axios.post('/KPI/GetDepartmentList').then(res => {
+                        //console.log(res)
+                        this.department_options = res.data;
+                    })
+                },
+                onGetDistrictData() {
+                    axios.post('/KPI/GetDistrictList', { department: this.select_department, position: this.select_position }).then(res => {
+                        //console.log(res)
+                        this.district_options = res.data;
+                    })
+                },
+                onGetPosition() {
+                    axios.post('/KPI/GetPositionList', { department: this.select_department }).then(res => {
+                        //console.log(res)
+                        this.position_options = res.data;
+                    })
+                },
+                //表头生成
+                onCreatTableColumn() {
+                    let len;
+                    let list = [];
+
+                    if (this.select_check_type == '周检') {
+                        for (let i = 0; i < this.allData.length; i++) {
+                            len = this.allData[0].Week.length;
+                        }
+                        for (let index = 0; index < len; index++) {
+                            let i = index + 1;
+                            list.push({
+                                title: '第' + i + '周',
+                                field: 'data' + index
+                            })
+                        }
+                    } else {
+                        for (let i = 0; i < this.allData.length; i++) {
+                            len = this.allData[0].PointsDeducted.length;
+                        }
+                        for (let index = 0; index < len; index++) {
+                            list.push({
+                                title: index + 1 + '日',
+                                field: 'data' + index,
+                                width: 50
+                            })
+                        }
+                    }
+
+                    this.tableColumn = list;
+                },
+                //处理数据
+                onProcessData() {
+                    let len;
+                    for (let i = 0; i < this.allData.length; i++) {
+                        if (this.select_check_type == '周检') {
+                            len = this.allData[0].Week.length;
+                            for (let j = 0; j < len; j++) {
+                                var key = "data" + j;
+                                this.allData[i][key] = this.allData[i].Week[j];
+                            }
+                        } else {
+                            len = this.allData[0].PointsDeducted.length;
+                            for (let j = 0; j < len; j++) {
+                                var key = "data" + j;
+                                this.allData[i][key] = this.allData[i].PointsDeducted[j];
+                            }
+                        }
+                    }
+                    this.tableData = this.allData;
+                    //console.log(this.tableData)
+                },
+                //判断筛选
+                onTip() {
+                    if (this.select_check_type == '') {
+                        this.$message.warning('请选择检查类型！');
+                        return false;
+                    } else if (this.select_department == '') {
+                        this.$message.warning('请选择部门！');
+                        return false;
+                    } else if (this.select_month == '') {
+                        this.$message.warning('请选择月份！');
+                        return false;
+                    } else {
+                        return true;
+                    }
+                },
+                //查询数据
+                onQueryData() {
+                    if (this.onTip()) {
+                        this.$loading({
+                            lock: true,
+                            text: '查询ing...',
+                            spinner: 'el-icon-loading',
+                            background: 'rgba(0, 0, 0, 0.7)'
+                        });
+                        if (this.select_check_type == '周检') {
+                            let param = {
+                                department: this.select_department,
+                                date: new Date(this.select_month),
+                                position: this.select_position,
+                                district: this.select_district,
+                            };
+                            //console.log(param, 5555);
+                            axios.post('/KPI/Week_SumQuery', param).then(res => {
+                                //console.log(res, 999)
+                                this.allData = res.data;
+                                this.onCreatTableColumn();
+                                this.onProcessData();
+                                this.count = 0;
+                                this.$loading().close();
+                                this.$message.success('查询成功！');
+                            })
+
+                        } else {
+                            let param = {
+                                check_Type: this.select_check_type,
+                                department: this.select_department,
+                                date: new Date(this.select_month),
+                                position: this.select_position,
+                                district: this.select_district,
+                            };
+                            axios.post('/KPI/Daily_SumQuery', param).then(res => {
+                                this.allData = res.data;
+                                this.onCreatTableColumn();
+                                this.onProcessData();
+                                if (this.count == 0) {
+                                    this.onQueryData()
+                                    this.count += 1;
+                                    this.$loading().close();
+                                    this.$message.success('查询成功！');
+                                    //console.log(this.count)
+                                }
+                            })
+                        }
+                    }
+                },
+                //高亮表头
+                headerCellClassName({ column }) {
+                    if (column.property === 'GradeSum') {
+                        return 'col-blue'
+                    }
+                },
+                getRowData(row, val) {
+                    for (let i in row) {
+                        if (i == val) {
+                            if (row[i] != '') {
+                                return -row[i];
+                            }
+                        }
+                    }
+                },
+                //选择分数查询
+                onSelectData(row, num, val) {
+                    //console.log(row)
+                    let date = this.select_month;
+                    let query_type;
+                    let week = '';
+                    //console.log(date)
+                    if (num == 0) {
+                        query_type = '日';
+                        let dd = parseInt(val.replace("日", ""));
+                        date.setDate(dd);
+                    } else if (num == 1) {
+                        query_type = '月';
+                    } else if (num == 2) {
+                        query_type = '周';
+                        week = val.substring(1, 2);
+                        //console.log(week)
+                    }
+                    window.open("/KPI/KPI_7S_Detail?check_type=" + this.select_check_type + "&department=" + row.Department + "&position=" + row.Position + "&district=" + row.District + "&date=" + date + "&query_type=" + query_type + "&week=" + week);
+                },
+                onToRecordInput() {
+                    window.open("/KPI/KPI_7S_RecordInput");
+                },
+                //导出excel表
+                onExport() {
+                }
+
+            }
+
+        };
+        // 解析地址栏参数
+        function getUrlParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURI(r[2]); return '';
+        }
+    </script>
+}

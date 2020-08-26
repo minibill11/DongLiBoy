@@ -1,0 +1,185 @@
+﻿
+<script type="text/template" id="KPI_Quality_Daily_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-select v-model="department"
+                           placeholder="请选择部门"
+                           size="medium"
+                           filterable
+                           clearable>
+                    <el-option v-for="item in departmentlist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-select v-model="group"
+                           placeholder="请选择班组"
+                           size="medium"
+                           filterable
+                           clearable>
+                    <el-option v-for="item in grouplist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                @*<el-select v-model="extime"
+                               placeholder="请选择执行时间"
+                               size="medium">
+                        <el-option v-for="item in executelist"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>*@
+                <el-date-picker v-model="monthDate"
+                                placeholder="选择月"
+                                type="month"
+                                size="medium">
+                </el-date-picker>
+                <el-button type="primary" @@click="onQuerySubmit" size="medium">查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <el-button type="primary" @@click="showChange" size="medium" plain>查看效率指标</el-button>
+                <a href="/KPI/KPI_StemFrom"><el-button type="primary" size="medium" plain>数据来源统计表</el-button></a>
+                <a href="/KPI/KPI_Inspection"><el-button type="primary" size="medium" plain>生产/送检信息</el-button></a>
+                <el-button type="success" @@click="exportExcel" size="medium" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="dayList"
+                      max-height="500"
+                      @*row-class-name="zero-padding"*@
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号" fixed></el-table-column>
+                <el-table-column prop="Department" label="部门" fixed></el-table-column>
+                <el-table-column prop="Group" label="班组" fixed></el-table-column>
+                <el-table-column prop="IndicatorsName" label="考核指标名称" fixed></el-table-column>
+                <el-table-column prop="IndicatorsValue" label="目标值" fixed></el-table-column>
+                <el-table-column prop="SourceDepartment" label="数据来源" fixed></el-table-column>
+                <el-table-column prop="PlanTotalValue" label="月总计划值" fixed></el-table-column>
+                <el-table-column label="品质日数据">
+                    <el-table-column v-for="(i,index) in 31" :label="i+'日'">
+                        <template slot-scope="scope">
+                            {{scope.row.ActualValue[index]}}
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="ActualTotalValue" label="月总实际值"></el-table-column>
+                <el-table-column prop="ActualScore" label="实际得分"></el-table-column>
+                <el-table-column prop="DifferencesValue" label="与目标值差异"></el-table-column>
+                <el-table-column prop="Goal" label="得分小计"></el-table-column>
+            </el-table>
+            <el-table :data="monthList"
+                      max-height="500"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号"></el-table-column>
+                <el-table-column prop="Department" label="部门"></el-table-column>
+                <el-table-column prop="Group" label="班组"></el-table-column>
+                <el-table-column prop="IndicatorsName" label="考核指标名称"></el-table-column>
+                <el-table-column prop="IndicatorsValue" label="目标值"></el-table-column>
+                <el-table-column prop="SourceDepartment" label="数据来源"></el-table-column>
+                <el-table-column prop="PlanTotalValue" label="月总计划值"></el-table-column>
+                <el-table-column label="品质月数据">
+                    <el-table-column v-for="(i,index) in 12" :label="i+'月'">
+                        <template slot-scope="scope">
+                            {{scope.row.ActualValue[index]}}
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="ActualTotalValue" label="月总实际值"></el-table-column>
+                <el-table-column prop="ActualScore" label="实际得分"></el-table-column>
+                <el-table-column prop="DifferencesValue" label="与目标值差异"></el-table-column>
+                <el-table-column prop="Goal" label="得分小计"></el-table-column>
+            </el-table>
+        </el-row>
+    </el-row>
+</script>
+<script>
+    Vue.component('kpi-quality-daily-component', {
+        props: ['departmentlist', 'grouplist', 'executelist'],
+        template: document.getElementById("KPI_Quality_Daily_Component"),
+        data: function () {
+            return {
+                department: null,
+                group: null,
+                extime: null,
+                monthDate: null,
+                excelJson: [],
+                dayList: [],
+                monthList: [],
+            }
+        },
+        methods: {
+            onQuerySubmit() {
+                if (this.monthDate == null) {
+                    this.$message('请选择时间');
+                    return;
+                };
+                axios.post('/KPI/DiasplyEfficiency', {
+                    deparment: this.department,
+                    group: this.group,
+                    time: this.monthDate,//.toLocaleDateString()
+                    stuta: '品质指标'
+                }).then(res => {
+                    this.dayList = res.data.DayArray;
+                    this.monthList = res.data.MouthArray;
+                    this.excelJson = res.data;
+                    this.$message.success('查询成功');
+                }).catch(err => {
+
+                });
+            },
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.dayList = [];
+                    this.monthList = [];
+                    this.excelJson = [];
+                    this.$emit("input", '效率指标');
+                    vm.mainLoading = false;
+                }, 500);
+            },
+            exportExcel() {
+                if (this.dayList == '' && this.monthList == '') {
+                    this.$message('需要先查询出数据');
+                    return;
+                };
+                if (this.monthDate == '' || this.monthDate == null) {
+                    this.$message('需要选择时间');
+                    return;
+                };
+                let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                axios.post("/KPI/EfficiencyQualityOutputExcel", {
+                    value: JSON.stringify(this.excelJson), year: y, mounth: m, state: '品质指标'
+                }, { responseType: "blob" }).then(res => {
+                    let link = document.createElement('a');
+                    link.href = URL.createObjectURL(new Blob([res.data]));
+                    link.style.display = 'none';
+                    link.download = `品质指标日报表${y}-${m}.xlsx`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            },
+            GetGroup(d) {
+                axios.post('/KPI/GetGroup', { Department: d }).then(res => {
+                    this.grouplist = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+        },
+        watch: {
+            department(v) {
+                this.GetGroup(v);
+            }
+        }
+    });
+</script>

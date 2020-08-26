@@ -1,0 +1,191 @@
+﻿@{
+    ViewBag.Title = "工序产能详情页";
+}
+
+@*  <summary>
+    1.展示对应工序产能平台/型号的详细内容
+    </summary>*@
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />@*2.13版本 elementui css文件*@
+<script src="~/Content/styleFile/packaging/index.js"></script>@*2.13版本 elementui js文件*@
+<link href="~/Content/styleFile/processCapacity/indexStyle.css" rel="stylesheet" />@*工序产能公共样式文件*@
+<style>
+    .container, .body-content {
+        /*width: 90vw;*/
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*标题，型号、平台、PCB*@
+            <h2>@ViewBag.Title</h2>
+            <h5>型号：<b>{{urlObj.Type}}</b> ，平台：<b>{{urlObj.Platform}}</b> ，PCB：<b>{{urlObj.ProductPCBnumber}}</b></h5>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="text-center">
+                @*详细页表格分部页*@
+                @RenderPage("_detailTable.cshtml")
+            </el-row>
+            <el-row class="text-center">
+                @*echart图表组件*@
+                <chart-div :urldata="urlObj" :ispopover="false" idname="detail999"></chart-div>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@*  引入组件：
+    1/_chart，echart图表插件组件
+*@
+@RenderPage("_chart.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,//控制加载等待
+            urlObj: {},//存储地址栏获取的对象，包括型号urlObj.Type 、平台urlObj.Platform、PCBurlObj.ProductPCBnumber
+            tableList: [],//存储表格数据
+            limitsList: {},//用来存储用户所有的权限列表
+            limitsRole: {},//用来存储用户与工序产能相关的权限列表
+        },
+        //页面打开时执行
+        created: function () {
+            /** 判断地址栏是否携带信息，（从首页点击打开则携带型号，平台，PCB信息）
+             * 若存在，则正确显示数据
+             * 若不存在，则提示此页面信息已丢失
+             */
+            this.loading = true;
+            try {
+                this.urlObj = this.GetUrlPara();
+            } catch (err) {
+                this.$alert("页面信息已丢失，请从工序产能首页重新打开页面！");
+                this.$notify.error({
+                    title: '提示',
+                    message: '页面信息已丢失，请从工序产能首页重新打开页面！',
+                    duration: 0,
+                    showClose: false,
+                    offset: 50
+                });
+                this.loading = false;
+            };
+
+            /** 获取与工序产能相关的权限对象列表，包括如下
+             *  1、新建平台 ，2、上传文件和编辑 ， 3、查看附表 ， 4、上传PDF和图片 ， 5、审核附表 ，6、批准附表 ，7、受控附表
+             *  对应的结果用函数checkRoles判断   例：存在“新建平台”权限，则权限1为true，不存在则为false
+             */
+            this.limitsList = JSON.parse(localStorage.getItem("rigths"));
+            this.limitsRole = {
+                1: this.checkRoles("新建平台"),
+                2: this.checkRoles("上传文件和编辑"),
+                3: this.checkRoles("查看附表"),
+                4: this.checkRoles("上传PDF和图片"),
+                5: this.checkRoles("审核附表"),
+                6: this.checkRoles("批准附表"),
+                7: this.checkRoles("受控附表"),
+            };
+        },
+        //合计信息计算方法，暂时没有使用
+        computed: {
+            //单人生产每模组需求总工时(PCS/H)汇总累加，
+            ModelNeedTimeForOneCount() {
+                let list = this.tableList, count = 0, maxmin = { ic1: 0, ic2: 0, light1: 0, light2: 0, icval1: 0, icval2: 0, lightval1: 0, lightval2: 0 };
+                for (item of list) {
+                    //最大最小贴片的值
+                    switch (item.name) {
+                        case 'IC最大': maxmin.ic1 = item['StandardOutput']; maxmin.icval1 = item['ModelNeedTimeForOne']; break;
+                        case 'IC最小': maxmin.ic2 = item['StandardOutput']; maxmin.icval2 = item['ModelNeedTimeForOne']; break;
+                        case '灯面最大': maxmin.light1 = item['StandardOutput']; maxmin.lightval1 = item['ModelNeedTimeForOne']; break;
+                        case '灯面最大': maxmin.light2 = item['StandardOutput']; maxmin.lightval2 = item['ModelNeedTimeForOne']; break;
+                    };
+                    count += (item.ModelNeedTimeForOne == '/') ? 0 : item.ModelNeedTimeForOne;
+                };
+                //最大最小贴片的值,2个值取其中一个值较小的
+                count -= (maxmin.ic1 >= maxmin.ic2) ? maxmin.icval1 : maxmin.icval2;
+                count -= (maxmin.light1 >= maxmin.light2) ? maxmin.lightval1 : maxmin.lightval2;
+                return count;
+            },
+            //总人数(人)汇总累加
+            StandardTotalCount() {
+                let list = this.tableList, count = 0, maxmin = { ic1: 0, ic2: 0, light1: 0, light2: 0, icval1: 0, icval2: 0, lightval1: 0, lightval2: 0 };
+                for (item of list) {
+                    //最大最小贴片的值
+                    switch (item.name) {
+                        case 'IC最大': maxmin.ic1 = item['StandardOutput']; maxmin.icval1 = item['StandardTotal']; break;
+                        case 'IC最小': maxmin.ic2 = item['StandardOutput']; maxmin.icval2 = item['StandardTotal']; break;
+                        case '灯面最大': maxmin.light1 = item['StandardOutput']; maxmin.lightval1 = item['StandardTotal']; break;
+                        case '灯面最大': maxmin.light2 = item['StandardOutput']; maxmin.lightval2 = item['StandardTotal']; break;
+                    };
+                    count += (item.StandardTotal == '/') ? 0 : item.StandardTotal;
+                };
+                //最大最小贴片的值,2个值取其中一个值较小的
+                count -= (maxmin.ic1 >= maxmin.ic2) ? maxmin.icval1 : maxmin.icval2;
+                count -= (maxmin.light1 >= maxmin.light2) ? maxmin.lightval1 : maxmin.lightval2;
+                //判断显示的小数
+                let x = String(count).indexOf(".") + 1, length = String(count).length - x;
+                if (x > 0) {
+                    return count.toFixed(0);
+                } else {
+                    return count;
+                };
+            },
+        },
+        methods: {
+            //从地址栏获取数据对象
+            GetUrlPara() {
+                let urlParaArr = document.location.toString().split("?")[1].split("&"), rt = {};
+                for (let i of urlParaArr) {
+                    let objArr = i.split("=");
+                    rt[objArr[0]] = decodeURI(objArr[1]);
+                };
+                return rt;
+            },
+            //查询表格信息
+            onQuerySubmit() {
+                this.loading = true;
+                axios.post('/Process_Capacity/Detailed', {
+                    Type: this.urlObj.Type,
+                    ProductPCBnumber: this.urlObj.ProductPCBnumber,
+                    Platform: this.urlObj.Platform,
+                }).then(res => {
+                    console.log(JSON.parse(JSON.stringify(res.data)));
+                    this.tableList = res.data;
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn("查询数据失败");
+                    this.loading = false;
+                });
+            },
+            /**
+             * @@param roleName 参数为权限名称 例：‘新建平台’
+             * 传入参数，在该用户权限列表中遍历查找该权限名称，若存在该权限，返回true，否则返回false
+             */
+            checkRoles(roleName) {   //检测权限
+                let list = this.limitsList;
+                if (list && roleName) {
+                    for (let item in list) {
+                        if (list[item] == roleName) {
+                            return true;
+                        };
+                    };
+                };
+                return false;
+            },
+            //合并方法
+            arraySpanMethod({ row, column, rowIndex, columnIndex }) {
+                let length = this.tableList.length;
+                if (columnIndex === 9) {
+                    return [length, 1];
+                };
+                if (columnIndex === 10) {
+                    return [length, 1];
+                };
+                if (columnIndex === 11) {
+                    return [length, 1];
+                };
+            },
+        },
+        //页面加载完则请求数据
+        mounted: function () {
+            this.onQuerySubmit();
+        },
+    });
+</script>

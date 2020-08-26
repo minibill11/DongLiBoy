@@ -1,0 +1,507 @@
+﻿@{
+    ViewBag.Title = "模块实时看板";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        #app .el-main {
+            padding: 10px 20px;
+        }
+
+        .table-top {
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-family: '微软雅黑';
+            font-weight: 400;
+            font-style: normal;
+            font-size: 22px;
+        }
+
+        .boxcolor {
+            width: 14px;
+            height: 14px;
+            border: 1px solid rgba(201, 211, 221, 1);
+            margin-right: 7px;
+        }
+
+        .table-bottom {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .green {
+            background-color: rgba(213, 244, 229, 1);
+        }
+
+        .yellow {
+            background-color: rgba(255, 245, 184, 1);
+        }
+
+        .red {
+            background-color: rgba(255, 220, 221, 1);
+        }
+    </style>
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main>
+        <el-row class="table-top">
+            <el-select v-model="ordernum.value"
+                       placeholder="订单筛选"
+                       size="medium"
+                       @@change="ordernumChange"
+                       multiple
+                       collapse-tags
+                       filterable
+                       clearable>
+                <el-option v-for="item in ordernum.list"
+                           :key="item"
+                           :label="item"
+                           :value="item">
+                </el-option>
+            </el-select>
+            <el-select v-model="platformType.value"
+                       placeholder="平台筛选"
+                       size="medium"
+                       @@change="platformTypeChange"
+                       multiple
+                       collapse-tags
+                       filterable
+                       clearable>
+                <el-option v-for="item in platformType.list"
+                           :key="item"
+                           :label="item"
+                           :value="item">
+                </el-option>
+            </el-select>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="filterTableList"
+                      row-class-name="zero-padding"
+                      max-height="600"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号" min-width="50"></el-table-column>
+                <el-table-column prop="OrderNum" label="订单号" min-width="100"></el-table-column>
+                <el-table-column prop="PlatformType" label="平台型号" min-width="80"></el-table-column>
+                <el-table-column prop="Models" label="模块数" min-width="80"></el-table-column>
+                <el-table-column prop="PlanInputTime" label="开始生产时间" min-width="80">
+                    <template slot-scope="scope">
+                        {{scope.row.PlanInputTime.split('T')[0]}}
+                    </template>
+                </el-table-column>
+                <el-table-column label="SMT">
+                    <el-table-column prop="SMTFirstSample_Description" label="首件"></el-table-column>
+                    @*<el-table-column prop="SMTFirstSample_DescriptionJpg" label="首件"></el-table-column>
+                        <el-table-column prop="SMTFirstSample_DescriptionPdf" label="首件"></el-table-column>*@
+                    <el-table-column prop="HandSampleScedule" label="小样"></el-table-column>
+                    @*<el-table-column prop="HandSampleSceduleJpg" label="小样"></el-table-column>
+                        <el-table-column prop="HandSampleScedulePdf" label="小样"></el-table-column>*@
+                    @*<el-table-column prop="HandSampleSceduleReport" label="小样"></el-table-column>*@
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.SmtArray">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.SmtArray">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.SmtArray">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.SmtArray">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="SMTAbnormal_Description" label="异常"></el-table-column>
+                    @*<el-table-column prop="SMTAbnormal_DescriptionJpg" label="异常"></el-table-column>
+                        <el-table-column prop="SMTAbnormal_DescriptionPdf" label="异常"></el-table-column>*@
+                </el-table-column>
+                <el-table-column label="AI">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.AI">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.AI">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.AI">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.AI">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="后焊">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.After">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.After">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.After">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.After">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="灌胶前电测">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Before">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Before">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Before">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Before">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="灌胶后电测">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Later">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Later">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Later">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Later">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="老化">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.BurnIn">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.BurnIn">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.BurnIn">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.BurnIn">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="外观电测">
+                    <el-table-column label="线别">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Appearance">
+                                <div>{{item.Line}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="完成率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Appearance">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="合格率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Appearance">
+                                <div>{{item.PassRate}}</div>
+                                <div>{{item.PassInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="抽检率">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.Appearance">
+                                <div>{{item.SamplingRate}}</div>
+                                <div>{{item.SamplingInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column label="包装">
+                    <el-table-column prop="InsideTheBox" label="内箱">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.InsideTheBox">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="OutsideTheBox" label="外箱">
+                        <template slot-scope="scope">
+                            <template v-for="(item,index) in scope.row.OutsideTheBox">
+                                <div>{{item.CompleteRate}}</div>
+                                <div>{{item.CompleteInfo}}</div>
+                            </template>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="Warehouse" label="入库/出库">
+                    <template slot-scope="scope">
+                        <template v-for="(item,index) in scope.row.Warehouse">
+                            <div>{{item.CompleteRate}}</div>
+                            <div>{{item.CompleteInfo}}</div>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="CompleteTime" label="完成时间"></el-table-column>
+                <el-table-column prop="Timespan" label="生产时长"></el-table-column>
+
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="boxcolor green"></div><div>达到100%    &nbsp;&nbsp;</div>
+            <div class="boxcolor yellow"></div><div> 合格率范围为80%~90%      &nbsp;&nbsp;</div>
+            <div class="boxcolor red"></div><div> 合格率范围为< 80%&nbsp;&nbsp;</div>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    tableList: [],
+                    ordernum: {
+                        value: '',
+                        list: [],
+                    },
+                    platformType: {
+                        value: '',
+                        list: [],
+                    },
+                }
+            },
+            mounted() {
+                this.hubConnection();
+            },
+            computed: {
+                filterTableList() {
+                    const initialList = this.tableList;
+                    let thisArr1;
+                    let thisArr2;
+                    thisArr1 = initialList.filter(val => {
+                        if (this.ordernum.value == null || this.ordernum.value == "") {
+                            return val;
+                        } else {
+                            for (let i of this.ordernum.value) {
+                                if (val.OrderNum == i) {
+                                    return val;
+                                };
+                            };
+                        };
+                    });
+                    thisArr2 = thisArr1.filter(val => {
+                        if (this.platformType.value == null || this.platformType.value == "") {
+                            return val;
+                        } else {
+                            for (let i of this.platformType.value) {
+                                if (val.PlatformType == i) {
+                                    return val;
+                                };
+                            };
+                        };
+                    });
+                    return thisArr2;
+                },
+            },
+            methods: {
+                ordernumChange(v) {
+                    console.log(v)
+                },
+                platformTypeChange(v) {
+                    console.log(v)
+                },
+                hubConnection() {
+                    //读取JSON文件数据
+                    $.getJSON("/MES_Data/TemDate/ModuleProductionController.json", v => {
+                        console.log(v);
+                        let thisv = v;//.splice(20, 50);
+                        let olist = [], plist = [];
+                        for (let i of thisv) {
+                            olist.push(i.OrderNum);
+                            plist.push(i.PlatformType);
+                        };
+                        this.ordernum.list = [...new Set(olist)];
+                        this.platformType.list = [...new Set(plist)];
+                        this.tableList = thisv;
+                    });
+
+                    //如果前后端为同一个端口，可不填参数。如果前后端分离，这里参数为服务器端的URL
+                    const connection = $.hubConnection();
+                    const Proxy = connection.createHubProxy('ModuleProductionControlIndex');
+                    Proxy.on('sendProductionControlIndex', v => {
+                        console.log(v);
+                        let thisv = v;//.splice(20, 50);
+                        let olist = [], plist = [];
+                        for (let i of thisv) {
+                            olist.push(i.OrderNum);
+                            plist.push(i.PlatformType);
+                        };
+                        this.ordernum.list = [...new Set(olist)];
+                        this.platformType.list = [...new Set(plist)];
+                        this.tableList = thisv;
+                    });
+
+                    connection.start()
+                        .done(v => {
+                            console.log('启动连接成功！' + v);
+                        })
+                        .fail(v => {
+                            console.log('启动连接失败' + v);
+                        });
+
+                    connection.error((error) => {
+                        console.log("连接出错！" + error)
+                    });
+
+                    connection.reconnected(() => {
+                        console.log('连接重新启动！')
+                    });
+
+                    connection.disconnected(() => {
+                        console.log('断开连接！')
+                    });
+
+                    connection.received((data) => {
+                        console.log('接收数据成功！')
+                    });
+
+                    connection.connectionSlow(() => {
+                        console.log('数据连接流！')
+                    });
+                },
+            }
+        };
+    </script>
+}

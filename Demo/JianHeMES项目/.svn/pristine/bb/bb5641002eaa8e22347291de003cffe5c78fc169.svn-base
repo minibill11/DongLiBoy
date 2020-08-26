@@ -1,0 +1,280 @@
+﻿
+<script type="text/template" id="KPI_Inspection_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-select v-model="ordernum"
+                           placeholder="请选择订单"
+                           size="medium">
+                    <el-option v-for="item in ordernumlist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-select v-model="department"
+                           placeholder="请选择部门"
+                           size="medium">
+                    <el-option v-for="item in departmentlist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-select v-model="group"
+                           placeholder="请选择班组"
+                           size="medium">
+                    <el-option v-for="item in grouplist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-select v-model="section"
+                           placeholder="请选择工段"
+                           size="medium">
+                    <el-option v-for="item in sectionlist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                <el-select v-model="process"
+                           placeholder="请选择工序"
+                           size="medium">
+                    <el-option v-for="item in processlist"
+                               :key="item.value"
+                               :label="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
+                @*<el-select v-model="extime"
+                               placeholder="请选择时间"
+                               size="medium">
+                        <el-option v-for="item in executelist"
+                                   :key="item.value"
+                                   :label="item.value"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>*@
+                <el-date-picker v-model="monthDate"
+                                placeholder="选择月"
+                                type="month"
+                                size="medium">
+                </el-date-picker>
+                <el-button type="primary" @@click="onQuerySubmit" size="medium">查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <el-button type="primary" @@click="showChange" size="medium" plain>录入数据</el-button>
+                <el-button type="success" @@click="exportExcel" size="medium" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      max-height="600"
+                      size="medium"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号" width="50"></el-table-column>
+                <el-table-column prop="OrderNum" label="订单" min-width="120">
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.OrderNum = $event"
+                                    :nametext="scope.row.OrderNum"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Department" label="部门" min-width="110">
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.Department = $event"
+                                    :nametext="scope.row.Department"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Group" label="班组" min-width="110">
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.Group = $event"
+                                    :nametext="scope.row.Group"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Section" label="工段" min-width="110">
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.Section = $event"
+                                    :nametext="scope.row.Section"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Process" label="工序" min-width="110">
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.Process = $event"
+                                    :nametext="scope.row.Process"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="IndicatorsType" label="品质/效率" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-if="scope.row.edit" v-model="scope.row.IndicatorsType" size="mini">
+                            <el-option label="品质" value="品质"></el-option>
+                            <el-option label="效率" value="效率"></el-option>
+                        </el-select>
+                        <span v-else>{{scope.row.IndicatorsType}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="ActualNormalNum" label="正常数量" min-width="120">
+                    <template slot-scope="scope">
+                        <input-edit datatype="num"
+                                    v-on:input="scope.row.ActualNormalNum = $event"
+                                    :nametext="scope.row.ActualNormalNum"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="ActualAbnormalNum" label="异常数量" min-width="120">
+                    <template slot-scope="scope">
+                        <input-edit datatype="num"
+                                    v-on:input="scope.row.ActualAbnormalNum = $event"
+                                    :nametext="scope.row.ActualAbnormalNum"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="ActualTime" label="时间" min-width="140">
+                    @*<template slot-scope="scope">
+                            <input-edit datatype="date"
+                                        v-on:input="scope.row.ActualTime = $event"
+                                        :nametext="scope.row.ActualTime"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>*@
+                </el-table-column>
+                <el-table-column label="操作" align="center" width="90">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.edit">
+                            <el-button @@click="saveClick(scope.row)" class="cbtn green" type="text">保存</el-button>
+                            <el-button @@click="cancelClick(scope.row)" class="cbtn info" type="text">取消</el-button>
+                        </div>
+                        <div v-else>
+                            <el-button @@click="editClick(scope.row)" class="cbtn blue" type="text">编辑</el-button>
+                            <el-button @@click="deleteClick(scope.row,scope.$index)" class="cbtn red" type="text">删除</el-button>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+    </el-row>
+</script>
+<script>
+    Vue.component('kpi-inspection-component', {
+        props: ['ordernumlist', 'departmentlist', 'grouplist', 'sectionlist', 'processlist', 'executelist'],
+        template: document.getElementById("KPI_Inspection_Component"),
+        data: function () {
+            return {
+                ordernum: null,
+                department: null,
+                group: null,
+                section: null,
+                process: null,
+                extime: null,
+                monthDate: null,
+                tableList: [],
+                initialData: {},
+            }
+        },
+        methods: {
+            onQuerySubmit() {
+                axios.post('/KPI/DisplayActualRecord', {
+                    ordernum: this.ordernum,
+                    deparment: this.department,
+                    group: this.group,
+                    section: this.section,
+                    process: this.process,
+                    time: this.monthDate ?.toLocaleDateString(),//this.monthDate.toLocaleDateString()
+                }).then(res => {
+                    this.tableList = res.data;
+                }).catch(err => {
+
+                });
+            },
+            exportExcel() {
+
+            },
+            showChange() {
+                this.$emit("input", false);
+            },
+            //检查编辑状态
+            checkEditStatus() {
+                for (let i of this.tableList) {
+                    if ('edit' in i && i.edit) {
+                        return true;
+                    };
+                };
+                return false;
+            },
+            //启动编辑
+            editClick(row) {
+                if (this.checkEditStatus()) {
+                    this.$message.warning('存在正在编辑的行');
+                    return
+                };
+                if (!('edit' in row)) {
+                    this.$set(row, 'edit', false);
+                };
+                this.initialData = {};
+                this.initialData = { ...row };
+                row.edit = true;
+            },
+            //取消编辑
+            cancelClick(row) {
+                let item = row, ini = this.initialData;
+                for (let i in ini) {
+                    item[i] = ini[i];
+                };
+                this.initialData = {};
+            },
+            //保存编辑
+            saveClick(row) {
+                axios.post('/KPI/UpdateActualRecord', {
+                    id: row.id,
+                    Record: row,
+                }).then(res => {
+                    if (res.data == '修改成功') {
+                        this.$message.success(res.data);
+                        row.edit = false;
+                        this.initialData = {};
+                    } else {
+                        this.$message.error(res.data);
+                    };
+                }).catch(err => {
+                    this.$message.error('保存出错');
+                    console.warn("post失败")
+                });
+            },
+            //删除
+            deleteClick(row, index) {
+                this.$confirm(`订单‘${row.OrderNum}’，工段‘${row.Section}’，工序‘${row.Process}’`, '确认删除', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'error',
+                    center: true,
+                }).then(() => {
+                    axios.post('/KPI/DeleteActualRecord', {
+                        id: row.id,
+                    }).then(res => {
+                        if (res.data) {
+                            this.$message.success('删除成功');
+                            this.tableList.splice(index, 1);
+                        } else {
+                            this.$message.error(res.data);
+                        };
+                    }).catch(err => {
+                        this.$message.error('保存出错');
+                        console.warn("post失败")
+                    });
+                }).catch(() => {
+                });
+            },
+        },
+    });
+</script>

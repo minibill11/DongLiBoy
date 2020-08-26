@@ -1,0 +1,349 @@
+﻿@{
+    ViewBag.Title = "7S参考标准";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        #app {
+            padding: 20px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .action-box {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            align-content: center;
+            justify-content: space-between;
+        }
+
+        .action-box-left {
+            width: 100%;
+        }
+
+            .action-box-left .el-select {
+                width: 500px;
+            }
+
+        .action-box-right {
+            display: flex;
+            align-items: center;
+        }
+
+            .action-box-right .textinput {
+                margin-right: 10px;
+            }
+
+        .table-height {
+            width: 100%;
+            height: 70vh;
+        }
+        /*    表格*/
+    </style>
+}
+
+<div id="app">
+    <div class="title">
+        7S参考标准
+    </div>
+
+    @*操作栏*@
+    <div class="action-box">
+        <div class="action-box-left" v-if="showStandard">
+            <el-select size="small" v-model="check" multiple placeholder="请选择检查项目" style="width:200px;">
+                <el-option v-for="item in check_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="action-box-right" v-if="!button_falg&&inputStandard">
+            <el-button size="small" type="primary" plain v-on:click="onEntry">批量录入</el-button>
+        </div>
+        <div class="action-box-right" v-if="button_falg">
+            <el-input type="textarea" rows="1" v-model="inputInfo" class="textinput" placeholder="表格粘贴处..." style="width:200px;"></el-input>
+            <el-button size="small" type="primary" plain v-on:click="onUpload">确认上传</el-button>
+            <el-button size="small" type="info" plain v-on:click="onCancel">取消</el-button>
+        </div>
+    </div>
+
+    @*表格*@
+    <div class="table-height">
+        <vxe-grid border
+                  keep-source
+                  show-footer
+                  ref="xGrid"
+                  size="small"
+                  height="auto"
+                  align="center"
+                  :edit-config="{trigger: 'manual', mode: 'row', showStatus: true}"
+                  :span-method="mergeRowMethod"
+                  :columns="tableColumn"
+                  :data="tableData">
+            <template v-slot:operation="{ row }">
+                <template v-if="$refs.xGrid.isActiveByRow(row)">
+                    <vxe-button status="primary" title="保存" @@click="saveRowEvent(row)">保存</vxe-button>
+                </template>
+                <template v-else>
+                    <vxe-button v-if="getPermissions('e')" title="编辑" @@click="editRowEvent(row)">编辑</vxe-button>
+                </template>
+                <vxe-button v-if="getPermissions('d')" title="删除" @@click="removeRowEvent(row)">删除</vxe-button>
+            </template>
+
+        </vxe-grid>
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="https://cdn.jsdelivr.net/npm/xe-utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vxe-table"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    check: [],
+                    check_options: [{
+                        value: '整理',
+                        label: '整理'
+                    }, {
+                        value: '整顿',
+                        label: '整顿'
+                    }, {
+                        value: '清洁',
+                        label: '清洁'
+                    }, {
+                        value: '安全',
+                        label: '安全'
+                    }, {
+                        value: '节约',
+                        label: '节约'
+                    }, {
+                        value: '素养',
+                        label: '素养'
+                    }],
+                    button_falg: false,
+                    inputInfo: null,
+                    tableColumn: [
+                        { title: '序号', type: 'seq', width: 50 },
+                        { title: '检查项目', field: 'PointsType', width: 120, editRender: { name: 'input' } },
+                        { title: '检查参考标准', field: 'ReferenceStandard', editRender: { name: 'input' } },
+                        {
+                            title: '操作', field: 'action', width: 240, slots: {
+                                default: 'operation'
+                            }
+                        }
+                    ],
+                    tableData: [],
+                    //权限
+                    showStandard: false,
+                    inputStandard: false,
+                    updateStandard: false,
+                    deleteStandard: false
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.onPermissions();
+            },
+            watch: {
+                //监听批量上传粘贴的数据
+                inputInfo(val) {
+                    if (val != null) {
+                        var valOfPaste = val.split("\n");
+                        valOfPaste.pop();
+                        var initDatas = [];
+                        valOfPaste.forEach((item, i) => {
+                            var items = item.split("\t");
+                            initDatas.push(items)
+                        });
+                        initDatas.forEach(item => {
+                            let obj = {
+                                PointsType: item[0], ReferenceStandard: item[1]
+                            };
+                            this.tableData.push(obj);
+                        })
+                    }
+
+                },
+                check(val) {
+                    if (val.length != 0) {
+                        this.button_falg = false;
+                        this.inputInfo = null;
+                        this.onQueryData();
+                    } else {
+                        this.tableData = [];
+                    }
+                }
+            },
+            //函数方法
+            methods: {
+                //查询数据
+                onQueryData() {
+                    if (this.check.length != 0) {
+                        axios.post('/KPI/ReferenceStandard_query', {
+                            pointsType: this.check
+                        }).then(res => {
+                            this.tableData = res.data
+                        })
+                    }
+                },
+                // 判断权限
+                onPermissions() {
+                    var roles = JSON.parse(localStorage.getItem("rigths"))
+                    if (checkRoles(roles, '查看7S参考标准')) {
+                        this.showStandard = true
+                    }
+                    if (checkRoles(roles, '录入7S参考标准')) {
+                        this.inputStandard = true
+                    }
+                    if (checkRoles(roles, '修改7S参考标准')) {
+                        this.updateStandard = true
+                    }
+                    if (checkRoles(roles, '删除7S参考标准')) {
+                        this.deleteStandard = true
+                    }
+                },
+                getPermissions(val) {
+                    //console.log(val)
+                    if (this.button_falg == true) {
+                        return true;
+                    } else {
+                        if (val == 'e') {
+                            if (this.updateStandard == true) {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        }
+
+                        if (val == 'd') {
+                            if (this.deleteStandard == true) {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        }
+                    }
+                },
+                //合并行
+                mergeRowMethod({ row, $rowIndex, column, data }) {
+                    const fields = ['PointsType']
+                    const cellValue = XEUtils.get(row, column.property)
+                    if (cellValue && fields.includes(column.property)) {
+
+                        const prevRow = data[$rowIndex - 1]
+                        let nextRow = data[$rowIndex + 1]
+                        if (prevRow && XEUtils.get(prevRow, column.property) === cellValue) {
+                            return { rowspan: 0, colspan: 0 }
+                        } else {
+                            let countRowspan = 1
+                            while (nextRow && XEUtils.get(nextRow, column.property) === cellValue) {
+                                nextRow = data[++countRowspan + $rowIndex]
+                            }
+                            if (countRowspan > 1) {
+                                return { rowspan: countRowspan, colspan: 1 }
+                            }
+                        }
+                    }
+                },
+                //批量录入
+                onEntry() {
+                    this.check = [];
+                    this.button_falg = true;
+                    this.tableData = [];
+                },
+                //确认上传
+                onUpload() {
+                    if (this.tableData.length != 0) {
+                        axios.post('/KPI/ReferenceStandard_Input', {
+                            record: this.tableData
+                        }).then(res => {
+                            if (res.data == "保存成功！") {
+                                this.$message.success('上传成功！');
+                                this.onCancel();
+                            }
+                            if (res.data == "保存失败！") {
+                                this.$message.error('上传失败！数据已存在，请不要重复上传！');
+                            }
+                        })
+                    } else {
+                        this.$message.error('没有数据可以上传，请在表格粘贴数据哦~');
+                    }
+                },
+                //取消批量录入
+                onCancel() {
+                    this.inputInfo = null;
+                    this.button_falg = false;
+                    this.tableData = [];
+                },
+
+                //表格编辑，保存，删除
+                editRowEvent(row) {
+                    this.$refs.xGrid.setActiveRow(row);
+                },
+                saveRowEvent(row) {
+                    this.$refs.xGrid.clearActived().then(() => {
+                        if (this.button_falg == true) {
+                            this.$message.success('修改成功！');
+                        } else {
+                            axios.post('/KPI/ReferenceStandard_modify', {
+                                id: row.Id, pointsType: row.PointsType, referenceStandard: row.ReferenceStandard
+                            }).then(res => {
+                                if (res.data == "修改成功!") {
+                                    this.$message.success('修改成功！');
+                                }
+
+                            })
+                        }
+                    })
+                },
+                removeRowEvent(row) {
+                    this.$XModal.confirm('您确定要删除该数据?').then(type => {
+                        if (type === 'confirm') {
+                            this.$refs.xGrid.remove(row);
+                            if (this.button_falg == true) {
+                                this.$message.success('删除成功！');
+                                this.tableData = this.$refs.xGrid.$refs.xTable.afterFullData;
+                                console.log(this.tableData, 111);
+                            } else {
+                                axios.post('/KPI/ReferenceStandard_delete', {
+                                    id: row.Id
+                                }).then(res => {
+                                    if (res.data == "删除成功!") {
+                                        this.$message.success('删除成功！');
+                                    }
+
+                                })
+
+                            }
+                        }
+                    })
+
+                }
+            }
+        };
+        //检测权限
+        function checkRoles(list, roleName) {
+            var flag = false
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        flag = true
+                    }
+                }
+            }
+            return flag
+        }
+    </script>
+}

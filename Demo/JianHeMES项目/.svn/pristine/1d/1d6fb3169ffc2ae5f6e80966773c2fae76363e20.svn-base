@@ -1,0 +1,970 @@
+﻿@{
+    ViewBag.Title = "客诉损失明细表";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .table-top {
+            margin-bottom: 20px;
+        }
+
+        .addMass {
+            margin-left: 20px;
+        }
+
+        .m-right {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        .el-table thead.has-gutter th {
+            background-color: rgba(228, 236, 248, 1);
+            height: 24px;
+        }
+
+        .DuplicateData {
+            color: red;
+        }
+
+        .table-top {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .marginRight {
+            margin-right: 10px
+        }
+
+        .el-main {
+            padding: 20px 20px 0 20px;
+        }
+
+        .bottomInfo {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 20px 30px 20px;
+        }
+
+        .pone {
+            font-size: 14px;
+        }
+
+        .el-table__body .cell {
+            line-height: 24px;
+            font-size: 12px;
+        }
+
+        .el-table__row .el-table_1_column_17 .cell, .el-table_1_column_25_column_26 .cell, .el-table_1_column_25_column_27 .cell {
+            display: flex;
+            justify-content: center;
+        }
+
+        .el-table--border th:first-child .cell {
+            padding-left: 14px;
+        }
+
+        .delLine {
+            text-decoration: underline;
+        }
+
+            .delLine:hover {
+                color: red;
+            }
+
+        .el-table {
+            border-bottom-color: rgba(64, 158, 255, 1);
+        }
+
+        .el-table__footer-wrapper tbody td {
+            background-color: #F0FAFF;
+            border-top-color: rgba(64, 158, 255, 1);
+            font-weight: 700;
+        }
+
+        .el-table__footer, .el-table td.is-center, .el-table th.is-center {
+            height: 36px;
+        }
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+
+        .etitor {
+            text-decoration: underline;
+        }
+
+        .el-textarea, .el-textarea__inner {
+            min-height: 100px !important;
+        }
+
+        .alert_title {
+            padding-bottom: 6px;
+        }
+
+        .el-dialog__body {
+            padding: 0px 20px 60px 20px;
+        }
+
+        .el-table__row .el-table_1_column_14 .cell {
+            padding: 10px;
+        }
+
+        .img_flex {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .she {
+            background: #E33E33;
+            color: #fff;
+            height: 30px;
+            width: 75px;
+            line-height: 30px;
+        }
+
+        .pdf_style， {
+            text-align: center;
+            color: #fff;
+        }
+
+        .pdf_style:visited, .pdf_style, .pdf_style:link, .pdf_style:visited, .pdf_style:hover, .pdf_style:active {
+            color: #fff;
+        }
+
+        .tip_upload {
+            text-align: center;
+        }
+        .el-image-viewer__mask {
+            width: 70%;
+            height: 80%;
+            top: 16%;
+            left: 15%;
+        }
+        .el-icon-circle-close:before {
+            color: #fff;
+        }
+        .el-image-viewer__next {
+            right: 17%;
+        }
+        .el-image-viewer__prev {
+            left: 17%;
+        }
+        .el-image-viewer__actions {
+            left: 50%;
+            bottom: 100px;
+        }
+        .el-image-viewer__close {
+            top: 16%;
+            right: 15%;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3 class="top-title">客诉损失明细表</h3>
+        </el-header>
+        <el-main v-loading="loading">
+            @*日期选择框 *@
+            <el-row class="text-center table-top">
+                <el-select v-model="queryCondition"
+                           @@change="selectCondition"
+                           placeholder="请选择查询方式"
+                           size="medium"
+                           style="width:120px;">
+                    <el-option label="按年查询" value="y">
+                    </el-option>
+                    <el-option label="按年月查询" value="m">
+                    </el-option>
+                </el-select>
+
+                <el-date-picker v-show="queryCondition=='y'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="year"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年">
+                </el-date-picker>
+
+                <el-date-picker v-show="queryCondition=='m'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="month"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年月">
+                </el-date-picker>
+                <el-button type="primary" v-on:click="queryData" size="medium">查询</el-button>
+                <a href="/Customer_Complaints/BatchAddCustomer" class="addMass"><el-button type="primary" size="medium" plain>批量添加</el-button></a>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          min-height="234"
+                          max-height="560"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          :summary-method="getSummaries"
+                          show-summary
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="CustomerName"
+                                     label="客户名称"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="DeliveryDate"
+                                     sortable
+                                     label="出货日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ComplaintsDate"
+                                     sortable
+                                     label="投诉日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="SettlementDate"
+                                     label="结案日期"
+                                     sortable
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ProductModel"
+                                     label="产品型号"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="OrderNum"
+                                     label="订单号"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="Customer_phenomenon"
+                                     label="客诉现象"
+                                     align="center"
+                                     min-width="130">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Customer_phenomenon = $event"
+                                        :nametext="scope.row.Customer_phenomenon"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Cause_Analysis"
+                                     label="原因分析"
+                                     align="center"
+                                     min-width="170">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Cause_Analysis = $event"
+                                        :nametext="scope.row.Cause_Analysis"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Interim_Disposal"
+                                     label="临时处理措施"
+                                     align="center"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Interim_Disposal = $event"
+                                        :nametext="scope.row.Interim_Disposal"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Longterm_Treatment"
+                                     label="长期处理措施"
+                                     align="center"
+                                     min-width="160">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Longterm_Treatment = $event"
+                                        :nametext="scope.row.Longterm_Treatment"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ClaimIs"
+                                     label="索赔情况"
+                                     align="center"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.ClaimIs = $event"
+                                        :nametext="scope.row.ClaimIs"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="claimConfirm"
+                                     label="索赔确认"
+                                     align="center"
+                                     min-width="78">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.claimConfirm = $event"
+                                        :nametext="scope.row.claimConfirm"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="claimStatement"
+                                     label="索赔单"
+                                     align="center"
+                                     min-height="90"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <el-button size="mini" type="primary" @@click="UpLoad(scope.row)" plain>上传附件</el-button>
+                            <div class="img_flex">
+                                <el-image v-for="(url1,index) in scope.row.Picture_jpg"
+                                          :key="index"
+                                          :preview-src-list="scope.row.Picture_jpg"
+                                          :src="url1"
+                                          style="width:75px;height:75px;margin:2px"
+                                          v-on:contextmenu.prevent="DeleteImg(url1,scope.row)" lazy>
+                                </el-image>
+                                <div class="she" v-for="(url2,index) in scope.row.Picture_pdf">
+                                    <a class="pdf_style" v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url2}`" target="_blank" v-on:contextmenu.prevent="DeleteImg(url2,scope.row)">查看PDF_{{index+1}}</a>
+                                </div>
+                            </div>
+                            <span class="tip_upload" v-if="scope.row.Picture_pdf.length>0||scope.row.Picture_jpg.length>0">(备注：单击图片可放大查看，右击图片可删除图片。)</span>
+                            <span class="tip_upload" v-if="scope.row.Picture_pdf.length==0&&scope.row.Picture_jpg.length==0">上传图片或PDF文件</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Contract_Amount"
+                                     label="合同额(元)"
+                                     align="center"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Contract_Amount = $event"
+                                        :nametext="scope.row.Contract_Amount"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Losses_Amount"
+                                     label="损失金额(元)"
+                                     align="center"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Losses_Amount = $event"
+                                        :nametext="scope.row.Losses_Amount"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="LossRate"
+                                     label="损失率(%)"
+                                     align="center"
+                                     min-width="78">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.LossRate = $event"
+                                        :nametext="scope.row.LossRate"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                            <span>%</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="质量损失-责任判定"
+                                     align="center"
+                                     min-width="78">
+                        <el-table-column prop="QualityLoss1"
+                                         label="惠州工厂"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss1 = $event"
+                                            :nametext="scope.row.QualityLoss1"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss2"
+                                         label="订单管理部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss2 = $event"
+                                            :nametext="scope.row.QualityLoss2"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss3"
+                                         label="采购部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss3 = $event"
+                                            :nametext="scope.row.QualityLoss3"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss4"
+                                         label="研发中心"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss4 = $event"
+                                            :nametext="scope.row.QualityLoss4"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss5"
+                                         label="工程售后部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss5 = $event"
+                                            :nametext="scope.row.QualityLoss5"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss6"
+                                         label="风控中心"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss6 = $event"
+                                            :nametext="scope.row.QualityLoss6"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="客损归属年月"
+                                     align="center"
+                                     min-width="160">
+                        <el-table-column prop="Year"
+                                         label="年"
+                                         align="center"
+                                         min-width="80">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.Year = $event"
+                                            :nametext="scope.row.Year">
+                                </input-edit>
+                                <span>年</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Month"
+                                         label="月"
+                                         align="center"
+                                         min-width="80">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.Month = $event"
+                                            :nametext="scope.row.Month">
+                                </input-edit>
+                                <span>月</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="操作" align="center" width="120">
+                        <template slot-scope="scope" class="btnCell">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" class="etitor" type="text">编辑</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+    <!--上传照片-->
+    <el-dialog :visible.sync="openAlert" width="500px">
+        <h3 class="alert_title">只能上传jpg/pdf文件，且文件数量不超过4个！</h3>
+        <el-upload action="/Customer_Complaints/UploadFile_Claims"
+                   multiple
+                   :file-list="fileList"
+                   accept=".jpg,.pdf"
+                   :on-change="selectFile"
+                   :auto-upload="false"
+                   :on-preview="handlePictureCardPreview"
+                   :on-remove="handleRemove"
+                   :on-exceed="handleExceed"
+                   :limit="4">
+            <el-button size="medium" type="primary">添加图片</el-button>
+        </el-upload>
+        <span slot="footer" class="dialog-footer">
+            <el-button @@click="onCancel" size="mini">取 消</el-button>
+            <el-button type="primary" size="mini" @@click="uploadFile">确定上传</el-button>
+        </span>
+    </el-dialog>
+    @* 图片预览的盒子 *@
+    <el-dialog :visible.sync="showVisible">
+        <img width="100%" :src="dialogImageUrl" alt="图片预览">
+    </el-dialog>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_wareEdit.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,       //控制页面loading等待状态
+                    queryCondition: 'm',
+                    selectTime: null,     // 所选时间
+                    year: '',
+                    month: '',
+                    tableData: [],        // 客诉损失表格
+                    initialData: {},
+                    sumList: '',          //总计
+                    table: null,
+                    Quality: [],
+                    //上传图片
+                    dialogImageUrl: '',
+                    showVisible: false,
+                    openAlert: false,    //控制附件上传的弹框
+                    fileList: [],
+                    files: [],           //存储选中的文件
+                    filename: [],
+                    vshow: false,
+                    customerName: '',    //客户名称
+                    complaintsDate: '',   //投诉日期
+                    isUpload: true,
+                    isTip: false,
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.selectDate();
+            },
+            //函数方法
+            methods: {
+                //总计
+                getSummaries(param) {
+                    const { columns, data } = param;
+                    const sums = [];
+                    let sumData = this.sumList;
+                    columns.forEach((column, index) => {
+                        if (index === 16) {
+                            sums[index] = '总计：';
+                            return;
+                        }
+                        if (index === 17) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Huizhou.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 18) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Management.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 19) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Purchasing.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 20) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Research.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 21) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Engineering.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 22) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Risk.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                    });
+                    return sums;
+                },
+
+                selectCondition() {
+                    this.selectDate(this.selectTime);
+                },
+
+                //选择时间
+                selectDate(v) {
+                    if (v != "" && v != null) {
+                        let dd = new Date(this.selectTime)
+                        if (this.queryCondition == 'y') {//按月
+                            this.year = dd.getFullYear()
+                            this.month = 0
+                        };
+                        if (this.queryCondition == 'm') {//按年月
+                            this.year = dd.getFullYear()
+                            this.month = dd.getMonth() + 1
+                        };
+                    }
+                },
+
+                //查询 表格渲染
+                queryData() {
+                    if (this.selectTime != null) {
+                        this.loading = true;
+                        axios.post("/Customer_Complaints/Query_AttachmentLoss", { year: this.year, month: this.month }).then(res => {
+                            console.log(res.data, 1)
+                            if (Object.keys(res.data.Attach).length > 0) {
+                                for (let i = 0; i < res.data.Attach.length; i++) {
+                                    if (res.data.Attach[i].Contract_Amount != '') {
+                                        res.data.Attach[i].Contract_Amount = '￥' + res.data.Attach[i].Contract_Amount.toLocaleString('en-US');
+                                    }
+                                    if (res.data.Attach[i].Losses_Amount != '') {
+                                        res.data.Attach[i].Losses_Amount = '￥' + res.data.Attach[i].Losses_Amount.toLocaleString('en-US');
+                                    }
+                                    res.data.Attach[i]['edit'] = false;
+                                    this.table = res.data.Attach[i].Table;
+
+                                    res.data.Attach[i]['QualityLoss1'] = '';
+                                    res.data.Attach[i]['QualityLossIndex1'] = '';
+                                    res.data.Attach[i]['QualityLoss2'] = '';
+                                    res.data.Attach[i]['QualityLossIndex2'] = '';
+                                    res.data.Attach[i]['QualityLoss3'] = '';
+                                    res.data.Attach[i]['QualityLossIndex3'] = '';
+                                    res.data.Attach[i]['QualityLoss4'] = '';
+                                    res.data.Attach[i]['QualityLossIndex4'] = '';
+                                    res.data.Attach[i]['QualityLoss5'] = '';
+                                    res.data.Attach[i]['QualityLossIndex5'] = '';
+                                    res.data.Attach[i]['QualityLoss6'] = '';
+                                    res.data.Attach[i]['QualityLossIndex6'] = '';
+
+                                    if (this.table != null) {
+                                        this.table.forEach((item, index) => {
+                                            if (item.Responsibility == '惠州工厂') {
+                                                res.data.Attach[i]['QualityLoss1'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex1'] = index;
+                                            };
+                                            if (item.Responsibility == '订单管理部') {
+                                                res.data.Attach[i]['QualityLoss2'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex2'] = index;
+                                            };
+                                            if (item.Responsibility == '采购部') {
+                                                res.data.Attach[i]['QualityLoss3'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex3'] = index;
+                                            };
+                                            if (item.Responsibility == '研发中心') {
+                                                res.data.Attach[i]['QualityLoss4'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex4'] = index;
+                                            };
+                                            if (item.Responsibility == '工程售后部') {
+                                                res.data.Attach[i]['QualityLoss5'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex5'] = index;
+                                            };
+                                            if (item.Responsibility == '风控中心') {
+                                                res.data.Attach[i]['QualityLoss6'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex6'] = index;
+                                            };
+                                        })
+                                    };
+                                };
+
+                                this.tableData = res.data.Attach;
+                                this.sumList = res.data;
+                                this.$message.success("查询成功");
+                            } else {
+                                this.$message.success("查询数据为空");
+                            };
+                            this.loading = false;
+                        }).catch(err => {
+                            console.warn(err);
+                            this.$message({
+                                message: "数据出错！",
+                                type: "warning"
+                            });
+                            this.loading = false;
+                        });
+                    } else {
+                        this.$message({
+                            message: "请选择年月!",
+                            type: "warning"
+                        })
+                    }
+
+                },
+
+                //修改数据
+                ModifyGuestLoss(row) {
+                    let table = [];
+
+                    if (row.QualityLoss1 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss1.split('￥').join("")).split(',').join(""),
+                            Responsibility: '惠州工厂'
+                        });
+                    };
+                    if (row.QualityLoss2 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss2.split('￥').join("")).split(',').join(""),
+                            Responsibility: '订单管理部'
+                        });
+                    };
+                    if (row.QualityLoss3 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss3.split('￥').join("")).split(',').join(""),
+                            Responsibility: '采购部'
+                        });
+                    };
+                    if (row.QualityLoss4 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss4.split('￥').join("")).split(',').join(""),
+                            Responsibility: '研发中心'
+                        });
+                    };
+                    if (row.QualityLoss5 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss5.split('￥').join("")).split(',').join(""),
+                            Responsibility: '工程售后部'
+                        });
+                    };
+                    if (row.QualityLoss6 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss6.split('￥').join("")).split(',').join(""),
+                            Responsibility: '风控中心'
+                        });
+                    };
+
+                    if (this.table != null) {
+                        table.forEach(i => {
+                            row.Table.forEach((item, index) => {
+                                if (i.Responsibility == item.Responsibility) {
+                                    i.OutsideKey = item.OutsideKey;
+                                };
+                            });
+                        });
+                    };
+                    axios.post("/Customer_Complaints/ModifyGuestLoss", { customer: row, qualityLoss: table }).then(res => {
+                        console.log(res.data, 999);
+                        if (res.data.meg) {
+                            this.$message.success('保存成功');
+                            //let xxx = JSON.parse(res.data.quality);
+                            //console.log(xxx,56)
+                            //xxx.forEach(item => {
+                            //    item.QualityLoss = '￥' + item.QualityLoss.toLocaleString('en-US');
+                            //});
+                            //row.Table = xxx;
+                            this.queryData();
+                            row.edit = false;
+                            this.initialData = {};
+                        } else {
+                            this.$message.error('保存失败');
+                            this.cancelClick(row);
+                        };
+                    }).catch(err => {
+                        this.$message.error('保存出错');
+                    })
+                },
+
+                //启动编辑
+                editClick(row) {
+                    for (let i of this.tableData) {
+                        if (i.edit) {
+                            this.$message.warning('存在正在编辑的行');
+                            return;
+                        };
+                    };
+                    this.initialData = {};
+                    this.initialData = { ...row };
+                    row.edit = true;
+                },
+
+                //取消编辑
+                cancelClick(row) {
+                    let item = row, ini = this.initialData;
+                    for (let i in ini) {
+                        item[i] = ini[i];
+                    };
+                    this.initialData = {};
+                },
+
+                //保存编辑
+                saveClick(row) {
+                    this.ModifyGuestLoss(row);
+                },
+
+                //点击显示弹窗
+                UpLoad(row) {
+                    let imgLength = row.Picture_jpg.length + row.Picture_pdf.length;
+                    if (imgLength < 4) {
+                        this.openAlert = true;
+                        this.customerName = row.CustomerName;
+                        this.complaintsDate = row.ComplaintsDate;
+                    } else {
+                        this.$message({
+                            message: "最多只能上传4个文件，可以请先移除其中一项哦",
+                            type: "warning"
+                        });
+                    }
+                },
+
+                //取消上传
+                onCancel() {
+                    this.fileList = [];
+                    this.openAlert = false;
+                },
+
+                //查看临时图片
+                handlePictureCardPreview(file) {
+                    this.dialogImageUrl = file.url;
+                    this.showVisible = true;
+                },
+
+                //移除临时图片
+                handleRemove(file) {
+                    for (let i in this.fileList) {
+                        if (this.fileList[i].uid == file.uid) {
+                            this.fileList.splice(i, 1)
+                        }
+                    }
+                    for (let i in this.filename) {
+                        if (this.filename[i] == file.name) {
+                            this.filename.splice(i, 1)
+                        }
+                    }
+                },
+
+                //选取文件方法
+                selectFile(file, fileList) {
+                    this.files.push(file.raw);
+                    this.filename.push(file.name);
+                },
+
+                //确认上传PDF文件或图片
+                uploadFile() {
+                    this.$loading({
+                        lock: true,
+                        text: '上传ing...',
+                        spinner: 'el-icon-loading',
+                        background: 'rgba(0, 0, 0, 0.7)'
+                    });
+                    let fd = new FormData();
+                    this.filename.forEach(file => {
+                        fd.append("pictureFile", file);
+                    });
+                    let j = 0;
+                    this.files.forEach(item => {
+                        fd.append("UploadFile_Claims" + j, item);
+                        j++;
+                    });
+                    fd.append('customerName', this.customerName);
+                    fd.append('complaintsDate', this.complaintsDate);
+                    axios.post("/Customer_Complaints/UploadFile_Claims", fd).then(res => {
+                        if (res.data == 'True') {
+                            this.$message.success('文件上传成功！');
+                            this.openAlert = false;
+                            this.files = this.filename = this.fileList = [];
+                            this.$loading().close();
+                            this.queryData();
+                        } else {
+                            this.$message.error('文件上传失败');
+                            this.openAlert = false;
+                            this.files = this.filename = this.fileList = [];
+                            this.$loading().close();
+                        }
+                    }).catch(err => {
+                        console.log(err)
+                    })
+                },
+
+                //删除图片方法  val参数是路径、row参数是当前行信息
+                DeleteImg(val, row) {
+                    this.$confirm('此操作将永久删除该文件, 是否继续?').then((res) => {
+                        console.log(res, 666666)
+                        axios.post("/Customer_Complaints/UploadFile_DeleteClaims", {
+                            path: val,
+                            customerName: row.CustomerName,
+                            complaintsDate: row.ComplaintsDate,
+                        }).then(res => {
+                            console.log(res.data, 1)
+                            if (res.data) {
+                                this.$message({
+                                    message: '删除成功！',
+                                    type: 'success'
+                                });
+                                val = '';
+                                this.queryData();
+                            }
+                        }).catch(err => {
+                            console.log(err)
+                        });
+                    }).catch(err => {
+                        console.log(err)
+                    });
+                },
+
+                //文件上传数目限制
+                handleExceed(files, fileList) {
+                    this.$message.warning(`当前限制选择 4 个文件，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件`);
+                },
+            },
+
+        };
+    </script>
+}

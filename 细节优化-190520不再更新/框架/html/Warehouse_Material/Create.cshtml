@@ -1,0 +1,117 @@
+﻿@model JianHeMES.Models.Warehouse_Material_BaseInfo
+@{
+    ViewBag.Title = "修改库位号清单";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        h2 {
+            text-align: center;
+            font-size: 1.8rem;
+        }
+
+        @@media screen and (min-width:800px) {
+            .tableContainer {
+                width: 28%;
+                margin: 15px auto;
+            }
+        }
+
+        @@media screen and (max-width:410px) {
+            .tableContainer {
+                width: 100%;
+            }
+        }
+
+        .el-popover {
+            min-width: 75px !important;
+        }
+    </style>
+}
+<div id="app">
+    <div class="tableContainer">
+        <el-table v-bind:data="tableData"
+                  max-height="550"
+                  style="width: 100%">
+            <el-table-column prop="MaterialBacrcode"
+                             label="条码号"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="MaterialNumber"
+                             label="物料号"
+                             width="100">
+            </el-table-column>
+            <el-table-column prop="OldWarehouseNum"
+                             label="老库位"
+                             width="70">
+            </el-table-column>
+            <el-table-column prop="NewWarehouseNum"
+                             label="新库位"
+                             width="70">
+                <template slot-scope="scope">
+                    <el-popover trigger="click" placement="top">
+                        <el-button @@click="remove(scope.row,scope.$index)" type="danger" size="mini">移除</el-button>
+                        <div slot="reference" class="name-wrapper">
+                            <el-tag size="medium">{{ scope.row.NewWarehouseNum }}</el-tag>
+                        </div>
+                    </el-popover>
+                </template>
+            </el-table-column>
+        </el-table>
+        <el-button @@click="goback" size="mini" type="primary">返回</el-button>
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script src="~/Content/styleFile/solder/solderJavascript.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    tableData: []
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.getInfos();
+            },
+            methods: {
+                // 获取列表
+                getInfos() {
+                    axios.post("/Warehouse_Material/LocationQuery").then(res => {
+                        console.log(res.data)
+                        this.tableData = res.data;
+                    })
+                },
+                // 移除
+                remove(item, index) {
+                    axios.post("/Warehouse_Material/DeleteLocation", { id: item.ID }).then(res => {
+                        console.log(res.data)
+                        if (res.data.table == true) {
+                            this.tableData.splice(index, 1);
+                            this.$notify({
+                                message: "移除成功!",
+                                type: "success"
+                            });
+                        } else {
+                            this.$notify({
+                                message: res.data.ware,
+                                type: "warning"
+                            });
+                        }
+                    })
+                },
+                // 返回
+                goback() {
+                    window.history.back();
+                }
+            },
+        };
+    </script>
+}

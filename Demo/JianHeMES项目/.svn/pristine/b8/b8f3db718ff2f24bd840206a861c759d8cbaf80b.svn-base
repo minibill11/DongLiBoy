@@ -1,0 +1,128 @@
+﻿@{
+    ViewBag.Title = "MES使用说明书";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        .left-menu, .right-iframe {
+            padding: 10px;
+        }
+
+            .left-menu > .search {
+                max-width: 300px;
+                margin-bottom: 10px;
+            }
+
+            .left-menu > .tree {
+                height: 750px;
+                overflow: auto;
+            }
+
+            .right-iframe > #PDF_Content {
+                min-width: 1000px;
+                min-height: 800px;
+            }
+
+        .menu-tree {
+        }
+    </style>
+}
+<el-row id="app" v-cloak>
+    <el-col :span="6" sm="12" :xs="24" class="left-menu">
+        <el-row class="search"><el-input placeholder="输入关键字进行过滤" v-model="filterText" size="medium" clearable></el-input></el-row>
+        <el-row class="tree">
+            <el-tree @@node-click="nodeClick"
+                     :filter-node-method="filterNode"
+                     :data="treeData"
+                     :props="props"
+                     highlight-current
+                     class="menu-tree"
+                     ref="tree">
+            </el-tree>
+        </el-row>
+    </el-col>
+    <el-col :span="18" sm="12" :xs="24" class="right-iframe">
+        <iframe id="PDF_Content" name="PDF_Content" src=''></iframe>
+    </el-col>
+</el-row>
+@* 分部页放置处 *@
+@section renderPage {
+
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    filterText: '',
+                    props: {
+                        label: 'OriginalPath',
+                        children: 'children',
+                    },
+                    treeData: [],
+                    host_address:''
+                }
+            },
+            mounted() {
+                this.setTreeData();
+                this.host_address = window.location.protocol + "//" + window.location.host;
+            },
+            methods: {
+                async setTreeData() {
+                    let folderList = await this.GetFolderList();
+                    for (let all of folderList) {
+                        let pdfList = await this.GetFolderPDFFilesList(all.OriginalPath);
+                        this.$set(all, 'children', pdfList);
+                    };
+                    this.treeData = JSON.parse(JSON.stringify(folderList));
+                },
+                nodeClick(data, node, e) {
+                    if (node.level === 1) { return; };
+                    var address = `${this.host_address}/${data.FullPath.substr(2)}?${Math.random()}`;
+                    if (this.host_address == 'http://hzjhgd.vicp.io') {
+                        document.getElementById('PDF_Content').src = address;
+                    }
+                    else {
+                        document.getElementById('PDF_Content').src = address;
+                    }
+                },
+                GetFolderList() {
+                    //let rtd = [{ "OriginalPath": "7S管理", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理" }, { "OriginalPath": "备品配件操作说明书", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书" }, { "OriginalPath": "备品配件说明书", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书" }, { "OriginalPath": "小样报告操作说明书", "FullPath": "D:\\MES_Data\\MES说明书\\小样报告操作说明书" }, { "OriginalPath": "钣金生产操作说明书", "FullPath": "D:\\MES_Data\\MES说明书\\钣金生产操作说明书" }];
+                    //return rtd;
+                    return axios.post(this.host_address+'/Manual/GetFolderList').then(res => {
+                        return res.data;
+                    });
+                },
+                GetFolderPDFFilesList(d) {
+                    //let rtd = [];
+                    //switch (d) {
+                    //    case '7S管理': rtd = [{ "OriginalPath": "1、7s评比得分汇总表（7s管理首页）.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\1、7s评比得分汇总表（7s管理首页）.pdf" }, { "OriginalPath": "2、7s扣分标准录入.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\2、7s扣分标准录入.pdf" }, { "OriginalPath": "3、7s数据区域录入.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\3、7s数据区域录入.pdf" }, { "OriginalPath": "4、7s扣分录入（PC端）.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\4、7s扣分录入（PC端）.pdf" }, { "OriginalPath": "5、7s扣分录入（移动端）.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\5、7s扣分录入（移动端）.pdf" }, { "OriginalPath": "6、7s汇总表.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\6、7s汇总表.pdf" }, { "OriginalPath": "7、7s扣分详细表.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\7S管理\\7、7s扣分详细表.pdf" }]; break;
+                    //    case '备品配件操作说明书': rtd = [{ "OriginalPath": "1.备品配件首页.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\1.备品配件首页.pdf" }, { "OriginalPath": "2.备品配件查询基本信息.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\2.备品配件查询基本信息.pdf" }, { "OriginalPath": "3.备品配件物料基本信息录入.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\3.备品配件物料基本信息录入.pdf" }, { "OriginalPath": "4.备品配件打印物料标签.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\4.备品配件打印物料标签.pdf" }, { "OriginalPath": "5.备品配件物料备料.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\5.备品配件物料备料.pdf" }, { "OriginalPath": "6.备品配件检验装箱.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\6.备品配件检验装箱.pdf" }, { "OriginalPath": "7.备品配件外箱标签打印.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件操作说明书\\7.备品配件外箱标签打印.pdf" }]; break;
+                    //    case '备品配件说明书': rtd = [{ "OriginalPath": "1.备品配件首页.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\1.备品配件首页.pdf" }, { "OriginalPath": "2.备品配件查询基本信息.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\2.备品配件查询基本信息.pdf" }, { "OriginalPath": "3.备品配件物料基本信息录入.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\3.备品配件物料基本信息录入.pdf" }, { "OriginalPath": "4.备品配件打印物料标签.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\4.备品配件打印物料标签.pdf" }, { "OriginalPath": "5.备品配件物料备料.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\5.备品配件物料备料.pdf" }, { "OriginalPath": "6.备品配件检验装箱.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\6.备品配件检验装箱.pdf" }, { "OriginalPath": "7.备品配件外箱标签打印.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\备品配件说明书\\7.备品配件外箱标签打印.pdf" }]; break;
+                    //    case '小样报告操作说明书': rtd = [{ "OriginalPath": "1.小样报告首页.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\小样报告操作说明书\\1.小样报告首页.pdf" }, { "OriginalPath": "2.小样报告创建.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\小样报告操作说明书\\2.小样报告创建.pdf" }, { "OriginalPath": "3.小样报告参数.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\小样报告操作说明书\\3.小样报告参数.pdf" }]; break;
+                    //    case '钣金生产操作说明书': rtd = [{ "OriginalPath": "1.钣金录入基本信息.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\钣金生产操作说明书\\1.钣金录入基本信息.pdf" }, { "OriginalPath": "2.钣金录入生产信息.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\钣金生产操作说明书\\2.钣金录入生产信息.pdf" }, { "OriginalPath": "3.钣金修改录入信息.pdf", "FullPath": "D:\\MES_Data\\MES说明书\\钣金生产操作说明书\\3.钣金修改录入信息.pdf" }]; break;
+                    //    default: rtd = []; break;
+                    //};
+                    //for (let i of rtd) {
+                    //    i.isLeaf = true;
+                    //};
+                    //return rtd;
+                    return axios.post(this.host_address+'/Manual/GetFolderPDFFilesList', { directory: d }).then(res => {
+                        return res.data;
+                    });
+                },
+                filterNode(value, data) {
+                    if (!value) return true;
+                    return data.OriginalPath.indexOf(value) !== -1;
+                },
+            },
+            watch: {
+                filterText(val) {
+                    this.$refs.tree.filter(val);
+                }
+            },
+        };
+    </script>
+}
+

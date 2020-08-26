@@ -1,0 +1,697 @@
+﻿@{
+    ViewBag.Title = "模块外箱装箱";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        #masterBarcode {
+            width: 240px;
+        }
+
+        .mcFrame {
+            margin: 0 auto;
+            width: 310px;
+            height: 524px;
+            border: 1px solid #000;
+        }
+
+        .mcFrame_top {
+            height: 278px;
+        }
+
+        .mcFrame_bottom {
+            height: 240px;
+        }
+
+        .mcFrame_top > div {
+            height: 80px;
+        }
+
+
+        .mcFrame_top_1 {
+            position: relative;
+        }
+
+        .imgicon {
+            position: absolute;
+            width: 110px;
+            top: 5px;
+            left: 5px;
+        }
+
+        .mcFrame_top_1_h {
+            margin: 0;
+            padding-top: 35px;
+            text-align: center;
+        }
+
+        .mcFrame_top_1_h_noimg {
+            margin: 0;
+            padding-top: 25px;
+            text-align: center;
+        }
+
+        .mcFrame_top_3_1_1, .mcFrame_top_3_1_2 {
+            display: inline-block;
+            line-height: 38px;
+            text-align: center;
+        }
+
+        .mcFrame_top_3_1_1 {
+            font-size: 12px;
+        }
+
+            .mcFrame_top_3_1_1:nth-child(1) {
+                width: 99px;
+            }
+
+            .mcFrame_top_3_1_1:nth-child(2) {
+                width: 58px;
+            }
+
+            .mcFrame_top_3_1_1:nth-child(3) {
+                width: 76px;
+            }
+
+            .mcFrame_top_3_1_1:nth-child(4) {
+                width: 58px;
+            }
+
+        .mcFrame_top_3_1_2 {
+            width: 227px;
+            font-size: 20px;
+        }
+
+        .mcFrame_top_3_1_1:not(:last-child) {
+            border-right: 1px solid #000;
+        }
+
+        .borderTop {
+            border-top: 1px solid #000;
+        }
+
+        .mcFrame_bottom_1 {
+            padding: 5px;
+            font-size: 16px;
+            text-align: left;
+        }
+
+        .mcFrame_top_2 {
+            position: relative;
+        }
+
+        .masterBarDiv {
+            width: 100%;
+            position: absolute;
+            top: -3px;
+        }
+
+        a:hover {
+            text-decoration: none;
+            color: #000;
+        }
+
+        /*全局样式*/
+        .el-table th {
+            font-size: 13px;
+            padding: 5px 0;
+            background-color: #f4df42;
+            color: #000;
+            text-align: center;
+        }
+
+        .el-table td {
+            font-size: 13px;
+            padding: 2px 0;
+            text-align: center;
+        }
+
+        .el-table .cell, .el-table--border td:first-child .cell {
+            padding: 0;
+        }
+
+        .el-table .warning-row {
+            background: #fcd2d2;
+        }
+
+        .el-table .success-row {
+            background: #f0f9eb;
+        }
+
+        .boxspan {
+            display: inline-block;
+            padding: 2px 4px;
+        }
+
+        .changecolor {
+            color: red;
+        }
+
+            .changecolor input {
+                color: red;
+            }
+
+        .el-autocomplete ul li {
+            text-align: center;
+        }
+
+        .borderRed > .el-input__inner {
+            border: 1px solid red;
+        }
+
+        h1 {
+            font-size: 26px;
+        }
+    </style>
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <module-menu-component name="Outside" title="@ViewBag.Title"></module-menu-component>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="main">
+                <el-col :span="12" :xs="24">
+                    @RenderPage("_binningBaseInfo.cshtml")
+                </el-col>
+                <el-col :span="12" :xs="24">
+                    @RenderPage("_tag.cshtml")
+                </el-col>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_moduleMenu.cshtml")
+    @RenderPage("_print.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/printJS/JsBarcode.all.min.js"></script>
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    imgShow: true,
+                    selectVal: '',
+                    selectVal2: '',
+                    typeOptions: [],
+                    typeVal: '',
+                    screenOptions: [],
+                    screenNum: '',
+                    batchOptions: [],
+                    batchNum: '',
+                    isWeixiang: false,
+                    isMix: false,
+                    masterVal: "",
+                    printMozhu: "",
+                    mozutable: [],
+                    maozhongliang: '',
+                    jingzhong: '',
+                    wuliao: "LED模块",
+                    sntn: "",
+                    shuliang: "",
+                    completeInfo: [],
+                    printShow: false,
+                    leng: '中/英',
+                    lengOptions: [{
+                        value: '中',
+                        label: '中'
+                    }, {
+                        value: '英',
+                        label: '英',
+                    }, {
+                        value: '中/英',
+                        label: '中/英'
+                    }],
+                    customize: false,//是否自定义
+                    isOutside: true,//是否是外箱
+                    statueType: '外箱',
+                    statueTypeOptions: [{ value: '外箱' }]
+                }
+            },
+            mixins: [setModuleManagement],
+            created: function () {
+            },
+            mounted: function () {
+                let locallogo = localStorage.getItem('logoimg');
+                if (locallogo != null) {
+                    if (locallogo == "true") {
+                        this.imgShow = true;
+                    } else {
+                        this.imgShow = false;
+                    };
+                };
+
+                let localOrder = localStorage.getItem('Order');
+                if (localOrder != null) {
+                    this.selectVal = localOrder;
+                    this.selectOrdernum({ value: this.selectVal });
+                };
+                let localwei = localStorage.getItem('weixiang');
+                if (localwei != null) {
+                    if (localwei == "true") {
+                        this.isWeixiang = true;
+                    } else {
+                        this.isWeixiang = false;
+                    };
+                };
+
+                let localmix = localStorage.getItem('mix');
+                if (localmix != null) {
+                    if (localmix == "true") {
+                        this.isMix = true;
+                    } else {
+                        this.isMix = false;
+                    };
+                };
+            },
+            methods: {
+                masterPrint() {
+                    this.loading = true;
+                    let mzList = [];
+                    for (let i of this.mozutable) {
+                        mzList.push(i.barcode);
+                    };
+                    axios.post('/ModuleManagement/OutsideBoxLablePrint', {
+                        ordernum: this.selectVal,
+                        packagingordernum: this.selectVal2 == '' ? null : this.selectVal2,
+                        screennum: this.screenNum,
+                        leng: this.leng,
+                        outsidebarcode: this.masterVal,
+                        g_Weight: this.maozhongliang,
+                        n_Weight: this.jingzhong,
+                        material_discription: this.wuliao,
+                        sntn: this.sntn,
+                        qty: this.customize ? '' : this.mozutable.length,
+                        mn_list: mzList,
+                        logo: this.imgShow,
+                        pagecount: this.printInfo.pageCount,
+                        concentration: this.printInfo.concentration,
+                        ip: this.printInfo.ip,//ip地址
+                        port: 9101,//端口
+                    }).then(res => {
+                        if (res.data == '打印成功！') {
+                            this.clear();
+                            this.loading = false;
+                        } else {
+                            this.$message.error(res.data);
+                            this.loading = false;
+                        };
+                    }).catch(err => {
+                        this.$message.error('打印出错！');
+                        this.loading = false;
+                    });
+                },
+                setmasterBarDiv(v) {
+                    JsBarcode("#masterBarcode", v.toUpperCase(), {
+                        height: 60, //条形码的高度
+                        //fontOptions: "bold",//使文字加粗体或变斜体
+                        format: "CODE128",
+                        font: "monospace",
+                        textAlign: "center",
+                        textMargin: 0,//设置条形码和文本之间的间距
+                        fontSize: 26,//设置文本的大小
+                        lineColor: "#000",//条形码颜色
+                        margin: 0,//设置条形码周围的空白边距
+                        marginTop: 0
+                    });
+                },
+                mozuscan() {
+                    if (this.customize) {
+                        if (this.mozutable.length >= 1) {
+                            this.$message.error('只能输入一个自定义描述');
+                        } else {
+                            this.mozutable.push({
+                                barcode: this.printMozhu,
+                                ordernum: this.selectVal
+                            });
+                            this.printMozhu = "";
+                        };
+                    } else {
+                        //检查重复
+                        for (let i of this.mozutable) {
+                            if (i.barcode == this.printMozhu) {
+                                this.$message.warning('已有重复条码！');
+                                this.printMozhu = "";
+                                return;
+                            };
+                        };
+
+                        //验证条码号和所选订单是否匹配
+                        axios.post('/ModuleManagement/CheckBarcode', {
+                            ordernum: this.selectVal,
+                            barcode: this.printMozhu,
+                            statue: this.statueType,
+                            hybrid: this.isMix
+                        }).then(res => {
+                            if (res.data.pass == true) {
+                                this.mozutable.push({
+                                    barcode: this.printMozhu,
+                                    ordernum: this.selectVal
+                                });
+                                this.printMozhu = "";
+                            } else {
+                                this.$message.error(res.data.mes);
+                                this.printMozhu = "";
+                            };
+                        }).catch(err => {
+                            console.warn("验证失败");
+                            this.printMozhu = "";
+                        });
+                    };
+                },
+                //确认post
+                postConfirm() {
+                    this.loading = true;
+                    let postList = [],
+                        errormes = "",
+                        nooknum = 0;
+                    if (this.Group == "") {
+                        errormes = errormes + (nooknum + 1) + "、请班组不能为空<br/>"; nooknum++;
+                    };
+                    if (this.selectVal == "") {
+                        errormes = errormes + (nooknum + 1) + "、订单号不能为空<br/>"; nooknum++;
+                    };
+                    if (this.masterVal == "") {
+                        errormes = errormes + (nooknum + 1) + "、箱体条码不能为空<br/>"; nooknum++;
+                    };
+                    if (this.typeVal == "") {
+                        errormes = errormes + (nooknum + 1) + "、装箱类型不能为空<br/>"; nooknum++;
+                    };
+                    if (this.screenNum == "") {
+                        errormes = errormes + (nooknum + 1) + "、屏序不能为空<br/>"; nooknum++;
+                    };
+                    if (this.batchNum == "") {
+                        errormes = errormes + (nooknum + 1) + "、批次不能为空<br/>"; nooknum++;
+                    };
+                    if (this.leng == '') {
+                        errormes = errormes + (nooknum + 1) + "、请选择标签语言<br/>"; nooknum++;
+                    }
+                    if (this.wuliao == "") {
+                        errormes = errormes + (nooknum + 1) + "、物料描述不能为空<br/>"; nooknum++;
+                    };
+                    if (this.sntn == "") {
+                        errormes = errormes + (nooknum + 1) + "、(SN/TN)不能为空<br/>"; nooknum++;
+                    };
+                    if (this.mozutable.length == 0) {
+                        errormes = errormes + (nooknum + 1) + "、模块不能为空<br/>"; nooknum++;
+                    } else {
+                        let bar = [];
+                        for (let i of this.mozutable) {
+                            bar.push(i.barcode);
+                        };
+                        if (this.cfcheck(bar)) {
+                            errormes = errormes + (nooknum + 1) + "、存在重复的条码号，请检查！<br/>"; nooknum++;
+                        };
+                    };
+
+                    if (nooknum > 0) {
+                        this.$alert(errormes, "标签不合格", {
+                            confirmButtonText: '确定',
+                            closeOnClickModal: true,
+                            closeOnPressEscape: true,
+                            dangerouslyUseHTMLString: true,
+                            type: "error",
+                        });
+                        this.loading = false;
+                    } else {
+                        for (let item of this.mozutable) {
+                            postList.push({
+                                OrderNum: item.ordernum,
+                                packagingordernum: this.selectVal2 == '' ? null : this.selectVal2,
+                                Type: this.typeVal,
+                                ScreenNum: this.screenNum,
+                                Batch: this.batchNum,
+                                leng: this.leng,
+                                OutsideBarcode: this.masterVal,
+                                InnerBarcode: item.barcode,
+                                SN: this.sntn.split("/")[0],
+                                G_Weight: this.maozhongliang,
+                                N_Weight: this.jingzhong,
+                                Materiel: this.wuliao,
+                                IsLogo: this.imgShow,
+                                Group: this.Group,
+                                Department: this.Department,
+                                Statue: this.statueType
+                            });
+                        };
+                        axios.post('/ModuleManagement/CreatePackangPrint', {
+                            printings: postList,
+                            ordernum: this.selectVal,
+                            Department1: this.Department,
+                            Group: this.Group,
+                            IsLast: this.isWeixiang
+                        }).then(res => {
+                            if (res.data.pass == true) {
+                                this.printShow = true;
+                                this.masterPrint();
+                            } else {
+                                this.$alert(res.data.mes, {
+                                    confirmButtonText: '确定',
+                                    closeOnClickModal: true,
+                                    closeOnPressEscape: true,
+                                    type: "error",
+                                });
+                                this.loading = false;
+                            };
+                        }).catch(err => {
+                            console.warn("获取模块号失败")
+                            this.loading = false;
+                        });
+                    };
+                },
+                //检查重复
+                cfcheck(arr) {
+                    let hash = {};
+                    for (let i of arr) {
+                        if (hash[i]) {
+                            return true;
+                        };
+                        if (i != '') {
+                            hash[i] = true;
+                        };
+                    };
+                    return false;
+                },
+                //删除行
+                deleteRow: function (index, row, data) {
+                    data.splice(index, 1);
+                },
+                //重置
+                clear() {
+                    this.printMozhu = '';
+                    this.mozutable = [];
+                    this.shuliang = '';
+                    this.printShow = false;
+                    this.isWeixiang = false;
+                    this.completeInfo = [];
+                    this.masterVal = '';
+                    this.shuliang = '';
+                    this.sntn = '';
+                    this.getInfo();
+                    //this.$message('重置完毕');
+                    this.$refs.inputRef.focus();
+                },
+                //选择订单
+                selectOrdernum(v) {
+                    if (v.value != "") {
+                        localStorage.setItem('Order', v.value);
+                        this.getType(v.value);
+                        this.getInfo();
+                    };
+                },
+                //获取类型
+                getType(v) {
+                    this.typeVal = "";
+                    this.typeOptions = [];
+                    axios.post('/ModuleManagement/GetTypeList', {
+                        ordernum: v,
+                        statue: this.statueType
+                    }).then(res => {
+                        if (res.data.length == 0) {
+                            this.$notify({
+                                title: '警告',
+                                message: '此条码没有装箱类型！',
+                                type: 'warning'
+                            });
+                        } else {
+                            this.typeOptions = res.data;
+                        };
+                        if (res.data.length == 1) {
+                            this.typeVal = res.data[0].value;
+                        };
+                    }).catch(err => {
+                        console.warn("获取类型失败")
+                    });
+                },
+                //获取批次
+                getBatch: function () {
+                    this.batchOptions = [];
+                    this.batchNum = "";
+                    if (this.selectVal != "" && this.typeVal != "") {
+                        axios.post('/ModuleManagement/GetBatchList', {
+                            ordernum: this.selectVal,
+                            type: this.typeVal,
+                            statue: this.statueType
+                        }).then(res => {
+                            this.batchOptions = res.data;
+                            if (res.data.length == 1) {
+                                this.batchNum = res.data[0].value;
+                            };
+                        }).catch(err => {
+                            console.warn("获取批次失败")
+                        });
+                    };
+                },
+                //获取屏序
+                getScreen: function () {
+                    this.screenOptions = [];
+                    this.screenNum = "";
+                    if (this.selectVal != "" && this.typeVal != "" && this.batchNum != "") {
+                        axios.post('/ModuleManagement/GetScreenList', {
+                            ordernum: this.selectVal,
+                            type: this.typeVal,
+                            batch: this.batchNum,
+                            statue: this.statueType
+                        }).then(res => {
+                            this.screenOptions = res.data;
+                            if (res.data.length == 1) {
+                                this.screenNum = res.data[0].value;
+                            };
+                        }).catch(err => {
+                            console.warn("获取屏序失败")
+                        });
+                    };
+                },
+                //获取包装信息
+                getInfo() {
+                    if (this.selectVal == '' || this.typeVal == '' || this.batchNum == '' || this.screenNum == '') {
+                        return;
+                    };
+                    axios.post('/ModuleManagement/GetOuthersideBoxInfo', {
+                        ordernum: this.selectVal,
+                        type: this.typeVal,
+                        batchNum: this.batchNum,
+                        screenNum: this.screenNum,
+                        IsLast: this.isWeixiang
+                    }).then(res => {
+                        if (res.data.pass) {
+                            this.completeInfo = res.data.Complate;
+                            this.masterVal = res.data.boxNum;
+                            this.shuliang = res.data.count;
+                            this.sntn = res.data.SNTN;
+                            //this.maozhongliang = res.data.G_Weight || 0;
+                            //this.jingzhong = res.data.N_Weight || 0;
+                        } else {
+                            this.$message.error(res.data.mes);
+                        };
+                    }).catch(err => {
+                        console.warn("获取包装信息失败")
+                    });
+                }
+            },
+            watch: {
+                //监听logo
+                imgShow(v) {
+                    localStorage.setItem('logoimg', v);
+                },
+                //监听箱体条码
+                masterVal(v) {
+                    if (v != "") {
+                        this.setmasterBarDiv(v);
+                    } else {
+                        $(".masterBarDiv").html('<svg id="masterBarcode"></svg>');
+                    };
+                },
+                //监听尾箱
+                isWeixiang(v) {
+                    this.getInfo();
+                    localStorage.setItem('weixiang', v);
+                    if (v == false) {
+                        this.isMix = false;
+                    };
+                },
+                //监听混箱
+                isMix: function (v) {
+                    localStorage.setItem('mix', v);
+                },
+                //监听订单号
+                selectVal(v) {
+                    if (v == '') {
+                        this.typeVal = "";
+                        this.masterVal == "";
+                        this.shuliang = '';
+                        this.sntn = '';
+                    };
+                },
+                //监听类型
+                typeVal(v) {
+                    if (v != "") {
+                        this.getBatch();
+                        this.getInfo();
+                        this.$refs.inputRef.focus();
+                    } else {
+                        this.masterVal = "";
+                        this.shuliang = '';
+                        this.sntn = '';
+                        this.screenNum = "";
+                        this.screenOptions = [];
+                        this.batchNum = "";
+                        this.batchOptions = [];
+                    };
+                },
+                //监听批次
+                batchNum(v) {
+                    if (v != "") {
+                        this.getScreen();
+                        this.getInfo();
+                        this.$refs.inputRef.focus();
+                    } else {
+                        this.masterVal = "";
+                        this.shuliang = '';
+                        this.sntn = '';
+                        this.screenNum = '';
+                        this.screenOptions = [];
+                    };
+                },
+                //监听屏序
+                screenNum(v) {
+                    if (v != "") {
+                        this.getInfo();
+                        this.$refs.inputRef.focus();
+                    } else {
+                        this.masterVal = "";
+                        this.shuliang = '';
+                        this.sntn = '';
+                    };
+                },
+                //监听语言
+                leng(v) {
+                    if (v === '英') {
+                        this.wuliao = 'LED MG';
+                    } else {
+                        this.wuliao = 'LED模块';
+                    };
+                },
+                //监听是否自定义
+                customize(v) {
+                    this.printMozhu = '';
+                    if (v) {
+                        this.wuliao = '';
+                    } else {
+                        if (this.leng === '英') {
+                            this.wuliao = 'LED MG';
+                        } else {
+                            this.wuliao = 'LED模块';
+                        };
+                    };
+                }
+            },
+        };
+    </script>
+}

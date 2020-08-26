@@ -1,0 +1,337 @@
+﻿@{
+    ViewBag.Title = "班组人员流失汇总";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        .el-progress-bar__inner::after, .el-row::after, .el-row::before, .el-slider::after, .el-slider::before, .el-slider__button-wrapper::after, .el-upload-cover::after {
+            content: none;
+        }
+        /*统一表格字体*/
+        .el-table thead {
+            font-family: '微软雅黑 Bold', '微软雅黑';
+            font-weight: 700;
+            font-style: normal;
+            color: #5E5E5E;
+            height: 34px;
+            background-color: rgba(228, 236, 248, 1);
+        }
+
+        .el-table th > .cell {
+            font-size: 14px;
+        }
+
+        .top_title {
+            font-size: 24px;
+            color: #293038;
+            text-align: left;
+        }
+
+        .rightMain .rightMainContent {
+            padding-top: 30px;
+        }
+
+        .table_top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            height: 40px;
+        }
+
+        .m_left {
+            width: 200px !important;
+            height: 100%;
+        }
+
+        .tips_text {
+            font-family: '微软雅黑';
+            font-weight: 400;
+            font-style: normal;
+            font-size: 14px;
+            color: #293038;
+            text-align: left;
+            margin-right: 10px;
+        }
+
+        .top_right {
+            height: 100%;
+            position: fixed;
+            right: 60px;
+        }
+
+        .addMass {
+            width: 110px;
+            margin-right: 5px;
+        }
+
+        .addMass, .derivedForm {
+            height: 100%;
+        }
+
+            .derivedForm .el-button--primary.is-plain {
+                width: 123px;
+                border-color: rgba(140, 223, 203, 1);
+                background-color: rgba(230, 248, 234, 1);
+                font-size: 14px;
+                color: #2BCFAA;
+            }
+
+            .derivedForm .el-button--medium:hover {
+                background-color: rgba(43, 207, 170, 1);
+                color: #fff;
+            }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header>
+            <span class="top_title">班组人员流失汇总</span>
+        </el-header>
+        <el-main v-loading="loading">
+            @*日期选择框 *@
+            <el-row class="table_top">
+                <div class="top_left">
+                    <el-date-picker v-model="selectTime"
+                                    class="m_left"
+                                    type="month"
+                                    size="medium"
+                                    style="width:150px;"
+                                    placeholder="请选择日期">
+                    </el-date-picker>
+                    <span class="tips_text">月流失数据查看</span>
+                    <el-button class="btnIfo" type="primary" size="medium" @@click="queryData">查询</el-button>
+                </div>
+                <div class="top_right">
+                    <a href="/KPI/DeparturesNum_Add" class="addMass"><el-button type="primary" size="medium" plain>批量添加</el-button></a>
+                    <a href="###" class="derivedForm"><el-button type="primary" size="medium" plain>导出EXCEL表</el-button></a>
+                </div>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          min-height="234"
+                          max-height="560"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Department"
+                                     label="部门"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="Group"
+                                     label="班组 "
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="IndicatorsName"
+                                     label="考核指标名称"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="IndicatorsValue"
+                                     label="目标值"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="SourceDepartment"
+                                     label="数据来源"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="BeginNumber"
+                                     label="月初人数"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="EndNumber"
+                                     label="月末人数"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="AverageNum"
+                                     label="月平均人数"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column :label="check_name">
+                        <el-table-column v-for="(item, index) in tableColumn"
+                                         :key="index+Math.random()"
+                                         :prop="item.field"
+                                         :label="item.title"
+                                         width="50" fixed="center">
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column prop="TurnoverMonth"
+                                     label="月流失人数"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="Actual"
+                                     label="实际得分"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="Differences"
+                                     label="与目标值差异"
+                                     align="center"
+                                     min-width="120">
+                    </el-table-column>
+                    <el-table-column prop="Subtotal"
+                                     label="得分小计"
+                                     align="center"
+                                     min-width="90">
+                    </el-table-column>
+                    <el-table-column label="操作" align="center" width="120">
+                        <template slot-scope="scope" class="btnCell">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" class="etitor" type="text">编辑</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_wareEdit.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,         //控制页面loading等待状态
+                    selectTime: null,       // 所选时间
+                    tableData: [],          // 班组人员流失汇总数据
+                    check_name: null, //月份表头label
+                    tableColumn: [],
+                    allData: [],
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+
+            },
+            //函数方法
+            methods: {
+                //表头生成 日期
+                onCreatTableColumn() {
+                    let len = 0;
+                    let list = [];
+                    for (let i = 0; i < this.allData.length; i++) {
+                        len = this.allData[0].Rate.length;
+                    }
+                    for (let index = 0; index < len; index++) {
+                        list.push({
+                            title: index + 1 + '日',
+                            field: 'data' + index,
+                            width: 50
+                        })
+                    }
+                    this.tableColumn = list;
+                    console.log(this.tableColumn, 4444)
+                },
+
+                //处理数据(渲染每日流失人数 包括表格其它数据)
+                onProcessData() {
+                    let len = 0;
+                    for (let i = 0; i < this.allData.length; i++) {
+                        len = this.allData[0].Rate.length;
+                        for (let j = 0; j < len; j++) {
+                            var key = "data" + j;
+                            if (this.allData[i].Rate[j].LossNumber != 0) {
+                               this.allData[i][key] = this.allData[i].Rate[j].LossNumber;
+                            }
+                        }
+                    }
+                    this.tableData = this.allData;
+                },
+
+                //查询 表格渲染
+                queryData() {
+                    if (this.selectTime != null) {
+                        this.loading = true;
+                        let dd = new Date(this.selectTime)
+                        let year = dd.getFullYear()
+                        let month = dd.getMonth() + 1
+                        this.check_name = '流失人数（' + month + '月)'
+                        axios.post("/KPI/Turnover_CheckSshift", { year: year, month: month }).then(res => {
+                            console.log(res)
+                            if (res.data.length > 0) {
+                                for (let i = 0; i < res.data.length; i++) {
+                                    res.data[i]['edit'] = false;
+                                }
+                                this.allData = res.data;
+                                this.onCreatTableColumn();
+                                this.onProcessData();
+                                this.$message.success("查询成功");
+                                this.loading = false;
+                            } else {
+                                this.$message({
+                                    message: "查询数据为空！",
+                                    type: "warning"
+                                });
+                                this.loading = false;
+                            }
+                        }).catch(err => {
+                            console.warn(err);
+                            this.$message({
+                                message: "数据出错！",
+                                type: "warning"
+                            });
+                            this.loading = false;
+                        });
+                    } else {
+                        this.$message({
+                            message: "请选择年月!",
+                            type: "warning"
+                        })
+                    }
+                },
+
+                //启动编辑
+                editClick(row) {
+                    console.log(row, 55)
+                    for (let i of this.tableData) {
+                        if (i.edit) {
+                            this.$message.warning('存在正在编辑的行');
+                            return;
+                        };
+                    };
+                    this.initialData = {};
+                    this.initialData = { ...row };
+                    row.edit = true;
+                },
+
+                //取消编辑
+                cancelClick(row) {
+                    let item = row, ini = this.initialData;
+                    for (let i in ini) {
+                        item[i] = ini[i];
+                    };
+                    this.initialData = {};
+                },
+
+                //保存编辑
+                saveClick(row) {
+                    this.ModifyGuestLoss(row);
+                },
+
+            },
+        };
+    </script>
+}

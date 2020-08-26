@@ -1,0 +1,724 @@
+﻿@{
+    ViewBag.Title = "客诉损失明细表";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .table-top {
+            margin-bottom: 20px;
+        }
+        .addMass{
+            margin-left:20px;
+        }
+        .m-right{
+            margin-right:5px;
+        }
+        .el-table thead.has-gutter th {
+            background: #F5F7FA;
+            height: 24px;
+        }
+
+        .DuplicateData {
+            color: red;
+        }
+
+        .table-top {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .marginRight {
+            margin-right: 10px
+        }
+
+        .el-main {
+            padding: 20px 20px 0 20px;
+        }
+
+        .bottomInfo {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 20px 30px 20px;
+        }
+
+        .pone {
+            font-size: 14px;
+        }
+
+        .el-table__body .cell {
+            line-height: 24px;
+            font-size: 12px;
+        }
+        .el-table__row .cell {
+            display:flex;
+            justify-content:center;
+        }
+
+        .el-table--border th:first-child .cell {
+            padding-left: 14px;
+        }
+
+        .delLine {
+            text-decoration: underline;
+        }
+
+            .delLine:hover {
+                color: red;
+            }
+
+        .el-table__footer-wrapper tbody td {
+            background-color: #F0FAFF;
+            border-top-color: rgba(64, 158, 255, 1);
+            border-bottom-color: rgba(64, 158, 255, 1);
+            z-index: 1;
+            font-weight: 700;
+        }
+
+        .el-table__footer, .el-table td.is-center, .el-table th.is-center {
+            height: 36px;
+        }
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+        .etitor{
+            text-decoration:underline;
+        }
+        .el-textarea,.el-textarea__inner {
+            min-height: 100px !important;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3 class="top-title">客诉损失明细表</h3>
+        </el-header>
+        <el-main v-loading="loading">
+            @*日期选择框 *@
+            <el-row class="text-center table-top">
+                <el-select v-model="queryCondition" 
+                           @@change="selectCondition" 
+                           placeholder="请选择查询方式" 
+                           size="medium" 
+                           style="width:120px;">
+                    <el-option label="按年查询" value="y">
+                    </el-option>
+                    <el-option label="按年月查询" value="m">
+                    </el-option>
+                </el-select>
+
+                <el-date-picker v-show="queryCondition=='y'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="year"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年">
+                </el-date-picker>
+
+                <el-date-picker v-show="queryCondition=='m'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="month"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年月">
+                </el-date-picker>
+                <el-button type="primary" v-on:click="queryData" size="medium">查询</el-button>
+                <a href="/Customer_Complaints/BatchAddCustomer" class="addMass"><el-button type="primary" size="medium" plain>批量添加</el-button></a>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          :QualityLoss="QualityLoss"
+                          min-height="234"
+                          max-height="560"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          :summary-method="getSummaries"
+                          show-summary
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="CustomerName"
+                                     label="客户名称"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="DeliveryDate"
+                                     sortable
+                                     label="出货日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ComplaintsDate"
+                                     sortable
+                                     label="投诉日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="SettlementDate"
+                                     label="结案日期"
+                                     sortable
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ProductModel"
+                                     label="产品型号"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="OrderNum"
+                                     label="订单号"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="Customer_phenomenon"
+                                     label="客诉现象"
+                                     align="center"
+                                     min-width="130">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Customer_phenomenon = $event"
+                                        :nametext="scope.row.Customer_phenomenon"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Cause_Analysis"
+                                     label="原因分析"
+                                     align="center"
+                                     min-width="170">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Cause_Analysis = $event"
+                                        :nametext="scope.row.Cause_Analysis"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Interim_Disposal"
+                                     label="临时处理措施"
+                                     align="center"
+                                     min-width="150">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Interim_Disposal = $event"
+                                        :nametext="scope.row.Interim_Disposal"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Longterm_Treatment"
+                                     label="长期处理措施"
+                                     align="center"
+                                     min-width="160">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Longterm_Treatment = $event"
+                                        :nametext="scope.row.Longterm_Treatment"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ClaimIs"
+                                     label="索赔情况"
+                                     align="center"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.ClaimIs = $event"
+                                        :nametext="scope.row.ClaimIs"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="claimConfirm"
+                                     label="索赔确认"
+                                     align="center"
+                                     min-width="78">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.claimConfirm = $event"
+                                        :nametext="scope.row.claimConfirm"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Contract_Amount"
+                                     label="合同额(元)"
+                                     align="center"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Contract_Amount = $event"
+                                        :nametext="scope.row.Contract_Amount"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Losses_Amount"
+                                     label="损失金额(元)"
+                                     align="center"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Losses_Amount = $event"
+                                        :nametext="scope.row.Losses_Amount"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="LossRate"
+                                     label="损失率(%)"
+                                     align="center"
+                                     min-width="78">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.LossRate = $event"
+                                        :nametext="scope.row.LossRate"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                            <span>%</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Responsibility"
+                                     label="质量损失-责任判定"
+                                     align="center"
+                                     min-width="78">
+                        <el-table-column prop="QualityLoss1"
+                                         label="惠州工厂"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss1 = $event"
+                                            :nametext="scope.row.QualityLoss1"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss2"
+                                         label="订单管理部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss2 = $event"
+                                            :nametext="scope.row.QualityLoss2"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss3"
+                                         label="采购部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss3 = $event"
+                                            :nametext="scope.row.QualityLoss3"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss4"
+                                         label="研发中心"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss4 = $event"
+                                            :nametext="scope.row.QualityLoss4"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss5"
+                                         label="工程售后部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss5 = $event"
+                                            :nametext="scope.row.QualityLoss5"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss6"
+                                         label="风控中心"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss6 = $event"
+                                            :nametext="scope.row.QualityLoss6"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="操作" align="center" width="120">
+                        <template slot-scope="scope" class="btnCell">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" class="etitor" type="text">编辑</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_wareEdit.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,      //控制页面loading等待状态
+                    queryCondition: 'm',
+                    selectTime: null,     // 所选时间
+                    year: '',
+                    month: '',
+                    tableData: [],        // 客诉损失表格
+                    initialData: {},
+                    sumList: '',           //总计
+                    zsItem: [],             //质损和责任判定
+                    QualityLoss: '',
+                    Responsibility: '',
+                    table: null,
+                    Quality: [],
+                    showMoney: false,    //显示货币单位
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.selectDate();
+            },
+            //函数方法
+            methods: {
+                //总计
+                getSummaries(param) {
+                    const { columns, data } = param;
+                    const sums = [];
+                    let sumData = this.sumList;
+                    columns.forEach((column, index) => {
+                        if (index === 15) {
+                            sums[index] = '总计：';
+                            return;
+                        }
+                        if (index === 16) {
+                            sums[index] = sumData.Huizhou.toLocaleString('en-US');
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Huizhou.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 17) {
+                            sums[index] = sumData.Management.toLocaleString('en-US');
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Management.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 18) {
+                            sums[index] = sumData.Purchasing.toLocaleString('en-US');
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Purchasing.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 19) {
+                            sums[index] = sumData.Research.toLocaleString('en-US');
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Research.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 20) {
+                            sums[index] = sumData.Engineering.toLocaleString('en-US');
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Engineering.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 21) {
+                            sums[index] = sumData.Risk.toLocaleString('en-US');
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Risk.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                    });
+                    return sums;
+                },
+
+                selectCondition() {
+                    this.selectDate(this.selectTime);
+                },
+
+                //选择时间
+                selectDate(v) {
+                    if (v != "" && v != null) {
+                        let dd = new Date(this.selectTime)
+                        if (this.queryCondition == 'y') {//按月
+                            this.year = dd.getFullYear()
+                            this.month = 0
+                        };
+                        if (this.queryCondition == 'm') {//按年月
+                            this.year = dd.getFullYear()
+                            this.month = dd.getMonth() + 1
+                        };
+                    }
+                },
+
+                //查询 表格渲染
+                queryData() {
+                    if (this.selectTime != null) {
+                        this.loading = true;
+                        axios.post("/Customer_Complaints/Query_AttachmentLoss", { year: this.year, month: this.month }).then(res => {
+                            if (Object.keys(res.data.Attach).length > 0) {
+                                console.log(res.data,1)
+                                for (let i = 0; i < res.data.Attach.length; i++) {
+                                    if (res.data.Attach[i].Contract_Amount != '') {
+                                        res.data.Attach[i].Contract_Amount = '￥' + res.data.Attach[i].Contract_Amount.toLocaleString('en-US');
+                                    }         
+                                    if (res.data.Attach[i].Losses_Amount != '') {
+                                        res.data.Attach[i].Losses_Amount = '￥' + res.data.Attach[i].Losses_Amount.toLocaleString('en-US');
+                                    }       
+                                    res.data.Attach[i]['edit'] = false;
+                                    this.table = res.data.Attach[i].Table;
+                                    if (this.table != null) {
+                                        this.table.forEach(item => {
+                                            this.zsItem = Object.values(item);
+                                            this.QualityLoss = this.zsItem[0];
+                                            this.Responsibility = this.zsItem[1];
+                                            if (this.Responsibility == '惠州工厂') {
+                                                res.data.Attach[i]['QualityLoss1'] = '￥' + this.QualityLoss.toLocaleString('en-US');
+                                            }
+                                            if (this.Responsibility == '订单管理部') {
+                                                this.showMoney = true;
+                                                res.data.Attach[i]['QualityLoss2'] = '￥' + this.QualityLoss.toLocaleString('en-US');
+                                            }
+                                            if (this.Responsibility == '采购部') {
+                                                this.showMoney = true;
+                                                res.data.Attach[i]['QualityLoss3'] = '￥' + this.QualityLoss.toLocaleString('en-US');
+                                            }
+                                            if (this.Responsibility == '研发中心') {
+                                                this.showMoney = true;
+                                                res.data.Attach[i]['QualityLoss4'] = '￥' + this.QualityLoss.toLocaleString('en-US');
+                                            }
+                                            if (this.Responsibility == '工程售后部') {
+                                                this.showMoney = true;
+                                                res.data.Attach[i]['QualityLoss5'] = '￥' + this.QualityLoss.toLocaleString('en-US');
+                                            }
+                                            if (this.Responsibility == '风控中心') {
+                                                res.data.Attach[i]['QualityLoss6'] = '￥' + this.QualityLoss.toLocaleString('en-US');
+                                            }
+                                        })
+                                    };
+                                };
+                                this.tableData = res.data.Attach;
+                                this.sumList = res.data;
+                                this.$message.success("查询成功");
+                            } else {
+                                this.$message.success("查询数据为空");
+                            };
+                            this.loading = false;
+                        }).catch(err => {
+                            console.warn(err);
+                            this.tableData = [];
+                            this.$message({
+                                message: "数据出错！",
+                                type: "warning"
+                            });
+                            this.loading = false;
+                        });
+                    } else {
+                        this.$message({
+                            message: "请选择年月!",
+                            type: "warning"
+                        })
+                    }
+                },
+
+                //修改数据
+                ModifyGuestLoss(row) {
+                    this.Quality = row.Table;
+                    if (row.QualityLoss1 != null) {
+                         let arr = {
+                             Responsibility: '惠州工厂',
+                             QualityLoss: row.QualityLoss1
+                         }
+                        if (this.Quality.length > 0) {
+                            this.Quality.forEach(item => {
+                                if (item.Responsibility.indexOf('惠州工厂') == -1) {
+                                    this.Quality.push(arr)
+                                }
+                            })
+                        } else {
+                            this.Quality.push(arr)
+                        }
+                    }
+                    if (row.QualityLoss2 != null) {
+                        let arr = {
+                            Responsibility: '订单管理部',
+                            QualityLoss: row.QualityLoss2
+                        }
+                        if (this.Quality.length > 0) {
+                            this.Quality.forEach(item => {
+                                if (item.Responsibility.indexOf('订单管理部') == -1) {
+                                    this.Quality.push(arr)
+                                }
+                            })
+                        } else {
+                            this.Quality.push(arr)
+                        }
+                    }
+                    if (row.QualityLoss3 != null) {
+                        let arr = {
+                            Responsibility: '采购部',
+                            QualityLoss: row.QualityLoss3
+                        }
+                        if (this.Quality.length > 0) {
+                            this.Quality.forEach(item => {
+                                if (item.Responsibility.indexOf('采购部') == -1) {
+                                    this.Quality.push(arr)
+                                }
+                            })
+                        } else {
+                            this.Quality.push(arr)
+                        }
+                    }
+                    if (row.QualityLoss4 != null) {
+                        let arr = {
+                            Responsibility: '研发中心',
+                            QualityLoss: row.QualityLoss4
+                        }
+                        if (this.Quality.length > 0) {
+                            this.Quality.forEach(item => {
+                                if (item.Responsibility.indexOf('研发中心') == -1) {
+                                    this.Quality.push(arr)
+                                }
+                            })
+                        } else {
+                            this.Quality.push(arr)
+                        }
+                    }
+                    if (row.QualityLoss5 != null) {
+                        let arr = {
+                            Responsibility: '工程售后部',
+                            QualityLoss: row.QualityLoss5
+                        }
+                        if (this.Quality.length > 0) {
+                            this.Quality.forEach(item => {
+                                if (item.Responsibility.indexOf('工程售后部') == -1) {
+                                    this.Quality.push(arr)
+                                }
+                            })
+                        } else {
+                            this.Quality.push(arr)
+                        }
+                    }
+                    if (row.QualityLoss6 != null) {
+                        let arr = {
+                            Responsibility: '风控中心',
+                            QualityLoss: row.QualityLoss6
+                        }
+                        if (this.Quality.length > 0) {
+                            this.Quality.forEach(item => {
+                                if (item.Responsibility.indexOf('风控中心') == -1) {
+                                    this.Quality.push(arr)
+                                }
+                            })
+                        } else {
+                            this.Quality.push(arr)
+                        }
+                    }
+                    axios.post("/Customer_Complaints/ModifyGuestLoss", { customer: this.initialData, qualityLoss: this.Quality }).then(res => {
+                        console.log(this.initialData,this.Quality,2)
+                        if (res.data.meg) {
+                            this.$message.success('保存成功');
+                            row.edit = false;
+                            this.initialData = {};
+                        } else {
+                            this.$message.error('保存失败');
+                            this.cancelClick(row);
+                        };
+                    }).catch(err => {
+                        this.$message.error('保存出错');
+                        console.warn("post失败")
+                    })
+                },
+
+                //启动编辑
+                editClick(row) {
+                    for (let i of this.tableData) {
+                        if (i.edit) {
+                            this.$message.warning('存在正在编辑的行');
+                            return;
+                        };
+                    };
+                    this.initialData = {};
+                    this.initialData = { ...row };
+                    row.edit = true;
+                },
+
+                //取消编辑
+                cancelClick(row) {
+                      let item = row, ini = this.initialData;
+                      for (let i in ini) {
+                          item[i] = ini[i];
+                      };
+                    this.initialData = {};
+                },
+
+                //保存编辑
+                saveClick(row) {
+                    this.ModifyGuestLoss(row);
+                },
+            },
+        };
+    </script>
+}

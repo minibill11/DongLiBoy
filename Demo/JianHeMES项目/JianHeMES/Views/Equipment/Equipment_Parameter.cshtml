@@ -1,0 +1,333 @@
+﻿
+@{
+    ViewBag.Title = "设备台账";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .footer {
+            padding: 20px;
+            text-align: center;
+        }
+        .redcolor {
+            color: red;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <eq-header-component :active="active"></eq-header-component>
+    </el-header>
+    <el-main class="main-box" v-loading="loading">
+        <div class="equipment-index-inputcontainer">
+            <div class="equipment-index-inputcontainer-item">
+                <div>设备编号：</div>
+                <el-select clearable filterable size="mini" v-model="equipmentnumber" placeholder="请输入设备号" style="width:120px;">
+                    <el-option v-for="item in equipmentnumberoptions"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>设备名称：</div>
+                <el-input size="mini" v-model="equipmentname" placeholder="请输入设备名称" style="width:120px;"></el-input>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>使用部门：</div>
+                <el-select clearable filterable size="mini" v-model="userdepartment" placeholder="请选择使用部门" style="width:120px;">
+                    <el-option v-for="item in deparOpions"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>设备状态：</div>
+                <el-select clearable size="mini" filterable v-model="status" placeholder="请选择设备状态" style="width:120px;">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <el-button id="search" type="primary" v-on:click="checkinfos" size="mini" style="margin-right:10px;">查询</el-button>
+            <a class="batvhInputEquipments" href="/Equipment/BatchInputEquipment"><el-button v-if="" type="primary" size="mini" plain>批量添加</el-button></a>
+        </div>
+        @* 查询结果表格 *@
+        <el-table v-loading="loading" size="small" v-bind:data="tableData" style="width: 100%" max-height="590" border stripe>
+            @* sortable *@
+            <el-table-column prop="index" label="序号" width="50">
+            </el-table-column>
+            @*<el-table-column prop="SerialNumber" label="原序号" width="45">
+                </el-table-column>*@
+            <el-table-column prop="EquipmentNumber" sortable label="设备编号" width="90">
+            </el-table-column>
+            <el-table-column prop="AssetNumber" sortable label="资产编号">
+            </el-table-column>
+            <el-table-column prop="EquipmentName" sortable label="设备名称">
+            </el-table-column>
+            <el-table-column prop="Brand" label="品牌" width="75">
+            </el-table-column>
+            <el-table-column prop="ModelSpecification" label="型号/规格">
+            </el-table-column>
+            <el-table-column prop="ManufacturingNumber" label="出厂编号">
+            </el-table-column>
+            <el-table-column prop="Quantity" label="数量" width="70">
+            </el-table-column>
+            <el-table-column prop="ActionDate" label="启用时间">
+            </el-table-column>
+            <el-table-column prop="DepreciableLife" label="折旧年限（月）">
+            </el-table-column>
+            <el-table-column prop="UserDepartment" sortable label="使用部门">
+            </el-table-column>
+            <el-table-column prop="StoragePlace" label="存放地点">
+            </el-table-column>
+            <el-table-column prop="Status" label="使用状态">
+                <template slot-scope="scope">
+                    <span :class="checkStatusType(scope.row.Status)">{{scope.row.Status}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Remark" label="备注">
+            </el-table-column>
+            <el-table-column label="操作" width="80">
+                <template slot-scope="scope">
+                    <el-button v-on:click="showDetials(scope.row)"
+                                   type="text"
+                                   size="mini" style="text-decoration:underline;">
+                            详细
+                        </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <div v-show="showFooter" class="footer">
+            <span v-for="item in sumaryData" style="margin-right:10px;">
+                <span :class="checkStatusType(item.name)">
+                    {{item.name}}</span>
+                    共<span v-bind:class="item.count==0?'':'redcolor'">{{item.count}}</span>台
+                </span>
+        </div>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Equipment/_Eq_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+
+        // 监听回车事件
+        document.onkeydown = function (event) {
+            var e = event || window.event;    // 兼容IE
+            if (e && e.keyCode == 13) { //回车键的键值为13
+                $("#search").click();
+            }
+        };
+        // 时间格式化
+        function GMTToStr(time) {
+            if (time != null) {
+                let date = new Date(time)
+                //console.log(date);
+                let Str = date.getFullYear() + '-' +
+                    (date.getMonth() + 1) + '-' +
+                    date.getDate()
+                //+ ' ' +
+                //date.getHours() + ':' +
+                //date.getMinutes() + ':' +
+                //date.getSeconds()
+                return Str
+            } else {
+                return ''
+            }
+        }
+
+        const app = {
+            data: {
+                loading: false,
+                active: "设备台账",
+                showFooter: false,
+                showindex: false,
+                loading: false,
+                inputInfo: null,
+                flag: false,
+                flags: false,
+                count: null,
+                tableData: [],
+                equipmentnumber: null,
+                assetnumber: null,
+                equipmentname: null,
+                modelspecification: null,
+                userdepartment: null,
+                storageplace: null,
+                workshop: null,
+                section: null,
+                brand: null,
+                status: null,
+                remark: '',
+                options: [{
+                    value: '运行',
+                    label: '运行'
+                }, {
+                    value: '停机',
+                    label: '停机'
+                    },
+                    {
+                    value: '维修',
+                    label: '维修'
+                    },  {
+                    value: '断电',
+                    label: '断电'
+                    },  {
+                    value: '正常',
+                    label: '正常'
+                    },
+                    {
+                    value: '离线',
+                    label: '离线'
+                    }
+                ],
+                deparOpions: [],
+                equipmentnumberoptions: [],
+                assetnumberoptions: [],
+                sumaryData: [],
+                showAdd: false,
+            },
+           
+            mounted() {
+                //权限检测
+                if (this.islimit("设备添加")) {
+                    this.showAdd = true;
+                };
+                // 页面加载时获取设备编号、使用部门
+                this.getDeparList();
+                this.getequipmentnumberoptions();
+                this.checkinfos();
+            },
+            watch: {
+                // 监听表格数据变化确定三种状态设备的数量
+                tableData() {
+                    this.sumaryData = [];
+                    if (this.tableData.length > 0) {
+                        this.showFooter = true;
+                        let obj1 = { name: "运行", count: 0 };
+                        let obj2 = { name: "停机", count: 0 };
+                        let obj3 = { name: "维修", count: 0 };
+                        let obj4 = { name: "断电", count: 0 };
+                        let obj5 = { name: "正常", count: 0 };
+                        let obj6 = { name: "离线", count: 0 };
+                        this.tableData.forEach(item => {
+                            if (item.Status == "运行") {
+                                obj1.count++;
+                            } else if (item.Status == "停机") {
+                                obj2.count++;
+                            } else if (item.Status == "维修" || item.Status == "维修中" || item.Status == "故障维修中") {
+                                obj3.count++;
+                            }
+                            else if (item.Status == "断电") {
+                                obj4.count++;
+                            } else if (item.Status == "正常") {
+                                obj5.count++;
+                            }else if (item.Status == "离线") {
+                                obj6.count++;
+                            }
+                        });
+                        this.sumaryData.push(obj1, obj2, obj3, obj4, obj5, obj6)
+                    } else {
+                        this.showFooter = false;
+                        this.sumaryData = [];
+                    }
+                }
+            },
+            methods: {
+                // 查询
+                checkinfos() {
+                    if (this.brand != null || this.equipmentnumber != null || this.assetnumber != null || this.equipmentname != null || this.modelspecification != null || this.userdepartment != null || this.storageplace != null || this.workshop != null || this.section != null || this.status != null || this.remark != null) {
+                        this.loading = true;
+                        axios.post("/Equipment/Index", {
+                            equipmentnumber: this.equipmentnumber, brand: this.brand, assetnumber: this.assetnumber, equipmentname: this.equipmentname, modelspecification: this.modelspecification, userdepartment: this.userdepartment,
+                            storageplace: this.storageplace, workshop: this.workshop, section: this.section, status: this.status, remark: this.remark
+                        }).then(res => {
+                            //console.log(res.data)
+                            let arr = []
+                            for (let item in res.data) {
+                                arr.push(res.data[item])
+                            }
+                            let arr2 = []
+                            for (let i = 0; i < arr.length; i++) {
+                                arr2.push(JSON.parse(arr[i].replace(/\\/g, '')))
+
+                                arr2[i].ActionDate = GMTToStr(arr2[i].ActionDate)
+                                arr2[i].index = i + 1
+                            }
+                            //console.log(arr2)
+                            this.tableData = arr2;
+                            this.loading = false;
+                            //console.log(arr2)
+                        }).catch(err => {
+                            this.$message({
+                                message: "连接服务器失败！",
+                                type: "warning"
+                            })
+                        })
+                    } else {
+                        this.$message({
+                            message: "请输入需要查询讯息！",
+                            type: "warning"
+                        })
+                    }
+                },
+                // 监听设备状态返回按钮type
+                checkStatusType(item) {
+                    if (item == "运行") {
+                        return "btn btn-green"
+                    } else if (item == "停机") {
+                        return "btn btn-yellow"
+                    } else if (item == "维修" || item == "维修中" || item == "故障维修中") {
+                        return "btn btn-red"
+                    } else if (item == "断电") {
+                        return "btn btn-gray"
+                    } else if (item == "正常") {
+                        return "btn btn-border"
+                    } else if (item == "离线") {
+                        return "btn btn-border-gray"
+                    }
+                },
+                // 获取设备使用部门
+                getDeparList() {
+                    axios.post("/Equipment/Userdepartment_list").then(res => {
+                        res.data.forEach(item => {
+                            let obj = {
+                                value: item,
+                                label: item
+                            };
+                            this.deparOpions.push(obj);
+                        })
+                    })
+                },
+                // 获取设备编号
+                getequipmentnumberoptions() {
+                    axios.post("/Equipment/EQNumberList").then(res => {
+                        //console.log(res.data)
+                        res.data.forEach(item => {
+                            let obj = { label: item, value: item }
+                            this.equipmentnumberoptions.push(obj)
+                        })
+                    })
+                },
+                //跳转详细页
+                showDetials(row) {
+                    //window.location.href = "/Equipment/Details?num=" + row.EquipmentNumber;
+                    window.open("/Equipment/Details?num=" + row.EquipmentNumber);
+                }
+            }
+        }
+    </script>
+}

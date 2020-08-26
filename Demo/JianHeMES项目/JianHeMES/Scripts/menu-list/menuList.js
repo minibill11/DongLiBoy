@@ -184,6 +184,11 @@ const setMuneList = [
                 limits: [],
             },
             {
+                url: '/Plans/KPI_Plan',
+                title: '计划信息',
+                limits: [],
+            },
+            {
                 url: '/KPI/GetPassThrough',
                 title: '直通率看板',
                 limits: [],
@@ -238,6 +243,11 @@ const setMuneList = [
                 title: '工段工序录入',
                 limits: [],
             },
+            {
+                url: '/Warehouse_Material/StockAmount_Index',
+                title: '库存金额表',
+                limits: [],
+            }
         ]
     },
     {
@@ -258,6 +268,16 @@ const setMuneList = [
                 title: '模块',
                 limits: [],
                 children: [
+                    {
+                        url: '/ModuleManagement/Board',
+                        title: '模块实时看板',
+                        limits: [],
+                    },
+                    {
+                        url: '/ModuleManagement/Board_History',
+                        title: '模块历史看板',
+                        limits: [],
+                    },
                     {
                         url: '/ModuleManagement/Index',
                         title: '看板首页',
@@ -426,16 +446,16 @@ const setMuneList = [
         },
         children: [
             {
-                url: '/SMT/SMT_Manage',
-                title: '看板管理',
+                url: '/SMT/SMT_ProductionInfo',
+                title: '生产信息看板',
                 limits: [],
             }, {
-                url: '/SMT/SMT_ProductionInfo',
-                title: '生产信息',
+                url: '/SMT/SMT_Manage',
+                title: '产线状态看板',
                 limits: [],
             }, {
                 url: '/SMT/SMT_Operator',
-                title: '产线操作',
+                title: '产线信息录入',
                 limits: ['产线信息录入'],
             }, {
                 url: '/SMT/SMT_ProductionData',
@@ -598,6 +618,14 @@ const setMuneList = [
                     JudgeArray: ['姜春艳', '刘秋如']
                 },
             }, {
+                url: '/KPI/KPI_Index',
+                title: 'KPI',
+                limits: [],
+            }, {
+                url: '/KPI/KPI_7S_Summarizing',
+                title: '7S管理',
+                limits: [],
+            }, {
                 url: '/Personnel_Framework/Index',
                 title: '组织架构',
                 limits: ['显示组织架构'],
@@ -636,4 +664,9 @@ const setMuneList = [
             },
         ]
     },
+    {
+        url: '/Manual/Index',
+        title: '说明书',
+        limits: [],
+    }
 ];

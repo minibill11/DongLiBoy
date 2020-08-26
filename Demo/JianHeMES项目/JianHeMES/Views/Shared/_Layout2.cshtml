@@ -20,12 +20,22 @@
 <body>
     <el-container id="mainVM" v-cloak>
         <el-header class="topTitle">
-            <div class="titleimg">
-                <i class="el-icon-menu hoverMenu" @@mouseenter="enterHoverMenu" @@click="changeMenuShow"></i>
-                <a href="/Home/Index3">
-                    <img class="logo" src="~/Images/top_logo.png" />
-                    @*<span class="text">健和光电MES</span>*@
-                </a>
+            <div class="title-top">
+                <div class="title-img">
+                    <a href="/Home/Index3">
+                        <img class="logo" src="~/Images/top_logo.png" />
+                    </a>
+                </div>
+                <div class="title-info">
+                    <i class="el-icon-menu hoverMenu" @@mouseenter="enterHoverMenu" @@click="changeMenuShow"></i>
+                    <el-page-header @@back="goBack">
+                        <template slot="content">
+                            <el-breadcrumb separator="/">
+                                <el-breadcrumb-item v-for="i in openedsArr">{{i.split('→')[0]}}</el-breadcrumb-item>
+                            </el-breadcrumb>
+                        </template>
+                    </el-page-header>
+                </div>
             </div>
             <top-title :username="userName" :usernum="userNum" :userid="userId" :admin="isAdmin" :limits="limitsList" :screen="screenSize"></top-title>
         </el-header>
@@ -34,19 +44,8 @@
                 <left-menu :menulist="menuList" :activeindex="activeIndex" :openedsarr="openedsArr"></left-menu>
             </el-aside>
             <el-container v-bind:class="{ mobileRightMain: leftMenuShow }">
-                <el-main class="rightMain">
-                    <el-row class="rightMainTitle">
-                        <el-page-header @@back="goBack">
-                            <template slot="content">
-                                <el-breadcrumb separator-class="el-icon-arrow-right">
-                                    <el-breadcrumb-item v-for="i in openedsArr">{{i.split('→')[0]}}</el-breadcrumb-item>
-                                </el-breadcrumb>
-                            </template>
-                        </el-page-header>
-                    </el-row>
-                    <el-row class="rightMainContent" v-loading="mainLoading">
-                        @RenderBody()
-                    </el-row>
+                <el-main class="rightMain" v-loading="mainLoading">
+                    @RenderBody()
                 </el-main>
                 <el-footer class="bottomFooter">
                     &copy;@DateTime.Now.Year - 健和光电MES
@@ -98,29 +97,46 @@
                 userDepartment: '@sessionDepartment'
             },
             mounted() {
-                setTimeout(() => {
-                    L2Dwidget.init({
-                        "model": {
-                            "scale": 0.1
-                        },
-                        "display": {
-                            "superSample": 2,
-                            "position": "right",
-                            "width": 80,
-                            "height": 120,
-                            "hOffset": 0,
-                            "vOffset": 0
-                        },
-                        "mobile": {
-                            "show": true,
-                            "scale": 0.5
-                        },
-                        "react": {
-                            "opacityDefault": 0.7,
-                            "opacityOnHover": 0.2
-                        }
-                    });
-                }, 0)
+                document.onclick = e => {
+                    this.colorFont(e.pageX, e.pageY)
+                };
+                //setTimeout(() => {
+                //    L2Dwidget.init({
+                //        "display": {
+                //            "width": 80,
+                //            "height": 100,
+                //        },
+                //    });
+                //}, 0);
+            },
+            methods: {
+                colorFont(x, y) {
+                    const words = ['❤', '✈', '😎', '♪', '👄', '🔥', '💎', '🔑', '💊', '🎲', '🤣', '📺', '🎬', '💡', '📞', '💰', '📐', '🍔', '💀', '🐬', '🙊', '👻',
+                        '🦢', '👄', '👌', '🏀', '💄', '🐌', '💍', '♞', '皮', '😘', '☁', '⚡', '😀', '🌙', '🀄', '🎵', '🍉', '⌚', '🍙', '☕', '🍇', '💦', '⭕', '❌',
+                        '🚫', '🔞', '🗑', '🐤', '👁', '🧧', '🎨', '🏆', '🧪', '🍺', '🥝', '🧡', '💛', '💜', '🤎', '', '💔', '💖', '🤍', '💤', '😝', '🥰', '💩',
+                        '🎈', '⚽', '🍖', '🌵', '🧻', '☂', '🖤', '💚', '🌈', '🌎', '🚀', '🍄', '🍓', '🍭', '🍦', '🔒', '✔', '🔴', '💙', '🦷', '⛏', '🔧', '⚙', '⚔',
+                        '🧲', '💣', '📧', '📆', '📏', '🍟', '🔔🟦', '🦴🟡', '🎁🟩', '🔻', '🔶'],
+                        Div = document.createElement("div");
+                    Div.style.position = 'absolute';
+                    Div.style.userSelect = 'none';
+                    Div.style.fontSize = '15px';
+                    Div.style.color = `#${(Math.random() * 0xffffff << 0).toString(16)}`;
+                    Div.innerText = words[Math.floor(Math.random() * words.length)];
+                    document.body.appendChild(Div);
+                    Div.style.left = `${x - Div.clientWidth / 2}px`;
+                    Div.style.top = `${y - Div.clientHeight}px`;
+                    const speedX = (parseInt(Math.random() * 2) ? 1 : -1) * parseInt(Math.random() * 2), speedY = parseInt(Math.random() * 2 + 1); //三目运算符随机移动方向，概率50%,为1时往正方向移动，负1时往反方向移动第二个随机数随机速度快慢
+                    let timeOut = setInterval(()=> {
+                        Div.style.left = Div.offsetLeft + speedX + "px";
+                        Div.style.top = Div.offsetTop - speedY + "px";
+                        Div.style.opacity = getComputedStyle(Div, false)["opacity"] - 0.01;
+                        Div.style.fontSize = Div.style.fontSize.slice(0, Div.style.fontSize.length-2)-0.05 +'px';
+                        if (Div.offsetTop - y < -120 || Div.offsetLeft + Div.offsetWidth > window.innerWidth || Div.offsetLeft < 2 || Div.offsetTop + Div.offsetHeight > window.innerHeight || Div.offsetTop < 2) {
+                            Div.remove();		//移动出可视区域记得删除div和清除定时器
+                            clearInterval(timeOut);
+                        };
+                    }, 30);
+                },
             }
         });
 
@@ -156,6 +172,25 @@
         //    // 两个请求现在都执行完成
         //}));
     </script>
-    <script type="text/javascript" charset="utf-8" async="" src="https://cdn.jsdelivr.net/npm/live2d-widget@3.0.4/lib/L2Dwidget.min.js"></script>
+    @*<script src="https://cdn.jsdelivr.net/npm/live2d-widget@3.0.4/lib/L2Dwidget.min.js"></script>*@
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/stevenjoezhang/live2d-widget/autoload.js"></script>
+    <style>
+        #waifu #live2d {
+            height: 180px;
+            width: 180px;
+        }
+
+        #waifu-tips {
+            width: 160px;
+            min-height: 50px;
+            margin: -50px 10px;
+        }
+
+        #waifu-tool {
+            right: -50px;
+            top: -40px;
+        }
+    </style>
 </body>
 </html>

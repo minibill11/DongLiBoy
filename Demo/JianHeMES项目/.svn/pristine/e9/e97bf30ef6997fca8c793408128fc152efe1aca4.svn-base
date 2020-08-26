@@ -1,0 +1,281 @@
+﻿<div class="flex-item">
+    <label>班组</label>
+    <div>
+        <el-select v-model="Group"
+                   placeholder="请选择班组"
+                   @*:disabled="disabledState"*@
+                   size="medium">
+            <el-option v-for="item in groupOptions"
+                       :key="item"
+                       :label="item"
+                       :value="item">
+            </el-option>
+        </el-select>
+    </div>
+</div>
+<div class="flex-item">
+    <label>订单号</label>
+    <div>
+        <el-autocomplete v-model.trim="selectVal"
+                         @@select="selectOrdernum"
+                         v-bind:class="selectVal2!=''?'changecolor':''"
+                         v-bind:disabled="mozutable.length>0"
+                         :fetch-suggestions="querySearch"
+                         :debounce="0"
+                         size="medium"
+                         placeholder="输入内容可查询"
+                         highlight-first-item
+                         clearable></el-autocomplete>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <label>显示单号</label>
+    <div>
+        <el-autocomplete v-model.trim="selectVal2"
+                         @*@@select="selectOrdernum"*@
+                         v-bind:class="selectVal2!=''?'changecolor':''"
+                         v-bind:disabled="mozutable.length>0"
+                         :fetch-suggestions="querySearch"
+                         :debounce="0"
+                         size="medium"
+                         placeholder="输入内容可查询"
+                         highlight-first-item
+                         clearable></el-autocomplete>
+    </div>
+</div>
+<div class="flex-item" v-if="!isOutside">
+    <label>箱子款式</label>
+    <div>
+        <el-select v-model.trim="statueType"
+                   placeholder="请选择款式"
+                   clearable
+                   size="medium">
+            <el-option v-for="item in statueTypeOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+    </div>
+</div>
+<div class="flex-item">
+    <label>装箱类型</label>
+    <div>
+        <el-select v-model.trim="typeVal" placeholder="选择类型" clearable size="medium">
+            <el-option v-for="item in typeOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <label>批次</label>
+    <div>
+        <el-select v-model.trim="batchNum" placeholder="先选择类型，再选批次" filterable clearable size="medium">
+            <el-option v-for="item in batchOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <label>屏序</label>
+    <div>
+        <el-select v-model.trim="screenNum" placeholder="先选择类型/批次，再选屏序" filterable clearable size="medium">
+            <el-option v-for="item in screenOptions"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <label>物料描述</label>
+    <div>
+        <el-input placeholder="请输入物料描述"
+                  v-model.trim="wuliao"
+                  style="text-align:right;display:inline-block;"
+                  :class="[(wuliao=='')?'borderRed':'']"
+                  size="medium"
+                  clearable>
+        </el-input>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <label>毛重量</label>
+    <div>
+        <el-input-number placeholder="请输入毛重量"
+                         v-model.trim="maozhongliang"
+                         :precision="1"
+                         :step="0.1"
+                         :min="0"
+                         style="text-align:right;display:inline-block;"
+                         size="medium"
+                         clearable>
+        </el-input-number>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <label>净重</label>
+    <div>
+        <el-input-number placeholder="请输入净重"
+                         v-model.trim="jingzhong"
+                         :precision="1"
+                         :step="0.1"
+                         :min="0"
+                         style="text-align:right;display:inline-block;"
+                         size="medium"
+                         clearable>
+        </el-input-number>
+    </div>
+</div>
+
+<print-component v-model="printInfo"></print-component>
+<div class="flex-item">
+    <label>语言</label>
+    <div>
+        <el-select v-model.trim="leng" placeholder="请选择语言" clearable size="medium">
+            <el-option v-for="item in lengOptions"
+                       :key="item.value"
+                       :value="item.value"></el-option>
+        </el-select>
+    </div>
+</div>
+<div class="flex-item">
+    <label>{{customize?'自定义':'模块条码'}}</label>
+    <div>
+        <input v-model.trim="printMozhu"
+               v-on:keyup.enter="mozuscan"
+               ref="inputRef"
+               placeholder="请输入"
+               maxlength="25"
+               class="el-input-medium-customize" />
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <el-switch v-model="isBPPJ"
+               active-text="叠加备品配件数量">
+    </el-switch>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <div style="font-size:11px;color:#777;padding-bottom:3px">如果叠加备品配件数量，则分母会累加</div>
+</div>
+<div class="flex-item" v-if="isOutside&&isBPPJ">
+    <label>备品配件</label>
+    <el-input-number placeholder="备品配件数量"
+                     v-model.trim="BPPJNum"
+                     :step="1"
+                     :min="0"
+                     size="medium"
+                     clearable>
+    </el-input-number>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <div>
+        <el-switch v-model="customize"
+                   width="35"
+                   active-text="自定义"
+                   inactive-text="模块条码">
+        </el-switch>&nbsp;&nbsp;&nbsp;
+    </div>
+</div>
+<div class="flex-item">
+    <div>
+        <el-switch v-model="isMix"
+                   width="35"
+                   v-show="isWeixiang"
+                   active-text="混装"
+                   inactive-text="">
+        </el-switch>
+        <el-divider direction="vertical" v-if="isWeixiang"></el-divider>
+        <el-switch v-model="isWeixiang"
+                   width="35"
+                   active-text="尾箱"
+                   inactive-text="">
+        </el-switch>
+        <el-divider direction="vertical" v-if="isOutside"></el-divider>
+        <el-switch v-if="isOutside"
+                   v-model="imgShow"
+                   width="35"
+                   active-text="使用logo"
+                   inactive-text="">
+        </el-switch>
+    </div>
+</div>
+<div class="flex-item">
+    <div>
+        <el-button size="small" @@click="clear">重置</el-button>
+        <el-button v-if="isOutside && showPrint" type="primary" size="small" @@click="onPrintBarcode">打印剩余条码</el-button>
+        <el-button v-on:click="postConfirm" type="primary" size="small" :disabled="printShow==true">确认</el-button>
+        <el-button v-on:click="masterPrint" type="primary" size="small" v-show="printShow">打印标签</el-button>
+    </div>
+</div>
+<div class="flex-item" v-if="isOutside">
+    <div class="tableframe">
+        <el-table :data="completeInfo"
+                  max-height="300"
+                  border>
+            <el-table-column prop="type"
+                             label="类型"
+                             width="63">
+            </el-table-column>
+            <el-table-column prop="batchNum"
+                             label="批次"
+                             width="50">
+            </el-table-column>
+            <el-table-column prop="screenNum"
+                             label="屏序"
+                             width="50">
+            </el-table-column>
+            <el-table-column prop="completeNum"
+                             label="已完成"
+                             width="60">
+            </el-table-column>
+            <el-table-column prop="complete"
+                             label="完成率"
+                             width="75">
+            </el-table-column>
+        </el-table>
+    </div>
+</div><div class="flex-item" v-else>
+    <div class="tableframe">
+        <el-table :data="completeInfo"
+                  max-height="300"
+                  border>
+            <el-table-column prop="Statue"
+                             label="纸箱款式">
+            </el-table-column>
+            <el-table-column prop="Type"
+                             label="类型">
+            </el-table-column>
+            <el-table-column prop="Num"
+                             label="完成数量">
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+<div class="flex-item">
+    <div class="tableframe">
+        <span v-if="mozutable.length!=0">条码数量：{{mozutable.length}}</span>
+        <el-table :data="mozutable"
+                  max-height="300"
+                  border>
+            <el-table-column prop="barcode"
+                             label="条码号">
+            </el-table-column>
+            <el-table-column prop="edit"
+                             label=""
+                             width="50">
+                <template slot-scope="scope">
+                    <el-button @@click.native.prevent="deleteRow(scope.$index,scope.row ,mozutable)"
+                               type="text"
+                               size="mini"
+                               style="margin:0;padding:0;width:100%;">
+                        <i class="el-icon-error"></i>
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
