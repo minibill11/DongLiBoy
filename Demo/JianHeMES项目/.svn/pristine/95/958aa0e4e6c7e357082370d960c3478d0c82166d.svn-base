@@ -1,0 +1,335 @@
+﻿@model JianHeMES.Models.CalibrationRecord
+
+@{
+    ViewBag.Title = "开始校正";
+}
+<link href="~/Scripts/Bootstraps/bootstrap-select.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/bootstrap-select.js"></script>
+<style>
+    input, textarea, select {
+        max-width: 215px;
+    }
+
+    .barcodeFrame {
+        width: 210px;
+        height: 200px;
+        border: 1px solid #555;
+        overflow: auto;
+        padding: 5px;
+    }
+
+        .barcodeFrame ul {
+            list-style: none;
+            padding: 0;
+        }
+
+    .frameW p {
+        margin: 10px 0;
+    }
+
+    .selectpicker {
+        border: 1px solid #ccc;
+    }
+
+    .bootstrap-select:not([class*="col-"]):not([class*="form-control"]):not(.input-group-btn) {
+        width: 215px;
+    }
+    /*select    宽度*/
+    .bootstrap-select > .btn, .bootstrap-select.form-control:not([class*="col-"]) {
+        max-width: 215px;
+    }
+
+    @@media screen and (min-width:992px) {
+        .leftform {
+            border-right: 1px solid #555;
+            padding: 80px 40px 0 0;
+            min-height: 500px;
+        }
+
+        .barcodeFrame {
+            height: 400px;
+        }
+    }
+
+    @@media screen and (min-width:768px) {
+        .frameW {
+            text-align: center;
+            padding-right: 0;
+        }
+
+        .barcodeFrame {
+            margin: 0 auto;
+        }
+    }
+
+
+    @@media screen and (max-width:768px) {
+        .form-group, .control-label {
+            margin-bottom: 0px;
+        }
+
+        h5 {
+            margin-top: 5px;
+            margin-bottom: 0px;
+        }
+
+        .frameW p {
+            margin: 5px 0 0;
+        }
+
+        .barcodeFrame {
+            height: 150px;
+        }
+    }
+</style>
+<h2 class="hidden-xs">@ViewBag.Title</h2>
+
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <h4 class="hidden-xs">校正记录</h4>
+        <h5 class="text-center visible-xs">开始校正</h5>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+        <div class="col-md-4 leftform">
+            <div class="form-group">
+                <label class="control-label col-md-4">班组</label>
+                <div class="col-md-8">
+                    <group-select></group-select>
+                </div>
+            </div>
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.DropDownListFor(model => model.OrderNum, ViewBag.OrderList as IEnumerable<SelectListItem>, new { @class = "selectpicker form-control", data_live_search = "true", data_style = "form-control" })
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", autocomplete = "off", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')" } })
+                    @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            @*<div class="form-group">
+                    @Html.LabelFor(model => model.ModuleGroupNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                    <div class="col-md-8">
+                        <input v-model="ModuleGroupNumVal" id="ModuleGroupNum" name="ModuleGroupNum" data-val="true" data-val-required="模组号 字段是必需的。" onkeyup="this.value=this.value.toUpperCase()" class="form-control text-box single-line" type="text" autocomplete="off">
+                        @Html.ValidationMessageFor(model => model.ModuleGroupNum, "", new { @class = "text-danger" })
+                    </div>
+                </div>*@
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.RepetitionCalibration, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @*@Html.EditorFor(model => model.RepetitionCalibration, new { htmlAttributes = new { @class = "form-control", @style = "width:34px" } })*@
+                    <input v-model="checkstate" @*v-on:click="checkchange()"*@ id="checkInput" v-bind:name="checkstate?'RepetitionCalibration':''" value="true" class="form-control check-box" data-val="true" data-val-required="是否重复校正 字段是必需的。" style="width:34px;cursor:not-allowed" type="checkbox">
+                    @Html.ValidationMessageFor(model => model.RepetitionCalibration, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div v-show="checkstate" class="form-group">
+                @Html.LabelFor(model => model.RepetitionCalibrationCause, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @*@Html.TextAreaFor(model => model.RepetitionCalibrationCause, new { @class = "form-control" })*@
+                    <textarea v-model="RepetitionCause" id="RepetitionCalibrationCause" v-bind:name="checkstate?'RepetitionCalibrationCause':''" class="form-control" cols="20" rows="2"></textarea>
+                    @Html.ValidationMessageFor(model => model.RepetitionCalibrationCause, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input v-bind:disabled="confirm" id="go" type="submit" value="开始校正" class="btn btn-default" />  @ViewBag.msg
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8 " style="padding:0">
+            <div class="col-md-4 col-sm-4 frameW text-danger">
+                <p>未开始 {{NotDoList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:indianred">
+                    <ul>
+                        <li v-for="item in NotDoList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-info">
+                <p>未完成 {{NeverFinish.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:cornflowerblue;text-align:left;">
+                    <ul>
+                        <li v-for="item in NeverFinish">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-success">
+                <p>已完成 {{FinishList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:forestgreen;text-align:left;">
+                    <ul>
+                        <li v-for="item in FinishList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+
+<div class="clearfix"></div>
+<div class="row col-md-12">
+    @Html.ActionLink("返回", "New_Index")
+</div>
+@*  引入组件：
+    1/_groupSelect，下拉选择框组件
+*@
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            confirm: false,
+            RepetitionCause: "",
+            checkstate: false,
+            //ModuleGroupNumVal: "",
+            NotDoList: [],
+            NeverFinish: [],
+            FinishList: [],
+        },
+        watch: {
+            RepetitionCause: function (val) {
+                if (this.checkstate == true && val != '') {
+                    this.confirm = false;
+                } else {
+                    this.confirm = true;
+                };
+            },
+            //ModuleGroupNumVal: function (val) {
+            //    if ((this.checkstate == true && val != '' && val.length <= 8 && app.RepetitionCause != '') || (this.checkstate == false && val != '' && val.length <= 8)) {
+            //        this.confirm = false;
+            //    } else {
+            //        this.confirm = true;
+            //    };
+            //}
+        },
+        methods: {
+            //checkchange: function () {
+            //    this.checkstate = !this.checkstate;
+            //    if (this.checkstate) {
+            //        if (app.ModuleGroupNumVal != '' && app.ModuleGroupNumVal.length <= 8 && app.RepetitionCause != '') {
+            //            this.confirm = false;
+            //        } else {
+            //            this.confirm = true;
+            //        };
+            //        this.$nextTick(() => $("#RepetitionCalibrationCause").focus());
+            //    } else {
+            //        if (app.ModuleGroupNumVal != '' && app.ModuleGroupNumVal.length <= 8) {
+            //            this.confirm = false;
+            //        } else {
+            //            this.confirm = true;
+            //        };
+            //        $("#ModuleGroupNum").focus();
+            //    };
+            //},
+            checkchange: function () {
+                this.checkstate = !this.checkstate;
+                if (this.checkstate) {
+                    if (app.RepetitionCause != '') {
+                        this.confirm = false;
+                    } else {
+                        this.confirm = true;
+                    };
+                    this.$nextTick(() => $("#RepetitionCalibrationCause").focus());
+                } else {
+                    this.confirm = false;
+                    $("#BarCodesNum").focus();
+                };
+            },
+            getInfo: (oNum) => {
+                $.ajax({
+                    url: "/CalibrationRecords/CalibrationChecklist",
+                    type: "post",
+                    data: {
+                        orderNum: oNum,
+                    },
+                    success: function (data) {
+                        console.log(data)
+                        var allJson = JSON.parse(data);
+                        for (var i in allJson) {
+                            var iJson = JSON.parse(allJson[i]);
+                            var iDiv = $('#' + i);
+                            if (i == "NotDoList") {
+                                app.NotDoList = [];
+                                for (var j in iJson) {
+                                    app.NotDoList.push(iJson[j]);
+                                }
+                            };
+                            if (i == "NeverFinish") {
+                                app.NeverFinish = [];
+                                for (var j in iJson) {
+                                    app.NeverFinish.push(iJson[j]);
+                                }
+                            };
+                            if (i == "FinishList") {
+                                app.FinishList = [];
+                                for (var j in iJson) {
+                                    app.FinishList.push(iJson[j]);
+                                }
+                            };
+                        }
+                    }
+                });
+            }
+        },
+        mounted: function () {
+            var localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                $("#OrderNum").val(localOrder);
+                this.getInfo(localOrder);
+            };
+            $("#OrderNum").change(function (val) {
+                localStorage.setItem('Order', val.target.value);
+                app.getInfo(val.target.value);
+                $("#BarCodesNum").select();
+            });
+
+            //$("#BarCodesNum,#ModuleGroupNum").keypress(function (e) {
+            //    //console.log(e.keyCode)
+            //    if (e.keyCode == 13) {
+            //        $("#ModuleGroupNum").focus();
+            //        e.preventDefault();
+            //    }
+            //});
+
+            $("#BarCodesNum").keypress(function (e) {
+                //console.log(e.keyCode)
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    axios.post("/CalibrationRecords/CheckFinish", { barcode: e.target.value }).then(res => {
+                        if (res.data == "True") {
+                            app.checkchange();
+                        } else {
+                            app.confirm = false;
+                            app.checkstate = false;
+                            app.$nextTick(() => $("#go").click());
+                        };
+                    }).catch(err => {
+                        app.confirm = false;
+                        app.checkstate = false;
+                        app.$nextTick(() => $("#go").click());
+                    });
+                }
+            });
+
+            $("#checkInput").click(function () {
+                return false;
+            });
+            $("#BarCodesNum").select();
+        }
+    });
+</script>

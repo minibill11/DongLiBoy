@@ -1,0 +1,341 @@
+﻿@{
+    ViewBag.Title = "订单模组概况";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    .body-content, .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .el-header {
+        height: auto !important;
+        padding: 0;
+    }
+
+    .el-table th {
+        padding: 6px 0;
+        background-color: #f4df42;
+        color: #000;
+    }
+
+    .el-table td {
+        padding: 2px 0;
+    }
+
+    .el-table th, .el-table td {
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .green {
+        color: #33CC33;
+    }
+
+    .green2 {
+        color: #66CC00;
+    }
+
+    .red {
+        color: #FF9999;
+    }
+
+    .blue {
+        color: #3399FF;
+    }
+
+    .blue2 {
+        color: #6699FF;
+    }
+
+    .summary-table .summary-row .cell {
+        height: 25px;
+        line-height: 25px;
+        font-weight: 600;
+    }
+
+    .summary-table .summary-row:nth-child(1) .cell {
+        color: #33CC33;
+    }
+
+    .summary-table .summary-row:nth-child(2) .cell {
+        color: #3399FF;
+    }
+
+    .summary-table .summary-row:nth-child(3) .cell {
+        color: #FF9999;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>@ViewBag.Title</h2>
+            <select-input v-model.trim="selectVal" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium"></select-input>
+            <el-button @@click="getTableData(selectVal)" size="medium">查询</el-button>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row>
+                <div class="statuinfo">
+                    <i :class="statuColor(1)"></i>正常完成&nbsp;
+                    <i :class="statuColor(2)"></i>已完成,存在异常&nbsp;
+                    <i :class="statuColor(4)"></i>正常进行中&nbsp;
+                    <i :class="statuColor(5)"></i>进行中,存在异常&nbsp;
+                    <i :class="statuColor(3)"></i>未开始
+                </div>
+                <el-table :data="infoList"
+                          border
+                          stripe
+                          :max-height="600">
+                    <el-table-column prop="barcode"
+                                     label="条码号"
+                                     width="163"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <a :href="'/Query/barcodeInfo?1='+scope.row.barcode" target="_blank">
+                                {{scope.row.barcode}}
+                            </a>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Assemble"
+                                     label="PQC"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Assemble)">
+                                {{statuVal(scope.row.Assemble)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="FinalQC"
+                                     label="FQC"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.FinalQC)">
+                                {{statuVal(scope.row.FinalQC)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in_MosaicScreen"
+                                     label="拼屏"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Burn_in_MosaicScreen)">
+                                {{statuVal(scope.row.Burn_in_MosaicScreen)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Burn_in"
+                                     label="老化"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Burn_in)">
+                                {{statuVal(scope.row.Burn_in)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="CalibrationRecord"
+                                     label="校正"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.CalibrationRecord)">
+                                {{statuVal(scope.row.CalibrationRecord)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Appearance"
+                                     label="电检"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="statuColor(scope.row.Appearance)">
+                                {{statuVal(scope.row.Appearance)}}
+                            </div>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column prop="Packing"
+                                     label="包装"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="kuStatuColor(scope.row.Packing)">
+                                {{scope.row.Packing}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Warehoujoin"
+                                     label="入库"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="kuStatuColor(scope.row.Warehoujoin)">
+                                {{scope.row.Warehoujoin}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Warehouout"
+                                     label="出库"
+                                     width="120"
+                                     sortable>
+                        <template slot-scope="scope">
+                            <div :class="kuStatuColor(scope.row.Warehouout)">
+                                {{scope.row.Warehouout}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <el-table v-if="summaryList.length>0"
+                          :data="summaryList"
+                          :show-header="false"
+                          class="summary-table"
+                          row-class-name="summary-row"
+                          border>
+                    <el-table-column prop="barcode" label="条码号" width="163"></el-table-column>
+                    <el-table-column prop="Assemble" label="PQC" width="120"></el-table-column>
+                    <el-table-column prop="FinalQC" label="FQC" width="120"></el-table-column>
+                    <el-table-column prop="Burn_in_MosaicScreen" label="拼屏" width="120"></el-table-column>
+                    <el-table-column prop="Burn_in" label="老化" width="120"></el-table-column>
+                    <el-table-column prop="CalibrationRecord" label="校正" width="120"></el-table-column>
+                    <el-table-column prop="Appearance" label="电检" width="120"></el-table-column>
+                    <el-table-column prop="Packing" label="包装" width="120"></el-table-column>
+                    <el-table-column prop="Warehoujoin" label="入库" width="120"></el-table-column>
+                    <el-table-column prop="Warehouout" label="出库" width="120"></el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            selectOptions: [],
+            selectVal: '',
+            infoList: [],
+            summaryList: [],
+        },
+        created: function () {
+            axios.post("/Query/GetOrderList").then(res => {
+                this.selectOptions = res.data;
+            }).catch(err => {
+                console.warn("获取选择列表失败")
+            });
+        },
+        mounted: function () {
+            //let localOrder = localStorage.getItem('Order');
+            //if (localOrder != null) {
+            //    this.selectVal = localOrder;
+            //};
+            let stargetVal = location.search.slice(1).split("=");
+            if (stargetVal.length == 2) {
+                this.selectVal = stargetVal[1];
+            };
+            this.getTableData('2017-TEST-1');
+        },
+        methods: {
+            //状态颜色
+            statuColor: function (v) {
+                switch (v) {
+                    case 1:
+                        return "green el-icon-success";
+                        break;
+                    case 2:
+                        return "green2 el-icon-circle-check";
+                        break;
+                    case 3:
+                        return "red el-icon-error";
+                        break;
+                    case 4:
+                        return "blue el-icon-remove";
+                        break;
+                    case 5:
+                        return "blue2 el-icon-remove-outline";
+                        break;
+                    default: return "";
+                };
+            },
+            //库存部分的状态颜色
+            kuStatuColor: function (v) {
+                return v == '已包装' || v == '已入库' || v == '已出库' ? 'green' : '';
+            },
+            //状态值
+            statuVal: function (v) {
+                switch (v) {
+                    case 1:
+                        return "已完成";
+                        break;
+                    case 2:
+                        return "已完成";
+                        break;
+                    case 3:
+                        return "未开始";
+                        break;
+                    case 4:
+                        return "进行中";
+                        break;
+                    case 5:
+                        return "进行中";
+                        break;
+                    default: return "";
+                };
+            },
+            getTableData: function (v) {
+                //localStorage.setItem('Order', v);
+                if (v != "") {
+                    this.loading = true;
+                    axios.post('/Query/DisplayBarcodeListFromOrdernum', {
+                        ordernum: v,
+                    }).then(res => {
+                        //console.log(res.data);
+                        this.infoList = res.data;
+                        this.summaryQuantity(res.data);
+                        this.loading = false;
+                    }).catch(err => {
+                        console.warn(err);
+                        this.loading = false;
+                    });
+                }
+            },
+            summaryQuantity(infolist) {
+                let list = [{ barcode: '已完成' }, { barcode: '进行中' }, { barcode: '未开始' }];
+                for (let row of infolist) {
+                    for (let [key, value] of Object.entries(row)) {
+                        if (value === '已包装' || value === '已入库' || value === '已出库' || value === 1 || value === 2) {
+                            if (key in list[0]) {
+                                list[0][key]++
+                            } else {
+                                list[0][key] = 1;
+                            }
+                        } else if (value === 4 || value === 5) {
+                            if (key in list[1]) {
+                                list[1][key]++
+                            } else {
+                                list[1][key] = 1;
+                            }
+                        } else if (key !== 'barcode') {
+                            if (key in list[2]) {
+                                list[2][key]++
+                            } else {
+                                list[2][key] = 1;
+                            }
+                        }
+                    }
+                }
+                this.summaryList = list;
+            }
+        }
+    });
+</script>

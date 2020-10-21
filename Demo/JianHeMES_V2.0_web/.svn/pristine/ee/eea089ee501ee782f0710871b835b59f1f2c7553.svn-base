@@ -1,0 +1,52 @@
+<!---  --->
+<template>
+  <div>
+      <SecondNav :active="active" :header_list="header_list"></SecondNav>
+  </div>
+</template>
+
+<script>
+import SecondNav from "_c/second-nav";
+export default {
+  name: "sa_header", 
+  props: ["active"], //字符串数组写法
+  data() {
+    return {
+        header_list: [
+        {
+          title: "库存金额信息",
+          name: "stock_index",
+        },
+        {
+          title: "月度库存金额",
+          name: "stock_query",
+        },
+        {
+          title: "查询ERP库存月度结存金额",
+          name: "stock_erpquery",
+        },
+      ],
+    };
+  },
+  components: {
+       SecondNav,
+  },
+  computed: {},
+  watch: {},
+  methods: {},
+  created() {},
+  mounted() {},
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {},
+}
+</script>
+
+<style lang='less' scoped>
+@import url('~@/assets/style/color.less');
+
+</style>

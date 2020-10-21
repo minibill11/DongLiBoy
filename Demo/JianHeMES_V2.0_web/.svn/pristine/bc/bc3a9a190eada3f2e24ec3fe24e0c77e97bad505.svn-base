@@ -1,0 +1,270 @@
+<template>
+  <div ref="dom"></div>
+</template>
+
+<script>
+import echarts from "echarts";
+import { on, off } from "@/libs/tools";
+export default {
+  name: "gantt_demo",
+  props: {
+    title: String,
+    color: Array,
+    task: Array,
+    isShow: Boolean,
+    bottom: String
+  },
+  data() {
+    return {
+      dom: null,
+      option: {},
+      result: []
+    };
+  },
+  methods: {
+    resize() {
+      this.dom.resize();
+    }
+  },
+  watch: {
+    task: {
+      handler(newval, oldval) {
+        console.log("task newval的值：", newval);
+        // console.log("result的值：", this.result);
+        if (newval) {
+          this.result = [];
+          for (let i = newval.length - 1; i >= 0; i--) {
+            this.result.push(newval[i]);
+            console.log("result更新的", this.result);
+          }
+        }
+        if (this.option.series != undefined) {
+            this.option.series[0].data = this.result.map(item => item.planned_end);
+            this.option.series[1].data = this.result.map(item => item.planned_start);
+            this.option.series[2].data = this.result.map(item => item.end_time);
+            this.option.series[3].data = this.result.map(item => item.start_time);
+          console.log("option: ", this.option);
+          this.dom.setOption(this.option, true);
+        }
+        // console.log('data oldval的值：',oldval)
+      },
+      immediate: true
+    }
+  },
+  mounted() {
+    this.result = [];
+    for (let i = this.task.length - 1; i >= 0; i--) {
+      this.result.push(this.task[i]);
+      console.log("result", this.result);
+    }
+    this.option = {
+      title: {
+        // text: this.title,
+        textStyle: {
+          color: "#8a8a8a"
+        }
+      },
+      toolbox: {
+        show: true,
+        feature: {
+          restore: { show: true },
+          saveAsImage: {}
+        }
+      },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: {
+          type: "cross",
+          label: {
+            backgroundColor: "#6a7985"
+          }
+        },
+        formatter: function(params) {
+          // console.log(params);
+          var res = "";
+          var result = "";
+          var task_name = "";
+          var name = "";
+          var start0 = "";
+          var start = "";
+          var end0 = "";
+          var end = "";
+          for (var i in params) {
+            task_name = params[i].name;
+            var k = i % 2;
+            if (!k) {
+              //偶数
+              start0 = params[i].data;
+              //   console.log(start0);
+              if (start0 != "") {
+                start =
+                  start0.getFullYear() +
+                  "-" +
+                  (start0.getMonth() + 1) +
+                  "-" +
+                  start0.getDate();
+              }
+            }
+            if (k) {
+              //奇数
+              name = params[i].seriesName;
+              end0 = params[i].data;
+              if (end0 != "") {
+                end =
+                  end0.getFullYear() +
+                  "-" +
+                  (end0.getMonth() + 1) +
+                  "-" +
+                  end0.getDate();
+              }
+              res += name + " : " + end + " ~ " + start + "</br>";
+            }
+          }
+          result = task_name + "</br>" + res;
+          return result;
+        }
+      },
+      legend: {
+        left: "25%",
+        right: "3%",
+        data: ["计划时间", "实际时间"]
+      },
+      grid: {
+        top: "8%",
+        left: "3%",
+        right: "5%",
+        bottom: this.bottom,
+        containLabel: true
+      },
+      xAxis: {
+        type: "time",
+        position: "top",
+        splitLine: {
+          lineStyle: {
+            color: "#999"
+          }
+        }
+      },
+      yAxis: {
+        splitLine: {
+          lineStyle: {
+            color: "#999"
+          }
+        },
+        inverse: true,
+        data: this.result.map(item => item.name)
+      },
+      dataZoom: [
+        {
+          id: "dataZoomX",
+          type: "slider",
+          show: true,
+          start: 0,
+          end: 100,
+          handleSize: 8,
+          xAxisIndex: [0],
+          filterMode: "empty"
+        },
+        {
+          id: "dataZoomY",
+          type: "slider",
+          width: 12,
+          height: "70%",
+          show: true,
+          start: 0,
+          end: 100,
+          handleSize: 8,
+          showDataShadow: false,
+          right: 10,
+          yAxisIndex: [0],
+          filterMode: "empty"
+        },
+        {
+          type: "inside",
+          start: 0,
+          end: 30
+        }
+      ],
+      //   color: this.color,
+      series: [
+        {
+          name: "计划时间",
+          type: "bar",
+          stack: "test1",
+          itemStyle: {
+            normal: {
+              // barBorderRadius: [10, 10, 10, 10],
+              borderColor: "#fff",
+              borderWidth: 2,
+              color: "#C1232B"
+            }
+          },
+          zlevel: -3,
+          data: this.result.map(item => item.planned_end)
+          //   data: this.data.planned_start
+        },
+        {
+          name: "计划时间",
+          type: "bar",
+          stack: "test1",
+          itemStyle: {
+            normal: {
+              // barBorderRadius: [10, 10, 10, 10],
+              color: "#F5F7F9"
+            }
+          },
+          zlevel: -1,
+          z: 1,
+          data: this.result.map(item => item.planned_start)
+          //   data: this.data.planned_end
+        },
+        {
+          name: "实际时间",
+          type: "bar",
+          stack: "test2",
+          itemStyle: {
+            normal: {
+              // barBorderRadius: [10, 10, 10, 10],
+              borderColor: "#fff",
+              borderWidth: 2,
+              color: "#A2E068"
+            }
+          },
+          zlevel: -3,
+          data: this.result.map(item => item.end_time)
+          //   data: this.data.start_time
+        },
+        {
+          name: "实际时间",
+          type: "bar",
+          stack: "test2",
+          itemStyle: {
+            color: "#F5F7F9"
+          },
+          zlevel: -1,
+          z: 1,
+          data: this.result.map(item => item.start_time)
+          //   data: this.data.end_time
+        }
+      ]
+    };
+    this.$nextTick(() => {
+      this.dom = echarts.init(this.$refs.dom);
+      this.dom.setOption(this.option, true);
+      on(window, "resize", this.resize);
+    });
+  },
+  methods: {
+    getEndValue() {
+      if (this.result.length > 7) {
+        return 60;
+      } else {
+        return 100;
+      }
+    }
+  },
+  beforeDestroy() {
+    off(window, "resize", this.resize);
+  }
+};
+</script>

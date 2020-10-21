@@ -1,0 +1,845 @@
+﻿
+@{
+    ViewBag.Title = "设备报修详细页";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .container-box {
+            font-size: 14px;
+            border-top: 1px solid #8ea0b8;
+            border-right: 1px solid #8ea0b8;
+        }
+
+        .el-row {
+            border-bottom: 1px solid #8ea0b8;
+            border-left: 1px solid #8ea0b8;
+        }
+
+        .el-col {
+            display: inline-block;
+            padding: 8px;
+            border-left: 1px solid #8ea0b8;
+        }
+
+        .border-none {
+            border-left: none;
+        }
+
+        .el-title {
+            text-align: center;
+            font-weight: bold;
+        }
+
+            .el-title span, .el-col span {
+                display: block;
+                height: 28px;
+                line-height: 28px;
+            }
+
+        .el-row-height span {
+            display: block;
+            height: 48px;
+            overflow: auto;
+            line-height: 1.2;
+        }
+
+        .el-row-height2 .box {
+            display: block;
+            height: 80px;
+        }
+        /*        按钮*/
+        .success-btn, .success-btn:hover {
+            background-color: #22c49e;
+            color: #fff;
+            padding: 0 20px;
+            margin-right: 0;
+            border: 1px solid #22c49e;
+        }
+
+        .el-button.is-disabled, .el-button.is-disabled:focus, .el-button.is-disabled:hover {
+            background-color: #ccd3de;
+            color: #fff;
+        }
+
+        .audit-box-err {
+            display: flex;
+        }
+
+        .audit-box {
+            display: flex;
+        }
+
+            .audit-box .el-select, .audit-box .picker {
+                margin-right: 8px;
+            }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        <div class="eq-title">设备报修详细</div>
+    </el-header>
+    <el-main class="main-box">
+        <el-select v-if="addCreate" size="mini" v-model="Group" placeholder="请选择班组" style="margin-bottom:14px;">
+            <el-option v-for="item in group_options"
+                       :key="item.value"
+                       :label="item.label"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        <div class="container-box">
+            <el-row>
+                <el-col :span="3" class="el-title border-none"><span>设备名称：</span></el-col>
+                <el-col :span="3">
+                    <span>{{EquipmentName}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>设备编号：</span></el-col>
+                <el-col :span="3">
+                    <span>{{EquipmentNumber}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>故障时间：</span></el-col>
+                <el-col :span="3">
+                    <el-date-picker v-if="addCreate" size="mini" v-model="addInfo.FaultTime"
+                                    type="date"
+                                    style="width: 100%;"
+                                    placeholder="选择日期">
+                    </el-date-picker>
+                    <span v-else>{{getTime(tableData.FaultTime)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>紧急状态：</span></el-col>
+                <el-col :span="3">
+                    <el-select v-if="addCreate" size="mini" v-model="addInfo.Emergency" placeholder="请选择">
+                        <el-option v-for="item in status_options"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                    <span v-else>{{tableData.Emergency}}</span>
+                </el-col>
+            </el-row>
+            <el-row class="el-row-height">
+                <el-col :span="3" class="el-title border-none"><span>故障描述：</span></el-col>
+                <el-col :span="21">
+                    <div v-if="tableData.DeparAssessor==null&&tableData.CenterApprove==null" style="display: flex; align-items: center;">
+                        <el-input v-if="addCreate" type="textarea"
+                                  size="mini"
+                                  rows="2"
+                                  :autosize="{ minRows: 2, maxRows: 2 }"
+                                  placeholder="请输入内容..."
+                                  v-model="addInfo.FauDescription">
+                        </el-input>
+                        <el-input v-if="!addCreate" type="textarea"
+                                  size="mini"
+                                  rows="2"
+                                  :autosize="{ minRows: 2, maxRows: 2 }"
+                                  placeholder="请输入内容..."
+                                  v-model="tableData.FauDescription">
+                        </el-input>
+                        <el-button style="margin-left:8px;" v-if="!addCreate" size="mini" @@click="onModifySave('新建报修单')" type="success" class="success-btn">确认修改</el-button>
+                    </div>
+                    <span v-else>{{tableData.FauDescription}}</span>
+                </el-col>
+            </el-row>
+            <el-row class="el-row-height2">
+                <el-col :span="3" class="el-title border-none"><span>报修人员/日期：</span></el-col>
+                <el-col :span="5" class="box">
+                    <el-button size="mini" v-if="addCreate" @@click="onAddCreate" type="success" class="success-btn">确认</el-button>
+                    <span v-else>{{tableData.RepairName}}&nbsp;&nbsp;{{getDetailTime(tableData.RepairDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title box"><span>部门审核：</span></el-col>
+                <el-col :span="5" class="box">
+                    <div v-if="tableData.DeparAssessor==(undefined || null)">
+                        <div class="audit-box">
+                            <el-select size="mini" v-model="detail.DeparAssessor"
+                                       :disabled="tableData.RepairName==(undefined || null)"
+                                       placeholder="请选择..."
+                                       style="min-width:180px;">
+                                <el-option v-for="item in audit_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                            <el-button size="mini" :disabled="tableData.RepairName==(undefined || null)" @@click="onModifyFiry('故障审核','RequirementsTime','DeparAssessor','DeparAssessedDate')" type="success" class="success-btn">确认</el-button>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <el-date-picker size="mini" v-model="detail.RequirementsTime"
+                                            :disabled="tableData.RepairName==(undefined || null)"
+                                            placeholder="要求完成时间"
+                                            type="datetime" default-time="00:00:00" style="margin-right:8px;width:100%;">
+                            </el-date-picker>
+                        </div>
+                    </div>
+                    <div v-else>
+                        <span>{{tableData.DeparAssessor}}&nbsp;&nbsp;{{getDetailTime(tableData.DeparAssessedDate)}}</span>
+                        <div v-if="tableData.CenterApprove!=(undefined || null)&&tableData.RequirementsTime!=null">要求完成时间：{{getDetailTime(tableData.RequirementsTime)}}</div>
+                        <div class="audit-box">
+                            <el-date-picker v-if="tableData.CenterApprove==(undefined || null)" size="mini" v-model="tableData.RequirementsTime"
+                                            placeholder="要求完成时间"
+                                            type="datetime" default-time="00:00:00" style="margin-right:8px;width:100%;">
+                            </el-date-picker>
+                            <el-button size="mini" v-if="tableData.CenterApprove==(undefined || null)" @@click="onModifySave('故障审核')" type="success" class="success-btn">修改</el-button>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :span="3" class="el-title box"><span>中心总监批准：</span></el-col>
+                <el-col :span="5" class="box">
+                    <div v-if="tableData.CenterApprove==(undefined || null)" class="audit-box">
+                        <el-select size="mini" v-model="detail.CenterApprove"
+                                   :disabled="tableData.DeparAssessor==(undefined || null)"
+                                   placeholder="请选择...">
+                            <el-option v-for="item in audit_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" :disabled="tableData.DeparAssessor==(undefined || null)" @@click="onModify('故障批准','CenterApprove','CenterApprovedDate')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{tableData.CenterApprove}}&nbsp;&nbsp;{{getDetailTime(tableData.CenterApprovedDate)}}</span>
+                </el-col>
+            </el-row>
+            <el-row class="el-row-height">
+                <el-col :span="3" class="el-title border-none"><span>技术部意见：</span></el-col>
+                <el-col :span="21">
+                    <div v-if="tableData.TecDeparAssessor==null" style="display: flex;align-items: center;">
+                        <el-input v-if="tableData.TecDepar_opinion==(undefined || null)"
+                                  type="textarea"
+                                  :disabled="status"
+                                  size="mini"
+                                  rows="2"
+                                  :autosize="{ minRows: 2, maxRows: 2 }"
+                                  placeholder="请输入内容..."
+                                  v-model="detail.TecDepar_opinion">
+                        </el-input>
+                        <el-input v-if="tableData.TecDepar_opinion!=(undefined || null)"
+                                  type="textarea"
+                                  :disabled="status"
+                                  size="mini"
+                                  rows="2"
+                                  :autosize="{ minRows: 2, maxRows: 2 }"
+                                  placeholder="请输入内容..."
+                                  v-model="tableData.TecDepar_opinion">
+                        </el-input>
+                        <el-button style="margin-left:8px;" v-if="tableData.TecDepar_opinion!=(undefined || null)" size="mini" @@click="onModifySave('技术部意见')" type="success" class="success-btn">确认修改</el-button>
+                    </div>
+                    <span v-else>{{tableData.TecDepar_opinion}}</span>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="3" class="el-title border-none"><span>ME工程师/日期：</span></el-col> <el-col :span="5">
+                    <el-button size="mini" v-if="tableData.MEName==(null||undefined)" :disabled="status" @@click="onModifyMethod('技术部意见','TecDepar_opinion','MEName','MEDate')" type="success" class="success-btn">确认</el-button>
+                    <span v-else>{{tableData.MEName}}&nbsp;&nbsp;{{getDetailTime(tableData.MEDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>部门审核：</span></el-col>
+                <el-col :span="5">
+                    <div v-if="tableData.TecDeparAssessor==(undefined || null)" class="audit-box">
+                        <el-select size="mini" v-model="detail.TecDeparAssessor"
+                                   :disabled="tableData.MEName==(null||undefined)"
+                                   placeholder="请选择...">
+                            <el-option v-for="item in audit_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" :disabled="tableData.MEName==(null||undefined)" @@click="onModify('技术部意见审核','TecDeparAssessor','TecDeparAssessedDate')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{tableData.TecDeparAssessor}}&nbsp;&nbsp;{{getDetailTime(tableData.TecDeparAssessedDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>中心总监批准：</span></el-col>
+                <el-col :span="5">
+                    <div v-if="tableData.CeApprove==(undefined || null)" class="audit-box">
+                        <el-select size="mini" v-model="tableData.Needto"
+                                   :disabled="tableData.TecDeparAssessor==(null||undefined)"
+                                   placeholder="请选择...">
+                            <el-option v-for="item in procurement_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-select size="mini" v-model="detail.CeApprove"
+                                   :disabled="tableData.TecDeparAssessor==(null||undefined)"
+                                   placeholder="请选择...">
+                            <el-option v-for="item in audit_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" :disabled="tableData.TecDeparAssessor==(null||undefined)" @@click="onModify('技术部意见批准','CeApprove','CeApprovedDate')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{tableData.CeApprove}}/{{tableData.Needto?'采购':'非采购'}}&nbsp;&nbsp;{{getDetailTime(tableData.CeApprovedDate)}}</span>
+                </el-col>
+            </el-row>
+            <el-row class="el-row-height">
+                <el-col :span="3" class="el-title border-none"><span>联建采购意见：</span></el-col>
+                <el-col :span="21">
+                    <div v-if="tableData.OpinAssessor==null" style="display: flex;align-items: center;">
+                        <el-input v-if="tableData.Purchasing_opinion==(undefined || null)"
+                                  type="textarea"
+                                  :disabled="status"
+                                  size="mini"
+                                  rows="2"
+                                  :autosize="{ minRows: 2, maxRows: 2 }"
+                                  placeholder="请输入内容..."
+                                  v-model="detail.Purchasing_opinion">
+                        </el-input>
+                        <el-input v-if="tableData.Purchasing_opinion!=(undefined || null)"
+                                  type="textarea"
+                                  :disabled="status"
+                                  size="mini"
+                                  rows="2"
+                                  :autosize="{ minRows: 2, maxRows: 2 }"
+                                  placeholder="请输入内容..."
+                                  v-model="tableData.Purchasing_opinion">
+                        </el-input>
+                        <el-button style="margin-left:8px;" v-if="tableData.Purchasing_opinion!=(undefined || null)" size="mini" @@click="onModifySave('联建采购意见')" type="success" class="success-btn">确认修改</el-button>
+                    </div>
+                    <span v-else>{{tableData.Purchasing_opinion}}</span>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="3" class="el-title border-none"><span>意见人/日期：</span></el-col>
+                <el-col :span="5">
+                    <el-button size="mini" v-if="tableData.OpinionName==(null||undefined)" :disabled="procurement" @@click="onModifyMethod('联建采购意见','Purchasing_opinion','OpinionName','OpinionDate')" type="success" class="success-btn">确认</el-button>
+                    <span v-else>{{tableData.OpinionName}}&nbsp;&nbsp;{{getDetailTime(tableData.OpinionDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>审核人：</span></el-col>
+                <el-col :span="5">
+                    <div v-if="tableData.OpinAssessor==(undefined || null)" class="audit-box">
+                        <el-select size="mini" v-model="detail.OpinAssessor"
+                                   :disabled="tableData.OpinionName==(null||undefined)"
+                                   placeholder="请选择...">
+                            <el-option v-for="item in audit_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" :disabled="tableData.OpinionName==(null||undefined)" @@click="onModify('采购意见审核','OpinAssessor','OpinAssessedDate')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{tableData.OpinAssessor}}&nbsp;&nbsp;{{getDetailTime(tableData.OpinAssessedDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>批准人：</span></el-col>
+                <el-col :span="5">
+                    <div v-if="tableData.OpinApprove==(undefined || null)" class="audit-box">
+                        <el-select size="mini" v-model="detail.OpinApprove"
+                                   :disabled="tableData.OpinAssessor==(null||undefined)"
+                                   placeholder="请选择...">
+                            <el-option v-for="item in audit_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button size="mini" :disabled="tableData.OpinAssessor==(null||undefined)" @@click="onModify('采购意见批准','OpinApprove','OpinApprovedDate')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{tableData.OpinApprove}}&nbsp;&nbsp;{{getDetailTime(tableData.OpinApprovedDate)}}</span>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="3" class="el-title border-none"><span>维修时间：</span></el-col>
+                <el-col :span="9">
+                    <div v-if="tableData.MaintenanceDate==(undefined || null)" class="audit-box">
+                        <el-date-picker size="mini" class="picker"
+                                        v-model="detail.MaintenanceDate"
+                                        :disabled="tableData.OpinApprove==(null||undefined)"
+                                        type="date"
+                                        style="width: 100%;"
+                                        placeholder="选择日期">
+                        </el-date-picker>
+                        <el-button size="mini" :disabled="tableData.OpinApprove==(null||undefined)" @@click="onModifyThree('维修人/厂家','MaintenanceDate')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{getDetailTime(tableData.MaintenanceDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>维修人/厂家:</span></el-col>
+                <el-col :span="9">
+                    <div v-if="tableData.MainName==(undefined || null)" class="audit-box">
+                        <el-input v-if="tableData.MainName==(undefined || null)"
+                                  :disabled="tableData.OpinApprove==(null||undefined)"
+                                  class="picker"
+                                  size="mini" placeholder="请输入内容"
+                                  v-model="detail.MainName">
+                        </el-input>
+                        <el-button size="mini" :disabled="tableData.OpinApprove==(null||undefined)" @@click="onModifyThree('维修人/厂家','MainName')" type="success" class="success-btn">确认</el-button>
+                    </div>
+                    <span v-else>{{tableData.MainName}}</span>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="12" class="el-title border-none" style="text-align:left;padding-left:24px;"><span>维修后效果确认（维修需求部门）：</span></el-col>
+                <el-col :span="12" class="el-title" style="text-align:left;padding-left:24px;"><span>维修后效果确认（技术部）：</span></el-col>
+            </el-row>
+            <el-row>
+                @*维修后效果确认（维修需求部门）：*@
+                <el-col :span="12" class="border-none">
+                    <el-input v-if="tableData.AfterMain==(null||undefined)"
+                              :disabled="tableData.TcConfirmName==(null||undefined)"
+                              type="textarea"
+                              size="mini"
+                              rows="2"
+                              :autosize="{ minRows: 2, maxRows: 2 }"
+                              placeholder="请输入内容"
+                              v-model="detail.AfterMain">
+                    </el-input>
+                    <span v-else>{{tableData.AfterMain}}</span>
+                </el-col>
+                @*维修后效果确认（技术部）*@
+                <el-col :span="12">
+                    <el-input v-if="tableData.TcAfterMin==(undefined || null)"
+                              :disabled="countersign"
+                              type="textarea"
+                              size="mini"
+                              rows="2"
+                              :autosize="{ minRows: 2, maxRows: 2 }"
+                              placeholder="请输入内容"
+                              v-model="detail.TcAfterMin">
+                    </el-input>
+                    <span style="padding:10px;" v-else>{{tableData.TcAfterMin}}</span>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="3" class="el-title border-none"><span>保修问题是否解决：</span></el-col>
+                <el-col :span="9">
+                    <el-select v-if="tableData.RepairProblem==(undefined || 0)"
+                               size="mini"
+                               v-model="detail.RepairProblem"
+                               :disabled="tableData.TcConfirmName==(null||undefined)"
+                               placeholder="请选择...">
+                        <el-option v-for="item in solve_options"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                    <span v-else>{{tableData.RepairProblem==1?'已解决':'未解决'}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>保修问题是否解决:</span></el-col>
+                <el-col :span="9">
+                    <el-select v-if="tableData.TcRepairProblem==(undefined || 0)"
+                               size="mini"
+                               v-model="detail.TcRepairProblem"
+                               :disabled="countersign"
+                               placeholder="请选择...">
+                        <el-option v-for="item in solve_options"
+                                   :key="item.value"
+                                   :label="item.label"
+                                   :value="item.value">
+                        </el-option>
+                    </el-select>
+                    <span v-else>{{tableData.TcRepairProblem==1?'已解决':'未解决'}}</span>
+                </el-col>
+            </el-row>
+            <el-row>
+                <el-col :span="3" class="el-title border-none"><span>确认人/日期：</span></el-col>
+                <el-col :span="9">
+                    <el-button size="mini" v-if="tableData.ConfirmName==(undefined || null)"
+                               :disabled="tableData.TcConfirmName==(null||undefined)"
+                               @@click="onModifyFour('维修部门确认','AfterMain','RepairProblem','ConfirmName','ConfirmDate')" type="success" class="success-btn">确认</el-button>
+                    <span v-else>{{tableData.ConfirmName}}&nbsp;&nbsp;{{getDetailTime(tableData.ConfirmDate)}}</span>
+                </el-col>
+                <el-col :span="3" class="el-title"><span>确认人/日期：</span></el-col>
+                <el-col :span="9">
+                    <el-button size="mini" v-if="tableData.TcConfirmName==(undefined || null)"
+                               :disabled="countersign"
+                               @@click="onModifyFour('维修后技术部确认','TcAfterMin','TcRepairProblem','TcConfirmName','TcConfirmDate')" type="success" class="success-btn">确认</el-button>
+                    <span v-else>{{tableData.TcConfirmName}}&nbsp;&nbsp;{{getDetailTime(tableData.TcConfirmDate)}}</span>
+                </el-col>
+            </el-row>
+        </div>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                EquipmentName: '',
+                EquipmentNumber: '',
+                //创建
+                addCreate: false,
+                UserDepartment: '',
+                Department: '',
+                Group: '',
+                addInfo: {
+                    FaultTime: '',
+                    Emergency: '',
+                    FauDescription: '',
+                },
+                //完善审核报修单
+                tableData: '',
+                //下拉框
+                group_options: [],//获取班组
+                status_options: [
+                    {
+                        label: "正常",
+                        value: "正常"
+                    }, {
+                        label: "紧急",
+                        value: "紧急"
+                    }, {
+                        label: "非常紧急",
+                        value: "非常紧急"
+                    }
+                ],
+                audit_options: [
+                    {
+                        label: "通过",
+                        value: "通过"
+                    }, {
+                        label: "驳回",
+                        value: "驳回"
+                    }
+                ],
+                procurement_options: [
+                    {
+                        label: "采购",
+                        value: true
+                    }, {
+                        label: "非采购",
+                        value: false
+                    }
+                ],
+                solve_options: [
+                    {
+                        label: "已解决",
+                        value: 1
+                    }, {
+                        label: "未解决",
+                        value: 2
+                    }, {
+                        label: " ",
+                        value: 0
+                    }
+                ],
+
+                //审核
+                detail: {
+                    DeparAssessor: '',
+                    CenterApprove: '',
+                    TecDepar_opinion: '',
+                    TecDeparAssessor: '',
+                    RequirementsTime: '',
+                    Needto: false,
+                    CeApprove: '',
+                    Purchasing_opinion: '',
+                    OpinAssessor: '',
+                    OpinApprove: '',
+                    MaintenanceDate: '',
+                    MainName: '',
+                    TcAfterMin: '',
+                    TcRepairProblem: '',
+                    AfterMain: '',
+                    RepairProblem: '',
+                },
+                //控制显示
+                status: true,   //控制紧急状态跳过中心批准
+                procurement: true,   //控制采购显示
+                countersign: true    //控制非采购显示
+            },
+            mounted() {
+                this.getAddress();
+            },
+            watch: {
+            },
+            methods: {
+                //获取地址传参
+                getAddress() {
+                    //console.log(this.urlSearchParam);
+                    let urlSearchParam = this.urlSearchParam;
+                    if (urlSearchParam.canchange != undefined && urlSearchParam.canchange == "false") {
+                        this.addCreate = false;
+                        this.EquipmentNumber = urlSearchParam.EquipmentNumber;
+                        this.EquipmentName = urlSearchParam.EquipmentName;
+                        let time = new Date(urlSearchParam.time.replace(/-/g, '/'));
+                        this.getDefaultInfos(urlSearchParam.EquipmentNumber, urlSearchParam.EquipmentName, time);
+                    } else if (urlSearchParam.canchange != undefined && urlSearchParam.canchange == "true") {
+                        urlSearchParam = JSON.parse(urlSearchParam.paramData);
+                        //console.log(urlSearchParam);
+                        this.addCreate = true;
+                        this.EquipmentNumber = urlSearchParam.EquipmentNumber;
+                        this.EquipmentName = urlSearchParam.EquipmentName;
+                        this.UserDepartment = urlSearchParam.UserDepartment;
+                        //获取部门班组
+                        this.getGroupData();
+                    }
+                },
+                //控制显示
+                onShow() {
+                    //判断非常紧急状态跳过中心批准
+                    //console.log(this.tableData.DeparAssessor != null , this.tableData.DeparAssessor.indexOf('通过') != -1)
+                    //console.log(this.tableData.DeparAssessor != null && this.tableData.DeparAssessor.indexOf('通过') != -1,0000000)
+                    if (this.tableData.DeparAssessor != null && this.tableData.DeparAssessor.indexOf('通过') != -1) {
+                        //console.log(this.tableData.Emergency);
+                        if (this.tableData.Emergency == '非常紧急') {
+                            this.status = false;
+                        } else {
+                            if (this.tableData.CenterApprove.indexOf('通过') != -1) {
+                                this.status = false;
+                            } else {
+                                this.status = true;
+                            }
+                        }
+                    }
+                    //判断是否采购显示维修确认
+                    if (this.tableData.CeApprove != null) {
+                        if (this.tableData.Needto) {
+                            this.procurement = false;
+                            if (this.tableData.MainName != null) {
+                                this.countersign = false;
+                            } else {
+                                this.countersign = true;
+                            }
+                        } else {
+                            this.procurement = true;
+                            this.countersign = false;
+                        }
+                    } else {
+                        this.procurement = true;
+                        this.countersign = true;
+                    }
+                    //if (this.tableData.CeApprove != null && this.tableData.Needto) {
+                    //    if (this.tableData.MainName!=null) {
+                    //        this.procurement = false;
+                    //    } else {
+                    //        this.procurement = true;
+                    //    }
+                    //} else {
+                    //    this.procurement = true;
+
+                    //}
+                    //console.log(this.tableData.CeApprove != null)
+                    //console.log(this.tableData.Needto)
+                },
+                // 通过设备编号获取报修信息
+                getDefaultInfos(EquipmentNumber, EquipmentName, time) {
+                    //time = new Date(time);
+                    //let dd = new Date(time)
+                    console.log(time)
+                    axios.post("/Equipment/EquipmentRepairbill_Query", { equnumber: EquipmentNumber, equipname: EquipmentName, date: time }).then(res => {
+                        //console.log(res.data)
+                        this.tableData = res.data[0];
+                        //this.tableData.RequirementsTime = null;
+                        //this.tableData.DeparAssessor = null;
+                        //this.tableData.DeparAssessedDate = null;
+                        //this.tableData.CenterApprove = null;
+                        //this.tableData.CenterApprovedDate = null;
+                        this.onShow();
+                    }).catch(err => {
+                        //console.log(err);
+                    })
+                },
+                //获取账号班组列表
+                getGroupData() {
+                    axios.post("/Users/DisplayGroup").then(res => {
+                        //未登陆则返回null
+                        if (res.data == '') {
+                            //this.$message.warning("登陆状态已丢失，请重试打开页面！")
+                        } else {
+                            this.Department = res.data.department;
+                            this.Group = res.data.Group[0];
+                            let arr = [];
+                            res.data.Group.forEach(item => {
+                                let obj = {
+                                    label: item,
+                                    value: item
+                                }
+                                arr.push(obj);
+                            })
+                            this.group_options = arr;
+                            //console.log(this.group_options);
+                        };
+                    }).catch(err => {
+                        //console.log(err);
+                    });
+                },
+                //创建报修表
+                onAddCreate() {
+                    if (this.islimit("新建报修单")) {
+                        if (this.addInfo.FaultTime == '') {
+                            this.$message.warning("请选择故障时间！");
+                            return;
+                        } else if (this.addInfo.Emergency == '') {
+                            this.$message.warning("请选择紧急状态！");
+                            return;
+                        } else if (this.addInfo.FauDescription == '') {
+                            this.$message.warning("请填写故障描述！");
+                            return;
+                        } else {
+                            this.$confirm('请确认！')
+                                .then(_ => {
+                                    //console.log(this.addInfo);
+                                    let postData = {
+                                        EquipmentNumber: this.EquipmentNumber,
+                                        EquipmentName: this.EquipmentName,
+                                        FaultTime: this.addInfo.FaultTime,
+                                        Emergency: this.addInfo.Emergency,
+                                        FauDescription: this.addInfo.FauDescription,
+                                        UserDepartment: this.UserDepartment,
+                                        Department: this.Department,
+                                        Group: this.Group
+                                    }
+                                    console.log(postData)
+                                    axios.post("/Equipment/Repairbill_maintenance", { equipmentRepairbill: postData }).then(res => {
+                                        //console.log(res.data)
+                                        if (res.data.addEquipment == true) {
+                                            this.$message.success(res.data.equipmentRepairbill);
+                                            window.location.href = "Equipment_Fixbill_Detail?EquipmentNumber=" + postData.EquipmentNumber + "&EquipmentName=" + postData.EquipmentName + "&time=" + postData.FaultTime + "&canchange=false";
+                                        } else {
+                                            this.$message.warning(res.data.equipmentRepairbill);
+                                        }
+
+                                    }).catch(err => {
+                                        this.$message.warning("新建报修单时连接失败");
+                                    })
+                                })
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+
+                },
+                //修改
+                onModifySave(limit) {
+                    if (this.islimit(limit) == true) {
+                        this.onSave();
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                onModify(limit, val, time) {
+                    //console.log(this.islimit(limit));
+                    if (this.islimit(limit) == true) {
+                        //console.log(this.detail[`${val}`]);
+                        if (this.detail[`${val}`] == '') {
+                            this.$message.warning("请补全信息！");
+                            return;
+                        } else {
+                            if (val == 'RepairName') {
+                                this.tableData[`${val}`] = this.userName;
+                            } else {
+                                this.tableData[`${val}`] = this.userName + '/' + this.detail[`${val}`];
+                            }
+                            this.tableData[`${time}`] = this.getDetailTime(new Date());
+                            this.onSave();
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                onModifyFiry(limit, val1, val2, time) {
+                    //console.log(this.islimit(limit));
+                    if (this.islimit(limit) == true) {
+                        //console.log(this.detail[`${val1}`]);
+                        if (this.detail[`${val1}`] == '') {
+                            //console.log(this.detail[`${val1}`]);
+                            this.$message.warning("请补全信息！");
+                            return;
+                        } else {
+                            this.tableData[`${val1}`] = this.detail[`${val1}`];
+                            this.tableData[`${val2}`] = this.userName + '/' + this.detail[`${val2}`];
+                            this.tableData[`${time}`] = this.getDetailTime(new Date());
+                            this.onSave();
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                onModifyMethod(limit, val1, val2, time) {
+                    //console.log(this.islimit(limit));
+                    if (this.islimit(limit) == true) {
+                        //console.log(this.detail[`${val1}`]);
+                        if (this.detail[`${val1}`] == '') {
+                            //console.log(this.detail[`${val1}`]);
+                            this.$message.warning("请补全信息！");
+                            return;
+                        } else {
+                            this.tableData[`${val1}`] = this.detail[`${val1}`];
+                            this.tableData[`${val2}`] = this.userName;
+                            this.tableData[`${time}`] = this.getDetailTime(new Date());
+                            this.onSave();
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                onModifyThree(limit, val) {
+                    //console.log(this.islimit(limit));
+                    if (this.islimit(limit) == true) {
+                        //console.log(this.detail[`${val}`]);
+                        if (this.detail[`${val}`] == '') {
+                            this.$message.warning("请补全信息！");
+                            return;
+                        } else {
+                            this.tableData[`${val}`] = this.detail[`${val}`];
+                            this.onSave();
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                onModifyFour(limit, val1, val2, val3, time) {
+                    //console.log(this.islimit(limit));
+                    if (this.islimit(limit) == true) {
+                        if (this.detail[`${val1}`] == '' || this.detail[`${val2}`] == '') {
+                            this.$message.warning("请补全信息！");
+                            return;
+                        } else {
+                            this.tableData[`${val1}`] = this.detail[`${val1}`];
+                            this.tableData[`${val2}`] = this.detail[`${val2}`];
+                            this.tableData[`${val3}`] = this.userName;
+                            this.tableData[`${time}`] = this.getDetailTime(new Date());
+                            this.onSave();
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                // 公用保存方法-- 公共部分
+                onSave() {
+                    axios.post("/Equipment/Modify_repairs", this.tableData).then(res => {
+                        //console.log(res,5555);
+                        if (res.data.repairbill == '修改成功！') {
+                            this.tableData = JSON.parse(res.data.equipmentRepairbill);
+                            this.onShow();
+                            this.$message.success(res.data.repairbill);
+                        } else {
+                            this.$message.warning("修改失败！");
+                        }
+                    }).catch(err => {
+                        //console.log(err);
+                    })
+                },
+                //时间格式化
+                getTime(val) {
+                    let dd = new Date(val);
+                    let year = dd.getFullYear();
+                    let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+                    let days = dd.getDate().toString().padStart(2, 0);
+                    return `${year}-${month}-${days}`;
+                },
+                getDetailTime(val) {
+                    let dd = new Date(val);
+                    let year = dd.getFullYear();
+                    let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+                    let days = dd.getDate().toString().padStart(2, 0);
+                    let hours = dd.getHours().toString().padStart(2, 0);
+                    let minutes = dd.getMinutes().toString().padStart(2, 0);
+                    return `${year}-${month}-${days} ${hours}:${minutes}`;
+                }
+            }
+        }
+    </script>
+}
+
+

@@ -1,0 +1,307 @@
+﻿<script type="text/template" id="KPI_Ranking_Input_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-input v-model="pasteExcel" placeholder="表格粘贴处" type="textarea" resize="none" rows="1" size="medium"></el-input>
+                <el-date-picker v-model="changeAllTime"
+                                type="month"
+                                size="medium"
+                                placeholder="统一表格时间">
+                </el-date-picker>
+            </div>
+            <div class="table-top-right">
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      @*row-class-name="zero-padding"*@
+                      max-height="600"
+                      size="medium"
+                      border>
+                <el-table-column type="index" label="序号" width="50"></el-table-column>
+                <el-table-column label="年月" min-width="140">
+                    <template slot-scope="scope">
+                        <el-date-picker v-model="scope.row.Time"
+                                        type="month"
+                                        size="mini"
+                                        placeholder="选择时间">
+                        </el-date-picker>
+                    </template>
+                </el-table-column>
+                <el-table-column label="部门" min-width="100">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Department" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="班组" min-width="100">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Group" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="族群" min-width="100">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Ethnic_Group" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="平均人数" min-width="100">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.AvagePersonNum" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="当月有无工伤事故" min-width="100">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.InductrialAccident" size="mini">
+                            <el-option label="无" value="0"></el-option>
+                            <el-option label="有" value="1"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="出勤率" min-width="100">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.Attendance" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="行政违规情况" min-width="200">
+                    <template slot-scope="scope">
+                        <el-input v-model.trim="scope.row.ViolationsMessage" size="mini"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="50">
+                    <template slot-scope="scope">
+                        <el-button @@click="deleteClick(scope.$index)" class="cbtn red" type="text">清除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-button type="primary" @@click="onInputSubmit" size="medium" :disabled="tableList.length==0">录入</el-button>
+                <el-button @@click="showChange" size="medium">取消</el-button>
+            </div>
+            <div class="table-bottom-right">
+                <el-button @@click="addRowVisible = true" class="addbtn" type="info" size="medium" plain>增加一行</el-button>
+            </div>
+        </el-row>
+        <el-row>
+            <el-dialog title="排名计算条件录入"
+                       @@close="close('ruleForm')"
+                       :visible.sync="addRowVisible">
+                <el-form label-width="30%"
+                         label-position="right"
+                         class="addRowDia"
+                         ref="ruleForm"
+                         size="medium"
+                         :rules="rules"
+                         :model="addRowForm">
+                    <el-form-item label="年月" prop="Time">
+                        <el-date-picker v-model="addRowForm.Time"
+                                        type="month"
+                                        placeholder="选择日期时间">
+                        </el-date-picker>
+                    </el-form-item>
+                    <el-form-item label="部门" prop="Department">
+                        <el-select v-model="addRowForm.Department"
+                                   placeholder="请选择部门"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="班组" prop="Group">
+                        <el-select v-model="addRowForm.Group"
+                                   placeholder="请选择班组"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in departmentGrouplist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="族群" prop="Ethnic_Group">
+                        <el-select v-model="addRowForm.Ethnic_Group">
+                            <el-option label="操作族" value="操作族"></el-option>
+                            <el-option label="非操作族" value="非操作族"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="平均人数" prop="AvagePersonNum">
+                        <el-input v-model.trim="addRowForm.AvagePersonNum" clearable></el-input>
+                    </el-form-item>
+                    <el-form-item label="当月有无工伤事故" prop="InductrialAccident">
+                        <el-select v-model="addRowForm.InductrialAccident">
+                            <el-option label="无" value="0"></el-option>
+                            <el-option label="有" value="1"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="出勤率" prop="Attendance">
+                        <el-input v-model.trim="addRowForm.Attendance" clearable></el-input>
+                    </el-form-item>
+                    <el-form-item label="行政违规情况" prop="ViolationsMessage">
+                        <el-input v-model.trim="addRowForm.ViolationsMessage" clearable></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button @@click="addRowVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>
+        </el-row>
+    </el-row>
+</script>
+<script>
+    Vue.component('kpi-ranking-input-component', {
+        props: ['departmentlist', 'grouplist'],
+        template: document.getElementById("KPI_Ranking_Input_Component"),
+        data: function () {
+            return {
+                pasteExcel: '',
+                tableList: [],
+                addRowForm: {
+                    Time: null,
+                    Department: '',
+                    Group: '',
+                    Ethnic_Group: '',
+                    AvagePersonNum: '',
+                    InductrialAccident: '',
+                    Attendance: '',
+                    ViolationsMessage: '',
+                },
+                changeAllTime: null,
+                addRowVisible: false,
+                rules: {},
+                departmentGrouplist: [],
+            }
+        },
+        mounted: function () {
+            const stringTest = [{ required: true, message: '不能为空', trigger: 'blur' }],
+                changeTest = [{ required: true, message: '不能为空', trigger: 'change' }];
+            this.rules = {
+                Time: changeTest,
+                Department: changeTest,
+                Group: changeTest,
+                Ethnic_Group: changeTest,
+                AvagePersonNum: changeTest,
+                InductrialAccident: changeTest,
+                Attendance: changeTest,
+                ViolationsMessage: changeTest,
+            };
+        },
+        methods: {
+            onInputSubmit() {
+                vm.mainLoading = true;
+                if (!this.checkData()) {
+                    vm.mainLoading = false;
+                    return;
+                };
+                axios.post("/KPI/AddCalculation", { totalDisplays: this.tableList }).then(res => {
+                    if (res.data.meg) {
+                        setTimeout(() => {
+                            this.$emit("input", true);
+                            this.$message.success(res.data.feg);
+                            this.tableList = [];
+                            vm.mainLoading = false;
+                        }, 500);
+                    } else {
+                        this.$alert(res.data.feg, {
+                            closeOnClickModal: true,
+                            closeOnPressEscape: true,
+                            type: "error",
+                        });
+                        vm.mainLoading = false;
+                    };
+                }).catch(err => {
+                    console.warn(err);
+                    vm.mainLoading = false;
+                });
+            },
+            //检查数据
+            checkData() {
+                for (let row of this.tableList) {
+                    for (let [key, value] of Object.entries(row)) {
+                        if (value == '' || value == null) {
+                            this.$message.warning('数据不完整,请检查数据是否为空或为0');
+                            return false;
+                        };
+                    };
+                };
+                return true;
+            },
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.tableList = [];
+                    this.$emit("input", true);
+                    vm.mainLoading = false;
+                }, 500);
+            },
+            //删除
+            deleteClick(index) {
+                this.tableList.splice(index, 1);
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.tableList.push({ ...this.addRowForm });
+                        this.addRowVisible = false;
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            },
+            GetGroup(d) {
+                axios.post('/KPI/GetDepartmentGroup', { Department: d }).then(res => {
+                    this.departmentGrouplist = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+        },
+        watch: {
+            pasteExcel(val) {
+                if (val == '') {
+                    return false;
+                };
+                this.tableList = [];
+                let rows = val.split('\n');
+                rows.pop();
+                rows.forEach((v, i) => {
+                    let col = v.split("\t")
+                    rows[i] = col;
+                });
+                for (let i of rows) {
+                    this.tableList.push({
+                        Department: i[0],
+                        Group: i[1],
+                        Ethnic_Group: i[2],
+                        AvagePersonNum: i[3],
+                        InductrialAccident: i[4],
+                        Attendance: i[5],
+                        ViolationsMessage: i[6],
+                    });
+                };
+                this.pasteExcel = '';
+            },
+            changeAllTime(v) {
+                for (let i of this.tableList) {
+                    i.Time = v;
+                };
+            },
+            'addRowForm.Department'(v) {
+                this.addRowForm.Group = '';
+                this.GetGroup(v);
+            }
+        },
+    });
+</script>
+

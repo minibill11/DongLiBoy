@@ -1,0 +1,410 @@
+﻿
+@{
+    ViewBag.Title = "设备台账";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .footer {
+            padding: 20px;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .redcolor {
+            color: red;
+        }
+
+        .repeat {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <eq-header-component :active="active"></eq-header-component>
+    </el-header>
+    <el-main class="main-box" v-loading="loading">
+        <div class="equipment-index-inputcontainer">
+            <template v-if="addFlag==false">
+                <div class="equipment-index-inputcontainer-item">
+                    <div>设备名称：</div>
+                    <el-input size="mini" v-model="equipmentname" placeholder="请输入设备名称" style="width:120px;"></el-input>
+                </div>
+                <div class="equipment-index-inputcontainer-item">
+                    <div>设备编号：</div>
+                    <el-select clearable filterable size="mini" v-model="equipmentnumber" placeholder="请输入设备号" style="width:120px;">
+                        <el-option v-for="item in equipmentnumberoptions"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+
+                <div class="equipment-index-inputcontainer-item">
+                    <div>使用部门：</div>
+                    <el-select clearable filterable size="mini" v-model="userdepartment" placeholder="请选择使用部门" style="width:120px;">
+                        <el-option v-for="item in deparOpions"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="equipment-index-inputcontainer-item">
+                    <div>设备状态：</div>
+                    <el-select clearable size="mini" filterable v-model="status" placeholder="请选择设备状态" style="width:120px;">
+                        <el-option v-for="item in options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <el-button id="search" type="primary" v-on:click="checkinfos" size="mini" style="margin-right:10px;">查询</el-button>
+            </template>
+            <el-button type="primary" size="mini" plain @@click="onShowAdd">批量添加</el-button>
+            <div v-if="addFlag">
+                <el-input size="mini" type="textarea" rows="1" v-model="inputInfo" class="textinput" placeholder="表格粘贴处..." style="width:150px;margin-left:10px;"></el-input>
+                <el-button size="mini" type="primary" plain v-on:click="onUpload">确认上传</el-button>
+                <el-button size="mini" type="info" plain v-on:click="onCancel">取消</el-button>
+            </div>
+        </div>
+        @* 查询结果表格 *@
+        <el-table v-loading="loading" size="small" v-bind:data="tableData" style="width: 100%" max-height="580" border stripe>
+            @* sortable *@
+            <el-table-column label="序号" width="50">
+                <template slot-scope="scope">
+                    <span>{{scope.$index+1}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="EquipmentName" sortable label="设备名称">
+            </el-table-column>
+            <el-table-column sortable label="设备编号" width="90">
+                <template slot-scope="scope">
+                    <span v-bind:class="scope.row.color==200?'redcolor':''">{{scope.row.EquipmentNumber}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="AssetNumber" sortable label="资产编号">
+            </el-table-column>
+            <el-table-column prop="Brand" label="品牌" width="75">
+            </el-table-column>
+            <el-table-column prop="ModelSpecification" label="型号/规格">
+            </el-table-column>
+            <el-table-column prop="ManufacturingNumber" label="出厂编号">
+            </el-table-column>
+            <el-table-column prop="Quantity" label="数量" width="70">
+            </el-table-column>
+            <el-table-column prop="ActionDate" label="启用时间">
+            </el-table-column>
+            <el-table-column prop="DepreciableLife" label="折旧年限（月）">
+            </el-table-column>
+            <el-table-column prop="UserDepartment" sortable label="使用部门">
+            </el-table-column>
+            <el-table-column prop="StoragePlace" label="存放地点">
+            </el-table-column>
+            <el-table-column prop="Status" label="使用状态">
+                <template slot-scope="scope">
+                    <span :class="checkStatusType(scope.row.Status)">{{scope.row.Status}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Remark" label="备注">
+            </el-table-column>
+            <el-table-column label="操作" width="80">
+                <template slot-scope="scope">
+                    <el-button v-if="!addFlag" v-on:click="showDetials(scope.row)"
+                               type="text"
+                               size="mini" style="text-decoration:underline;">
+                        详细
+                    </el-button>
+                    <el-button v-if="addFlag" v-on:click="removeDetials(scope.row,scope.$index)"
+                               type="text"
+                               size="mini">
+                        移除
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <div v-if="repeat!=''" class="repeat">设备编号：<span class="redcolor">{{repeat}}</span>已存在，请先移除！</div>
+        <div v-show="showFooter" class="footer">
+            <span v-for="item in sumaryData" style="margin-right:10px;">
+                <span :class="checkStatusType(item.name)">
+                    {{item.name}}
+                </span>&nbsp;
+                共<span v-bind:class="item.count==0?'':'redcolor'">{{item.count}}</span>台
+            </span>
+        </div>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Equipment/_Eq_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                inputInfo: '',
+                repeat: '',
+                addFlag: false,//批量添加打开
+                loading: false,
+                active: "设备台账",
+                showFooter: false,
+                showindex: false,
+                loading: false,
+                flag: false,
+                flags: false,
+                count: null,
+                tableData: [],
+                equipmentnumber: null,
+                assetnumber: null,
+                equipmentname: null,
+                modelspecification: null,
+                userdepartment: null,
+                storageplace: null,
+                workshop: null,
+                section: null,
+                brand: null,
+                status: null,
+                remark: '',
+                options: [{
+                    value: '运行',
+                    label: '运行'
+                }, {
+                    value: '停机',
+                    label: '停机'
+                },
+                {
+                    value: '维修',
+                    label: '维修'
+                }],
+                deparOpions: [],
+                equipmentnumberoptions: [],
+                assetnumberoptions: [],
+                sumaryData: [],
+                showAdd: false,
+            },
+
+            mounted() {
+                //权限检测
+                if (this.islimit("设备添加")) {
+                    this.showAdd = true;
+                };
+                // 页面加载时获取设备编号、使用部门
+                this.getDeparList();
+                this.getequipmentnumberoptions();
+                this.checkinfos();
+            },
+            watch: {
+                addFlag(val) {
+                    if (val == false) {
+                        this.checkinfos();
+                    }
+                },
+                //监听批量上传粘贴的数据
+                inputInfo(val) {
+                    if (val != null) {
+                        let valOfPaste = val.split("\n");
+                        valOfPaste.pop();
+                        let initDatas = [];
+                        valOfPaste.forEach((item, i) => {
+                            var items = item.split("\t");
+                            initDatas.push(items)
+                        });
+                        let arr = [];
+                        initDatas.forEach(item => {
+                            let obj = {
+                                EquipmentName: item[0],
+                                EquipmentNumber: item[1],
+                                AssetNumber: item[2],
+                                Brand: item[3],
+                                ModelSpecification: item[4],
+                                ManufacturingNumber: item[5],
+                                Quantity: item[6],
+                                ActionDate: item[7],
+                                DepreciableLife: item[8],
+                                UserDepartment: item[9],
+                                StoragePlace: item[10],
+                                Status: item[11],
+                                Remark: item[12]
+                            };
+                            arr.push(obj);
+                        })
+                        this.tableData = arr;
+                        console.log(this.tableData);
+                    }
+                },
+                // 监听表格数据变化确定三种状态设备的数量
+                tableData() {
+                    this.sumaryData = [];
+                    if (this.tableData.length > 0) {
+                        this.showFooter = true;
+                        let obj1 = { name: "运行", count: 0 };
+                        let obj2 = { name: "停机", count: 0 };
+                        let obj3 = { name: "维修", count: 0 };
+                        this.tableData.forEach(item => {
+                            if (item.Status == "运行") {
+                                obj1.count++;
+                            } else if (item.Status == "停机") {
+                                obj2.count++;
+                            } else if (item.Status == "维修") {
+                                obj3.count++;
+                            }
+                        });                     
+                        this.sumaryData.push(obj1, obj2, obj3);
+                    } else {
+                        this.showFooter = false;
+                        this.sumaryData = [];
+                    }
+                }
+            },
+            methods: {
+                //打开批量上传
+                onShowAdd() {
+                    this.addFlag = true;
+                    this.tableData = [];
+                },
+                //批量上传
+                onUpload() {
+                    if (this.tableData.length >= 1) {
+                        axios.post("/Equipment/BatchInputEquipment", { inputList: this.tableData }).then(res => {
+                            if ('repeat' in res.data) {
+                                this.repeat = res.data.repeat;
+                                let arr = res.data.repeat.split(",");
+                                arr.pop();
+                                for (let i = 0; i < arr.length; i++) {
+                                    this.tableData.forEach(item => {
+                                        if (arr[i] == item.EquipmentNumber) {
+                                            item.color = 200;
+                                        }
+                                    })
+                                }
+                                this.$message.warning("已存在相同数据");
+                            } else if ('success' in res.data) {
+                                this.repeat = '';
+                                this.$message.success(res.data.success);
+                            } else if ('fail' in res.data) {
+                                this.repeat = '';
+                                this.$message.warning(res.data.fail);
+                            }
+                        }).catch(err => {
+                            this.$message.warning("连接服务器失败！");
+                            console.log(err);
+                        })
+
+
+                    } else {
+                        this.$message.warning("请导入数据再上传!");
+                    }
+                },
+                //批量上传取消
+                onCancel() {
+                    this.repeat = '';
+                    this.inputInfo = '';
+                    this.addFlag = false;
+                    this.tableData = [];
+                },
+                //移除行数据
+                removeDetials(row, index) {
+                    console.log(row);
+                    this.tableData.splice(index, 1);
+                    if (this.tableData.length == 0) {
+                        this.repeat = '';
+                    }
+                },
+                // 时间格式化
+                GMTToStr(time) {
+                    if (time != null) {
+                        let date = new Date(time)
+                        let Str = date.getFullYear() + '-' +
+                            (date.getMonth() + 1) + '-' +
+                            date.getDate()
+                        return Str
+                    } else {
+                        return ''
+                    }
+                },
+                // 查询
+                checkinfos() {
+                    if (this.brand != null || this.equipmentnumber != null || this.assetnumber != null || this.equipmentname != null || this.modelspecification != null || this.userdepartment != null || this.storageplace != null || this.workshop != null || this.section != null || this.status != null || this.remark != null) {
+                        this.loading = true;
+                        axios.post("/Equipment/Index", {
+                            equipmentnumber: this.equipmentnumber, brand: this.brand, assetnumber: this.assetnumber, equipmentname: this.equipmentname, modelspecification: this.modelspecification, userdepartment: this.userdepartment,
+                            storageplace: this.storageplace, workshop: this.workshop, section: this.section, status: this.status, remark: this.remark
+                        }).then(res => {
+                            //console.log(res.data,55)
+                            let arr = []
+                            for (let item in res.data) {
+                                arr.push(res.data[item])
+                            }
+                            let arr2 = []
+                            for (let i = 0; i < arr.length; i++) {
+                                arr2.push(JSON.parse(arr[i].replace(/\\/g, '')))
+
+                                arr2[i].ActionDate = this.GMTToStr(arr2[i].ActionDate)
+                                arr2[i].index = i + 1
+                            }
+                            //console.log(arr2)
+                            this.tableData = arr2;
+                            this.loading = false;
+                            //console.log(arr2)
+                        }).catch(err => {
+                            this.$message({
+                                message: "连接服务器失败！",
+                                type: "warning"
+                            })
+                        })
+                    } else {
+                        this.$message({
+                            message: "请输入需要查询讯息！",
+                            type: "warning"
+                        })
+                    }
+                },
+                // 监听设备状态返回按钮type
+                checkStatusType(item) {
+                    if (item == "运行") {
+                        return "btn btn-green"
+                    } else if (item == "停机") {
+                        return "btn btn-yellow"
+                    } else if (item == "维修") {
+                        return "btn btn-red"
+                    }
+                },
+                // 获取设备使用部门
+                getDeparList() {
+                    axios.post("/Equipment/Userdepartment_list").then(res => {
+                        res.data.forEach(item => {
+                            let obj = {
+                                value: item,
+                                label: item
+                            };
+                            this.deparOpions.push(obj);
+                        })
+                    })
+                },
+                // 获取设备编号
+                getequipmentnumberoptions() {
+                    axios.post("/Equipment/EQNumberList").then(res => {
+                        //console.log(res.data)
+                        res.data.forEach(item => {
+                            let obj = { label: item, value: item }
+                            this.equipmentnumberoptions.push(obj)
+                        })
+                    })
+                },
+                //跳转详细页
+                showDetials(row) {
+                    window.open("/Equipment/Equipment_Parameter_Details?num=" + row.EquipmentNumber);
+                }
+            }
+        }
+    </script>
+}

@@ -1,0 +1,704 @@
+﻿@{
+    //ViewBag.Title = "客诉损失明细按故障及平台分类查询";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+<h2>客诉损失明细按故障及平台分类查询</h2>
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .table-top {
+            margin-bottom: 20px;
+        }
+
+        .addMass {
+            margin-left: 20px;
+        }
+
+        .m-right {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        .el-table thead.has-gutter th {
+            background-color: rgba(228, 236, 248, 1);
+            height: 24px;
+        }
+
+        .DuplicateData {
+            color: red;
+        }
+
+        .table-top {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .marginRight {
+            margin-right: 10px
+        }
+
+        .bottomInfo {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 20px 30px 20px;
+        }
+
+        .pone {
+            font-size: 14px;
+        }
+
+        .el-table__body .cell {
+            line-height: 24px;
+            font-size: 12px;
+        }
+
+        .el-table__row .el-table_1_column_17 .cell, .el-table_1_column_25_column_26 .cell, .el-table_1_column_25_column_27 .cell {
+            display: flex;
+            justify-content: center;
+        }
+
+        .el-table--border th:first-child .cell {
+            padding-left: 14px;
+        }
+
+        .delLine {
+            text-decoration: underline;
+        }
+
+            .delLine:hover {
+                color: red;
+            }
+
+        .el-table {
+            border-bottom-color: rgba(64, 158, 255, 1);
+        }
+
+        .el-table__footer-wrapper tbody td {
+            background-color: #F0FAFF;
+            border-top-color: rgba(64, 158, 255, 1);
+            font-weight: 700;
+        }
+
+        .el-table__footer, .el-table td.is-center, .el-table th.is-center {
+            height: 36px;
+        }
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+
+        .etitor {
+            text-decoration: underline;
+        }
+
+        .el-textarea, .el-textarea__inner {
+            min-height: 100px !important;
+        }
+
+        .alert_title {
+            padding-bottom: 6px;
+        }
+
+        .el-dialog__body {
+            padding: 0px 20px 60px 20px;
+        }
+
+        .el-table__row .el-table_1_column_14 .cell {
+            padding: 10px;
+        }
+
+        .img_flex {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .she {
+            background: #E33E33;
+            color: #fff;
+            height: 30px;
+            width: 75px;
+            line-height: 30px;
+        }
+
+        .pdf_style， {
+            text-align: center;
+            color: #fff;
+        }
+
+        .pdf_style:visited, .pdf_style, .pdf_style:link, .pdf_style:visited, .pdf_style:hover, .pdf_style:active {
+            color: #fff;
+        }
+
+        .tip_upload {
+            text-align: center;
+        }
+
+        .el-image-viewer__mask {
+            width: 70%;
+            height: 80%;
+            top: 16%;
+            left: 15%;
+        }
+
+        .el-icon-circle-close:before {
+            color: #fff;
+        }
+
+        .el-image-viewer__next {
+            right: 17%;
+        }
+
+        .el-image-viewer__prev {
+            left: 17%;
+        }
+
+        .el-image-viewer__actions {
+            left: 50%;
+            bottom: 100px;
+        }
+
+        .el-image-viewer__close {
+            top: 16%;
+            right: 15%;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3 class="top-title">客诉损失明细按故障及平台分类查询</h3>
+        </el-header>
+        <el-main v-loading="loading">
+            @*日期选择框 *@
+            <el-row class="text-center table-top">
+                <el-select v-model="queryCondition"
+                           @@change="selectCondition"
+                           placeholder="请选择查询方式"
+                           size="medium"
+                           style="width:120px;">
+                    <el-option label="按年查询" value="y">
+                    </el-option>
+                    <el-option label="按年月查询" value="m">
+                    </el-option>
+                </el-select>
+
+                <el-date-picker v-show="queryCondition=='y'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="year"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年">
+                </el-date-picker>
+
+                <el-date-picker v-show="queryCondition=='m'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="month"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年月">
+                </el-date-picker>
+                <el-button type="primary" v-on:click="queryData" size="medium">查询</el-button>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          min-height="234"
+                          max-height="560"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          :summary-method="getSummaries"
+                          show-summary
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Fault_Classification"
+                                     label="故障分类/产品型号"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="VF_Platform"
+                                     label="VF平台"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="VL_Platform"
+                                     label="VL平台"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="VK_Platform"
+                                     label="VK平台"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="VH_Platform"
+                                     label="VH平台"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="RE_Platform"
+                                     label="RE平台"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="VMQ_Platform"
+                                     label="VMQ平台"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="VPQ_Platform"
+                                     label="VPQ平台"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="FM_Platform"
+                                     label="FM平台"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="F_FS_Platform"
+                                     label="F\FS平台"
+                                     align="center"
+                                     min-width="130">
+                    </el-table-column>
+                    <el-table-column prop="FI_FL_Platform"
+                                     label="FI\FL平台"
+                                     align="center"
+                                     min-width="170">
+                    </el-table-column>
+                    <el-table-column prop="L_LS_Platform"
+                                     label="L\LS平台"
+                                     align="center"
+                                     min-width="180">
+                    </el-table-column>
+                    <el-table-column prop="Customization_Platform"
+                                     label="定制屏"
+                                     align="center"
+                                     min-width="160">
+                    </el-table-column>
+                    <el-table-column prop="AllInOne_Platform"
+                                     label="一体机"
+                                     align="center"
+                                     min-width="180">
+                    </el-table-column>
+                    <el-table-column prop="Others_Platform"
+                                     label="其他"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="Times"
+                                     label="发生次数"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                    <el-table-column prop="TotalLoss"
+                                     label="累计损失金额"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_wareEdit.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,       //控制页面loading等待状态
+                    queryCondition: 'm',
+                    selectTime: null,     // 所选时间
+                    year: '',
+                    month: '',
+                    tableData: [],        // 客诉损失表格
+                    initialData: {},
+                    sumList: '',          //总计
+                    table: null,
+                    Quality: [],
+                    //上传图片
+                    dialogImageUrl: '',
+                    showVisible: false,
+                    openAlert: false,    //控制附件上传的弹框
+                    fileList: [],
+                    files: [],           //存储选中的文件
+                    filename: [],
+                    vshow: false,
+                    customerName: '',    //客户名称
+                    complaintsDate: '',   //投诉日期
+                    isUpload: true,
+                    isTip: false,
+                    PlatformOptions: [{   //平台选项 VA平台
+                        value: 'VF平台',
+                        label: 'VF平台'
+                    }, {
+                        value: 'VA平台',
+                        label: 'VA平台'
+                    }, {
+                        value: 'VL平台',
+                        label: 'VL平台'
+                    }, {
+                        value: 'VK平台',
+                        label: 'VK平台'
+                    }, {
+                        value: 'VH平台',
+                        label: 'VH平台'
+                    }, {
+                        value: 'RE平台',
+                        label: 'RE平台'
+                    }, {
+                        value: 'VMQ平台',
+                        label: 'VMQ平台'
+                    }, {
+                        value: 'VPQ平台',
+                        label: 'VPQ平台'
+                    }, {
+                        value: 'FM平台',
+                        label: 'FM平台'
+                    }, {
+                        value: 'F\\FS平台',
+                        label: 'F\\FS平台'
+                    }, {
+                        value: 'FI\\FL平台',
+                        label: 'FI\\FL平台'
+                    }, {
+                        value: 'L\\LS平台',
+                        label: 'L\\LS平台'
+                    }, {
+                        value: '定制屏',
+                        label: '定制屏'
+                    }, {
+                        value: '一体机',
+                        label: '一体机'
+                    }, {
+                        value: '其他',
+                        label: '其他'
+                    }],
+                    PlatformOptions_value: '',
+                    Fault_Classification_Options: [{   //故障分类/产品型号选项
+                        value: '毛毛虫（PCB）',
+                        label: '毛毛虫（PCB）'
+                    }, {
+                        value: '毛毛虫（灯管）',
+                        label: '毛毛虫（灯管）'
+                    }, {
+                        value: '毛毛虫（使用环境）',
+                        label: '毛毛虫（使用环境）'
+                    }, {
+                        value: '灯管类',
+                        label: '灯管类'
+                    }, {
+                        value: '电源类',
+                        label: '电源类'
+                    }, {
+                        value: 'IC类',
+                        label: 'IC类'
+                    }, {
+                        value: '系统卡类',
+                        label: '系统卡类'
+                    }, {
+                        value: 'PCB板类',
+                        label: 'PCB板类'
+                    }, {
+                        value: '接插件类',
+                        label: '接插件类'
+                    }, {
+                        value: '外设类',
+                        label: '外设类'
+                    }, {
+                        value: '塑胶套件类',
+                        label: '塑胶套件类'
+                    }, {
+                        value: '设计不良',
+                        label: '设计不良'
+                    }, {
+                        value: '作业不良',
+                        label: '作业不良'
+                    }],
+                    Fault_Classification_Options_value: '',
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.selectDate();
+            },
+            //函数方法
+            methods: {
+                //总计
+                getSummaries(param) {
+                    const { columns, data } = param;
+                    const sums = [];
+                    let sumData = this.sumList;
+                    columns.forEach((column, index) => {
+                        if (index === 20) {
+                            sums[index] = '总计：';
+                            return;
+                        }
+                        if (index === 21) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Huizhou.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 22) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Management.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 23) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Purchasing.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 24) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Research.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 25) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Engineering.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                        if (index === 26) {
+                            if (sums[index] != 0) {
+                                sums[index] = '￥' + sumData.Risk.toLocaleString('en-US');
+                            } else {
+                                sums[index] = 0;
+                            }
+                            return;
+                        }
+                    });
+                    return sums;
+                },
+
+                selectCondition() {
+                    this.selectDate(this.selectTime);
+                },
+
+                //选择时间
+                selectDate(v) {
+                    if (v != "" && v != null) {
+                        let dd = new Date(this.selectTime)
+                        if (this.queryCondition == 'y') {//按月
+                            this.year = dd.getFullYear()
+                            this.month = 0
+                        };
+                        if (this.queryCondition == 'm') {//按年月
+                            this.year = dd.getFullYear()
+                            this.month = dd.getMonth() + 1
+                        };
+                    }
+                },
+
+                //查询 表格渲染
+                queryData() {
+                    if (this.selectTime != null) {
+                        this.loading = true;
+                        axios.post("/Customer_Complaints/Query_AttachmentLoss", { year: this.year, month: this.month }).then(res => {
+                            console.log(res.data, 1)
+                            this.tableData = [];
+                            this.sumList = '';
+                            if (Object.keys(res.data.Attach).length > 0) {
+                                for (let i = 0; i < res.data.Attach.length; i++) {
+                                    if (res.data.Attach[i].Contract_Amount != '') {
+                                        res.data.Attach[i].Contract_Amount = '￥' + res.data.Attach[i].Contract_Amount.toLocaleString('en-US');
+                                    }
+                                    if (res.data.Attach[i].Losses_Amount != '') {
+                                        res.data.Attach[i].Losses_Amount = '￥' + res.data.Attach[i].Losses_Amount.toLocaleString('en-US');
+                                    }
+                                    res.data.Attach[i]['edit'] = false;
+                                    this.table = res.data.Attach[i].Table;
+
+                                    res.data.Attach[i]['QualityLoss1'] = '';
+                                    res.data.Attach[i]['QualityLossIndex1'] = '';
+                                    res.data.Attach[i]['QualityLoss2'] = '';
+                                    res.data.Attach[i]['QualityLossIndex2'] = '';
+                                    res.data.Attach[i]['QualityLoss3'] = '';
+                                    res.data.Attach[i]['QualityLossIndex3'] = '';
+                                    res.data.Attach[i]['QualityLoss4'] = '';
+                                    res.data.Attach[i]['QualityLossIndex4'] = '';
+                                    res.data.Attach[i]['QualityLoss5'] = '';
+                                    res.data.Attach[i]['QualityLossIndex5'] = '';
+                                    res.data.Attach[i]['QualityLoss6'] = '';
+                                    res.data.Attach[i]['QualityLossIndex6'] = '';
+
+                                    if (this.table != null) {
+                                        this.table.forEach((item, index) => {
+                                            if (item.Responsibility == '惠州工厂') {
+                                                res.data.Attach[i]['QualityLoss1'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex1'] = index;
+                                            };
+                                            if (item.Responsibility == '订单管理部') {
+                                                res.data.Attach[i]['QualityLoss2'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex2'] = index;
+                                            };
+                                            if (item.Responsibility == '采购部') {
+                                                res.data.Attach[i]['QualityLoss3'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex3'] = index;
+                                            };
+                                            if (item.Responsibility == '研发中心') {
+                                                res.data.Attach[i]['QualityLoss4'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex4'] = index;
+                                            };
+                                            if (item.Responsibility == '工程售后部') {
+                                                res.data.Attach[i]['QualityLoss5'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex5'] = index;
+                                            };
+                                            if (item.Responsibility == '风控中心') {
+                                                res.data.Attach[i]['QualityLoss6'] = '￥' + item.QualityLoss.toLocaleString('en-US');
+                                                res.data.Attach[i]['QualityLossIndex6'] = index;
+                                            };
+                                        })
+                                    };
+                                };
+
+                                this.tableData = res.data.Attach;
+                                this.sumList = res.data;
+                                this.$message.success("查询成功");
+                            } else {
+                                this.$message.success("查询数据为空");
+                            };
+                            this.loading = false;
+                        }).catch(err => {
+                            console.warn(err);
+                            this.$message({
+                                message: this.year + "年" + (this.month > 0 ? (this.month + "月") : "") + "没有客损记录！",//"数据出错！",
+                                type: "warning"
+                            });
+                            this.loading = false;
+                        });
+                    } else {
+                        this.$message({
+                            message: "请选择年月!",
+                            type: "warning"
+                        })
+                    }
+
+                },
+
+                //修改数据
+                ModifyGuestLoss(row) {
+                    let table = [];
+
+                    if (row.QualityLoss1 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss1.split('￥').join("")).split(',').join(""),
+                            Responsibility: '惠州工厂'
+                        });
+                    };
+                    if (row.QualityLoss2 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss2.split('￥').join("")).split(',').join(""),
+                            Responsibility: '订单管理部'
+                        });
+                    };
+                    if (row.QualityLoss3 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss3.split('￥').join("")).split(',').join(""),
+                            Responsibility: '采购部'
+                        });
+                    };
+                    if (row.QualityLoss4 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss4.split('￥').join("")).split(',').join(""),
+                            Responsibility: '研发中心'
+                        });
+                    };
+                    if (row.QualityLoss5 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss5.split('￥').join("")).split(',').join(""),
+                            Responsibility: '工程售后部'
+                        });
+                    };
+                    if (row.QualityLoss6 != '') {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: (row.QualityLoss6.split('￥').join("")).split(',').join(""),
+                            Responsibility: '风控中心'
+                        });
+                    };
+
+                    if (this.table != null) {
+                        table.forEach(i => {
+                            row.Table.forEach((item, index) => {
+                                if (i.Responsibility == item.Responsibility) {
+                                    i.OutsideKey = item.OutsideKey;
+                                };
+                            });
+                        });
+                    };
+                    //console.log('row:' + JSON.stringify(row));
+                    row.Contract_Amount = row.Contract_Amount.split('￥').join("").split(',').join("");
+                    row.Losses_Amount = row.Losses_Amount.split('￥').join("").split(',').join("");
+                    //console.log('row2:' + JSON.stringify(row));
+                    axios.post("/Customer_Complaints/ModifyGuestLoss", { customer: row, qualityLoss: table }).then(res => {
+                        console.log(res.data, 999);
+                        if (res.data.meg) {
+                            this.$message.success('保存成功');
+                            //let xxx = JSON.parse(res.data.quality);
+                            //console.log(xxx,56)
+                            //xxx.forEach(item => {
+                            //    item.QualityLoss = '￥' + item.QualityLoss.toLocaleString('en-US');
+                            //});
+                            //row.Table = xxx;
+                            this.queryData();
+                            row.edit = false;
+                            this.initialData = {};
+                        } else {
+                            this.$message.error('保存失败');
+                            this.cancelClick(row);
+                        };
+                    }).catch(err => {
+                        this.$message.error('保存出错');
+                    })
+                },
+            },
+        };
+    </script>
+}

@@ -1,0 +1,108 @@
+<!---  --->
+<template>
+  <div>
+     <cHeader :active="active"></cHeader>
+     <div class="select">
+       <span style="font-size:small">已生成报告：</span>
+       <el-date-picker value-format="yyyy-MM-dd HH:mm:ss" v-model="inputDate" type="month" placeholder="选择录入日期" size="small" style="width:150px"></el-date-picker>
+       <el-button type="primary" size="small" @click="GetData" class="btn">查询</el-button>
+       <el-button type="danger" size="small" plain @click="deleteReport" :disabled="!isDisabled">删除</el-button>
+    </div>
+    <cTable ref="table" class="home" :tableType="'月度库存金额'" :time="inputDate"></cTable>
+  </div>
+</template>
+
+<script>
+import cHeader from "./page-components/_stock_header";
+import cTable from "./page-components/_stock_table";
+import { getMOnthData } from "@/api/order/warehouse";
+import {formatTime} from "@/filters/index";
+export default {
+  name: 'stock_query',
+  props: {},
+  data() {
+    return {
+      active: "月度库存金额",
+      header_list: ["库存金额信息", "月度库存金额", "查询ERP库存月度结存金额"],
+      inputDate: null,
+      isDisabled: false,
+      assess:{},//审核数据
+    };
+  },
+  components: {
+    cHeader,
+    cTable,
+  },
+  computed: {},
+  watch: {
+    inputDate() {
+      if (this.inputDate == null) {
+        this.$refs.table.tableDate = [];
+        this.isDisabled = false;
+      }
+    },
+  },
+  methods: {
+    //查询表格数据
+    GetData() {
+      if (this.inputDate != null) {
+        getMOnthData(this.inputDate).then((res) => {
+          this.$refs.table.lastMonth=[]
+          if (JSON.parse(res.data.Data.Data).length > 0) {
+            this.$message.success("查询成功！");
+            this.$refs.table.tableDate = JSON.parse(res.data.Data.Data);
+            this.isDisabled = true;
+          } else {
+            this.$message.error("暂无数据！");
+          };
+         if (JSON.parse(res.data.Data.lastMonth).length > 0) {
+            this.$refs.table.lastMonth= JSON.parse(res.data.Data.lastMonth);                   
+          };
+          if(JSON.parse(res.data.Data.DataOne).length>0){           
+            this.assess=JSON.parse(res.data.Data.DataOne)[0]            
+          }
+        });
+      } else {
+        this.$message.error("请选择查询日期！");
+      }
+    },
+    //删除表格数据
+    deleteReport() {},
+
+  },
+  created() {
+
+  },
+  mounted() {
+    if (this.$route.query.time != null) {
+      this.inputDate = this.$route.query.time;
+      this.GetData();
+    }
+  },
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {},
+}
+</script>
+
+<style scoped>
+.select {
+  margin: 15px;
+}
+/*设置合计行字体、颜色*/
+
+.home >>> .warning-row {
+  background: #eff2f7;
+  font-size: 12px !important;
+  font-weight: bold;
+  color: black;
+}
+
+.btn {
+  margin: 5px;
+}
+</style>

@@ -1,0 +1,335 @@
+﻿@{
+    ViewBag.Title = "待处理事项";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/tableStyle/StockAmount.less" />
+    <style>
+        .table .cell, .el-table th, .el-table td, .el-table tr {
+            text-align: center;
+            padding: 2px;
+            font-size: 14px;
+            height: 40px;
+            line-height: 36px;
+            color: #293038
+        }
+
+        .main_style {
+            margin-top: 15px;
+            display: flex;
+        }
+
+        .menu_style {
+            background-color: #EFF2F7;
+            margin-bottom: 1px
+        }
+
+            .menu_style:hover {
+                background-color: #e4ecf7 !important;
+            }
+
+            .menu_style:active {
+                border-right-color: aqua;
+                border-right-width: 2px;
+            }
+
+            .menu_style .item {
+                margin-right: auto
+            }
+
+        .item {
+            height:56px;
+            line-height: 56px;
+            display: inline-block;
+            text-align: right;
+        }
+
+        .aside_style {
+            overflow-x: hidden;
+            overflow-y: no-display
+        }
+
+        .box-card {
+            margin-left: 20px;
+            width: 880px;
+            height: 700px
+        }
+
+        .card_style {
+            display: flex;
+            justify-content: center;
+        }
+
+        .el-card__body {
+            padding: 0px;
+        }
+
+        .spcolor {
+            color: #409eff
+        }
+        .el-badge__content {            
+            margin-top: -5px;
+        }
+        .el-menu-item {
+
+            padding: 0px;          
+        }
+            .el-menu-item:focus, .el-menu-item:hover {              
+                background-color: #e4ecf7;
+            }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header>
+        <h3>@ViewBag.Title</h3>
+    </el-header>
+    <div class="main_style">
+        <el-aside width="332px" style="height:100%" class="aside_style">
+            <div style="height:700px;background-color:#EFF2F7">
+                <div v-for="item in list">
+                    <el-menu text-color="#293038" active-text-color="#293038" v-show="item.value>0">
+                        <el-menu-item index="2" class="menu_style" @@click="onTips(item.key)">
+                            <label>{{item.key}}</label>
+                            <div class="item" style="float: right;">
+                                <span class="name">
+                                    <el-badge :value="item.value">
+                                    </el-badge>
+                                </span>
+                                <span class="name"><i class="el-icon-arrow-right"></i></span>
+                            </div>
+                        </el-menu-item>
+                    </el-menu>
+                </div>
+            </div>
+        </el-aside>
+        <el-aside width="902px">
+            <el-card class="box-card" shadow="never">
+                <div slot="header" class="clearfix">
+                    <p style="text-align:center;font-weight:800">
+                        {{tipsName}}
+                        <el-button style="float: right " type="primary" plain size="mini" @@click="onSkip" v-show="add==true">提示项管理</el-button>
+                    </p>
+
+                </div>
+                <div>
+
+                    <el-table v-bind:data="tableData" v-show="tipsName=='小样报告确认审核'||tipsName=='小样报告确认核准'">
+                        <el-table-column prop="OrderNumber" label="订单号">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="smallSample(scope.row.Id)">{{scope.row.OrderNumber}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <el-table v-bind:data="tableData" border max-height="650" v-show="tipsName=='设备报修单审核'||tipsName=='报修单采购批准'||tipsName=='报修单技术部意见批准'||tipsName=='故障报修单批准'||tipsName=='技术部故障报修单批准'||tipsName=='设备点检未确认点检保养'||tipsName=='设备报修单技术部意见'||tipsName=='设备报修单采购部意见'||tipsName=='设备报修单维修人/厂家'||tipsName=='设备报修单维修后确认/技术部'||tipsName=='设备报修单维修后确认/维修需要部门'">
+                        <el-table-column prop="EquipmentNumber" label="设备编号" width="400">
+                            <template slot-scope="scope">
+                                <span class="spcolor" type="text" size="middle" v-on:click="tipsName=='设备点检未确认点检保养'?godianjian(scope.row):repair(scope.row)">{{scope.row.EquipmentNumber}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="faulttime" label="时间" v-if="tipsName!='设备点检未确认点检保养'">
+                            <template slot-scope="scope">
+                                <span type="text">{{scope.row.faulttime|timeFilter }}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="" label="时间" v-if="tipsName=='设备点检未确认点检保养'">
+                            <template slot-scope="scope">
+                                <span type="text" size="middle">{{scope.row.year}}-{{scope.row.month}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <el-table v-bind:data="tableData" max-height="650px" border v-show="tipsName=='未审核的质量指标达成状况统计表'||tipsName=='未批准的质量指标达成状况统计表'">
+                        <el-table-column prop="Name" label="质量指标" width="400">
+                            <template slot-scope="scope">
+                                <span type="text" size="middle">{{scope.row.Name}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="" label="时间">
+                            <template slot-scope="scope">
+                                <span type="text" class="spcolor" size="middle" v-on:click="goQualityIndex(scope.row)">{{scope.row.Year}}-{{scope.row.Month}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <el-table v-bind:data="tableData" max-height="650px" border v-show="tipsName=='技术部未审核的安全库存清单'||tipsName=='MC部未审核的安全库存清单'||tipsName=='工厂厂长未批准的安全库存清单'">
+                        <el-table-column prop="Name" label="安全库存" width="400">
+                            <template slot-scope="scope">
+                                <span type="text" size="middle">{{scope.row.Name}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="" label="时间">
+                            <template slot-scope="scope">
+                                <span type="text" class="spcolor" size="middle" v-on:click="goSafeStock(scope.row)">{{scope.row.Year}}-{{scope.row.Month}}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            </el-card>
+
+        </el-aside>
+    </div>
+
+</el-container>
+@{
+    var UserName = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).UserName;
+    var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+}
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        Vue.filter("timeFilter", function (val) {
+            if (!val) return '';
+            var date = new Date(val)
+            let year = date.getFullYear();
+            let month = date.getMonth() + 1;
+            let day = date.getDate();
+            return `${year}-${month}-${day}`
+        })
+        const app = {
+            data: function () {
+                return {
+                    list: [],
+                    tipsName: '待处理事项',
+                    tableData: [],
+                    add: false,
+                }
+            },
+            mounted: function () {
+                this.getDateInfo()
+                if (this.islimit('用户管理')) {
+                    this.add=true
+                }             
+            },
+            methods: {
+                ////定时刷新
+                //timer() {
+                //    return setTimeout(() => {
+                //        this.onTips()
+                //    }, 3000)
+                //},
+                //获取左边数据
+                getDateInfo() {
+                    axios.post("/Tips/Index", { userId: "@UserIds" }).then(res => {
+                    console.log(res.data)
+                    var arr = []
+                    for (let i in res.data) {
+                        arr.push({
+                            key: i,
+                            value: res.data[i]
+                        });
+                    }
+                    this.list = arr
+                    this.onTips(this.list[0].key)
+                    });
+                },
+                //跳转
+                onSkip() {
+                    window.open("/Tips/Tips_Arguments");
+                },
+                //小样跳转
+                smallSample(item) {
+                    window.open("/Small_Sample/Display?" + "id=" + item);
+                },
+                //设备报修单
+                repair(item) {
+                    var date = new Date(item.faulttime)
+                    let year = date.getFullYear();
+                    let month = date.getMonth() + 1;
+                    let day = date.getDate();
+                    let tt= `${year}-${month}-${day}`
+                    window.open("/Equipment/Equipment_Fixbill_Detail?" + "EquipmentNumber=" + item.EquipmentNumber + "&EquipmentName=" + item.EquipmentName + "&time=" + tt+"&canchange="+false)
+                },
+                //点检保养
+                godianjian(item) {
+                    let obj = { EquipmentNumber: item.EquipmentNumber, time: item.year + "-" + item.month+"-"+1 }
+                    widow.open("/Equipment/Equipment_Check_Record?" + "paramData="+obj+"&canchange="+false)
+                },
+                //指标达成率
+                goQualityIndex(item) {
+                    let tiemer = item.Year + "-" + item.Month
+                    window.open("/Equipment/Equipment_Quality_Goal?" + "time=" + tiemer)
+                },
+                //安全库存
+                goSafeStock(item) {
+                    let tiemer = item.Year + "-" + item.Month
+                    window.open("/Equipment/Equipment_Safety_Bill?" + "time=" + tiemer)
+                },
+                //获取表格数据
+                onTips(Tips_type) {                  
+                    this.tipsName = Tips_type
+                    let url = "";
+                    if (Tips_type == "小样报告确认审核") {
+                        url = "/Tips/SmallSampleNotAssessQuery";
+                    }
+                    else if (Tips_type == "小样报告确认核准") {
+                        url = "/Tips/SmallSampleNotApprovedQuery";
+                    }
+                    else if (Tips_type == "设备报修单审核") {
+                        url = "/Tips/Equipment_Repairbill_AssessorQuery";
+                    }
+                    else if (Tips_type == "报修单采购批准") {
+                        url = "/Tips/Equipment_Repairbill_ApproveQuery";
+                    }
+                    else if (Tips_type == "报修单技术部意见批准") {
+                        url = "/Tips/Equipment_Repairbill_ApproveQuery1";
+                    }
+                    else if (Tips_type == "故障报修单批准") {
+                        url = "/Tips/Equipment_Repairbill_ApproveQuery2";
+                    }
+                    else if (Tips_type == "技术部故障报修单批准") {
+                        url = "/Tips/Equipment_Repairbill_ApproveQuery3";
+                    }
+                    else if (Tips_type == "设备点检未确认点检保养") {
+                        url = "/Tips/Equipment_TallyQuery";
+                    }
+                    else if (Tips_type == "设备报修单技术部意见") {
+                        url = "/Tips/Equipment_RepairbillQuery_TecDepar";
+                    }
+                    else if (Tips_type == "设备报修单采购部意见") {
+                        url = "/Tips/Equipment_RepairbillQuery_Purchasing";
+                    }
+                    else if (Tips_type == "设备报修单维修人/厂家") {
+                        url = "/Tips/Equipment_RepairbillQuery_MainName";
+                    }
+                    else if (Tips_type == "设备报修单维修后确认/技术部") {
+                        url = "/Tips/Equipment_RepairbillQuery_TcConfirmName";
+                    }
+                    else if (Tips_type == "设备报修单维修后确认/维修需要部门") {
+                        url = "/Tips/Equipment_RepairbillQuery_AfterMain";
+                    }
+                    else if (Tips_type == "未审核的质量指标达成状况统计表") {
+                        url = "/Tips/Equipment_QualitytargetQuery";
+                    }
+                    else if (Tips_type == "未批准的质量指标达成状况统计表") {
+                        url = "/Tips/Equipment_ApprovetQuery";
+                    }
+                    else if (Tips_type == "技术部未审核的安全库存清单") {
+                        url = "/Tips/Equipment_SafetyTec_AssessorQuery";
+                    }
+                    else if (Tips_type == "MC部未审核的安全库存清单") {
+                        url = "/Tips/Equipment_SafetyAssessorQuery";
+                    }
+                    else if (Tips_type == "工厂厂长未批准的安全库存清单") {
+                        url = "/Tips/Equipment_SafetyApproveQuery";
+                    }
+                    axios.post(url).then(res => {
+                        console.log(res.data)
+                        this.tableData=res.data
+                    })
+                },
+            },
+            //watch: {
+            //    tableData() {
+            //        if (this.tableData.length > 0) {
+            //            this.timer()
+            //        }
+            //    }
+            //}
+        };
+    </script>
+}

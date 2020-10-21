@@ -1,0 +1,226 @@
+﻿
+@{
+    ViewBag.Title = "权限人员查看";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        .el-table {
+            margin: 0 auto;
+            margin-top:15px
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        <h3>权限人员查看</h3>
+    </el-header>
+    <el-main>
+        <div class="text-center">
+            <span>模块：</span>
+            <el-select v-model="module" placeholder="请选择模块" size="small">
+                <el-option v-for="item in moduleOptions"
+                           :key="item"
+                           :value="item">
+                </el-option>
+            </el-select>
+            <span>权限组：</span>
+            <el-select v-model="limitGroup" placeholder="请选择权限组" size="small" clearable>
+                <el-option v-for="item in limitGroupOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <span>权限：</span>
+            <el-select v-model="limit" placeholder="请选择权限" size="small" clearable>
+                <el-option v-for="item in limitOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-button type="primary" size="small" @@click="getDate">查询</el-button>            
+        </div>
+            <el-table :data="tableData"
+                      border
+                      style="width: 85%"
+                      max-height="672"
+                      v-bind:span-method="cellMerge">
+                <el-table-column prop="FourModule"
+                                 label="模块"
+                                 width="250">
+                </el-table-column>
+                <el-table-column prop="RolesName"
+                                 label="权限组"
+                                 width="250">
+                </el-table-column>
+                <el-table-column prop="Discription"
+                                 label="权限"
+                                 width="250">
+                </el-table-column>
+                <el-table-column prop="Department"
+                                 label="部门"
+                                 width="220">
+                </el-table-column>
+                <el-table-column prop="UserID"
+                                 label="工号"
+                                 width="220">
+                </el-table-column>
+                <el-table-column prop="UserName"
+                                 label="姓名">
+                </el-table-column>
+            </el-table>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    module:'',
+                    moduleOptions: [],
+                    limitGroup:'',
+                    limitGroupOptions: [],
+                    limit:'',
+                    limitOptions: [],
+                    tableData: [],
+                    spanArr: [],
+                    pos: '',     
+                    spanArr1: [], 
+                    pos1: '',      
+                    spanArr2: [],  
+                    pos2: '',   
+                }
+            },
+            mounted: function () {
+                this.getModule()
+            },
+            methods: {
+                //获取模块选项
+                getModule() {
+                    axios.post("/api/Users_Api/Permiss_FourModuleList").then(res => {
+                        this.moduleOptions=res.data.Data                                              
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //获取权限组
+                getlimitGroup() {
+                    axios.post("/api/Users_Api/Permiss_RolesName", { FourModule: this.module }).then(res => {
+                        this.limitGroupOptions = res.data.Data                    
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //获取权
+                getlimit() {
+                    axios.post("/api/Users_Api/Permiss_Discription", { RolesName: this.limitGroup }).then(res => {
+                        this.limitOptions = res.data.Data                       
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //获取表格数据
+                getDate() {
+                    this.tableData=[]
+                    axios.post("/api/Users_Api/PersonnelList", { FourModule: this.module, RolesName: this.limitGroup, Discription: this.limit }).then(res => {                      
+                        console.log(res.data.Data)
+                        this.tableData = res.data.Data                        
+                        this.spanArr =[]
+                        this.spanArr1 =[]
+                        this.spanArr2 = []
+                        this.pos = this.pos1 = this.pos2 = ''
+                        this.getSpanArr(this.tableData)
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //合并相同数据的方法  合并第一个表格第一列相同的数据
+                getSpanArr(data) {
+                    
+                    for (var i = 0; i < data.length; i++) {
+                        if (i === 0) {   
+                            this.spanArr.push(1);
+                            this.pos = 0
+                        } else {
+                            if (data[i].FourModule === data[i - 1].FourModule) {
+                                this.spanArr[this.pos] += 1;
+                                this.spanArr.push(0);
+                            } else {
+                                this.spanArr.push(1);
+                                this.pos = i;
+                            }
+                        };
+                        if (i === 0) {
+                            this.spanArr1.push(1);
+                            this.pos1 = 0
+                        } else {
+                            if (data[i].RolesName === data[i - 1].RolesName) {
+                                this.spanArr1[this.pos1] += 1;
+                                this.spanArr1.push(0);
+                            } else {
+                                this.spanArr1.push(1);
+                                this.pos1 = i;
+                            }
+                        };
+                        if (i === 0) {
+                            this.spanArr2.push(1);
+                            this.pos2 = 0
+                        } else {
+                            if (data[i].Discription === data[i - 1].Discription) {
+                                this.spanArr2[this.pos2] += 1;
+                                this.spanArr2.push(0);
+                            } else {
+                                this.spanArr2.push(1);
+                                this.pos2 = i;
+                            }
+                        };
+                    };
+                },
+                cellMerge({ row, column, rowIndex, columnIndex }) {
+                    if (columnIndex === 0) {
+                        const _row = this.spanArr[rowIndex];
+                        const _col = _row > 0 ? 1 : 0;
+                        return {
+                            rowspan: _row,
+                            colspan: _col
+                        }
+                    };
+                    if (columnIndex === 1) {
+                        const _row = this.spanArr1[rowIndex];
+                        const _col = _row > 0 ? 1 : 0;
+                        return {
+                            rowspan: _row,
+                            colspan: _col
+                        }
+                    };
+                    if (columnIndex === 2) {
+                        const _row = this.spanArr2[rowIndex];
+                        const _col = _row > 0 ? 1 : 0;
+                        return {
+                            rowspan: _row,
+                            colspan: _col
+                        }
+                    };
+                },
+            },
+            watch: {
+                module(val) {
+                    if (val != '') {                       
+                        this.getlimitGroup()
+                    }
+                },   
+                limitGroup(val) {
+                    if (val != '') {
+                        this.getlimit()
+                    }
+                }
+            },
+        };
+    </script>
+}
+

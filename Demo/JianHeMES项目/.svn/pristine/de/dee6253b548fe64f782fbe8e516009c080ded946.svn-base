@@ -1,0 +1,182 @@
+﻿@{
+    ViewBag.Title = "FQC检查开始";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .mian-line {
+            border-top: 1px solid #d4e9ff;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .main input, .main textarea, .main select, .main .el-input-number, .main .el-input, .main .el-slider {
+            width: 100%;
+        }
+        .row-style{
+            padding:16px;
+        }
+        .con-box {
+            text-align: center;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .con-title {
+            font-size: 14px;
+            padding-bottom: 10px;
+        }
+
+        .con-content {
+            font-size: 14px;
+            padding: 8px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+
+        .indianred-title {
+            color: indianred;
+        }
+
+        .indianred-border {
+            border: 1px solid indianred;
+        }
+
+        .cornflowerblue-title {
+            color: cornflowerblue;
+        }
+
+        .cornflowerblue-border {
+            border: 1px solid cornflowerblue;
+        }
+
+        .forestgreen-title {
+            color: forestgreen;
+        }
+
+        .forestgreen-border {
+            border: 1px solid forestgreen;
+        }
+    </style>
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <h1>@ViewBag.Title</h1>
+        </el-header>
+        <el-main class="main mian-line">
+            <el-row class="row-style">
+                <el-col :xs="24" :sm="24" :md="24" :lg="6" :xl="5">
+                    <el-form size="small" label-position="right" label-width="100px" :model="formInfo">
+                        <el-form-item>
+                            <el-checkbox v-model="formInfo.isEmbezzle" label="挪用库存" border size="small"></el-checkbox>
+                        </el-form-item>
+                        <el-form-item label="班组">
+                            <el-select v-model="formInfo.group" placeholder="请选择班组">
+                                <el-option v-for="item in group_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <template v-if="formInfo.isEmbezzle">
+                            <el-form-item label="被挪用订单号">
+                                <el-select v-model="formInfo.embezzleNumber" placeholder="请选择">
+                                    <el-option v-for="item in order_options"
+                                               :key="item.value"
+                                               :label="item.label"
+                                               :value="item.value">
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="被挪用条码">
+                                <el-input v-model="formInfo.embezzleCode" placeholder="请输入内容" style="max-width:215px;"></el-input>
+                            </el-form-item>
+                        </template>
+                        <el-form-item label="订单号">
+                            <el-select v-model="formInfo.orderNumber" placeholder="请选择">
+                                <el-option v-for="item in order_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="条码">
+                            <el-input v-model="formInfo.code" placeholder="请输入内容" style="max-width:215px;"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="是否重复校正">
+                            <el-checkbox v-model="formInfo.isRepeat"></el-checkbox>
+                        </el-form-item>
+                        <el-form-item label="">
+                            <el-button type="primary" @@click="onStartCheck">开始FQC</el-button>
+                        </el-form-item>
+                    </el-form>
+                </el-col>
+                <el-col :xs="24" :sm="24" :md="24" :lg="18" :xl="19">
+              
+                </el-col>
+            </el-row>
+
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    formInfo: {
+                        isEmbezzle: false,
+                        group: '',
+                        orderNumber: '',
+                        code: '',
+                        isRepeat: false,
+
+                    },
+                    group_options: [],
+                    order_options: [],
+                }
+            },
+            created() {
+            },
+            mounted() {
+                this.getInitData();
+            },
+            methods: {
+                //获取初始化数据
+                getInitData() {
+                    axios.post("/Users/DisplayGroup").then(res => {
+                        //console.log(res.data)
+                        let arr = [];
+                        res.data.Group.forEach(item => {
+                            let obj = {
+                                label: item,
+                                value: item
+                            }
+                            arr.push(obj);
+                        })
+                        this.group_options = arr;
+                        this.formInfo.group = res.data.Group[0];
+                    });
+                    axios.post("/api/FinalQCsAPI/OrderList", {}).then(res => {
+                        console.log(res)
+                    })
+                },
+                onStartCheck() { }
+            },
+        };
+    </script>
+}

@@ -1,0 +1,95 @@
+
+<template>
+  <div>
+    <div class="bigbox">
+      <div class="innerbox">
+        <div class="loginbox">
+          <div class="logo"></div>
+          <div class="welcome">欢迎登录</div>
+          <div class="usernumbox">
+            <input autofocus="autofocus" class="usernum" v-model="usernum" placeholder="请输入员工编号" />
+          </div>
+          <div class="pwdbox">
+            <input type="password" class="pwd" v-model="pwd" placeholder="请输入密码" />
+          </div>
+
+          <div class="autologinforgetpwd">
+            <input type="checkbox" class="autologin" />
+            <span class="autologintext">自动登录</span>
+            <span class="forgetpwd" id="forgetpwd" @click="showtips">忘记密码？</span>
+          </div>
+
+          <button id="loginbtn" class="loginbtn" @click="onLogin">登 录</button>
+          <div class="download_exp">
+            MES指定使用浏览器：
+            <a :href="baseUrl+'MES_Data/ChromeCore_1277_3.0.1.6.exe'">谷歌浏览器</a>，
+            <br />
+            <a :href="baseUrl+'MES_Data/Firefox Setup x64.exe'">火狐64位</a>，
+            <a :href="baseUrl+'MES_Data/Firefox Setup x86.exe'">火狐32位</a>，
+            <a :href="baseUrl+'MES_Data/Firefox Setup XP.exe'">火狐XP版</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import config from "@/config";
+import { mapActions } from "vuex";
+import { login, getUserInfo } from "@/api/user";
+export default {
+  name: "login",
+  data() {
+    return {
+      baseUrl: config.baseUrl.pro,
+      usernum: "",
+      pwd: "",
+      col: null,
+      act: null,
+    };
+  },
+  components: {},
+  methods: {
+    ...mapActions(["handleLogin", "getUserInfo"]),
+    // handleSubmit({ userName, password }) {
+    //   this.handleLogin({ userName, password }).then((res) => {
+    //     this.getUserInfo().then((res) => {
+    //       this.$router.push({
+    //         name: this.$config.homeName,
+    //       });
+    //     });
+    //   });
+    // },
+    showtips() {
+      alert("请联系技术部智造组！");
+    },
+    onLogin() {
+      if (this.usernum == "" || this.pwd == "") {
+        return;
+      } else {
+        let usernum = this.usernum,
+          password = this.pwd;
+        this.handleLogin({ usernum, password }).then((res) => {
+          // console.log(res, 999);
+          if (!res.data.tokenInfo.Success) {
+            this.$message.warning(res.data.tokenInfo.Message);
+          } else {
+            this.getUserInfo().then((res) => {
+              // console.log(res,'登录')
+              localStorage.setItem("store", JSON.stringify(this.$store.state));
+              this.$router.push({
+                name: this.$config.homeName,
+              });
+            });
+          }
+        });
+      }
+    }
+  }
+};
+</script>
+
+<style lang="less" scoped>
+@import "./login";
+</style>

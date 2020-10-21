@@ -1,0 +1,408 @@
+﻿using JianHeMES.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Data.Entity;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class Personnel_WorkingHours_ReportController : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+
+        #region---页面
+        public ActionResult Personnel_Working()//人员工时报表首页
+        {
+            return View();
+        }
+
+        public ActionResult Group_Working()//班组工时报表首页
+        {
+            return View();
+        }
+
+        public ActionResult Department_Working()//部门工时报表首页
+        {
+            return View();
+        }
+
+        public ActionResult OvertimeLeague()//加班排行榜页面
+        {
+            return View();
+        }
+
+        public ActionResult TimeDifference()//月工时差异表
+        {
+            return View();
+        }
+
+        public ActionResult MonthlyReport()//月报/半月报页面
+        {
+            return View();
+        }
+
+        public ActionResult MonthlyContrast()//月报/半月报对比页面
+        {
+            return View();
+        }
+
+        public ActionResult CorporateCalendar()//企业行事历
+        {
+            return View();
+        }
+
+        #endregion
+
+        #region---人员工时明细表方法
+        //查询方法
+        public ActionResult Schedule_PersonnelHours(int? year, int? month, int? week)
+        {
+            JObject table = new JObject();
+            JObject personnel = new JObject();
+            if (year == null || month == null || week == null)
+            {
+                table.Add("Meg", false);
+                table.Add("Feg", year == null ? "年份" : "" + month == null ? "月份" : "" + week == null ? "周" : "" + "未选择！");
+                return Content(JsonConvert.SerializeObject(table));
+            }
+            var workList = db.Personnel_WorkingHours.Where(c => c.Year == year && c.Month == month && c.Week == week).ToList();
+            if (workList.Count > 0)
+            {
+                foreach (var item in workList)
+                {
+                    var hours = workList.Where(c => c.Year == year && c.Month == month && c.Week == week && c.UserNumber == item.UserNumber).FirstOrDefault();
+                    //Id
+                    personnel.Add("Id", hours.Id == 0 ? 0 : hours.Id);
+                    //工号
+                    personnel.Add("UserNumber", hours.UserNumber == null ? null : hours.UserNumber);
+                    //姓名
+                    personnel.Add("UserName", hours.UserName == null ? null : hours.UserName);
+                    //部门
+                    personnel.Add("Department", hours.Department == null ? null : hours.Department);
+                    //班组
+                    personnel.Add("Group", hours.Group == null ? null : hours.Group);
+                    //正班工时
+                    personnel.Add("ZhengBan_Work", hours.ZhengBan_Work == 0 ? 0 : hours.ZhengBan_Work);
+                    //加班1(工作日加班)
+                    personnel.Add("Work_Overtime1", hours.Work_Overtime1 == 0 ? 0 : hours.Work_Overtime1);
+                    //加班2(假日加班：礼拜六礼拜天)
+                    personnel.Add("Work_Overtime2", hours.Work_Overtime2 == 0 ? 0 : hours.Work_Overtime2);
+                    //加班3(节日加班：如元旦)
+                    personnel.Add("Work_Overtime3", hours.Work_Overtime3 == 0 ? 0 : hours.Work_Overtime3);
+                    //加班1日人均加班工时
+                    personnel.Add("Work_Overtime_Average1", hours.Work_Overtime_Average1 == 0 ? 0 : hours.Work_Overtime_Average1);
+                    //加班2日人均加班工时
+                    personnel.Add("Work_Overtime_Average2", hours.Work_Overtime_Average2 == 0 ? 0 : hours.Work_Overtime_Average2);
+                    //加班3日人均加班工时
+                    personnel.Add("Work_Overtime_Average3", hours.Work_Overtime_Average3 == 0 ? 0 : hours.Work_Overtime_Average3);
+                    //人员加班总值
+                    personnel.Add("Total_Overtime", hours.Total_Overtime == 0 ? 0 : hours.Total_Overtime);
+                    table.Add("Table", personnel);
+                    personnel = new JObject();
+                }
+
+            }
+            else
+            {
+                table.Add("Meg", false);
+                table.Add("Feg", year + "年" + month + "月第" + week + "周没有记录或尝未输入数据！");
+                return Content(JsonConvert.SerializeObject(table));
+            }
+            return Content(JsonConvert.SerializeObject(table));
+        }
+
+        //批量添加方法       
+        public ActionResult Batch_PersonnelHours(List<Personnel_WorkingHours> workingHours, int year, int month, int week)
+        {
+            JObject batch = new JObject();
+            int count = 0;
+            if (workingHours.Count > 0 && year != 0 && month != 0 && week != 0)
+            {
+                var CreateDate = DateTime.Now;
+                var Creator = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";
+                var weekDay = CreateDate.DayOfWeek.ToString();//得到今天是周几
+                string result = "";
+
+                #region-----算出周一和周日的日期
+                DateTime Monday = DateTime.Now;
+                DateTime Sunday = DateTime.Now;
+                switch (weekDay)
+                {
+                    case "Monday"://星期一
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = Sunday.AddDays(6);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                    case "Tuesday"://星期二
+                        Monday = Monday.AddDays(-1);
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = Sunday.AddDays(5);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                    case "Wednesday": //星期三 
+                        Monday = Monday.AddDays(-2);
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = Sunday.AddDays(4);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                    case "Thursday": //星期四
+                        Monday = Monday.AddDays(-3);
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = Sunday.AddDays(3);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                    case "Friday": //星期五
+                        Monday = Monday.AddDays(-4);
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = Sunday.AddDays(2);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                    case "Saturday"://星期六
+                        Monday = Monday.AddDays(-5);
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = Sunday.AddDays(1);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                    case "Sunday"://星期日
+                        Monday = Monday.AddDays(-6);
+                        Monday = new DateTime(Monday.Year, Monday.Month, Monday.Day);
+                        Sunday = new DateTime(Sunday.Year, Sunday.Month, Sunday.Day, 23, 59, 59);
+                        break;
+                }
+                #endregion
+                foreach (var data in workingHours)
+                {
+                    int Working = db.Personnel_WorkingHours.Count(c => c.Year == data.Year && c.Month == data.Month && c.Week == data.Week && c.UserNumber == data.UserNumber);
+                    if (Working > 0)
+                    {
+                        if (result == "")
+                        {
+                            result = data.Year + "年" + data.Month + "月第" + data.Week + "周" + data.UserNumber;
+                        }
+                        else
+                        {
+                            result = result + "," + data.Year + "年" + data.Month + "月第" + data.Week + "周" + data.UserNumber;
+                        }
+                    }
+                }
+                if (result != "")
+                {
+                    batch.Add("Meg", false);
+                    batch.Add("Feg", result + "数据已经存在，不能再输入！");
+                    return Content(JsonConvert.SerializeObject(batch));
+                }
+                foreach (var data in workingHours)
+                {
+                    data.CreateDate = CreateDate;
+                    data.Creator = Creator;
+                    data.Monday = Monday;
+                    data.Sunday = Sunday;
+                    data.Year = year;
+                    data.Month = month;
+                    data.Week = week;
+                    db.Personnel_WorkingHours.Add(data);
+                    count += db.SaveChanges();
+                }
+                if (count == workingHours.Count)
+                {
+                    batch.Add("Meg", true);
+                    batch.Add("Feg", "保存成功！");
+                    return Content(JsonConvert.SerializeObject(batch));
+                }
+                else
+                {
+                    batch.Add("Meg", false);
+                    batch.Add("Feg", "保存失败！");
+                    return Content(JsonConvert.SerializeObject(batch));
+                }
+            }
+            batch.Add("Meg", false);
+            batch.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(batch));
+        }
+
+        //修改数据
+        public ActionResult Modify_WorkingHours(Personnel_WorkingHours hoursList, int year, int month, int week)
+        {
+            JObject retul = new JObject();
+            if (year != 0 && month != 0 && week != 0 && hoursList != null)
+            {
+                hoursList.ModifyName = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";
+                hoursList.ModifyDate = DateTime.Now;
+                db.Entry(hoursList).State = EntityState.Modified;//修改数据
+                int count = db.SaveChanges();//保存数据库
+                if (count > 0)
+                {
+                    retul.Add("Meg", true);
+                    retul.Add("Feg", "修改成功！");
+                    retul.Add("HoursList", JsonConvert.SerializeObject(hoursList));
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+                else
+                {
+                    retul.Add("Meg", false);
+                    retul.Add("Feg", "修改失败！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+            }
+            retul.Add("Meg", false);
+            retul.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(retul));
+        }
+
+        #endregion
+
+        #region---班组工时明细表/对比表方法
+        public ActionResult ActionResult(int? year, int? month, int? week)
+        {
+
+            return View();
+        }
+
+
+
+        #endregion
+
+        #region---部门工时明细表/对比表方法
+
+        #endregion
+
+        #region---加班排行榜方法
+
+        #endregion
+
+        #region---月工时差异表方法
+
+        #endregion
+
+        #region---月报/半月报明细表/对比表方法
+
+        #endregion
+
+        #region---企业行事历方法
+        //查询方法
+        public ActionResult CalendarTable(int? year, int? month)
+        {
+            JObject table = new JObject();
+            JObject retul = new JObject();
+            List<Personnel_Corporate_Calendar> corporate = new List<Personnel_Corporate_Calendar>();
+            if (year != 0 && month != 0)
+            {
+                corporate = db.Personnel_Corporate_Calendar.Where(c => c.Date.Year == year && c.Date.Month == month).ToList();
+            }
+            if (year != 0 && month == 0)
+            {
+                corporate = db.Personnel_Corporate_Calendar.Where(c => c.Date.Year == year).ToList();
+            }
+            if (corporate.Count > 0)
+            {
+                foreach (var item in corporate)
+                {
+                    //id
+                    table.Add("Id", item.Id == 0 ? 0 : item.Id);
+                    //日期
+                    table.Add("Date", item.Date);
+                    //星期
+                    table.Add("Week", item.Week == null ? null : item.Week);
+                    //日历类型
+                    table.Add("CalendarType", item.CalendarType == null ? null : item.CalendarType);
+                    //日历类型名称
+                    table.Add("Calendar_TypeName", item.Calendar_TypeName == null ? null : item.Calendar_TypeName);
+                    //日历名称
+                    table.Add("CalendarName", item.CalendarName == null ? null : item.CalendarName);
+                    //时间类型
+                    table.Add("TimeType", item.TimeType == null ? null : item.TimeType);
+                    //时间类型名称
+                    table.Add("TimeTypeName", item.TimeTypeName == null ? null : item.TimeTypeName);
+                    //备注
+                    table.Add("Remark", item.Remark == null ? null : item.Remark);
+                    retul.Add("Table", table);
+                    table = new JObject();
+                }
+            }
+            return Content(JsonConvert.SerializeObject(retul));
+        }
+
+        //批量添加数据
+        public ActionResult Batch_CorporateCalendar(List<Personnel_Corporate_Calendar> calendars)
+        {
+            JObject corpor = new JObject();
+            JArray res = new JArray();
+            DateTime? retul = null;
+            int count = 0;
+            if (calendars.Count > 0)
+            {
+                foreach (var item in calendars)
+                {
+                    item.CreateDate = DateTime.Now;
+                    item.Creator = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";
+                    if (db.Personnel_Corporate_Calendar.Count(c => c.Date == item.Date) > 0)
+                    {
+                        retul = item.Date;
+                        res.Add(retul);
+                    }
+                }
+                if (retul!=null)//判断repat(存储相同数据的字段)是否为空
+                {
+                    corpor.Add("Meg", false);
+                    corpor.Add("Feg", "数据重复！");
+                    corpor.Add("Retul", JsonConvert.SerializeObject(res));
+                    return Content(JsonConvert.SerializeObject(corpor));
+                }
+                db.Personnel_Corporate_Calendar.AddRange(calendars);//把数据保存到相对应的表里
+                count += db.SaveChanges();
+                if (count == calendars.Count)
+                {
+                    corpor.Add("Meg", true);
+                    corpor.Add("Feg", "添加成功！");
+                    return Content(JsonConvert.SerializeObject(corpor));
+                }
+                else
+                {
+                    corpor.Add("Meg", false);
+                    corpor.Add("Feg", "添加失败！");
+                    return Content(JsonConvert.SerializeObject(corpor));
+                }
+            }
+            corpor.Add("Meg", false);
+            corpor.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(corpor));
+        }
+
+        //修改数据
+        public ActionResult Modify_Corporate(Personnel_Corporate_Calendar corporate)
+        {
+            JObject table = new JObject();
+            if (corporate.Date != null && corporate != null)
+            {
+                corporate.ModifyName = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";
+                corporate.ModifyDate = DateTime.Now;
+                db.Entry(corporate).State = EntityState.Modified;//修改数据
+                int count = db.SaveChanges();//保存数据库
+                if (count > 0)
+                {
+                    table.Add("Meg", true);
+                    table.Add("Feg", "修改成功！");
+                    table.Add("Corporate", JsonConvert.SerializeObject(corporate));
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+                else
+                {
+                    table.Add("Meg", false);
+                    table.Add("Feg", "修改失败！");
+                    return Content(JsonConvert.SerializeObject(table));
+                }
+            }
+            table.Add("Meg", false);
+            table.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(table));
+        }
+
+        #endregion
+
+    }
+}

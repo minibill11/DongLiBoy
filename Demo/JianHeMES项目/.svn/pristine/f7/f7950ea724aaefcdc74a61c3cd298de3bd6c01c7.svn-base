@@ -1,0 +1,281 @@
+﻿@{
+    ViewBag.Title = "批量校正";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .main .el-switch {
+            width: 220px;
+            height: 36px;
+        }
+    </style>
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h2>批量{{statueFrom.value}}</h2>
+        </el-header>
+        <el-main class="main">
+            <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
+                <div class="flex-item">
+                    <label>班组</label>
+                    <div>
+                        <el-select v-model="Group"
+                                   placeholder="请选择班组"
+                                   size="medium">
+                            <el-option v-for="item in groupOptions"
+                                       :key="item"
+                                       :label="item"
+                                       :value="item">
+                            </el-option>
+                        </el-select>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <label>校正工序</label>
+                    <div>
+                        <el-select v-model="statueFrom.value"
+                                   placeholder="请选择工序"
+                                   size="medium">
+                            <el-option v-for="item in statueFrom.option"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <label>订单号</label>
+                    <div>
+                        <el-autocomplete v-model="Ordernum"
+                                         @@select="selectOrdernum"
+                                         :fetch-suggestions="querySearch"
+                                         :debounce="0"
+                                         size="medium"
+                                         placeholder="输入内容可查询"
+                                         highlight-first-item
+                                         clearable></el-autocomplete>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <label>编号获取顺序</label>
+                    <div>
+                        <el-switch v-model="sequence"
+                                   inactive-text="倒序"
+                                   active-text="顺序">
+                        </el-switch>
+                    </div>
+                </div>
+                <div class="flex-item barcodeDiv" v-bind:class="message!=''?'is-error':''">
+                    <label>条码号</label>
+                    <div>
+                        <div class="el-input el-input--medium el-input--suffix">
+                            <input v-model.trim="ModuleBarcode"
+                                   v-on:keyup.enter="scanKeyup($event)"
+                                   ref="barcodeRef"
+                                   autocomplete="off"
+                                   placeholder="输入条码后回车"
+                                   class="el-input__inner">
+                        </div>
+                        <div class="el-form-item__error" v-show="message!=''">
+                            {{message}}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-item">
+                    <div>
+                        <el-button type="primary" size="small" @@click="postConfirm" :disabled="barcodeList.length==0">确认</el-button>
+                    </div>
+                </div>
+            </el-col>
+            <el-col :xs="24" :sm="24" :md="16" :lg="16" :xl="16">
+                <el-row>
+                    <div style="color:#888;font-size:13px;margin:0 0 5px 5px;">数量：{{barcodeList.length}}</div>
+                    <el-table :data="barcodeList"
+                              max-height="400"
+                              style="width:500px"
+                              size="small"
+                              align="center"
+                              border>
+                        <el-table-column prop="barcode" label="条码号"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="mes" label="状态"
+                                         align="center">
+                        </el-table-column>
+                        <el-table-column prop="pass" label="是否可以完成"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <i :class="[scope.row.pass?'el-icon-check green':'el-icon-close red']"></i>
+                            </template>
+                        </el-table-column>
+                        <el-table-column width="50"
+                                         align="center">
+                            <template slot-scope="scope">
+                                <el-button type="text" size="mini" @@click="deleteRow(scope.$index)">移除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-row>
+            </el-col>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    message: "",
+                    statueFrom: {
+                        value: '',
+                        option: [{
+                            value: '开始校正',
+                            label: '开始校正'
+                        }, {
+                            value: '结束校正',
+                            label: '结束校正'
+                        }]
+                    },
+                    barcodeList: [],
+                    sequence: true,
+                }
+            },
+            mixins: [setModuleManagement],
+            created: function () {
+                let mokuailaohuastatue = localStorage.getItem('mokuailaohuastatue');
+                if (mokuailaohuastatue != null) {
+                    this.statueFrom.value = mokuailaohuastatue;
+                };
+            },
+            mounted: function () {
+
+            },
+            methods: {
+                //选择订单号
+                selectOrdernum(v) {
+                    v.value != '' && localStorage.setItem('Order', v.value);
+                },
+                //确认完成
+                postConfirm() {
+                    //验证不能为空，不打印的提示要正确
+                    if (this.checkPostInfo()) {
+                        this.$refs.barcodeRef.select();
+                        return;
+                    };
+                    //let postlist = ;
+                    let postUrl = '', postData = {};
+                    if (this.statueFrom.value == '开始校正') {
+                        postUrl = 'BatchCreateCal';
+                        postData = {
+                            UserName: this.userName,
+                            Department: this.Department,
+                            Group: this.Group,
+                            sequence: this.sequence,
+                            OrderNum: this.Ordernum,
+                            BarCodesNumList: this.barcodeList.map(i => i.barcode),
+                        };
+                    } else if (this.statueFrom.value == '结束校正') {
+                        postUrl = 'BatchFinishCal1';
+                        postData = {
+                            UserName: this.userName,
+                            value: this.barcodeList.map(i => i.barcode),
+                        };
+                    };
+
+                    axios.post(`/api/CalibrationRecordsAPI/${postUrl}`, postData).then(res => {
+                        console.log(res.data);
+                        if (res.data.Data.Result) {
+                            this.$message.success(res.data.Data.Message);
+                            this.reset();
+                            this.$refs.barcodeRef.focus();
+                        } else {
+                            this.message = res.data.Data.Message;
+                            this.$refs.barcodeRef.select();
+                        };
+                    }).catch(err => {
+                        console.warn(err);
+                        this.$refs.barcodeRef.select();
+                    });
+                },
+                //扫码
+                scanKeyup(v) {
+                    if (v.target.value == "") {
+                        //this.$refs.barcodeRef.focus();
+                        return;
+                    };
+                    if (this.barcodeList.length >= 1) {
+                        for (let i of this.barcodeList) {
+                            if (i.barcode == v.target.value) {
+                                this.$message.warning('已经存在此条码');
+                                return;
+                            };
+                        };
+                    };
+                    this.barcodeList.push({
+                        barcode: v.target.value,
+                    });
+                    this.ModuleBarcode = '';
+                },
+                deleteRow(index) {
+                    this.barcodeList.splice(index, 1);
+                },
+                //重置信息
+                reset() {
+                    this.message = "";
+                    this.ModuleBarcode = "";
+                    this.barcodeList = [];
+                },
+                //检查信息完整
+                checkPostInfo() {
+                    let errormes = '', nooknum = 0;
+                    if (this.Group == '') {
+                        errormes = errormes + (nooknum + 1) + "、班组不能为空<br/>"; nooknum++;
+                    };
+                    if (this.statueFrom.value == '') {
+                        errormes = errormes + (nooknum + 1) + "、校正工序不能为空<br/>"; nooknum++;
+                    };
+                    if (this.Ordernum == '') {
+                        errormes = errormes + (nooknum + 1) + "、订单号不能为空<br/>"; nooknum++;
+                    };
+                    if (this.barcodeList.length == 0) {
+                        errormes = errormes + (nooknum + 1) + "、条码列表不能为空<br/>"; nooknum++;
+                    };
+                    if (nooknum > 0) {
+                        this.$alert(errormes, "数据不合格", {
+                            confirmButtonText: '确定',
+                            closeOnClickModal: true,
+                            closeOnPressEscape: true,
+                            dangerouslyUseHTMLString: true,
+                            type: "error",
+                        });
+                        return true;
+                    } else {
+                        return false;
+                    };
+                },
+            },
+            watch: {
+                ModuleBarcode(v) {
+                    this.message = "";
+                },
+                Ordernum(v) {
+                    this.reset();
+                },
+                'statueFrom.value'(v) {
+                    if (v != '') {
+                        localStorage.setItem('mokuailaohuastatue', v);
+                        this.barcodeList = [];
+                    };
+                },
+            },
+        };
+    </script>
+}

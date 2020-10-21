@@ -1,0 +1,517 @@
+﻿
+@{
+    ViewBag.Title = "点检查询";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .el-dialog__body {
+            padding: 10px 20px 20px 20px;
+        }
+        .el-card {
+            font-size: 14px;
+            margin-top: 14px;
+            margin-right: 10px;
+        }
+
+        .card-have {
+            border: 1px solid #2bcfaa;
+        }
+
+            .card-have .el-card__header {
+                color: #2bcfaa;
+                border-bottom: 1px solid #2bcfaa;
+            }
+
+        .card-never {
+            border: 1px solid #ff8590;
+        }
+
+            .card-never .el-card__header {
+                color: #ff8590;
+                border-bottom: 1px solid #ff8590;
+            }
+
+        .el-card__header {
+            padding: 8px 10px;
+        }
+
+        .el-card__body {
+            padding: 10px;
+            height: 360px;
+            overflow: auto;
+        }
+        .text-item{
+            cursor:pointer;
+            margin-bottom:4px;
+        }
+            .text-item:hover {
+                color: #409eff;
+            }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <eq-header-component :active="active"></eq-header-component>
+    </el-header>
+    <el-main class="main-box" v-loading="loading">
+        @* 查询选择框s *@
+        <div class="equipment-index-inputcontainer">
+            <div class="equipment-index-inputcontainer-item">
+                <div>设备名称：</div>
+                <el-input placeholder="请输入设备名称"
+                          size="mini"
+                          v-model="EquipmentName"
+                          clearable style="width:130px;">
+                </el-input>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>线别：</div>
+                <el-input placeholder="请输入线别"
+                          v-model="LineNum"
+                          size="mini"
+                          clearable style="width:130px;">
+                </el-input>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>设备编号：</div>
+                <el-select v-model="EquipmentNumber" size="mini" allow-create filterable clearable placeholder="请选择设备编号" style="width:130px;">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>部门：</div>
+                <el-select v-model="UserDepartment" size="mini" allow-create filterable clearable placeholder="请选择使用部门" style="width:130px;">
+                    <el-option v-for="item in deparlist"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div class="equipment-index-inputcontainer-item">
+                <div>日期：</div>
+                <el-date-picker v-model="time"
+                                type="month"
+                                size="mini"
+                                placeholder="选择日期" style="width:130px;">
+                </el-date-picker>
+            </div>
+            <el-button id="search" type="primary" size="mini" v-on:click="query">查询</el-button>
+            <el-button type="primary" size="mini" v-on:click="showCreateCheck = true" plain>创建点检表</el-button>
+            <el-button type="primary" size="mini" v-on:click="onShowCopy" plain>复制月数据</el-button>
+            <el-button type="primary" size="mini" v-on:click="onShowDayCheck" plain>查看日点检情况</el-button>
+        </div>
+        <div class="tip-box"><span class="tip">提示：查询结果中部门（因组织架构变更）可能与当前部门不一致。</span></div>
+        @* 点检表 *@
+        <div class="bottomContainer">
+            <el-table v-bind:data="tableData"
+                      border
+                      stripe
+                      size="small"
+                      max-height="580"
+                      style="width: 100%">
+                <el-table-column type="index" width="50">
+                </el-table-column>
+                <el-table-column prop="UserDepartment"
+                                 label="部门">
+                </el-table-column>
+                <el-table-column prop="LineName"
+                                 label="线别">
+                </el-table-column>
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称">
+                </el-table-column>
+                <el-table-column prop="EquipmentNumber"
+                                 label="设备编号">
+                </el-table-column>
+                <el-table-column prop="times"
+                                 label="时间">
+                </el-table-column>
+                <el-table-column prop=""
+                                 width="100"
+                                 label="操作">
+                    <template slot-scope="scope">
+                        @*<el-button type="text" size="mini" @@click="goDetials(scope.row)" style="text-decoration:underline;">详细</el-button>*@
+                        <a :href="goDetials(scope.row)" class="detail-style" target="_blank">详细</a>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+        @* 创建点检表弹框 *@
+        <el-dialog title="创建点检表"
+                   v-bind:visible.sync="showCreateCheck"
+                   width="20%">
+            <el-form label-width="100px" :model="addCheck">
+                <el-form-item label="设备编号：">
+                    <el-select v-model="addCheck.EquipmentNumber" size="mini" allow-create filterable clearable placeholder="请选择设备编号" style="width:150px;">
+                        <el-option v-for="item in options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="设备名称：">
+                    <el-input placeholder="请输入设备名称"
+                              size="mini"
+                              v-model="addCheck.EquipmentName"
+                              clearable style="width:150px;">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="部门：">
+                    <el-select v-model="addCheck.UserDepartment" size="mini" allow-create filterable clearable placeholder="请选择使用部门" style="width:150px;">
+                        <el-option v-for="item in deparlist"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="线别：">
+                    <el-input placeholder="请输入线别"
+                              v-model="addCheck.LineNum"
+                              size="mini"
+                              clearable style="width:150px;">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="时间：">
+                    <el-date-picker v-model="addCheck.time" size="mini"
+                                    type="month"
+                                    placeholder="选择时间"
+                                    style="width:150px;">
+                    </el-date-picker>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" v-on:click="showCreateCheck = false">取 消</el-button>
+                <el-button size="small" type="primary" v-on:click="onCreateCheck">确 定</el-button>
+            </span>
+        </el-dialog>
+        @* 复制月弹框 *@
+        <el-dialog title="复制设备点检保养月记录"
+                   v-bind:visible.sync="copyMonthDialogVisible"
+                   width="35%">
+            <el-form label-width="80px" :model="copyMonth">
+                <el-form-item label="复制月">
+                    <el-date-picker v-model="copyMonth.old" size="mini"
+                                    type="month"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="目标月">
+                    <el-date-picker v-model="copyMonth.new" size="mini"
+                                    type="month"
+                                    placeholder="选择月">
+                    </el-date-picker>
+                </el-form-item> 
+                <el-form-item label="版本号">
+                    <el-input v-model="copyMonth.vesion" size="mini" placeholder="版本号" disabled style="width:220px;">
+                    </el-input>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" v-on:click="copyMonthDialogVisible = false">取 消</el-button>
+                <el-button size="small" type="primary" v-on:click="addCopyMonth">确 定</el-button>
+            </span>
+        </el-dialog>
+        @* 查看日点检情况 *@
+    <el-dialog title="今天点检情况"
+               v-bind:visible.sync="dayCheckDialogVisible"
+               width="36%">
+        <el-select v-model="select_department" size="mini" allow-create filterable clearable placeholder="请选择部门" style="width:150px;">
+            <el-option v-for="item in deparlist"
+                       v-bind:key="item.value"
+                       v-bind:label="item.label"
+                       v-bind:value="item.value">
+            </el-option>
+        </el-select>
+        <el-tooltip effect="dark" content="刷新列表" placement="top-start">
+            <el-button size="mini" icon="el-icon-refresh-left" circle @@click="onReload"></el-button>
+            </el-tooltip>
+            <el-row>
+                <el-col span="12">
+                    <el-card shadow="never" class="card-never">
+                        <div slot="header" class="clearfix">
+                            <span>{{select_department}}今天未点检设备数：{{TallyNum}}</span>
+                        </div>
+                        <div v-for="(item,index) in TallyList" :key="index" class="text-item" @@click="onToTurn(item)">
+                            {{item.EquipmentNumber}}&nbsp;&nbsp; {{item.EquipmentName}}
+                        </div>
+                    </el-card>
+                </el-col>
+                <el-col span="12">
+                    <el-card shadow="never" class="card-have">
+                        <div slot="header" class="clearfix">
+                            <span>{{select_department}}今天已点检设备数：{{HaveTallyNum}}</span>
+                        </div>
+                        <div v-for="(item,index) in HaveTallyList" :key="index" class="text-item" @@click="onToTurn(item)">
+                            {{item.EquipmentNumber}}&nbsp;&nbsp; {{item.EquipmentName}}
+                        </div>
+                    </el-card>
+                </el-col>
+            </el-row>
+
+
+    </el-dialog>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Equipment/_Eq_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                loading: true,
+                active: "点检查询",
+                EquipmentName: null,   // 设备名称
+                LineNum: null, // 产线
+                EquipmentNumber: null,  // 设备编号
+                time: new Date(),     //所选时间
+                UserDepartment: null,    // 使用部门
+                deparlist: [],      // 部门列表
+                options: [],
+                tableData: [],   // 点检表数据
+
+                //复制月数据
+                copyMonthDialogVisible: false,
+                copyMonth: {
+                    old: '',
+                    new: '',
+                    vesion:'TD-008-E'
+                },
+                //创建表
+                showCreateCheck: false,
+                addCheck: {
+                    EquipmentNumber: '',   // 设备编号
+                    EquipmentName: '',   // 设备名称
+                    LineNum: '', // 产线
+                    UserDepartment: '',// 部门
+                    time: '',     //所选时间
+                },
+                //查看日点检情况
+                select_department: '',
+                dayCheckDialogVisible: false,
+                HaveTallyNum: '0',   //已点检数
+                HaveTallyList: [],   //已点检列表
+                TallyNum: '0',     //未点检数
+                TallyList: []     //未点检列表
+            },
+            mounted() {
+                // 页面加载获取资产编号
+                this.getEnumnbers();
+                this.query();
+            },
+            watch: {
+                'addCheck.EquipmentNumber': {
+                    handler(val) {
+                        if (val != '') {
+                            this.getAssetNumsDetail(val);
+                        }
+                    },
+                    deep: true
+                },
+                select_department(val) {
+                    if (val != '') {
+                        this.onGetIsCheck();
+                    }
+                }
+            },
+            methods: {
+                // 查找方法，根据所选设备名称、订单号、时间段、使用部门来获取点检表数据
+                query() {
+                    if (this.EquipmentName != '' || this.LineNum != '' || this.EquipmentNumber != '' || this.time != '' || this.deparlist != '') {
+                        //console.log(this.time)
+                        let dd = new Date(this.time);
+                        let selectYear = dd.getFullYear();
+                        let selectMonth = dd.getMonth() + 1
+                        axios.post("/Equipment/Equipment_Tally", {
+                            equipmentName: this.EquipmentName,
+                            LineNum: this.LineNum,
+                            equipmentNumber: this.EquipmentNumber,
+                            year: this.time == null ? null : selectYear,
+                            month: this.time == null ? null : selectMonth,
+                            UserDepartment: this.UserDepartment
+                        }).then(res => {
+                            this.loading = false;
+                            //console.log(res.data)
+                            if (res.data.length > 0) {
+                                res.data.forEach(item => {
+                                    item.times = `${item.Year}-${item.Month}`
+                                })
+                                this.tableData = res.data;
+                            } else {
+                                this.$message({
+                                    message: "查无对应数据",
+                                    type: "warning"
+                                })
+                            }
+                        }).catch(err => {
+
+                        })
+                    } else {
+                        this.loading = false;
+                        this.$message({
+                            message: "请输入需要查询的信息",
+                            type: "warning"
+                        })
+                    }
+                },
+                // 获取所有设备资产编号
+                getEnumnbers() {
+                    axios.post("/Equipment/TallyList").then(res => {
+                        //console.log(res.data)
+                        res.data.forEach(item => {
+                            let obj = { value: item, label: item }
+                            this.options.push(obj)
+                        })
+                    }).catch(err => {
+
+                    })
+                    axios.post("/Equipment/Tally_Deparlist").then(res => {
+                        //console.log(res.data)
+                        res.data.forEach(item => {
+                            let obj = { value: item, label: item }
+                            this.deparlist.push(obj)
+                        })
+                    }).catch(err => {
+
+                    })
+                },
+                //根据部门查找当天是否已点检的设备
+                onGetIsCheck() {
+                    //console.log(this.formInfo.UserDepartment,111);
+                    axios.post("/Equipment/Checked_maintenance", { userdepartment: this.select_department }).then(res => {
+                        //console.log(res);
+                        this.TallyNum = res.data.Number ? res.data.Number : '0';
+                        this.TallyList = res.data.Retul;
+                        this.HaveTallyNum = res.data.HaveTally ? res.data.HaveTally : '0';
+                        this.HaveTallyList = res.data.Have_retul;
+                    })
+                },
+                //根据设备编号获取资料
+                getAssetNumsDetail(val) {
+                    axios.post("/Equipment/EquipmentInfo_getdata_by_eqnum", { equipmentNumber: val }).then(res => {
+                        //console.log(res.data,111);
+                        if (res.data.length == 0) {
+                            this.$message.warning("此资产编号无对应数据");
+                        } else {
+                            this.addCheck.EquipmentName = res.data.EquipmentName;
+                            this.addCheck.LineNum = res.data.LineNum;
+                            this.addCheck.UserDepartment = res.data.UserDepartment;
+                        }
+                    })
+                },
+                // 详细按钮跳转到详细页--传：资产编号、年、月
+                goDetials(item) {
+                    if (this.islimit("查询点检保养表")) {
+                    //console.log(item);
+                    let dd = new Date(item.times);
+                    //console.log(dd);
+                    let param = {
+                        EquipmentNumber: item.EquipmentNumber,
+                        time: dd
+                    }
+                        let url = "/Equipment/Equipment_Check_Record?paramData=" + JSON.stringify(param) + "&canchange=false";
+                        return url;
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                //创建点检表
+                onCreateCheck() {
+                    //console.log(this.addCheck);
+                    if (this.addCheck.equipmentNumber == '' || this.addCheck.EquipmentName == '' || this.addCheck.time == '') {
+                        this.$message.warning("请补全信息！");
+                    } else {
+                        let json = JSON.stringify(this.addCheck);
+                        this.showCreateCheck = false;
+                        window.open("/Equipment/Equipment_Check_Record?paramData=" + json + "&canchange=true");
+                        this.addCheck = {
+                            EquipmentNumber: '',   // 设备编号
+                            EquipmentName: '',   // 设备名称
+                            LineNum: '', // 产线
+                            UserDepartment: '',// 部门
+                            time: '',     //所选时间
+                        };
+                    }
+
+                },
+                //复制月数据
+                onShowCopy() {
+                    this.copyMonthDialogVisible = true;
+                },
+                addCopyMonth() {
+                    if (this.copyMonth.old == '' || this.copyMonth.new == '') {
+                        this.$message.warning("请补全数据！");
+                        return;
+                    } else {
+                        this.$loading({
+                            lock: true,
+                            text: '复制数据ing...数据比较大，请不要关闭页面',
+                            spinner: 'el-icon-loading',
+                            background: 'rgba(0, 0, 0, 0.7)'
+                        });
+                        let param = {
+                            old_year: this.copyMonth.old.getFullYear(),
+                            old_month: this.copyMonth.old.getMonth() + 1,
+                            new_year: this.copyMonth.new.getFullYear(),
+                            new_month: this.copyMonth.new.getMonth() + 1,
+                            versionNum: this.copyMonth.vesion
+                        };
+                        //console.log(param);
+                        axios.post('/Equipment/TallySheet_Copy', param).then(res => {
+                            this.$loading().close();
+                            //console.log(res.data);
+                            if (res.data.meg) {
+                                this.$message.success(res.data.copy);
+                                this.copyMonth = {
+                                    old: '',
+                                    new: '',
+                                    vesion: 'TD-008-E'
+                                }
+                                this.copyMonthDialogVisible = false;
+                            } else {
+                                this.$message.error(res.data.copy);
+                            };
+                        }).catch(err => {
+                            this.$loading().close();
+                            console.error(err);
+                        });
+                    }
+                },
+                //查看日点检情况
+                onShowDayCheck() {
+                    this.dayCheckDialogVisible = true;
+                },
+                //跳转到对应的设备
+                onToTurn(item) {
+                    //console.log(item);
+                    let obj = {
+                        EquipmentNumber: item.EquipmentNumber,
+                        time: new Date()
+                    };
+                    window.open("/Equipment/Equipment_Check_Record?paramData=" + JSON.stringify(obj) + "&canchange=false");
+                },
+                //刷新列表
+                onReload() {
+                    if (this.select_department != '') {
+                        this.onGetIsCheck();
+                    }
+                }
+            }
+        }
+
+    </script>
+}

@@ -1,0 +1,39 @@
+<template>
+  <div class="component-btn">
+    <el-button plain type="primary" size="mini" @click="downloadtemplate"
+      >下载模板</el-button>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "downloadTemplate",
+  props: {
+    templateName: {
+      type: String
+    },
+    url: {
+      type: String
+    },
+  },
+  data() {
+    return {};
+  },
+  computed: {},
+  methods: {
+    downloadtemplate() {
+      let aTag = document.createElement("a");
+      aTag.download = this.templateName;
+      let len = this.templateName.indexOf(".");
+      if (this.templateName.substring(len) == ".pdf") {
+        aTag.target = "_blank";
+      }
+      aTag.href = this.$loadPath + this.url;
+      aTag.click();
+      // URL.revokeObjectURL(aTag.href);
+    },
+  },
+  mounted() {},
+  watch: {},
+};
+</script>

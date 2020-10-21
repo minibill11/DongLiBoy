@@ -1,0 +1,372 @@
+﻿@{
+    ViewBag.Title = "校正工作";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .mian-line {
+            border-top: 1px solid #d4e9ff;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .main input, .main textarea, .main select, .main .el-input-number, .main .el-input, .main .el-slider {
+            width: 100%;
+        }
+
+        .con-box {
+            text-align: center;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .con-title {
+            font-size: 14px;
+            padding-bottom: 10px;
+        }
+
+        .con-content {
+            font-size: 14px;
+            padding: 8px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+
+        .indianred-title {
+            color: indianred;
+        }
+
+        .indianred-border {
+            border: 1px solid indianred;
+        }
+
+        .cornflowerblue-title {
+            color: cornflowerblue;
+        }
+
+        .cornflowerblue-border {
+            border: 1px solid cornflowerblue;
+        }
+
+        .forestgreen-title {
+            color: forestgreen;
+        }
+
+        .forestgreen-border {
+            border: 1px solid forestgreen;
+        }
+
+        @@media screen and (min-width:992px) {
+
+            .row-style {
+                padding: 16px 50px;
+            }
+
+            .con-content {
+                height: 560px;
+                width: 220px;
+            }
+        }
+
+        @@media screen and (min-width:768px) {
+
+            .row-style {
+                padding: 16px;
+            }
+
+            .con-content {
+                height: 560px;
+                width: 220px;
+            }
+        }
+
+
+        @@media screen and (max-width:768px) {
+
+            .row-style {
+                padding: 16px;
+            }
+
+            .con-content {
+                min-height: 50px;
+                width: 220px;
+            }
+        }
+
+        .finish-cal {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <h1>{{isTurn?'完成校正':'开始校正'}}</h1>
+        </el-header>
+        <el-main class="main mian-line">
+            <el-row class="row-style" v-if="!isTurn">
+                <el-col :xs="24" :sm="24" :md="24" :lg="6" :xl="5">
+                    <el-form size="small" label-position="right" label-width="100px">
+                        <el-form-item label="班组">
+                            <el-select v-model="group" placeholder="请选择班组">
+                                <el-option v-for="item in group_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="订单号">
+                            <el-select v-model="orderNumber" filterable clearable placeholder="请选择">
+                                <el-option v-for="item in order_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="条码">
+                            <el-input v-model.trim="code" clearable placeholder="请输入内容" style="max-width:215px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="是否重复校正">
+                            <el-checkbox v-model="isRepeat" :disabled="true"></el-checkbox>
+                        </el-form-item>
+                        <el-form-item label="重复原因" v-if="isRepeat">
+                            <el-input type="textarea"
+                                      :rows="4"
+                                      placeholder="请输入内容"
+                                      v-model="reason">
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item>
+                            <el-button :disabled="comfirm" type="primary" @@click="onStartCheck">开始校正</el-button>
+                        </el-form-item>
+                    </el-form>
+                </el-col>
+                <el-col :xs="24" :sm="24" :md="8" :lg="6" :xl="5">
+                    <div class="con-box indianred-title">
+                        <div class="con-title">未开始{{NotDoList.length}}个</div>
+                        <div class="con-content indianred-border">
+                            <span v-for="item in NotDoList">{{item}}</span>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :xs="24" :sm="24" :md="8" :lg="6" :xl="5">
+                    <div class="con-box cornflowerblue-title">
+                        <div class="con-title">未完成{{NeverFinish.length}}个</div>
+                        <div class="con-content cornflowerblue-border">
+                            <span v-for="item in NeverFinish">{{item}}</span>
+                        </div>
+                    </div>
+                </el-col>
+
+                <el-col :xs="24" :sm="24" :md="8" :lg="6" :xl="5">
+                    <div class="con-box forestgreen-title">
+                        <div class="con-title">已完成{{FinishList.length}}个</div>
+                        <div class="con-content forestgreen-border">
+                            <span v-for="item in FinishList">{{item}}</span>
+                        </div>
+                    </div>
+                </el-col>
+            </el-row>
+            <template v-if="isTurn">
+                <finish-cal-component :forminfo="formInfo"></finish-cal-component>
+            </template>
+
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("_Finish_Cal.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    id:'',
+                    department:'',
+                    group: '',
+                    orderNumber: '',
+                    code: '',
+                    isRepeat: false,
+                    reason: '',
+                    group_options: [],
+                    order_options: [],
+                    FinishList: [],
+                    NeverFinish: [],
+                    NotDoList: [],
+                    //是否校正
+                    isTurn: false,
+                    comfirm: false,
+                    formInfo: {
+                    },
+                }
+            },
+            created() {
+            },
+            mounted() {
+                if (this.urlSearchParam.orderNum != undefined) {
+                    this.orderNumber = this.urlSearchParam.orderNum;
+                }
+                this.getInitData();
+                this.getList();
+            },
+            watch: {
+                orderNumber(val) {
+                    if (val != '' && val.length >= 10) {
+                        //console.log(000);
+                        this.getList();
+                    } else {
+                        this.FinishList = [];
+                        this.NeverFinish = [];
+                        this.NotDoList = [];
+                    }
+                },
+                code(val) {
+                    if (val != '' && val.length >= 15) {
+                        //console.log(55555)
+                        this.onStartCheck();
+                    } else {
+                        this.isRepeat = false;
+                    }
+                },
+                isRepeat(val) {
+                    if (val) {
+                        this.comfirm = true;
+                    } else {
+                        this.comfirm = false;
+                    }
+                },
+                reason(val) {
+                    if (this.isRepeat && val != '') {
+                        this.comfirm = false;
+                    } else {
+                        this.comfirm = true
+                    }
+                }
+            },
+            methods: {
+                //获取初始化数据
+                getInitData() {
+                    //班组
+                    axios.post("/Users/DisplayGroup").then(res => {
+                        //console.log(res.data);
+                        let arr = [];
+                        res.data.Group.forEach(item => {
+                            let obj = {
+                                label: item,
+                                value: item
+                            }
+                            arr.push(obj);
+                        })
+                        this.group_options = arr;
+                        this.department = res.data.department;
+                        this.group = res.data.Group[0];
+                    });
+                    //订单号
+                    axios.post("/CalibrationRecords/GetOrderList1").then(res => {
+                        //console.log(res.data)
+                        this.order_options = res.data
+                    });
+                },
+                //获取三个列表
+                getList() {
+                    axios.post("/CalibrationRecords/CalibrationChecklist", { orderNum: this.orderNumber, }).then(res => {
+                        console.log(res.data)
+                        //this.order_options = res.data
+                        let allData = res.data;
+                        this.NotDoList = [];
+                        this.NeverFinish = [];
+                        this.FinishList = [];
+                        for (var i in allData) {
+                            var iJson = JSON.parse(allData[i]);
+                            if (i == "NotDoList") {
+                                for (var j in iJson) {
+                                    this.NotDoList.push(iJson[j]);
+                                }
+                            };
+                            if (i == "NeverFinish") {
+                                for (var j in iJson) {
+                                    this.NeverFinish.push(iJson[j]);
+                                }
+                            };
+                            if (i == "FinishList") {
+                                for (var j in iJson) {
+                                    this.FinishList.push(iJson[j]);
+                                }
+                            };
+                        }
+                        //console.log(this.FinishList)
+                        //console.log(this.NeverFinish)
+                        //console.log(this.NotDoList)
+                    });
+                },
+                //开始校正
+                onStartCheck() {
+                    if (this.group != '' && this.orderNum != '' && this.code != '') {
+                        axios.post("/CalibrationRecords/CheckFinish", { barcode: this.code }).then(res => {
+                            //console.log(res.data)
+                            if (res.data == 'True') {
+                                if (this.isRepeat && this.reason != '') {
+                                    this.onToCheck();
+                                } else {
+                                    this.isRepeat = true;
+                                    this.$message.warning("该条码已经通过校正，重复校正请先填写原因！")
+                                }
+                            } else {
+                                this.onToCheck();
+                            }
+                        })
+                    } else {
+                        this.$message.warning("请补全信息！")
+                    }
+                },
+                //校正
+                onToCheck() {
+                    axios.post("/api/CalibrationRecordsAPI/CreateCal1", {
+                        Department: this.department,
+                        Group: this.group,
+                        OrderNum: this.orderNumber,
+                        BarCodesNum: this.code,
+                        RepetitionCalibration: this.isRepeat,
+                        RepetitionCalibrationCause: this.reason,
+                        UserName: this.userName
+                    }).then(res => {
+                        //console.log(res.data.Data,2222);
+                        let result = res.data.Data;
+                        if (result.pass) {
+                            this.formInfo = {
+                                id: result.id,
+                                OrderNum: this.orderNumber,
+                                BarCodesNum: this.code,
+                                ModuleGroupNum: result.moduleNum,
+                                isNormal: true,
+                                AbnormalDescription: '',
+                                UserName: this.userName
+                            }
+                            //console.log(this.formInfo,555);
+                        this.isTurn = true;
+                            this.$message.success(result.mes);
+                        this.isRepeat = false;
+                        this.reason = '';
+                        } else {
+                            this.$message.warning(result.mes);
+                        }
+                    })
+                }
+            },
+
+        };
+    </script>
+}

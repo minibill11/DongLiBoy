@@ -1,0 +1,203 @@
+﻿@{
+    ViewBag.Title = "7S部门评比得分排名";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link href="~/Content/vxe.css" rel="stylesheet" />
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 24px;
+        }
+
+        .action-box {
+            width: 100%;
+            padding: 20px 0;
+            display: flex;
+            align-content: center;
+            justify-content: space-between;
+        }
+
+        .table-height {
+            width: 100%;
+        }
+        /*        表格*/
+        td.el-table_1_column_3 {
+            border: none;
+        }
+
+        .department-style {
+            font-weight: bold;
+            font-size: 16px;
+            color: black;
+        }
+
+        .ranking-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .ranking {
+            display: block;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            line-height: 36px;
+            text-align: center;
+            line-height: 36px;
+            text-align: center;
+            font-size: 18px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .bg-red {
+            background-color: #ff8590;
+        }
+
+        .bg-blue {
+            background-color: #b3d8ff;
+        }
+
+        .el-table td .cell {
+            padding: 0;
+        }
+        /*  .el-progress-bar__inner{
+            border-radius:0;
+        }
+        .el-progress-bar__outer {
+            border-radius: 0;
+            background: none;
+        }*/
+        .progress-box {
+            width: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+            .progress-box span {
+                display: inline-block;
+                width: 65px;
+                font-size: 24px;
+                font-weight: bold;
+                color: black;
+            }
+
+        .progress-line {
+            height: 20px;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <div class="title">
+        7S部门评比得分排名
+    </div>
+
+    @*操作栏*@
+    <div class="action-box">
+        <div class="action-box-left">
+            <el-date-picker size="small" v-model="select_month"
+                            type="month"
+                            placeholder="请选择月份" style="width:150px;">
+            </el-date-picker>
+            <el-button size="small" type="primary" @@click="onQueryData">查询</el-button>
+        </div>
+        <div class="action-box-right">
+            <el-button size="small" type="primary" plain @@click="onToTurn(0)">7s评比得分汇总表</el-button>
+        </div>
+    </div>
+
+    @*表格*@
+    <div class="table-height">
+        <el-table :data="tableData"
+                  size="mini"
+                  border
+                  @@row-click="onToTurn">
+            <el-table-column prop="Ranking"
+                             label="排名"
+                             width="140">
+                <template slot-scope="scope">
+                    <div class="ranking-box"><span :class="['ranking',scope.row.Ranking<=3?'bg-red':'bg-blue']">{{scope.row.Ranking}}</span></div>
+                </template>
+            </el-table-column>
+            <el-table-column label="部门"
+                             width="160">
+                <template slot-scope="scope">
+                    <div class="department-style">{{scope.row.Department}}</div>
+                </template>
+            </el-table-column>
+            <el-table-column label="7s得分">
+                <template slot-scope="scope">
+                    <div class="progress-box">
+                        <div :class="['progress-line',scope.row.Ranking<=3?'bg-red':'bg-blue']" :style=`width:${scope.row.Score-20}%;`></div>
+                        <span>{{scope.row.Score}}</span>
+                    </div>
+                    @*<el-progress class="progress-box"
+                                     :text-inside="true"
+                                     :stroke-width="20"
+                                     :color="scope.row.Ranking<=3?customColorOne:customColorTwo"
+                                     :percentage="scope.row.Score">
+                        </el-progress>*@
+                </template>
+            </el-table-column>
+        </el-table>
+    </div>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    select_month: new Date(),
+                    tableData: [],
+                    customColorOne: '#ff8590',
+                    customColorTwo: '#b3d8ff',
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.onQueryData();
+            },
+            watch: {
+            },
+            //函数方法
+            methods: {
+                //查询数据
+                onQueryData() {
+                    let dd = new Date(this.select_month);
+                    axios.post('/KPI/KPI_7S_Ranking', { time: dd }).then(res => {
+                        res.data.forEach(item => {
+                            item.Score = parseFloat(item.Score);
+                        })
+                        this.tableData = res.data;
+                        //console.log(this.tableData);
+                    })
+
+                },
+                //跳转
+                onToTurn(row) {
+                    //console.log(row);
+                    if (row == 0) {
+                        window.open("/KPI/KPI_7S_Summarizing");
+                    } else {
+                        window.open("/KPI/KPI_7S_Summarizing?department=" + row.Department);
+                    }
+                   
+                }
+
+            }
+        };
+    </script>
+}

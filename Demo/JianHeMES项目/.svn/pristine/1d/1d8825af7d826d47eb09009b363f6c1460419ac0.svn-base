@@ -1,0 +1,312 @@
+﻿@{
+    ViewBag.Title = "报修单查询";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .topContainer {
+            width: 100%;
+            align-items: flex-end;
+            display: flex;
+            justify-content: center;
+            flex-flow: row wrap;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+        .topContainer div{
+           margin-right:5px;
+        }
+      /*  #search {
+            margin-top: 20px;
+        }*/
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <eq-header-component :active="active"></eq-header-component>
+    </el-header>
+    <el-main class="main-box">
+        <div class="topContainer">
+            @* 查询选择 *@
+            <div>
+                <span class="selectText">设备编号：</span><br />
+                <el-select v-model="ENunber" size="mini" clearable filterable placeholder="请选择设备编号" style="width:140px;">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div>
+                <span class="selectText">使用部门：</span><br />
+                <el-select v-model="userdepart" size="mini" clearable filterable placeholder="请选择使用部门" style="width:140px;">
+                    <el-option v-for="item in deparlist"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div>
+                <span class="selectText">设备名称：</span><br />
+                <el-input v-model="EName" size="mini" placeholder="设备名称" style="width:140px;"></el-input>
+            </div>
+            <div>
+                <span class="selectText">按故障日期查询：</span><br />
+                <el-date-picker v-model="fualtTime"
+                                type="date"
+                                v-bind:disabled="fualtTimeFlag"
+                                size="mini"
+                                style="width:150px;"
+                                placeholder="故障日期">
+                </el-date-picker>
+            </div>
+            <div>
+                <span class="selectText">按时间段查询：</span><br />
+                <el-date-picker v-model="TimeRange"
+                                type="daterange"
+                                size="mini"
+                                style="width:300px;"
+                                v-bind:disabled="fualtTimeRangeFlag"
+                                range-separator="至"
+                                start-placeholder="开始日期"
+                                end-placeholder="结束日期">
+                </el-date-picker>
+            </div>
+            <div>
+                <span class="selectText">按年查询已维修：</span><br />
+                <el-date-picker v-model="yearSamry"
+                                align="right"
+                                size="mini"
+                                type="year"
+                                style="width:150px;"
+                                v-bind:disabled="yearSamryFlag"
+                                placeholder="选择年">
+                </el-date-picker>
+            </div>
+            <div>
+                <span class="selectText">按月查询已维修：</span><br />
+                <el-select v-model="monthSamry" size="mini" v-bind:disabled="monthSamryFlag" clearable filterable placeholder="请选择月" style="width:150px;">
+                    <el-option v-for="item in 12"
+                               v-bind:key="item"
+                               v-bind:label="item"
+                               v-bind:value="item">
+                    </el-option>
+                </el-select>
+            </div>
+            <div>
+                <el-button id="search" type="primary" size="mini" v-on:click="query">查询</el-button>
+            </div>
+        </div>
+        @* 查询结果表格 *@
+        <div class="bottomContainer">
+            <el-table v-bind:data="tableData"
+                     size="small"
+                      max-height="600"
+                      style="width: 100%" border stripe>
+                <el-table-column prop="index" label="序号" width="50">
+                </el-table-column>
+                <el-table-column prop="EquipmentNumber"
+                                 label="设备编号"
+                                 sortable
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="EquipmentName"
+                                 label="设备名称"
+                                 sortable
+                                 width="180">
+                </el-table-column>
+                <el-table-column prop="FaultTime"
+                                 label="故障时间">
+                </el-table-column>
+                <el-table-column prop="Emergency"
+                                 label="紧急状态">
+                </el-table-column>
+                <el-table-column prop="FauDescription"
+                                 label="报修内容">
+                </el-table-column>
+                <el-table-column prop="RepairProblem"
+                                 label="报修结果">
+                    <template slot-scope="scope">
+                        <span>{{scope.row.RepairProblem?'维修完成':(scope.row.ConfirmName==''||scope.row.ConfirmName==null)?'维修中':'维修失败'}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                    <template slot-scope="scope">
+                        @*<a v-bind:href=`/Equipment/EquipmentRepairbill?num =${scope.row.EquipmentNumber}&time =${timeformats(scope.row.FaultTime)}&canchange =false` target="_blank">*@
+                            <el-button type="text" size="mini" v-on:click="showDetials(scope.row)" style="text-decoration:underline;">详细</el-button>
+                        @*</a>*@
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Equipment/_Eq_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                active: "报修单查询",
+                EName: null,
+                ENunber: null,
+                fualtTime: null,
+                TimeRange: null,
+                userdepart: null,
+                options: [],
+                fualtTimeFlag: false,
+                fualtTimeRangeFlag: false,
+                yearSamryFlag: false,
+                monthSamryFlag: false,
+                tableData: [],
+                deparlist: [],
+                yearSamry: null,
+                monthSamry: null
+            },
+            mounted() {
+                // 页面加载时获取所有可选设备编号列表以及使用部门列表
+                axios.post("/Equipment/InstrumentList").then(res => {
+                    res.data.forEach(item => {
+                        let obj = { value: item, label: item };
+                        this.options.push(obj)
+                    })
+                }).catch(err => {
+                    this.$message({
+                        message: "获取设备编号列表失败",
+                        type: "warning"
+                    })
+                });
+                axios.post("/Equipment/Deparlist").then(res => {
+                    res.data.forEach(item => {
+                        let obj = { value: item, label: item };
+                        this.deparlist.push(obj)
+                    })
+                }).catch(err => {
+                    this.$message({
+                        message: "获取设备使用部门列表失败",
+                        type: "warning"
+                    })
+                });
+            },
+            watch: {
+                // 监听故障时间
+                fualtTime() {
+                    if (this.fualtTime != null) {
+                        this.fualtTimeRangeFlag = true;
+                        this.yearSamryFlag = true
+                        this.monthSamryFlag = true
+                    } else {
+                        this.fualtTimeRangeFlag = false;
+                        this.yearSamryFlag = false
+                        this.monthSamryFlag = false
+                    }
+                },
+                //监听所选时间段
+                TimeRange() {
+                    if (this.TimeRange != null) {
+                        this.fualtTimeFlag = true;
+                        this.yearSamryFlag = true
+                        this.monthSamryFlag = true
+                    } else {
+                        this.fualtTimeFlag = false;
+                        this.yearSamryFlag = false
+                        this.monthSamryFlag = false
+
+                    }
+                },
+                // 监听年
+                yearSamry() {
+                    if (this.yearSamry != null) {
+                        this.fualtTimeRangeFlag = true;
+                        this.fualtTimeFlag = true;
+                        //this.monthSamryFlag = true
+                    } else {
+                        this.fualtTimeRangeFlag = false;
+                        this.fualtTimeFlag = false;
+                        //this.monthSamryFlag = false
+                    }
+                },
+                // 监听月
+                monthSamry() {
+                    if (this.monthSamry != null && this.monthSamry != '') {
+                        this.fualtTimeRangeFlag = true;
+                        //this.yearSamryFlag = true
+                        this.fualtTimeFlag = true;
+                    } else {
+                        this.fualtTimeRangeFlag = false;
+                        //this.yearSamryFlag = false
+                        this.fualtTimeFlag = false;
+                    }
+                }
+
+            },
+            methods: {
+                // 时间过滤器  拼串
+                timeformats(val) {
+                    let timedata = val.match(/\d+/g);
+                    let faultime = `${timedata[0]}-${timedata[1]}-${timedata[2]}`
+                    return faultime
+                },
+                // 查询
+                query() {
+                    if (this.EName != null || this.ENunber != null || this.fualtTime != null || this.TimeRange != null || this.userdepart != null || this.yearSamry != null || (this.monthSamry != null && this.monthSamry != '')) {
+                        let year = null
+                        if (this.yearSamry != null) {
+                            let dd = new Date(this.yearSamry)
+                            year = dd.getFullYear()
+                        }
+                        axios.post("/Equipment/EquipmentRepairbill_Query", { month: this.monthSamry, year: year, userdepartment: this.userdepart, equnumber: this.ENunber, equipname: this.EName, date: this.fualtTime, starttime: this.TimeRange != null ? this.TimeRange[0] : null, endtime: this.TimeRange != null ? this.TimeRange[1] : null }).then(res => {
+                            console.log(res.data)
+                            if (res.data.length > 0) {
+                                res.data.forEach(item => {
+                                    item.FaultTime = getTime(item.FaultTime)
+                                })
+                                this.tableData = res.data
+                            } else {
+                                this.$message({
+                                    message: "查无对应数据",
+                                    type: "warning"
+                                })
+                            }
+                        }).catch(err => {
+                            this.$message({
+                                message: "查询失败",
+                                type: "warning"
+                            })
+                        })
+                    } else {
+                        this.$message({
+                            message: "请补全需要查询的信息",
+                            type: "warning"
+                        });
+                    }
+                },
+                // 详细按钮跳转传参
+                showDetials(item) {
+                    //console.log(item);
+                    let timedata = item.FaultTime.match(/\d+/g);
+                    let faultime = `${timedata[0]}-${timedata[1]}-${timedata[2]}`;
+                    window.open("/Equipment/Equipment_Fixbill_Detail?EquipmentNumber=" + item.EquipmentNumber + "&EquipmentName=" + item.EquipmentName + "&time=" + faultime + "&canchange=false");
+                }
+            }
+        }
+        // 时间过滤器  年月日
+        function getTime(val) {
+            let dd = new Date(val);
+            let year = dd.getFullYear();
+            let month = (dd.getMonth() + 1).toString().padStart(2, 0);
+            let days = dd.getDate().toString().padStart(2, 0);
+            return `${year}年${month}月${days}日`
+        }
+    </script>
+
+}

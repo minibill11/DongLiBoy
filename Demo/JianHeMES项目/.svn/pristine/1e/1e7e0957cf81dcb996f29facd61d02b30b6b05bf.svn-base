@@ -1,0 +1,294 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Entity;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using JianHeMES.Models;
+using Newtonsoft.Json.Linq;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using static JianHeMES.Controllers.CommonalityController;
+using Newtonsoft.Json.Converters;
+
+namespace JianHeMES.Controllers
+{
+    public class UsersController_copy : Controller
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        CommonController com = new CommonController();
+
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+
+        //显示模块
+        public ActionResult GetFourModuleList()
+        {
+            var Module = db.UserNewPermissions.OrderByDescending(m => m.id).Select(c => c.FourModule).Distinct().ToList();
+            return Content(JsonConvert.SerializeObject(Module));
+        }
+
+        //根据模块显示权限组（功能）
+        public ActionResult GetRolesNameList(string fourModule)
+        {
+            var rolesName = db.UserNewPermissions.Where(c => c.FourModule == fourModule).Select(c => c.RolesName).Distinct().ToList();
+            return Content(JsonConvert.SerializeObject(rolesName));
+        }
+
+        //根据模块和权限组显示数据
+        public ActionResult GetDiscriptionList(string fourModule, string rolesName)
+        {
+            JObject table = new JObject();
+            JArray retul = new JArray();
+            var discription = db.UserNewPermissions.Where(c => c.FourModule == fourModule && c.RolesName == rolesName).Select(c => new { c.Discription, c.RolesCode }).Distinct().ToList();
+            var nameList = db.Users.Select(c => c.UserNum).Distinct().ToList();
+            foreach (var item in nameList)
+            {
+                var roles = db.Users.Where(c => c.UserNum == item).FirstOrDefault();
+                var discr = db.Useroles.Where(c => c.UserID == item && c.RolesName == rolesName).Select(c => c.Roles).FirstOrDefault();
+
+            }
+
+
+            return Content(JsonConvert.SerializeObject(discription));
+        }
+
+        //添加模块
+        public ActionResult AddModule(string fourModule)
+        {
+            JObject retul = new JObject();
+            int count = 0;
+            if (db.UserNewPermissions.Count(c => c.FourModule == fourModule) > 0)
+            {
+                retul.Add("Meg", false);
+                retul.Add("Feg", "该模块已创建！");
+                return Content(JsonConvert.SerializeObject(retul));
+            }
+            else
+            {
+                var module = new UserNewPermissions() { FourModule = fourModule, RolesName = "新权限组", RolesCode = 1, Discription = "查看功能", Operator = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "", OperateDT = DateTime.Now };
+                db.UserNewPermissions.Add(module);
+                count = db.SaveChanges();
+                if (count > 0)
+                {
+                    retul.Add("Meg", true);
+                    retul.Add("Feg", "添加成功！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+                else
+                {
+                    retul.Add("Meg", false);
+                    retul.Add("Feg", "添加失败！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+            }
+        }
+
+        //修改模块、拆分模块
+        public ActionResult ModifyModule(string fourModule, string new_fourModule, string rolesName)
+        {
+            JObject retul = new JObject();
+            int count = 0;
+            if (fourModule != null && new_fourModule != null && rolesName == null)
+            {
+                var original = db.UserNewPermissions.Where(c => c.FourModule == fourModule).ToList();
+                foreach (var item in original)
+                {
+                    item.FourModule = new_fourModule;
+                    item.RolesCode = item.RolesCode;
+                    item.RolesName = item.RolesName;
+                    item.Discription = item.Discription;
+                    item.Operator = ((Users)Session["User"]).UserName;
+                    item.OperateDT = DateTime.Now;
+                    db.Entry(item).State = EntityState.Modified;
+                    count = db.SaveChanges();
+                }
+            }
+            if (fourModule == null && new_fourModule != null && rolesName != null)
+            {
+                var BreakUp = db.UserNewPermissions.Where(c => c.RolesName == rolesName).ToList();
+                foreach (var item in BreakUp)
+                {
+                    item.FourModule = new_fourModule;
+                    item.RolesCode = item.RolesCode;
+                    item.RolesName = rolesName;
+                    item.Discription = item.Discription;
+                    item.Operator = ((Users)Session["User"]).UserName;
+                    item.OperateDT = DateTime.Now;
+                    db.Entry(item).State = EntityState.Modified;
+                    count = db.SaveChanges();
+                }
+            }
+            if (count > 0)
+            {
+                retul.Add("Meg", true);
+                retul.Add("Feg", "修改成功！");
+                return Content(JsonConvert.SerializeObject(retul));
+            }
+            else
+            {
+                retul.Add("Meg", false);
+                retul.Add("Feg", "修改失败！");
+                return Content(JsonConvert.SerializeObject(retul));
+            }
+        }
+
+        //添加权限组、添加权限名
+        public ActionResult AddPermission(string rolesName, string discription, string module)
+        {
+            JObject retul = new JObject();
+            int count = 0;
+            var disply = db.UserNewPermissions.Where(c => c.FourModule == module).ToList();
+            if (disply.Count > 0)
+            {
+                foreach (var item in disply)
+                {
+                    int i = 0;
+                    if (db.UserNewPermissions.Count(c => c.FourModule == module && c.RolesName == rolesName) != 0)
+                    {
+                        i = db.UserNewPermissions.Where(c => c.FourModule == module && c.RolesName == rolesName).Max(c => c.RolesCode);//取已有权限名对应的RolesCode最大值
+                    }
+                    item.FourModule = module;
+                    item.RolesCode = i + 1;
+                    item.RolesName = rolesName;
+                    if (discription != null)
+                    {
+                        item.Discription = discription;
+                    }
+                    else
+                    {
+                        item.Discription = "查看权限";
+                    }
+                    item.Operator = ((Users)Session["User"]).UserName;
+                    item.OperateDT = DateTime.Now;
+                    db.UserNewPermissions.Add(item);
+                    count = db.SaveChanges();
+                }
+                if (count > 0)
+                {
+                    retul.Add("Meg", true);
+                    retul.Add("Feg", "添加成功！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+                else
+                {
+                    retul.Add("Meg", false);
+                    retul.Add("Feg", "添加失败！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+            }
+            retul.Add("Meg", false);
+            retul.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(retul));
+        }
+
+        //修改权限组
+        public ActionResult ModifyRolesName(string rolesName, string new_rolesName)
+        {
+            JObject retul = new JObject();
+            int count = 0;
+            var original = db.UserNewPermissions.Where(c => c.RolesName == rolesName).ToList();
+            if (original != null)
+            {
+                foreach (var item in original)
+                {
+                    item.FourModule = item.FourModule;
+                    item.RolesCode = item.RolesCode;
+                    item.RolesName = new_rolesName;
+                    item.Discription = item.Discription;
+                    item.Operator = ((Users)Session["User"]).UserName;
+                    item.OperateDT = DateTime.Now;
+                    db.Entry(item).State = EntityState.Modified;
+                    count = db.SaveChanges();
+                }
+                var userr = db.Useroles.Where(c => c.RolesName == rolesName).ToList();
+                foreach (var roles in userr)
+                {
+                    roles.UserName = roles.UserName;
+                    roles.UserID = roles.UserID;
+                    roles.Department = roles.Department;
+                    roles.RolesName = new_rolesName;
+                    roles.Roles = roles.Roles;
+                    roles.Position = roles.Position;
+                    db.Entry(roles).State = EntityState.Modified;
+                    count = db.SaveChanges();
+                }
+                if (count > 0)
+                {
+                    retul.Add("Meg", true);
+                    retul.Add("Feg", "修改成功！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+                else
+                {
+                    retul.Add("Meg", false);
+                    retul.Add("Feg", "修改失败！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+
+            }
+            retul.Add("Meg", false);
+            retul.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(retul));
+        }
+
+        //修改权限名
+        public ActionResult ModifyDiscription(string rolesName, string discription, string new_discription)
+        {
+            JObject retul = new JObject();
+            int count = 0;
+            var discrip = db.UserNewPermissions.Where(c => c.RolesName == rolesName && c.Discription == discription).ToList();
+            if (discrip != null)
+            {
+                foreach (var it in discrip)
+                {
+                    it.FourModule = it.FourModule;
+                    it.RolesCode = it.RolesCode;
+                    it.RolesName = rolesName;
+                    it.Discription = new_discription;
+                    it.Operator = ((Users)Session["User"]).UserName;
+                    it.OperateDT = DateTime.Now;
+                    db.Entry(it).State = EntityState.Modified;
+                    count = db.SaveChanges();
+                }
+                if (count > 0)
+                {
+                    retul.Add("Meg", true);
+                    retul.Add("Feg", "修改成功！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+                else
+                {
+                    retul.Add("Meg", false);
+                    retul.Add("Feg", "修改失败！");
+                    return Content(JsonConvert.SerializeObject(retul));
+                }
+            }
+            retul.Add("Meg", false);
+            retul.Add("Feg", "数据错误！");
+            return Content(JsonConvert.SerializeObject(retul));
+        }
+
+
+        #region ---------------------------------------分页
+        private static readonly int PAGE_SIZE = 10;
+
+        private int GetPageCount(int recordCount)
+        {
+            int pageCount = recordCount / PAGE_SIZE;
+            if (recordCount % PAGE_SIZE != 0)
+            {
+                pageCount += 1;
+            }
+            return pageCount;
+        }
+        #endregion
+
+
+    }
+}

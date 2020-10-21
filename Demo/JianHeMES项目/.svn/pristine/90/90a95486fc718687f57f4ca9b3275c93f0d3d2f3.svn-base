@@ -1,0 +1,151 @@
+﻿@{
+    ViewBag.Title = "库存金额查询";
+}
+@* css放置处 *@
+<link href="~/Content/tableStyle/index.css" rel="stylesheet" />
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/tableStyle/StockAmount.less" />
+    <style>
+        #app {
+            padding: 10px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .el-table__header tr, .el-table__header th {
+            padding: 0;
+            height: 25px;
+            line-height: 36px;
+        }
+
+        .el-table td div {
+            font-size: 14px;
+            color: #293038
+        }
+
+        .select-style {
+            margin: 15px 0px 15px 0px;
+            display:inline-block
+        }
+        .el-table tr {
+            height: 35px;
+        }
+        .el-table {
+            margin: 0 auto;
+        }
+    </style>
+}
+    <div id="app">
+        <el-header class="text-center">
+            <sa-header :active="active"></sa-header>
+            <div class="select-style">
+                <el-date-picker v-model="inputDate"
+                                type="year"
+                                placeholder="选择年"
+                                size="small" style="width:180px">
+                </el-date-picker>
+                <el-button type="primary" size="small" v-on:click="getDate" v-show="approved==true||original==true">查询</el-button>
+            </div>
+        </el-header>
+        <el-table v-bind:data="tableData"
+                  style="width:80%"
+                  max-height="623" border>
+            <el-table-column prop="Time"
+                             label="月份"
+                             width="200">
+            </el-table-column>
+            <el-table-column prop=""
+                             label="财务核对人"
+                             width="280">
+                <template slot-scope="scope">
+                    <span type="text"> {{scope.row.Finance_Proofreader}}</span>
+                    <span style="margin-left:15px">{{scope.row.Finance_Proofread_Date}}</span>
+                </template>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="PMC核对人"
+                             width="280">
+                <template slot-scope="scope">
+                    <span type="text"> {{scope.row.Finance_Finance_Proofreader}}</span>
+                    <span style="margin-left:15px">{{scope.row.PMC_Proofread_Date}}</span>
+                </template>
+            </el-table-column>
+
+            <el-table-column prop=""
+                             label="财务审核"
+                             width="280">
+                <template slot-scope="scope">
+                    <span type="text"> {{scope.row.Finance_Assessor}}</span>
+                    <span style="margin-left:15px">{{scope.row.Finance_Assessed_Date}}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop=""
+                             label="操作">
+                <template slot-scope="scope">
+                    <u style="color:#409eff" v-on:click="goDisplay(scope.row)">详细</u>
+                </template>
+            </el-table-column>
+        </el-table>
+        <span style="font-size:small;margin-left:160px">注：每月8号计算出上一个月份的库龄表数据(财务部),每月10号前完成财务核对、PMC核对及财务审核。</span>
+    </div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_SA_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    active: "",
+                    inputDate: "",
+                    tableData: [],
+                    approved: false,//查看已审核发布
+                    original: false,//查看原始
+                }
+            },
+            mounted: function () {
+                //权限设置               
+                let year = new Date();
+                this.inputDate = year
+                if (this.islimit('查看已审核发布') && !this.islimit('查看原始文件')) {
+                    this.approved = true
+                    this.getDate()
+                };
+                if (this.islimit('查看已审核发布') && this.islimit('查看原始文件')) {
+                    this.original = true
+                    this.getDate()
+                };                            
+            },
+            methods: {                
+                getDate() {
+                    let str = "";
+                    if (this.original==true) {                        
+                        str = "original"
+                    } else {
+                        str = "approved"
+                    }
+                    if (this.inputDate != "" || this.inputDate != null) {
+                        axios.post("/Warehouse_Material/SA_Index", { year: this.inputDate, queryType:str }).then(res => {
+                            this.tableData = res.data
+                            console.log(res.data)
+                            if (this.tableData.length > 0) {
+                                this.$message.success("查询成功！");
+                            } else {
+                                this.$message.error("暂无数据！");
+                            }
+                        })
+                    } else {
+                        his.$message.error("请选择年份！");
+                    }
+                    
+                },
+                goDisplay(item) {
+                    window.open("/Warehouse_Material/StockAmount_Query?" + "time=" + item.Time);
+                },
+            },            
+        };
+    </script>
+}

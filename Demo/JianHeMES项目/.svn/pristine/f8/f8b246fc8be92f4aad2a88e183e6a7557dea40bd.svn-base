@@ -1,0 +1,934 @@
+﻿
+@{
+    ViewBag.Title = "产线设备";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        a:link {
+            color: #409eff;
+            text-decoration: underline;
+        }
+
+        .line-box {
+            width: 100%;
+            height: 78vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            border-top: 1px solid #ccd3de;
+            border-bottom: 1px solid #ccd3de;
+        }
+
+        .line-card-run {
+            margin-bottom: 20px;
+            border-left: 4px solid #22c49e;
+        }
+
+        .line-card-stop {
+            margin-bottom: 20px;
+            border-left: 4px solid #f7c73a;
+        }
+
+        .line-card-unknown {
+            margin-bottom: 20px;
+            border-left: 4px solid #409eff;
+        }
+
+        .line-card-head {
+            font-size: 14px;
+            padding: 5px 20px;
+            border-bottom: 1px solid #8ea0b8;
+            background-color: #e4ecf7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .line-card-head-center span {
+            margin: 0 10px;
+            text-align: center;
+        }
+
+        .line-card-item {
+            background-color: #eff2f7;
+            padding: 20px 20px 10px 20px;
+            font-size: 12px;
+        }
+
+        .el-card {
+            border: 1px solid #607d8b3b;
+            margin-bottom: 15px;
+        }
+
+        .el-card__body {
+            padding: 0;
+        }
+
+        .line-card-item-title {
+            cursor: pointer;
+            text-align: center;
+            padding: 5px 10px;
+            border-bottom: 1px solid #ccd3de;
+        }
+
+        .line-card-item-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 8px 0 8px 8px;
+        }
+
+            .line-card-item-content div {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+        .line-card-item-text {
+            color: #409eff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .status-run {
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #22c49e;
+        }
+
+        .status-stop {
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #f7c73a;
+        }
+
+        .status-fix {
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #fb6d75;
+        }
+
+        .status-outage {
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #8eb0db;
+        }
+
+        .el-popover {
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            min-width: 30px;
+        }
+        /* 隐藏小图标样式 */
+        .card-box {
+            margin-top: -16px;
+        }
+
+        .line-icon {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 16px;
+            color: #ccd3de;
+            position: relative;
+            bottom: -20px;
+        }
+
+        .line-card-item-box:hover .left, .line-card-item-box:hover .right {
+            visibility: visible;
+        }
+
+        .line-icon .left {
+            visibility: hidden;
+            cursor: pointer;
+            background-color: #fff;
+            border-radius: 50%;
+            position: relative;
+            left: -6px;
+        }
+
+        .line-icon .right {
+            visibility: hidden;
+            background-color: #fff;
+            border-radius: 50%;
+            position: relative;
+            right: -6px;
+            cursor: pointer;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        <div class="eq-title">产线设备</div>
+    </el-header>
+    <el-main class="main-box">
+        @* 查询选择框s *@
+        <div class="equipment-index-inputcontainer">
+            <div class="equipment-index-inputcontainer-item">
+                <div>使用部门：</div>
+                <el-select v-model="selete_department" size="mini" allow-create filterable clearable placeholder="请选择使用部门" style="width:130px;">
+                    <el-option v-for="item in department_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <el-button type="primary" size="mini" v-on:click="onAddLine">增加产线</el-button>
+        </div>
+        <div class="line-box">
+            <div v-for="(item,index) in cardData" :class="{'line-card-run':item.productLineStatus=='运行','line-card-stop':item.productLineStatus=='停机','line-card-unknown':item.productLineStatus=='其他状态','line-card-fix':item.productLineStatus=='维修'}">
+                <el-row class="line-card-head">
+                    <el-col :span="8">{{item.department}}&nbsp;&nbsp; | &nbsp;&nbsp;产线：{{item.linenum}}</el-col>
+                    <el-col :span="8" class="line-card-head-center">
+                        <span style="color: #22c49e;">运行：{{item.sum_run}}台</span>
+                        <span style="color: #f7c73a;">停机：{{item.sum_stop}}台</span>
+                        <span style="color: #fb6d75;">维修：{{item.sum_fix}}台</span>
+                        <span style="color: #8ea0b8;">断电：{{item.sum_outage}}台</span>
+                    </el-col>
+                    <el-col :span="8" style="text-align:right;">
+                        <span v-if="item.productLineStatus=='运行'" style="color: #22c49e;">整线{{item.productLineStatus}}</span>
+                        <span v-if="item.productLineStatus=='停机'" style="color: #f7c73a;">整线{{item.productLineStatus}}</span>
+                        <span v-if="item.productLineStatus=='其他状态'" style="color: #409eff;">{{item.productLineStatus}}</span>
+                        <span v-if="item.productLineStatus=='维修/保养'" style="color: #fb6d75;">{{item.productLineStatus}}</span>
+                        <i v-if="item.productLineStatus=='运行'" style="color: #22c49e;font-size: 20px;" class="el-icon-loading"></i>
+                        <i v-if="item.productLineStatus=='停机'" style="color: #f7c73a;font-size: 20px;" class="el-icon-video-pause"></i>
+                        <i v-if="item.productLineStatus=='其他状态'" style="color: #409eff;font-size: 20px;" class="el-icon-remove-outline"></i>
+                        <i v-if="item.productLineStatus=='维修/保养'" style="color: #fb6d75; font-size: 20px;" class="el-icon-remove-outline"></i>
+                        <el-popover ref="popover1"
+                                    placement="bottom"
+                                    trigger="click">
+                            <div>
+                                <el-button type="success" size="mini" style="padding: 4px 8px;margin-bottom: 8px;background-color: #22c49e;border-color: #22c49e;" @@click="onMachineAdjustment(item,'运行')">整线运行</el-button><br />
+                                <el-button type="primary" size="mini" style="padding: 4px 8px;background-color: #f7c73a;border-color: #f7c73a;" @@click="onMachineAdjustment(item,'停机')">整线停机</el-button>
+                            </div>
+                            <el-button :disabled="item.sum_fix!=0 || item.sum_outage!=0" slot="reference" type="primary" size="mini" style="padding: 4px 8px;margin-left:10px;">整线调整</el-button>
+                        </el-popover>
+                    </el-col>
+                </el-row>
+                <div class="line-card-item">
+                    <el-row :gutter="30">
+                        <el-col :xs="12" :sm="6" :md="3" :lg="3" v-for="(cardItem,i) in item.mechines">
+                            <div class="line-card-item-box">
+                                <div class="line-icon">
+                                    <i class="el-icon-circle-plus-outline left" v-on:click="addNewEquipment(item,cardItem,'left')"></i>
+                                    <i class="el-icon-circle-plus-outline right" v-on:click="addNewEquipment(item,cardItem,'right')"></i>
+                                </div>
+                                <el-card class="card-box">
+                                    <div class="line-card-item-title" @@click="showDetails(cardItem,item)">{{cardItem.mechineindex}}号 {{cardItem.equipmentName}}</div>
+
+                                    <div class="line-card-item-content">
+                                        <a class="line-card-item-text" :href="onToTurn(cardItem,0)">点检</a>
+                                        <a class="line-card-item-text" :href="onToTurn(cardItem,1)">报修</a>
+                                        <el-popover ref="popover2"
+                                                    placement="right"
+                                                    trigger="click">
+                                            <div style="display:flex;flex-direction:column;">
+                                                <span class="line-card-item-status status-run" @@click="onChangeStatus(cardItem,'运行',item)" style="margin-bottom: 8px;">运行</span>
+                                                <span class="line-card-item-status status-stop" @@click="onChangeStatus(cardItem,'停机',item)" style="margin-bottom: 8px;">停机</span>
+                                                <span class="line-card-item-status status-fix" @@click="onChangeStatus(cardItem,'维修',item)">维修</span>
+                                            </div>
+                                            <div v-if="item.linenum!='空压机'"
+                                                 slot="reference"
+                                                 :class="{'status-run':cardItem.status=='运行','status-stop':cardItem.status=='停机','status-fix':cardItem.status=='维修','status-outage':cardItem.status=='断电'}">
+                                                {{cardItem.status}}
+                                            </div>
+                                        </el-popover>
+                                        <el-popover ref="popover3"
+                                                    placement="right"
+                                                    trigger="click">
+                                            <div v-if="cardItem.status!='运行'&&cardItem.status!='断电'"  style="display:flex;flex-direction:column;">
+                                                <span class="line-card-item-status status-stop" @@click="onChangeStatus(cardItem,'停机',item)" style="margin-bottom: 8px;">停机</span>
+                                                <span class="line-card-item-status status-fix" @@click="onChangeStatus(cardItem,'维修',item)" style="margin-bottom: 8px;">维修</span>
+                                                <span class="line-card-item-status status-outage" @@click="onChangeStatus(cardItem,'断电',item)">断电</span>
+                                            </div>
+                                            <div v-if="item.linenum=='空压机'"
+                                                 slot="reference"
+                                                 :class="{'status-run':cardItem.status=='运行','status-stop':cardItem.status=='停机','status-fix':cardItem.status=='维修','status-outage':cardItem.status=='断电'}">
+                                                {{cardItem.status}}
+                                            </div>
+                                        </el-popover>
+                                    </div>
+                                </el-card>
+                            </div>
+                        </el-col>
+
+                    </el-row>
+                </div>
+            </div>
+        </div>
+    </el-main>
+
+    @* 增加产线弹框 *@
+    <el-dialog title="添加产线" v-bind:visible.sync="showAddLine" width="20%">
+        <el-form label-width="50px" model="addSelectedAssetnumsReturnData">
+            <el-form-item label="产线">
+                <el-input size="small" v-model="addSelectedAssetnumsReturnData.LineNum" style="width:200px;"></el-input>
+            </el-form-item>
+            <el-form-item label="部门">
+                <el-select clearable filterable v-model="addSelectedAssetnumsReturnData.UserDepartment" size="small" placeholder="请选择" style="width:200px;">
+                    <el-option v-for="item in department_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <div style="margin-top:10px;">
+                <el-button size="mini" type="success" v-on:click="addMachineToCreatingLine">添加设备</el-button>
+                <el-button size="mini" type="danger" v-on:click="cancelAddMachineToCreatingLine">回退删除</el-button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;margin-top:5px;" v-for="(item,index) in addlinemachinechioed">
+                    <span>序号{{index +1}}&nbsp;&nbsp;&nbsp;</span>
+                    <el-select clearable filterable v-model="item.test" class="addlinemachines" size="small" placeholder="请选择" style="width:200px;">
+                        <el-option v-for="item in assetNumsList"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.value"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+            </div>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button size="mini" v-on:click="showAddLine = false">取 消</el-button>
+            <el-button size="mini" type="primary" v-on:click="asveAddMachineToCreatingLine">保 存</el-button>
+        </span>
+    </el-dialog>
+    @* 修改设备详细信息弹框 *@
+    <el-dialog title="设备详细信息" v-bind:visible.sync="showMachineDetials" width="25%" before-close="handleClose">
+        <el-form label-width="80px">
+            <el-form-item label="产线">
+                <el-input size="small" v-model="machineDetails.LineNum"></el-input>
+            </el-form-item>
+            <el-form-item label="机器名称">
+                <el-input size="small" disabled v-model="machineDetails.EquipmentName"></el-input>
+            </el-form-item>
+            <el-form-item label="设备编号">
+                <el-input size="small" disabled v-model="machineDetails.EquipmentNumber"></el-input>
+            </el-form-item>
+            <el-form-item label="资产编号">
+                <el-input size="small" disabled v-model="machineDetails.AssetNumber"></el-input>
+            </el-form-item>
+            <el-form-item label="使用部门">
+                <el-select clearable filterable v-model="machineDetails.UserDepartment" size="small" placeholder="请选择" style="width:100%;">
+                    <el-option v-for="item in department_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="车间">
+                <el-input size="small" v-model="machineDetails.WorkShop"></el-input>
+            </el-form-item>
+            <el-form-item label="工段">
+                <el-input size="small" v-model="machineDetails.Section"></el-input>
+            </el-form-item>
+            <el-form-item label="设备位置">
+                <el-input size="small" v-model="machineDetails.StationNum"></el-input>
+            </el-form-item>
+            <el-form-item label="运行状态">
+                <el-input size="small" disabled v-model="machineDetails.Status"></el-input>
+            </el-form-item>
+            <el-form-item label="备注">
+                <el-input size="small" v-model="machineDetails.Remark"></el-input>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button size="mini" v-on:click="showImages">预览图片</el-button>
+            <el-button size="mini" v-on:click="showMachineDetials = false">取 消</el-button>
+            <el-button size="mini" type="primary" v-on:click="moveMachine">修 改</el-button>
+            <el-button size="mini" type="danger" v-on:click="removeMachine">删 除</el-button>
+        </span>
+    </el-dialog>
+
+    @* 预览弹框 *@
+    <el-dialog title="预览图片"
+               v-bind:visible.sync="showImg"
+               width="65%">
+        <div>
+            <el-carousel height="470px" trigger="click" v-bind:interval="4000">
+                <el-carousel-item v-for="(item,index) in imgArr" key="item">
+                    <img style="width:100%;height:100%;" v-bind:src="item.FullPath" />
+                </el-carousel-item>
+            </el-carousel>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button type="primary" v-on:click="showImg = false">关 闭</el-button>
+        </span>
+    </el-dialog>
+    @* 添加设备信息弹框 *@
+    <el-dialog title="添加设备" v-bind:visible.sync="dialogVisible" width="25%">
+        <el-form label-width="100px" model="machineDetails">
+            <el-form-item label="产线">
+                <el-input size="small" disabled v-model="machineDetails.LineNum"></el-input>
+            </el-form-item>
+            <el-form-item label="设备编号">
+                <el-select clearable filterable v-model="machineDetails.EquipmentNumber" size="small" placeholder="请选择" style="width:100%;">
+                    <el-option v-for="item in assetNumsList"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="设备名称">
+                <el-input size="small" disabled v-model="machineDetails.EquipmentName"></el-input>
+            </el-form-item>
+            <el-form-item label="使用部门">
+                <el-select clearable filterable v-model="machineDetails.UserDepartment" size="small" placeholder="请选择" style="width:100%;">
+                    <el-option v-for="item in department_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="运行状态">
+                <el-select v-model="machineDetails.Status" size="small" placeholder="请选择" style="width:100%;">
+                    <el-option v-for="item in statusList"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="资产编号">
+                <el-input size="small" disabled v-model="machineDetails.AssetNumber"></el-input>
+            </el-form-item>
+            <el-form-item label="工段">
+                <el-input size="small" v-model="machineDetails.Section"></el-input>
+            </el-form-item>
+            <el-form-item label="设备位置">
+                <el-input size="small" disabled v-model="machineDetails.StationNum"></el-input>
+            </el-form-item>
+            <el-form-item label="备注">
+                <el-input size="small" v-model="machineDetails.Remark"></el-input>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button size="mini" v-on:click="dialogVisible = false">取 消</el-button>
+            <el-button size="mini" type="primary" v-on:click="onSaveAdd">确 定</el-button>
+        </span>
+    </el-dialog>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                selete_department: '',
+                department_options: [],
+                assetNumsList: [], //资产编号
+                cardData: [],
+                kongyalist: [],
+                statusList: [
+                    { label: "运行", value: "运行" },
+                    { label: "停机", value: "停机" },
+                    { label: "维修", value: "维修" }
+                ],
+
+                // 添加产线
+                addLine: true,
+                showAddLine: false,
+                addlinemachinechioed: [],
+                showImg: false,
+                imgArr: [],
+                addSelectedAssetnumsReturnData: {
+                    LineNum: null,
+                    EquipmentName: null,
+                    AssetNumber: null,
+                    UserDepartment: null,
+                    Status: null,
+                    EquipmentNumber: null,
+                    Section: null,
+                    StationNum: null,
+                    Remark: null,
+                },
+
+                //添加、修改设备详细信息
+                showMachineDetials: false,
+                dialogVisible: false,
+                machineDetails: {
+                    AssetNumber: null,   // 资产编号
+                    EquipmentName: null,   //设备名称
+                    EquipmentNumber: null,  // 设备编号
+                    LineNum: null,    // 产线号
+                    Section: null,  // 工段
+                    StationNum: null,  // 机器位置序号
+                    Status: null,    // 运状态
+                    UserDepartment: null,   // 使用部门
+                    WorkShop: null,   // 车间
+                    Remark: null     // 备注
+                },
+            },
+            mounted() {
+                //获取地址传参
+                this.selete_department = this.urlSearchParam.paramData;
+                //console.log(this.selete_department, 555);
+                //判断权限
+                if (this.islimit('设备产线添加')) {
+                    this.addLine = true
+                }
+
+                this.onGetDepartment();
+                this.getAllAssetNums();
+                this.onGetData();
+            },
+            watch: {
+                selete_department() {
+                    this.onGetData();
+                },
+                // 监听添加产线时所选资产编号--获取相对应的数据
+                'machineDetails.EquipmentNumber': {
+                    handler(val) {
+                        if (val != '') {
+                            this.getAssetNumsDetail(val);
+                        }
+                    },
+                    deep: true
+                }
+
+            },
+            methods: {
+                //跳转
+                onToTurn(val, index) {
+                    //console.log(val,11);
+                    let url;
+                    let dd = new Date();
+                    if (index == 0) {
+                        let param = {
+                            EquipmentNumber: val.equipmentNumber,
+                            time: dd
+                        }
+                        url = "/Equipment/Equipment_Check_Record?paramData=" + JSON.stringify(param) + "&canchange=false";
+                    }
+                    if (index == 1) {
+                        let param = {
+                            EquipmentNumber: val.equipmentNumber,
+                            EquipmentName: val.equipmentName,
+                            UserDepartment: this.selete_department
+                        }
+                        url = "/Equipment/Equipment_Fixbill_Detail?paramData=" + JSON.stringify(param) + "&canchange=true";
+                    }
+                    return url;
+                },
+                // 获取所有设备的资产编号
+                getAllAssetNums() {
+                    axios.post("/Equipment/EQNumberList").then(res => {
+                        //console.log(res.data)
+                        res.data.forEach(item => {
+                            let obj = { label: item, value: item }
+                            this.assetNumsList.push(obj)
+                        })
+                    })
+                },
+                //根据资产编号获取资料
+                getAssetNumsDetail(val) {
+                    axios.post("/Equipment/EquipmentInfo_getdata_by_eqnum", { equipmentNumber: val }).then(res => {
+                        //console.log(res.data,555);
+                        if (res.data == null) {
+                            //this.$message.warning("此资产编号无对应数据");
+                        } else {
+                            this.machineDetails.EquipmentName = res.data.EquipmentName;
+                            this.machineDetails.EquipmentNumber = res.data.EquipmentNumber;
+                            this.machineDetails.AssetNumber = res.data.AssetNumber;
+                            this.machineDetails.Remark = res.data.Remark;
+                            this.machineDetails.Section = res.data.Section;
+                        }
+                    })
+                },
+                //获取使用部门
+                onGetDepartment() {
+                    axios.post("/Equipment/Userdepartment_list").then(res => {
+                        //console.log(res.data);
+                        let option = [];
+                        res.data.forEach(item => {
+                            let obj = {
+                                label: item,
+                                value: item
+                            }
+                            option.push(obj);
+                        })
+                        this.department_options = option;
+                    })
+                },
+                //获取数据
+                onGetData() {
+                    //先获取空压机数据
+                    const kongya = new Promise((resolve, reject) => {
+                        axios.post("/Equipment/KongYa_Status").then(res => {
+                            //console.log(res.data, 111);
+                            this.kongyalist = [];
+                            this.kongyalist.push(res.data.table, res.data.table1, res.data.table2);
+                            //console.log(this.kongyalist, 111);
+                            resolve();
+                            //console.log(resolve())
+                        }).catch(err => {
+                            //console.log(err);
+                            reject();
+                        })
+                    })
+                    kongya.then(res => {
+                        axios.post("/Equipment/Index3", { departmentlist: this.selete_department }).then(res => {
+                            //console.log(res.data[0], 0000000)
+                            let cardData = res.data[0].jOdepartment;
+                            let arr = [];
+                            if (this.selete_department == '技术部') {
+                                this.kongyalist.forEach(item => {
+                                    cardData[2].mechines[0].status = this.kongyalist[0].status;
+                                    cardData[2].mechines[1].status = this.kongyalist[1].status;
+                                    cardData[2].mechines[2].status = this.kongyalist[2].status;
+                                })
+
+                            }
+                            cardData.map(item => {
+                                let sum_stop = 0, sum_run = 0, sum_fix = 0, sum_outage = 0;
+                                item.mechines.forEach(m_item => {
+                                    if (m_item.status == "运行") {
+                                        sum_run += 1;
+                                    }
+                                    if (m_item.status == "停机") {
+                                        sum_stop += 1;
+                                    }
+                                    if (m_item.status == "维修") {
+                                        sum_fix += 1;
+                                    }
+                                    if (m_item.status == "断电") {
+                                        sum_outage += 1;
+                                    }
+                                })
+                                let obj = {
+                                    department: res.data[0].department,
+                                    linenum: item.linenum,
+                                    mechines: item.mechines,
+                                    productLineStatus: item.productLineStatus,
+                                    sum_run: sum_run,
+                                    sum_stop: sum_stop,
+                                    sum_fix: sum_fix,
+                                    sum_outage: sum_outage
+
+                                }
+                                arr.push(obj);
+                            })
+                            this.cardData = arr;
+                            //console.log(this.cardData, 99);
+                        })
+                    })
+                },
+                //增加产线
+                onAddLine() {
+                    if (this.addLine) {
+                        this.showAddLine = true;
+
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                //  添加新产线设备
+                addMachineToCreatingLine() {
+                    let obj = { test: null };
+                    this.addlinemachinechioed.push(obj);
+                },
+                //  回退删除
+                cancelAddMachineToCreatingLine() {
+                    this.addlinemachinechioed.pop();
+                },
+                // 保存提交新增产线
+                asveAddMachineToCreatingLine() {
+
+                    if (this.addlinemachinechioed.length == 0) {
+                        this.$message.warning("新增产线必须至少存在一台或以上设备！");
+                    } else {
+                        let flag = false;
+                        this.addlinemachinechioed.forEach(item => {
+                            if (item.test == null) {
+
+                            } else {
+                                flag = true;
+                            }
+                        });
+                        if (flag) {
+                            //alert("falg=true")
+                            let postdata = []
+                            this.addlinemachinechioed.forEach((item, index) => {
+                                //let obj = [(index + 1), item.test]
+                                let obj2 = { Key: index + 1, Value: item.test }
+                                postdata.push(obj2)
+                            });
+                            //console.log(postdata,000);
+                            //console.log(JSON.stringify(postdata));
+                            //console.log(this.addSelectedAssetnumsReturnData)
+                            //console.log(this.addSelectedAssetnumsReturnData.UserDepartment)
+                            axios.post("/Equipment/ADDLineNum", { usedepartment: this.addSelectedAssetnumsReturnData.UserDepartment, lineNum: this.addSelectedAssetnumsReturnData.LineNum, equipmentNumberlist: JSON.stringify(postdata) }).then(res => {
+                                //console.log(res.data)
+                                if (res.data.indexOf("成功") != -1) {
+                                    this.$message.success(res.data);
+                                    this.showAddLine = false;
+                                } else {
+                                    this.$message.error(res.data);
+                                }
+                            }).catch(err => {
+                                this.$message.error("链接服务器失败");
+                            })
+                        } else {
+                            this.$message.warning("请补全设备信息");
+                        }
+                    }
+                },
+                //整机调整功能
+                onMachineAdjustment(item, statu) {
+                    if (this.islimit("设备状态修改")) {
+                    let needChangeArr = []   // 在运行机器
+                    let needChangeArr2 = []   // 停机机器
+                    let mechine = [];
+                    item.mechines.forEach(item => {
+                        //console.log(items.equipmentNumber)
+                        if (item.status == "运行") {
+                            needChangeArr.push(item.equipmentNumber);
+                        } else if (item.status == "停机") {
+                            needChangeArr2.push(item.equipmentNumber);
+                        }
+                    });
+                    if (statu == '运行') {
+                        mechine = needChangeArr2;
+                    } else {
+                        mechine = needChangeArr;
+                    }
+                    //console.log(mechine)
+                    //console.log(statu)
+                    if (mechine.length != 0) {
+                        let that = this;
+                        axios.post("/Equipment/Equipment_state", { equipmentNumber: mechine, status: statu, linenum: item.linenum, userdepar: item.department }).then(res => {
+                            //console.log(res.data)
+                            if (res.data.result) {
+                                that.onGetData();
+                                that.$message.success(res.data.msg);
+                            } else {
+                                if (statu == "停机") {
+                                    that.$message.warning("关机失败，请重试或手动单个修改运行状态");
+                                } else {
+                                    that.$message.warning("开机失败，请重试或手动单个修改运行状态");
+                                }
+                            }
+                        }).catch(err => {
+                            //console.log(err);
+                        })
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                // 选择改变单个设备状态
+                onChangeStatus(item, status, items) {
+                    if (this.islimit("设备状态修改")) {
+                    //console.log(item)
+                    //console.log(status)
+                    //console.log(items)
+                    if (item.status != status) {
+                        //console.log('111')
+                    let equipmentNumber = [item.equipmentNumber];
+                    let linenum = items.linenum;
+                    let userdepar = items.department
+                    axios.post("/Equipment/Equipment_state", { equipmentNumber, status, linenum, userdepar }).then(res => {
+                        //console.log(res.data, 1111111)
+                        if (res.data.result == true) {
+                            this.$message.success(res.data.msg);
+                            this.onGetData();
+                        } else {
+                            this.$message.warning(res.data.msg);
+                        }
+                    }).catch(err => {
+
+                        })
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                // 根据资产编号获取设备详细
+                getmacihnedetials(asnums, department) {
+                    axios.post("/Equipment/Particulars", { equipmentNumber: asnums }).then(res => {
+                        //console.log(res.data[0])
+                        //console.log(res.data)
+                        if (res.data.length != 0) {
+                            res.data.forEach(item => {
+                                if (item.UserDepartment == department) {
+                                    this.machineDetails = item;
+                                }
+                            })
+                            //console.log(this.machineDetails);
+                        }
+                    });
+                },
+                // 设备上的"详细信息"按钮方法--获取设备详细信息
+                showDetails(mechine, item) {
+                    //console.log(mechine, item);
+                    this.getmacihnedetials(mechine.equipmentNumber, item.department);
+                    this.showMachineDetials = true;
+                },
+                // 在原有设备的左/右边添加新设备
+                addNewEquipment(item, cardItem,val) {
+                    this.dialogVisible = true;
+                    this.machineDetails = {
+                        AssetNumber: null,   // 资产编号
+                        EquipmentName: null,   //设备名称
+                        EquipmentNumber: null,  // 设备编号
+                        LineNum: null,    // 产线号
+                        Section: null,  // 工段
+                        StationNum: null,  // 机器位置序号
+                        Status: null,    // 运状态
+                        UserDepartment: null,   // 使用部门
+                        WorkShop: null,   // 车间
+                        Remark: null     // 备注
+                    };
+                    //console.log(item)
+                    //console.log(index)
+                    //console.log(cardItem)
+                    //console.log(cardIndex)
+                    this.machineDetails.LineNum = item.linenum;
+                    this.machineDetails.UserDepartment = item.department;
+                    if (val == 'left') {
+                    this.machineDetails.StationNum = parseInt(cardItem.mechineindex) - 1;
+                    }  if (val == 'right') {
+                    this.machineDetails.StationNum = parseInt(cardItem.mechineindex) + 1;
+                    }
+
+                },
+                //左右添加设备
+                onSaveAdd() {
+                    //console.log(this.machineDetails.Status, 888);
+                    if (this.machineDetails.UserDepartment == null) {
+                        this.$message.warning("请选择设备使用部门");
+                        return;
+                    }
+                    if (this.machineDetails.EquipmentNumber == null) {
+                        this.$message.warning("请选择设备编号");
+                        return;
+                    }
+                    if (this.machineDetails.Status == null) {
+                        this.$message.warning("请选择设备运行状态");
+                        return;
+                    } else {
+                        axios.post("/Equipment/ADDEquipment", this.machineDetails).then(res => {
+                            //console.log(JSON.parse(res.data.equipmentSetStation));
+                            if (res.status == 200) {
+                                this.dialogVisible = false;
+                                //axios.post("/Equipment/deleteEquipment", { equipmentNumber: this.machineDetails.EquipmentNumber }).then(res => {
+                                //    if (res.data == "删除设备成功！") {
+                                //        this.onGetData();
+                                //    }
+                                //})
+                                this.$message.success("添加成功");
+                                this.machineDetails = {
+                                    AssetNumber: null,   // 资产编号
+                                    EquipmentName: null,   //设备名称
+                                    EquipmentNumber: null,  // 设备编号
+                                    LineNum: null,    // 产线号
+                                    Section: null,  // 工段
+                                    StationNum: null,  // 机器位置序号
+                                    Status: null,    // 运状态
+                                    UserDepartment: null,   // 使用部门
+                                    WorkShop: null,   // 车间
+                                    Remark: null     // 备注
+                                };
+                                this.onGetData();
+                            } else {
+                                this.$message.warning(res.data);
+                            }
+                        }).catch(err => {
+                            this.$message.warning("连接服务器失败");
+                        })
+                    }
+
+                },
+                // 迁移设备方法
+                moveMachine() {
+                    if (this.machineDetails.UserDepartment == ('' | null) || this.machineDetails.StationNum == ('' | null) || this.machineDetails.LineNum == ('' | null)) {
+                        this.$message.warning("进行设备迁移必须填写：使用部门、设备位置、产线等信息");
+                    } else {
+                        axios.post("/Equipment/Migration", {
+                            equipmentNumber: this.machineDetails.EquipmentNumber,
+                            userdepar: this.machineDetails.UserDepartment,
+                            linenum: this.machineDetails.LineNum,
+                            stationnum: this.machineDetails.StationNum,
+                            workShop: this.machineDetails.WorkShop,
+                            section: this.machineDetails.Section,
+                            remark: this.machineDetails.Remark
+                        }).then(res => {
+
+                            if (res.data.indexOf("成功") != -1) {
+                                this.$message.success("操作成功");
+                                this.onGetData();
+                            } else {
+                                this.$message.warning(res.data);
+                            }
+
+                        }).catch(err => {
+                        })
+                    }
+
+                    this.showMachineDetials = false;
+                },
+
+                // 删除设备
+                removeMachine() {
+                    this.$confirm('确定将本台设备移出产线吗？').then(_ => {
+                        axios.post("/Equipment/deleteEquipment", { equipmentNumber: this.machineDetails.EquipmentNumber }).then(res => {
+                            if (res.data == "删除设备成功！") {
+                                this.$message.success(res.data);
+                                this.showMachineDetials = false;
+                                this.onGetData();
+                            } else {
+                                this.$message.warning(res.data);
+                            }
+                        })
+                    }).catch(err => {
+                        this.$message.warning("链接服务器失败")
+                    })
+                },
+                // 显示预览图片按钮方法
+                showImages() {
+
+                    axios.post("/Equipment/Details", { equipmentNumber: this.machineDetails.AssetNumber }).then(res => {
+                        //console.log(res.data);
+                        // 获取图片
+                        if (res.data.picture != '未上传图片。') {
+                            this.showImg = true;
+                            let img = JSON.parse(res.data.picture);
+
+                            img.forEach(item => {
+                                item.FullPath = item.FullPath.replace(/D:/, '')
+                            })
+                            //console.log(img)
+                            this.imgArr = img
+
+                        } else {
+                            this.$message.warning(res.data.picture);
+                        }
+                    }).catch(err => {
+                        this.$message.warning("获取预览图失败!");
+                    })
+                }
+            }
+        }
+    </script>
+}

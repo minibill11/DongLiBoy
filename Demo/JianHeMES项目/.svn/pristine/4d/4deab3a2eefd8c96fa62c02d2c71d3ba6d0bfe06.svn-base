@@ -1,0 +1,125 @@
+﻿@{
+    ViewBag.Title = "班组评优月度积分统计表";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/KPI/KPI_TeamEvaluation.less" />
+    <style>
+        .yearSum {
+            background-color: rgba(64, 158, 255, 1) !important;
+            color: #fff;
+        }
+    </style>
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main v-loading="loading">
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-date-picker v-model="monthDate"
+                                placeholder="请选择日期"
+                                type="month"
+                                size="medium">
+                </el-date-picker>
+                <span>月度汇总</span>
+                <el-button type="primary" size="medium" @@click="IntegralTable">查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <el-button type="success" @@click="exportExcel" size="medium" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      row-class-name="zero-padding"
+                      max-height="600"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号"></el-table-column>
+                <el-table-column prop="Department" label="部门"></el-table-column>
+                <el-table-column prop="Group" label="班组"></el-table-column>
+                <el-table-column label="积分得分情况">
+                    <el-table-column v-for="(i,index) in 12" :label="i+'月'">
+                        <template slot-scope="scope">
+                            {{scope.row.Time[transformation(i)]|zero}}
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="TotalScore" label="年度积分合计" min-width="100" label-class-name="yearSum"></el-table-column>
+            </el-table>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/KPI/KPI_TeamEvaluation.js"></script>
+    <script>
+        const app = {
+            mixins: [TeamEvaluation],
+            data: function () {
+                return {
+                    tableList: [],
+                    monthDate: null,
+                    excelJson: [],
+                }
+            },
+            filters: {
+                zero(v) {
+                    if (v === 0) {
+                        return '';
+                    } else {
+                        return v;
+                    };
+                }
+            },
+            methods: {
+                IntegralTable() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post('/KPI/IntegralTable', { year: y, month: m }).then(res => {
+                        console.dir(res.data);
+                        this.tableList = res.data;
+                        this.excelJson = res.data;
+                        this.$message.success('查询成功');
+                    }).catch(err => {
+
+                    });
+                },
+                checkDateIsNull() {
+                    if (this.monthDate == '' || this.monthDate == null) {
+                        this.$message('未选择日期');
+                        return true;
+                    } else {
+                        return false;
+                    };
+                },
+                exportExcel() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear();
+                    axios.post("/KPI/Integral_OutputExcel", { year: y }, { responseType: "blob" }).then(res => {
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(new Blob([res.data]));
+                        link.style.display = 'none';
+                        link.download = `KPI班组评优汇总表${y}.xlsx`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+                },
+                transformation(i) {
+                    return {
+                        1: 'January', 2: 'February', 3: 'March', 4: 'April', 5: 'May', 6: 'June',
+                        7: 'July', 8: 'August', 9: 'September', 10: 'October', 11: 'November', 12: 'December',
+                    }[i];
+                }
+            }
+        };
+    </script>
+}
+

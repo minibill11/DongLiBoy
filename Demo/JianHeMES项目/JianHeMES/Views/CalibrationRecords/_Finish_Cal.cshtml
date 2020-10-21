@@ -1,0 +1,100 @@
+﻿<script type="text/template" id="Finish_Cal_Component">
+    <div class="finish-cal">
+        <div style="width:280px;">
+            <el-form size="small" label-position="right" label-width="80px" v-model="forminfo">
+                <el-form-item label="订单号">
+                    <el-input v-model="forminfo.OrderNum" disabled placeholder="请输入内容"></el-input>
+                </el-form-item>
+                <el-form-item label="条码">
+                    <el-input v-model.trim="forminfo.BarCodesNum" disabled placeholder="请输入内容"></el-input>
+                </el-form-item>
+                <el-form-item label="模组号">
+                    <el-input v-model="forminfo.ModuleGroupNum" clearable placeholder="请输入内容"></el-input>
+                </el-form-item>
+                <el-form-item label="正常">
+                    <el-checkbox v-model="forminfo.isNormal"></el-checkbox>
+                </el-form-item>
+                <el-form-item label="异常原因" v-if="!forminfo.isNormal">
+                    <el-input placeholder="请输入内容"
+                              type="textarea"
+                              :rows="4"
+                              v-model="forminfo.AbnormalDescription">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="">
+                    <el-button type="primary" @@click="onToFinishCheck">完成校正</el-button>
+                    <el-button @@click="onCancel">取消</el-button>
+                </el-form-item>
+            </el-form>
+        </div>
+    </div>
+</script>
+<script>
+    Vue.component('finish-cal-component', {
+        props: ["forminfo"],
+        template: document.getElementById("Finish_Cal_Component"),
+        data: function () {
+            return {
+                flag: false,
+            }
+        },
+        mounted() {
+            //console.log(this.forminfo, 999);
+        },
+        methods: {
+            onToFinishCheck() {
+                //console.log(this.forminfo)
+                if (this.forminfo.isNormal) {
+                    this.flag = true;
+                } else {
+                    if (this.forminfo.AbnormalDescription == '') {
+                        this.flag = false;
+                        this.$message.warning("请填写异常原因！");
+                    } else {
+                        this.flag = true;
+                    }
+                }
+                if (this.flag) {
+                    if (this.forminfo.ModuleGroupNum == '' || this.forminfo.ModuleGroupNum == null) {
+                        this.$confirm('模组号为空，是否继续？').then(res => {
+                            this.onFinishCheck();
+                        }).catch(err => {
+                            console.log(err);
+                        })
+                    } else {
+                        this.onFinishCheck();
+                    }
+                }
+            },
+            //完成校正
+            onFinishCheck() {
+                if (this.forminfo.isNormal) {
+                    this.forminfo.AbnormalDescription = "正常";
+                }
+                axios.post("/api/CalibrationRecordsAPI/FinishCal1", {
+                    id: this.forminfo.id,
+                    AbnormalDescription: this.forminfo.AbnormalDescription,
+                    ModuleGroupNum: this.forminfo.ModuleGroupNum,
+                    UserName: this.forminfo.UserName
+                }).then(res => {
+                    //console.log(res.data, 6666)
+                    let result = res.data.Data;
+                    if (result.pass) {
+                        this.$message.success(result.mes);
+                        //刷新
+                        window.location.href = "/CalibrationRecords/New_CalibrationRecord";
+                    } else {
+                        this.$message.warning(result.mes);
+                    }
+                })
+            },
+            onCancel() {
+                //刷新
+                window.location.href = "/CalibrationRecords/New_CalibrationRecord";
+            }
+        },
+        watch: {
+
+        }
+    });
+</script>

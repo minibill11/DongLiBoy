@@ -1,0 +1,101 @@
+﻿using JianHeMES.AuthAttributes;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace JianHeMES.Controllers
+{
+    public class DocumentTemplateFilesManageController : Controller
+    {
+        // GET: BGManage
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+    }
+
+    public class DocumentTemplateFilesManage_ApiController : System.Web.Http.ApiController
+    {
+        private CommonalityController comm = new CommonalityController();
+
+
+        //读取模板文件夹的文档清单
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetDocumentTemplateFilesFolderInDirectory()
+        {
+            JObject result = new JObject();
+            string folder = @"D:\MES_Data\DocumentTemplateFiles\";
+            if (System.IO.File.Exists(folder))
+            {
+                result.Add("Data",folder.Replace('\\','/'));
+                result.Add("Result", true);
+                result.Add("Message", "文件夹读取成功！");
+                result.Add("PostResult", comm.ReturnApiPostStatus());
+                return result;
+            }
+            else
+            {
+                result.Add("Data", "");
+                result.Add("Result", false);
+                result.Add("Message", "文件夹读取失败！");
+                result.Add("PostResult", comm.ReturnApiPostStatus());
+                return result;
+            }
+        }
+
+        //读取模板文档(不带扩展名)
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetDocumentTemplateFile(string filename)
+        {
+            JObject result = new JObject();
+            string folder = @"D:\MES_Data\DocumentTemplateFiles\";
+            if (System.IO.File.Exists(folder)|| System.IO.File.Exists(folder.Replace('\\', '/') + filename))
+            {
+                var file_list = GetFilesInDirectory(folder);
+                int count = file_list.Count(c => c.Name.Contains(filename));
+                if(count>0)
+                {
+                    string fullName = file_list.Where(c => c.Name.Contains(filename)).FirstOrDefault().FullName;
+                    result.Add("Data", folder.Replace('\\', '/') + fullName);
+                    result.Add("Result", true);
+                    result.Add("Message", "模块文档读取成功！");
+                    result.Add("PostResult", comm.ReturnApiPostStatus());
+                }
+                return result;
+            }
+            else
+            {
+                result.Add("Data", "");
+                result.Add("Result", false);
+                result.Add("Message", "模块文档读取失败，文档不存在！");
+                result.Add("PostResult", comm.ReturnApiPostStatus());
+                return result;
+            }
+        }
+
+        #region --------------------返回指定目录下文件信息
+        /// <summary>  
+        /// 返回指定目录下文件信息  
+        /// </summary>  
+        /// <param name="strDirectory">目录字符串</param>  
+        /// <returns></returns>  
+        public List<FileInfo> GetFilesInDirectory(string strDirectory)
+        {
+            List<FileInfo> listFiles = new List<FileInfo>(); //保存所有的文件信息  
+            DirectoryInfo directory = new DirectoryInfo(strDirectory);
+            FileInfo[] fileInfoArray = directory.GetFiles();
+            if (fileInfoArray.Length > 0) listFiles.AddRange(fileInfoArray);
+            return listFiles;
+        }
+        #endregion
+
+    }
+
+}

@@ -1,0 +1,281 @@
+﻿@model JianHeMES.Models.FinalQC
+
+@{
+    ViewBag.Title = "FinalQC_B";
+}
+
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<style>
+    .selectComponent .el-input__inner {
+        width: 250px;
+    }
+
+    @@media screen and (max-width:992px) {
+        .selectComponent .el-input__inner {
+            width: 280px;
+        }
+    }
+
+    .form-group {
+        margin-bottom: 8px;
+    }
+</style>
+<h2 class="hidden-xs">@ViewBag.Title</h2>
+
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <h4 class="hidden-xs">FQC</h4>
+        <h4 class="text-center visible-xs">开始FQC</h4>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="col-md-4">
+            <div class="form-group">
+                <div class="col-md-8  col-md-offset-4">
+                    <div class="btn btn-sm" v-on:click="divert=!divert" v-bind:class="{'btn-success': divert,'btn-primary': !divert }">挪用库存</div>
+                    <input class="checkbox-inline" type="checkbox" name="isnuo" v-model="divert" value="true" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-md-4">班组</label>
+                <div class="col-md-8">
+                    <group-select></group-select>
+                </div>
+            </div>
+            @*挪用*@
+            <div class="form-group" v-show="divert">
+                <label for="nuoOrder" class="control-label col-md-4">被挪用订单号</label>
+                <div class="col-md-8">
+                    <select-input id="nuoOrder" name="nuoOrder" v-model.trim="ordernum.nuo" :disabled="false" :appendbody="false" :options="ordernum.options" :isfocus="true" size="small"></select-input>
+                </div>
+
+                <label for="nuoBarCode" class="control-label col-md-4">被挪用条码号</label>
+                <div class="col-md-8">
+                    <input autocomplete="off" autofocus="autofocus" id="nuoBarCode" name="nuoBarCode" v-model="nuoBarCode" onkeyup="this.value=this.value.toUpperCase().replace(/\s+/g,'')" type="text" class="form-control text-box single-line">
+                    <div v-show="isnuonum" class="text-danger">{{checkmes}}</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <select-input id="OrderNum" name="OrderNum" v-model.trim="ordernum.value" :disabled="false" :appendbody="false" :options="ordernum.options" :isfocus="true" size="small"></select-input>
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.BarCodesNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.BarCodesNum, new { htmlAttributes = new { @class = "form-control", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')", autocomplete = "off" } })
+                    @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.RepetitionFQCCheck, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <input v-model="checkstate" v-on:click="checkchange(checkstate)" v-bind:name="checkstate?'RepetitionFQCCheck':''" value="true" class="form-control check-box" data-val="true" data-val-required="是否重复FQC 字段是必需的。" style="width:34px" type="checkbox">
+                    @Html.ValidationMessageFor(model => model.RepetitionFQCCheck, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div v-show="checkstate" class="form-group">
+                @Html.LabelFor(model => model.RepetitionFQCCheckCause, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <textarea v-model="RepetitionCause" id="RepetitionFQCCheckCause" v-bind:name="checkstate?'RepetitionFQCCheckCause':''" class="form-control" cols="20" rows="2"></textarea>
+                    @Html.ValidationMessageFor(model => model.RepetitionFQCCheckCause, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input v-bind:disabled="checknuo" type="submit" value="开始FQC" class="btn btn-default" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+<div class="clearfix"></div>
+<div class="row col-md-12">
+    @Html.ActionLink("返回", "New_Index")
+</div>
+@*  引入组件：
+    1/_groupSelect，下拉选择框组件
+*@
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            confirm: false,
+            RepetitionCause: "",
+            checkstate: false,
+            divert: false,//挪用
+            isnuonum: false,
+            nuoBarCode: "",
+            checkmes: "",
+            ordernum: {
+                nuo: '',
+                value: '',
+                options: []
+            },
+        },
+        computed: {
+            checknuo: function () {
+                if (this.divert == true) {
+                    if (this.nuoBarCode.length != 0 && this.isnuonum == false && this.confirm == false) {
+                        return false;
+                    } else {
+                        return true;
+                    };
+                } else {
+                    if (this.confirm == false) {
+                        return false;
+                    } else {
+                        return true;
+                    };
+                };
+            }
+        },
+        watch: {
+            RepetitionCause: function (val) {
+                if (this.checkstate == true && val != '') {
+                    this.confirm = false;
+                } else {
+                    this.confirm = true;
+                };
+            },
+            divert: (v) => {//挪用
+                localStorage.setItem('Divert', v);
+                app.isnuo(v);
+                if (v == true) {
+                    app.$nextTick(function () {
+                        $("#nuoBarCode").select();
+                    });
+                } else {
+                    $("#BarCodesNum").select();
+                };
+            },
+            nuoBarCode: (v) => {
+                if (v.length != 0) {
+                    app.checkorderbar(v);
+                } else {
+                    app.isnuonum = false;
+                }
+            },
+            'ordernum.value'(val) {
+                if (val != '' && val != null) {
+                    localStorage.setItem('Order', val);
+                    $("#BarCodesNum").select();
+                }
+            },
+            'ordernum.nuo'(val) {
+                if (val != '' && val != null) {
+                    localStorage.setItem('nuoOrder', val);
+                    if (this.nuoBarCode.length != 0) {
+                        this.checkorderbar(this.nuoBarCode);
+                    } else {
+                        this.isnuonum = false;
+                    };
+                    $("#nuoBarCode").select();
+                }
+            }
+        },
+        methods: {
+            checkchange: function () {
+                this.checkstate = !this.checkstate;
+                if (this.checkstate) {
+                    if (app.RepetitionCause != '') {
+                        this.confirm = false;
+                    } else {
+                        this.confirm = true;
+                    };
+                    this.$nextTick(() => $("#RepetitionFQCCheckCause").focus());
+                } else {
+                    this.confirm = false;
+                    $("#BarCodesNum").focus()
+                };
+            },
+            isnuo: (nuoVal) => {
+                if (nuoVal == true) {
+                    $("#nuoBarCode").attr("name", "nuoBarCode")
+                } else {
+                    $("#nuoBarCode").removeAttr("name")
+                };
+            },
+            //检查挪用条码是否可以挪用
+            checkorderbar(v) {
+                axios.post('/Commonality/CheckBarCodeNumIsRepertory', {
+                    ordernum: this.ordernum.nuo,
+                    barcodenum: v,
+                }).then(res => {
+                    if (res.data == true) {
+                        this.checkmes = "";
+                        this.isnuonum = false;
+                    } else {
+                        this.checkmes = res.data;
+                        this.isnuonum = true;
+                    };
+                }).catch(err => {
+                    console.log("检查失败")
+                });
+            },
+        },
+        mounted: function () {
+            axios.post('/OrderMgms/GetOrderList').then(res => {
+                this.ordernum.options = res.data;
+            });
+            var localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.ordernum.value = localOrder;
+            };
+
+            //挪用订单
+            var localDivert = localStorage.getItem('Divert');
+            if (localDivert != null) {
+                let localNuo = localDivert == 'true' ? true : false;
+                this.divert = localNuo;
+                this.isnuo(localNuo);
+            };
+
+            var localNuoOrder = localStorage.getItem('nuoOrder');
+            if (localNuoOrder != null) {
+                this.ordernum.nuo = localNuoOrder;
+            };
+
+            $("#nuoBarCode").keypress(function (e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    $("#BarCodesNum").select();
+                    //if (app.checkstate == true) {
+                    //    $("#RepetitionFQCCheckCause").focus(); // 设置焦点
+                    //};
+                };
+            });
+
+            $("#BarCodesNum").keypress(function (e) {
+                //console.log(e.keyCode)
+                if (e.keyCode == 13) {
+                    //if (app.divert == true) {
+                    //    $("#nuoBarCode").select();
+                    //} else
+                    $(this).blur();
+                    if (app.checkstate == true) {
+                        $("#RepetitionFQCCheckCause").focus(); // 设置焦点
+                    };
+                    e.preventDefault();
+                };
+            });
+
+            $("#BarCodesNum").select();
+        }
+    });
+</script>

@@ -1,0 +1,247 @@
+﻿
+<script type="text/template" id="KPI_DeparturesNum_Input_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                @*批量添加粘贴处 *@
+                <el-input v-model="pasteExcel" placeholder="表格粘贴处" type="textarea" resize="none" rows="1" size="small"></el-input>
+                @*日期选择框 *@
+                <el-date-picker v-model="monthDate"
+                                type="date"
+                                size="small"
+                                placeholder="请选择日期">
+                </el-date-picker>
+            </div>
+            <div class="table-top-right">
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableData"
+                      min-height="234"
+                      max-height="600"
+                      size="small"
+                      :summary-method="getSummaries"
+                      show-summary
+                      stripe
+                      border>
+                <el-table-column prop="SerialNumber"
+                                 label="序号"
+                                 min-width="52"
+                                 height="100">
+                </el-table-column>
+                <el-table-column prop="Department"
+                                 label="部门"
+                                 align="center"
+                                 min-width="78">
+                </el-table-column>
+                <el-table-column prop="Group"
+                                 label="班组"
+                                 align="center"
+                                 min-width="78">
+                </el-table-column>
+                <el-table-column prop="IndicatorsValue"
+                                 label="目标值"
+                                 align="center"
+                                 min-width="78">
+                </el-table-column>
+                <el-table-column prop="BeginNumber"
+                                 label="月初人数"
+                                 align="center"
+                                 min-width="78">
+                </el-table-column>
+                <el-table-column prop="EndNumber"
+                                 label="月末人数"
+                                 align="center"
+                                 min-width="78">
+                </el-table-column>
+                <el-table-column prop="AverageNum"
+                                 label="月平均人数"
+                                 align="center"
+                                 min-width="100">
+                </el-table-column>
+                <el-table-column prop="LossNumber"
+                                 label="流失人数"
+                                 align="center"
+                                 min-width="100">
+                </el-table-column>
+                <el-table-column label="操作" align="center">
+                    <template slot-scope="scope">
+                        <el-button v-bind:class="scope.row.color==200?'red':''" v-on:click.native.prevent="deleteRow(scope.$index, tableData)"
+                                   class="delLine"
+                                   type="text"
+                                   size="small">
+                            移除
+                        </el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-button @@click="showChange" size="small">返回</el-button>
+            </div>
+            <div class="table-bottom-right">
+            </div>
+        </el-row>
+        @* 表格信息概述 *@
+        <div class="bottomInfo" v-if="flag">
+            <p class="pone">
+                本次共提交
+                <span style="color:red;font-size:18px;">{{count}}</span>条数据！
+                <span v-if="flags" style="color:red;">存在{{numberOfzf}}条重复数据，请先手动移除其中重复数据再重新上传！</span>
+            </p>
+            <div>
+                <el-button size="small" @@click="delated">重置</el-button>
+                <el-button v-show="inputlimit" type="primary" size="small" @@click="postData">确认</el-button>
+            </div>
+        </div>
+    </el-row>
+</script>
+<script>
+    Vue.component('kpi-departuresnum-input-component', {
+        template: document.getElementById("KPI_DeparturesNum_Input_Component"),
+        props: ['inputlimit'],
+        data: function () {
+            return {
+                monthDate: null,   // 所选时间
+                pasteExcel: null,    // 批量上传班组流失率
+                tableData: [],      // 表格数据
+                numberOfzf: null,   //重复的数据数目
+                count: null,         //数据总条数
+                flag: false,       // 批量添加时为true
+                flags: false,      // 筛选重复的数据开关
+            }
+        },
+        methods: {
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.delated();
+                    this.pasteExcel = '';
+                    this.$emit("input", true);
+                    vm.mainLoading = false;
+                }, 500);
+            },
+            //总计
+            getSummaries(param) {
+                const { columns, data } = param;
+                const sums = [];
+                let sumData = this.sumList;
+                columns.forEach((column, index) => {
+                    if (index === 6) {
+                        sums[index] = '流失人数合计:';
+                        return;
+                    }
+                });
+                return sums;
+            },
+            // 删除单独行
+            deleteRow(index) {
+                this.numberOfzf--;
+                if (this.numberOfzf > 0) {
+                    this.flags = true;
+                } else if (this.numberOfzf <= 0) {
+                    this.flags = false;
+                }
+                this.tableData.splice(index, 1);
+                this.count--;
+            },
+            // 取消上传
+            delated() {
+                this.tableData = [];
+                this.count = 0;
+                this.numberOfzf = 0;
+                this.flags = false;
+            },
+            //保存添加的数据
+            postData() {
+                if (this.count > 0) {  //批量上传
+                    if (this.monthDate != null) {
+                        let dd = new Date(this.monthDate);
+                        let year = dd.getFullYear();
+                        let month = dd.getMonth() + 1;
+                        let date = dd.getDate();
+                        let dateLoss = year + '-' + month + '-' + date;
+                        let dateLoss1 = year + '/' + month + '/' + date;
+                        axios.post("/KPI/DeparturesNum", { turnoverRates: this.tableData, dateLoss: dateLoss }).then(res => {
+                            //console.log(res.data, 8)
+                            if (res.data.meg == true) {
+                                this.$message({
+                                    message: "录入成功！",
+                                    type: "success"
+                                });
+                                this.tableData = [];
+                                this.count = 0;
+                            } else if (res.data.meg == false) {
+                                this.res1 = res.data.feg;
+                                this.numberOfzf = this.res1.length;
+                                if (this.numberOfzf > 0) {
+                                    this.flags = true;
+                                } else if (this.numberOfzf <= 0) {
+                                    this.flags = false;
+                                }
+                                console.log(this.numberOfzf, 56)
+                                for (let i = 0; i < this.res1.length; i++) {
+                                    let str = this.res1[this.res1.length - 1];
+                                    let Arr = str.split(";");
+                                    console.log(Arr)
+                                    //时间处理
+                                    for (let j = 0; j < Arr.length - 1; j++) {
+                                        let arr0 = Arr[j].split(",");
+                                        let dates = arr0[2].split(" ");
+                                        this.tableData.forEach(item => {
+                                            if (arr0[0] == item.Department && arr0[1] == item.Group && dates[0] == dateLoss1) {
+                                                item.color = 200
+                                            }
+                                        })
+                                    }
+                                    this.$message({
+                                        message: "存在重复信息，请手动移除！",
+                                        type: "warning"
+                                    });
+                                }
+                            }
+                        })
+                    } else {
+                        this.$message({
+                            message: "请选择年月!",
+                            type: "warning"
+                        })
+                    }
+                } else {
+                    this.$message({
+                        message: "请导入数据再上传!",
+                        type: "warning"
+                    })
+                }
+            },
+        },
+        watch: {
+            // 监听客诉损失粘贴框-- 渲染表格
+            pasteExcel(val) {
+                if (val == null) return;
+                var valOfPaste = val.split("\n");
+                valOfPaste.pop();
+                var initDatas = []
+                valOfPaste.forEach((item, i) => {
+                    var items = item.split("\t");
+                    initDatas.push(items)
+                });
+                initDatas.forEach(item => {
+                    let obj = {
+                        SerialNumber: item[0], Department: item[1], Group: item[2], IndicatorsValue: item[3], BeginNumber: item[4],
+                        EndNumber: item[5], AverageNum: item[6], LossNumber: item[7], color: 202
+                    };
+                    this.tableData.push(obj);
+                });
+                this.count = this.tableData.length;
+                if (this.count <= 0) {
+                    this.flag = false;
+                } else {
+                    this.flag = true;
+                }
+                this.pasteExcel = null;
+            },
+        },
+    });
+</script>

@@ -1,0 +1,327 @@
+﻿
+<script type="text/template" id="Version_Management_Input_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+            </div>
+            <div class="table-top-right">
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      max-height="600"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号" min-width="50"></el-table-column>
+                <el-table-column prop="MESVersion" label="版本号" min-width="120">
+                    @*<template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.MESVersion = $event"
+                                        :nametext="scope.row.MESVersion"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>*@
+                </el-table-column>
+                <el-table-column prop="Section" label="模块" min-width="120">
+                    <template slot-scope="scope">
+                        <el-select v-if="scope.row.edit" v-model="scope.row.Section" size="mini">
+                            <el-option v-for="item in sectionlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <span v-else>{{scope.row.Section}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="UpdateMes" label="更新内容" class-name="mes-array" min-width="250">
+                    <template slot-scope="scope">
+                        <input-edit datatype="textarea"
+                                    class="mes-item"
+                                    v-on:input="scope.row.UpdateMes = $event"
+                                    :nametext="scope.row.UpdateMes"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="UpdateTime" label="更新日期" min-width="150">
+                    @*<template slot-scope="scope">
+                            <input-edit datatype="date"
+                                        v-on:input="scope.row.UpdateTime = $event.toLocaleDateString('zh').replace(/\//g, '-')"
+                                        :nametext="scope.row.UpdateTime"
+                                        :isedit="scope.row.edit"></input-edit>
+                        </template>*@
+                </el-table-column>
+                <el-table-column prop="SNVVersion" label="SVN版本号" min-width="120">
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.SNVVersion = $event"
+                                    :nametext="scope.row.SNVVersion"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" align="center" min-width="90" v-if="editlimit">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.edit">
+                            <el-button @@click="saveClick(scope.row)" class="cbtn green" type="text">保存</el-button>
+                            <el-button @@click="cancelClick(scope.row)" class="cbtn info" type="text">取消</el-button>
+                        </div>
+                        <div v-else>
+                            <el-button @@click="editClick(scope.row)" class="cbtn blue" type="text">编辑</el-button>
+                            <el-button @@click="deleteClick(scope.row,scope.$index)" class="cbtn red" type="text">删除</el-button>
+                        </div>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-button @@click="addRowVisible = true" v-show="editlimit" type="primary" size="medium" plain>录入更新内容</el-button>
+                <el-button @@click="AddSection" v-show="editlimit" type="primary" size="medium" plain>新增模块</el-button>
+                <el-button @@click="showChange" size="medium">返回首页</el-button>
+            </div>
+            <div class="table-bottom-right">
+            </div>
+        </el-row>
+
+        <el-row>
+            <el-dialog title="计划信息录入"
+                       @@close="close('ruleForm')"
+                       :visible.sync="addRowVisible">
+                <el-form label-width="30%"
+                         label-position="right"
+                         class="addRowDia"
+                         ref="ruleForm"
+                         size="medium"
+                         :rules="rules"
+                         :model="addRowForm">
+                    @*<el-form-item label="版本号" prop="MESVersion">
+                            <el-input v-model="addRowForm.MESVersion"></el-input>
+                        </el-form-item>*@
+                    <el-form-item label="模块" prop="Section">
+                        <el-select v-model="addRowForm.Section"
+                                   placeholder="请选择模块"
+                                   filterable
+                                   clearable>
+                            <el-option v-for="item in sectionlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="更新内容" prop="UpdateMes">
+                        <el-input type="textarea"
+                                  :autosize="{ minRows: 2, maxRows: 4}"
+                                  placeholder="请输入内容"
+                                  v-model="addRowForm.UpdateMes">
+                        </el-input>
+                    </el-form-item>
+                    @*<el-form-item label="更新日期" prop="UpdateTime">
+                            <el-date-picker v-model="addRowForm.UpdateTime"
+                                            type="date"
+                                            placeholder="选择日期时间">
+                            </el-date-picker>
+                        </el-form-item>*@
+                    <el-form-item label="SVN版本号" prop="SNVVersion">
+                        <el-input v-model="addRowForm.SNVVersion"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button @@click="addRowVisible = false">取 消</el-button>
+                        <el-button type="primary" @@click="submitForm('ruleForm')">确 定</el-button>
+                    </el-form-item>
+                </el-form>
+            </el-dialog>
+        </el-row>
+    </el-row>
+</script>
+<script>
+    Vue.component('version-management-input-component', {
+        template: document.getElementById("Version_Management_Input_Component"),
+        props: ['value', 'editlimit'],
+        data: function () {
+            return {
+                tableList: [],
+                initialData: {},
+                sectionlist: [],
+                addRowVisible: false,
+                rules: {},
+                addRowForm: {
+                    MESVersion: '',
+                    Section: '',
+                    UpdateMes: '',
+                    UpdateTime: null,
+                    SNVVersion: '',
+                },
+            }
+        },
+        mounted: function () {
+            const stringTest = [{ required: true, message: '不能为空', trigger: 'blur' }],
+                changeTest = [{ required: true, message: '不能为空', trigger: 'change' }];
+            this.rules = {
+                Section: changeTest,
+                UpdateMes: stringTest,
+            };
+            this.GetSectionList();
+        },
+        methods: {
+            DisplayVersion() {
+                axios.post("/VersionManagement/DisplayVersion").then(res => {
+                    for (let i of res.data) {
+                        i.edit = false;
+                    };
+                    this.tableList = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            GetSectionList() {
+                axios.post('/VersionManagement/GetSectionList').then(res => {
+                    this.sectionlist = res.data;
+                });
+            },
+            AddSection() {
+                this.$prompt(`请输入模块名称`, '新增模块', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                }).then(({ value }) => {
+                    axios.post('/VersionManagement/AddSection', {
+                        section: value,
+                    }).then(res => {
+                        if (res.data.pass === true) {
+                            this.GetSectionList();
+                            this.$message.success(res.data.mes);
+                        } else {
+                            this.$message.error("修改失败");
+                        };
+                    }).catch(err => {
+                        this.$message.error("修改失败");
+                    });
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '取消修改'
+                    });
+                });
+            },
+            AddVersion(obj) {
+                axios.post('/VersionManagement/AddVersion', {
+                    version: [obj],
+                }).then(res => {
+                    if (res.data.pass === true) {
+                        this.DisplayVersion();
+                        this.$message.success(res.data.mes);
+                    } else {
+                        this.$message.error("修改失败");
+                    };
+                    this.addRowVisible = false;
+                }).catch(err => {
+                    this.$message.error("修改失败");
+                    this.addRowVisible = false;
+                });
+            },
+            //关闭模态框
+            close(formName) {
+                this.$refs[formName].resetFields();
+            },
+            //验证值
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.AddVersion(this.addRowForm);
+                    } else {
+                        console.log('error submit!!');
+                        return false;
+                    };
+                });
+            },//检查编辑状态
+            checkEditStatus() {
+                for (let i of this.tableList) {
+                    if ('edit' in i && i.edit) {
+                        return true;
+                    };
+                };
+                return false;
+            },
+            //启动编辑
+            editClick(row) {
+                if (this.checkEditStatus()) {
+                    this.$message.warning('存在正在编辑的行');
+                    return
+                };
+                if (!('edit' in row)) {
+                    this.$set(row, 'edit', false);
+                };
+                this.initialData = {};
+                this.initialData = { ...row };
+                row.edit = true;
+            },
+            //取消编辑
+            cancelClick(row) {
+                let item = row, ini = this.initialData;
+                for (let i in ini) {
+                    item[i] = ini[i];
+                };
+                this.initialData = {};
+            },
+            //保存编辑
+            saveClick(row) {
+                axios.post('/VersionManagement/UpdateVersion', {
+                    id: row.id,
+                    Section: row.Section,
+                    UpdateMes: row.UpdateMes,
+                    SNVVersion: row.SNVVersion,
+                }).then(res => {
+                    if (res.data.pass === true) {
+                        row.edit = false;
+                        row.UpdateTime = res.data.UpdateTime;
+                        this.initialData = {};
+                        this.$message.success(res.data.mes);
+                    } else {
+                        this.$message.error("修改失败");
+                    };
+                }).catch(err => {
+                    this.$message.error('保存出错');
+                    console.warn("post失败")
+                });
+            },
+            //删除
+            deleteClick(row, index) {
+                this.$confirm(`版本号‘${row.MESVersion}’，模块‘${row.Section}’，SNV版本‘${row.SNVVersion}’`, '确认删除', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'error',
+                    center: true,
+                }).then(() => {
+                    axios.post('/VersionManagement/DeleteVersion', {
+                        id: row.id,
+                    }).then(res => {
+                        if (res.data.pass === true) {
+                            this.tableList.splice(index, 1);
+                            this.$message.success(res.data.mes);
+                        } else {
+                            this.$message.error("删除失败");
+                        };
+                    }).catch(err => {
+                        this.$message.error('保存出错');
+                        console.warn("post失败")
+                    });
+                }).catch(() => {
+                });
+            },
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.tableList = [];
+                    this.$emit("input", true);
+                    vm.mainLoading = false;
+                }, 300);
+            },
+        },
+        watch: {
+            value(v) {
+                if (!v) this.DisplayVersion();
+            }
+        }
+    });
+</script>
+

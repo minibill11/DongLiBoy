@@ -1,0 +1,85 @@
+﻿<script type="text/template" id="topTitleComponent">
+    <div class="topTitleComponent">
+        <el-dropdown v-if="admin">
+            <span class="el-dropdown-link">
+                <span v-if="screen>992">
+                    <span class="el-titleText">用户管理</span>
+                    <i class="el-icon-caret-bottom"></i>
+                </span>
+                <span v-else>
+                    <i class="el-icon-s-tools el-titleText mobileIcon"></i>
+                </span>
+            </span>
+            <el-dropdown-menu slot="dropdown">
+                <a href="/Users/Index"><el-dropdown-item>用户管理</el-dropdown-item></a>
+                <a href="/Users/BatchUsers"><el-dropdown-item>批量增加用户</el-dropdown-item></a>
+                <a href="/Users/UerserOperateLogsQuery"><el-dropdown-item>日志查询</el-dropdown-item></a>
+            </el-dropdown-menu>
+        </el-dropdown>
+
+        <el-dropdown>
+            <span class="el-dropdown-link">
+                <span v-if="screen>992">
+                    <i class="el-icon-user"></i>
+                    <span class="el-titleText">{{username}}<el-badge :value="badgeNum" :max="99" v-show="badgeNum" class="badgeNum" v-on:click.native="toTips" /></span>
+                    <i class="el-icon-caret-bottom"></i>
+                </span>
+                <span v-else>
+                    <i class="el-icon-user-solid el-titleText mobileIcon"><el-badge :value="badgeNum" :max="99" v-show="badgeNum" class="badgeNum" v-on:click.native="toTips" /></i>
+                </span>
+            </span>
+            <el-dropdown-menu slot="dropdown">
+                <a :href="`/Users/Modifypwd/${userid}`"><el-dropdown-item>修改密码</el-dropdown-item></a>
+                <a href="/Users/UserTeam" v-if="islimit('新增班组')||islimit('删除班组')"><el-dropdown-item>班组信息</el-dropdown-item></a>
+                <a href="/Users/ViewUserRights"><el-dropdown-item>查看权限</el-dropdown-item></a>
+                <a href="/Users/PermissionList" v-if="admin"><el-dropdown-item>权限对比</el-dropdown-item></a>
+                <el-dropdown-item @@click.native="toLogout">退出</el-dropdown-item>
+            </el-dropdown-menu>
+        </el-dropdown>
+    </div>
+</script>
+
+<script>
+    Vue.component('top-title', {
+        props: ['username', 'usernum', 'userid', 'admin', 'limits', 'screen'],
+        template: document.getElementById("topTitleComponent"),
+        data: function () {
+            return {
+                badgeNum: 0,
+            }
+        },
+        created: function () {
+            this.getBadgeNum();
+        },
+        methods: {
+            getBadgeNum() {
+                axios.post("/Tips/Pending_Work", { userId: this.usernum }).then(res => {
+                    if (res.data) {
+                        this.badgeNum = res.data;
+                        setTimeout(() => {
+                            this.getBadgeNum();
+                        }, 5000);
+                    } else {
+                        setTimeout(() => {
+                            this.getBadgeNum();
+                        }, 600000);
+                    };
+                }).catch(err => { console.log(err); });
+            },
+            toTips() {
+                window.open('/Tips/Tips_Index');
+            },
+            toLogout() {
+                localStorage.removeItem('limits');
+                localStorage.removeItem('menuIndexKey');
+                localStorage.removeItem('menuIndexKeyPath');
+                localStorage.removeItem('authorization');
+                location.href = "/Users/Logoff";
+            },
+            //检测权限
+            islimit(limitName) {
+                return this.limits.includes(limitName);
+            },
+        },
+    });
+</script>

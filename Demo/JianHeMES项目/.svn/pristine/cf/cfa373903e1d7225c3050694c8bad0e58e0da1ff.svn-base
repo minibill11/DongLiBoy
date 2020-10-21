@@ -1,0 +1,383 @@
+﻿@model JianHeMES.Models.Burn_in
+
+@{
+    ViewBag.Title = "批量结束老化";
+}
+
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<h2 class="hidden-xs">@ViewBag.Title</h2>
+<h5 class="visible-xs text-center">批量结束老化</h5>
+<style>
+    .color-show {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .color-box {
+        width: 50%;
+        text-align: center;
+        transition: transform .3s;
+        padding: 6px 4px;
+    }
+
+    /*.green {
+        color: green;
+    }
+
+    .red {
+        color: red;
+    }*/
+
+    .selectComponent .el-input__inner {
+        width: 280px;
+        margin: 5px 0;
+    }
+
+    .form-control {
+        max-width: 280px;
+    }
+
+    @@media screen and (max-width:768px) {
+        .form-group, .control-label {
+            margin-bottom: 0px;
+        }
+
+        h5 {
+            margin-top: 5px;
+            margin-bottom: 0px;
+        }
+
+        hr {
+            margin: 10px 0px 0px;
+        }
+
+        .xsnum, .table {
+            margin-bottom: 5px;
+        }
+
+        .color-box {
+            padding: 4px 0 !important;
+            height: 25px;
+        }
+    }
+
+    .table {
+        font-size: 12px;
+    }
+
+        .table > tbody > tr > td, .table > tbody > tr > th {
+            padding: 1px 2px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 12px;
+        }
+
+    .el-table .cell, .el-table--mini td, .el-table th > .cell, .el-table--mini th, .el-table .cell, .el-table--border td:first-child .cell {
+        padding: 0;
+        font-size: 12px;
+    }
+</style>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <h4 class="hidden-xs">老化完成工作</h4>
+        <hr class="hidden-xs" />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            <div class="col-md-6">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <select-input id="OrderNum" name="OrderNum" v-model.trim="ordernum.value" :disabled="false" :appendbody="false" :options="ordernum.options" :isfocus="true" size="small"></select-input>
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="col-md-6"></div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-6">
+                <label class="control-label col-md-4" for="content">输入模块条码</label>
+                <div class="col-md-8">
+                    <input type="text" class="form-control" placeholder="请输入模块条码" v-model.trim="newTask" id="content" onKeyUp="value = value.replace(/[^A-Za-z0-9]/g, '')" style="display:inline;text-transform:uppercase" autocomplete="off">
+                    <button id="addclick" class="btn btn-default" v-on:click="addTask">添加</button>
+                    <br class="hidden-xs" /><span v-show="prompt" style="color: red;">不能输入相同条码</span>
+                </div>
+                <div class="form-group"><div class="col-md-12"></div></div>
+                <div class="col-md-8 col-md-offset-4">
+                    <button class="btn btn-default" style="color:dodgerblue" v-on:click="inspect">检查条码</button>
+                    <input type="button" value="完成老化" class="btn btn-default" v-on:click="submitANDclearTask" v-show="beginShow" />
+                </div>
+                <div class="form-group"><div class="col-md-12"></div></div>
+                <hr />
+                <label class="control-label col-md-4 hidden-xs">模块条码清单:</label>
+                <label class="control-label text-center visible-xs">模块条码清单</label>
+                <div class="col-md-8 hidden-xs" style="height:450px;overflow:auto">
+                    <div class="form-group color-show">
+                        <template v-for="(task,index) in tasks">
+                            <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control">
+                                <span>{{task}}</span>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;">✗</button>
+                            </li>
+                        </template>
+                    </div>
+                </div>
+                <div class="col-md-8 visible-xs xsnum">
+                    <div class="form-group color-show">
+                        <template v-for="(task,index) in tasks">
+                            <li v-if="tasks.length>0" readonly="readonly" class="color-box form-control" style="font-size:12px; padding:7px 5px">
+                                <span>{{task}}</span>
+                                <button type="button" v-on:click="removeTask(task)" title="移除条码" style="border: none; float: right;padding:0;width:20px;">✗</button>
+                            </li>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 hidden-xs" v-loading="loading" style="padding-right:0;">
+                <el-table :data="returnList"
+                          style="width: 100%"
+                          max-height="300"
+                          size="mini"
+                          border>
+                    <el-table-column label="条码号"
+                                     width="110"
+                                     align="center"
+                                     sortable
+                                     prop="BarcodeList">
+                    </el-table-column>
+                    <el-table-column label="挪用条码"
+                                     width="110"
+                                     align="center"
+                                     sortable
+                                     prop="NuoBarcode">
+                    </el-table-column>
+                    <el-table-column label="是否在订单中"
+                                     align="center"
+                                     width="40"
+                                     prop="BarcodeInOrder">
+                    </el-table-column>
+                    <el-table-column label="在其他订单号中"
+                                     align="center"
+                                     width="60"
+                                     prop="BarcodeInOtherOrder">
+                    </el-table-column>
+                    <el-table-column label="是否可以完成老化"
+                                     align="center"
+                                     width="40"
+                                     prop="BarcodeComfirm">
+                    </el-table-column>
+                    <el-table-column label="开始时间"
+                                     width="56"
+                                     align="center"
+                                     prop="BarcodeBeginTime">
+                    </el-table-column>
+                    <el-table-column label="完成时间"
+                                     width="56"
+                                     align="center"
+                                     prop="BarcodeFinishTime">
+                    </el-table-column>
+                    <el-table-column label="老化状态"
+                                     align="center"
+                                     prop="BarcodeStatus">
+                    </el-table-column>
+                </el-table>
+            </div>
+            <div class="col-md-6 visible-xs" style="font-size:12px" v-loading="loading">
+                <el-table :data="returnList"
+                          style="width: 100%"
+                          max-height="300"
+                          size="mini"
+                          border>
+                    <el-table-column label="条码号"
+                                     width="115"
+                                     align="center"
+                                     sortable
+                                     prop="BarcodeList">
+                    </el-table-column>
+                    <el-table-column label="挪用条码"
+                                     width="110"
+                                     align="center"
+                                     sortable
+                                     prop="NuoBarcode">
+                    </el-table-column>
+                    <el-table-column label="是否可以完成老化"
+                                     align="center"
+                                     width="49"
+                                     prop="BarcodeComfirm">
+                    </el-table-column>
+                    <el-table-column label="老化状态"
+                                     width="70"
+                                     align="center"
+                                     prop="BarcodeStatus">
+                    </el-table-column>
+                </el-table>
+            </div>
+        </div>
+        <div class="col-md-4" style="display:none">
+            <textarea autofocus="autofocus" cols="5" id="BarCodesNum" name="BarCodesNum" @*rows="15"*@ class="form-control" v-model="tasks"></textarea>
+            @Html.ValidationMessageFor(model => model.BarCodesNum, "", new { @class = "text-danger" })
+        </div>
+        <div class="form-group"><div class="col-md-12"></div></div>
+    </div>
+}
+<div>
+    @Html.ActionLink("返回", "New_Index")
+</div>
+
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script type="text/javascript">
+    var app = new Vue({ //创建Vue对象实例
+        el: "#app", //挂载DOM元素的ID
+        data: {
+            loading: false,
+            tasks: [],
+            newTask: "", //input默认值
+            same: true,
+            prompt: false,
+            beginShow: false,
+            returnList: [],
+            okList: [],
+            ordernum: {
+                value: '',
+                options: []
+            },
+        },
+        methods: {
+            addTask: function (event) {
+                event.preventDefault();
+                this.beginShow = false;
+                this.prompt = false;
+                sames = app.same;
+                if (app.newTask != "") {
+                    app.newTask = app.newTask.toUpperCase();
+                    app.newTask = app.newTask.replace(/[^A-Za-z0-9]/g, '');
+                    app.tasks.forEach(function (item, index) {
+                        if (app.newTask == item) {
+                            console.log(index);
+                            sames = false;
+                            app.prompt = true;
+                            app.newTask = "";
+                        }
+                    });
+                    if (sames) { //没有相同数据才允许添加
+                        app.tasks.push(app.newTask);
+                        app.newTask = "";
+                        $("#content").focus();
+                        console.log(app.tasks); //数组
+                    }
+                }
+            },
+            removeTask: function (task) { //删除条码，重新排序数组，焦点回到input，保存删除后的数据
+                this.beginShow = false;
+                this.prompt = false;
+                //指向Vue实例中的tasks
+                removetasks = this.tasks;
+                //remove
+                removetasks.forEach(function (item, index) {
+                    if (item == task) {
+                        removetasks.splice(index, 1);
+                    }
+                });
+                console.log(app.tasks); //数组
+                $("#content").focus();
+            },
+            submitANDclearTask: function (event) { //提交post内容，清空本地存储表单
+                event.preventDefault();
+                $.ajax({
+                    type: 'post',
+                    url: '/Burn_in/Burn_in_Batch_Finish',
+                    data: {
+                        OrderNum: app.ordernum.value,
+                        //BurnInShelfNum: $("#BurnInShelfNum").val(),
+                        BarCodesNumList: app.tasks
+                    },
+                    success: function (data) {
+                        //console.log(data);
+                        app.beginShow = false;
+                        app.tasks = [];
+                        app.returnList = [];
+                        app.okList = [];
+                        alert(data);
+                        location.reload();
+                        $("#content").focus();
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert("批量完成老化失败");
+                        $("#content").focus();
+                    }
+                });
+            },
+            inspect: function (event) {
+                event.preventDefault();
+                this.prompt = false;
+                this.beginShow = false;
+                //var cut = this.NumList.substr(0, this.NumList.length - 1).split("\n");
+                //console.log(JSON.stringify(app.tasks));
+                if (app.tasks != '') {
+                    this.loading = true;
+                    $.ajax({
+                        type: 'post',
+                        url: '/Burn_in/CheckBarCodesList_F',
+                        data: {
+                            OrderNum: app.ordernum.value,
+                            //BurnInShelfNum: $("#BurnInShelfNum").val(),
+                            BarCodesNumList: app.tasks
+                        },
+                        success: function (data) {
+                            //console.log(data);
+                            app.returnList = [];
+                            app.okList = [];
+                            for (var i = 0; i < data[0].BarcodeList.length; i++) {
+                                if (data[0].BarcodeComfirm[i] == "Yes") {
+                                    app.okList.push(data[0].BarcodeList[i])
+                                };
+                                app.returnList.push({
+                                    BarcodeList: data[0].BarcodeList[i],
+                                    BarcodeInOrder: data[0].BarcodeInOrder[i],
+                                    BarcodeInOtherOrder: data[0].BarcodeInOtherOrder[i][0],
+                                    BarcodeComfirm: data[0].BarcodeComfirm[i],
+                                    BarcodeBeginTime: data[0].BarcodeBeginTime[i],
+                                    BarcodeFinishTime: data[0].BarcodeFinishTime[i],
+                                    BarcodeStatus: data[0].BarcodeStatus[i],
+                                    NuoBarcode: data[0].NuoBarcode[i],
+                                });
+                            };
+                            if (app.returnList.length == app.okList.length) {
+                                app.beginShow = true;
+                            };
+                            app.loading = false;
+                            $("#content").focus();
+                        },
+                        error: function (XMLHttpRequest, textStatus, errorThrown) {
+                            alert("请输入条码");
+                            app.loading = false;
+                            $("#content").focus();
+                        }
+                    });
+                } else { $("#content").focus(); };
+            }
+        },
+        mounted: function () {
+            axios.post('/OrderMgms/GetOrderList').then(res => {
+                this.ordernum.options = res.data;
+            });
+            var localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.ordernum.value = localOrder;
+            }
+            $("#content").focus();
+        },
+        watch: {
+            'ordernum.value'(val) {
+                if (val != '' && val != null) {
+                    localStorage.setItem('Order', val);
+                    $("#content").select();
+                    this.beginShow = false;
+                }
+            },
+        }
+    });
+</script>
+<script>
+</script>

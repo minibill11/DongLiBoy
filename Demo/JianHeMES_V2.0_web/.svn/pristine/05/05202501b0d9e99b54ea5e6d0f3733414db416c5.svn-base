@@ -1,0 +1,218 @@
+<template>
+  <div ref="gantt" style="height:100%;"></div>
+</template>
+
+<script>
+import "dhtmlx-gantt";
+import { gantt } from 'dhtmlx-gantt';
+export default {
+  name: "gantt",
+  props: {
+    tasks: {
+      type: Object,
+      default() {
+        return { data: [] };
+      }
+    }
+  },
+  // watch: {
+  //   tasks: {
+  //     //深度监听，可监听到对象、数组的变化
+  //     handler(val, oldVal) {
+  //       console.log("新对象");
+  //       console.log(val);
+  //     },
+  //     deep: true //true 深度监听
+  //   }
+  // },
+  mounted: function() {
+    gantt.config.date_format = "%Y-%m-%d";
+    // gantt.config.date_format = "%Y-%m-%d %H:%i:%s";
+    gantt.config.min_column_width = 50;
+    gantt.config.scale_height = 50;
+    gantt.config.row_height = 24;
+    // gantt.config.scales = [
+    //   { unit: "day", format: "%Y-%m-%d" },
+    //   { unit: "hour", step: 3, format: "%H:%i" }
+    // ];
+    gantt.templates.grid_file = function(item) {
+      return "";
+    };
+    gantt.templates.grid_folder = function(item) {
+      return "";
+    };
+    gantt.config.columns = [
+      { name: "text", label: "工段名", tree: true, width: 120, resize: true },
+      {
+        name: "planned_start",
+        label: "计划开始",
+        align: "center",
+        width: 120,
+        resize: true
+      },
+      {
+        name: "planned_end",
+        label: "计划结束",
+        align: "center",
+        width: 120,
+        resize: true
+      }
+    ];
+    // var secondGridColumns = {
+    //   columns: [
+    //     {
+    //       name: "strrt_date",
+    //       label: "实际开始",
+    //       width: 120,
+    //       align: "center",
+    //       resize: true
+    //     },
+    //     {
+    //       name: "deadline",
+    //       label: "实际结束",
+    //       width: 120,
+    //       align: "center",
+    //       resize: true
+    //     }
+    //   ]
+    // };
+    gantt.config.layout = {
+      css: "gantt_container",
+      rows: [
+        {
+          cols: [
+            { view: "grid", width: 300, scrollY: "scrollVer" },
+            { resizer: true, width: 1 },
+            { view: "timeline", scrollX: "scrollHor", scrollY: "scrollVer" },
+            { resizer: true, width: 1 },
+            // {
+            //   view: "grid",
+            //   width: 300,
+            //   bind: "task",
+            //   scrollY: "scrollVer",
+            //   config: secondGridColumns
+            // },
+            // { view: "scrollbar", id: "scrollVer" }
+          ]
+        },
+        { view: "scrollbar", id: "scrollHor", height: 20 }
+      ]
+    };
+    gantt.locale.labels.baseline_enable_button = "Set";
+    gantt.locale.labels.baseline_disable_button = "Remove";
+
+    gantt.config.lightbox.sections = [
+      {
+        name: "description",
+        height: 70,
+        map_to: "text",
+        type: "textarea",
+        focus: true
+      },
+      {
+        name: "time",
+        map_to: "auto",
+        type: "duration"
+      },
+      {
+        name: "baseline",
+        map_to: {
+          start_date: "planned_start",
+          end_date: "planned_end"
+        },
+        button: true,
+        type: "duration_optional"
+      }
+    ];
+    gantt.locale.labels.section_baseline = "Planned";
+    // adding baseline display
+    // gantt.addTaskLayer({
+    //   renderer: {
+    //     render: function draw_planned(task) {
+    //       if (task.planned_start && task.planned_end) {
+    //         var sizes = gantt.getTaskPosition(
+    //           task,
+    //           task.planned_start,
+    //           task.planned_end
+    //         );
+    //         var el = document.createElement("div");
+    //         el.className = "baseline";
+    //         el.style.left = sizes.left + "px";
+    //         el.style.width = sizes.width + "px";
+    //         el.style.top = sizes.top + gantt.config.task_height + 13 + "px";
+    //         return el;
+    //       }
+    //       return false;
+    //     },
+    //     // define getRectangle in order to hook layer with the smart rendering
+    //     getRectangle: function(task, view) {
+    //       if (task.planned_start && task.planned_end) {
+    //         return gantt.getTaskPosition(
+    //           task,
+    //           task.planned_start,
+    //           task.planned_end
+    //         );
+    //       }
+    //       return null;
+    //     }
+    //   }
+    // });
+
+    // gantt.templates.task_class = function(start, end, task) {
+    //   if (task.planned_end) {
+    //     var classes = ["has-baseline"];
+    //     if (end.getTime() > task.planned_end.getTime()) {
+    //       classes.push("overdue");
+    //     }
+    //     return classes.join(" ");
+    //   }
+    // };
+
+    // gantt.templates.rightside_text = function(start, end, task) {
+    //   if (task.planned_end) {
+    //     if (end.getTime() > task.planned_end.getTime()) {
+    //       var overdue = Math.ceil(
+    //         Math.abs(
+    //           (end.getTime() - task.planned_end.getTime()) /
+    //             (24 * 60 * 60 * 1000)
+    //         )
+    //       );
+    //       var text = "<b>Overdue: " + overdue + " days</b>";
+    //       return text;
+    //     }
+    //   }
+    // };
+
+    // gantt.attachEvent("onTaskLoading", function(task) {
+    //   task.planned_start = gantt.date.parseDate(task.planned_start, "xml_date");
+    //   task.planned_end = gantt.date.parseDate(task.planned_end, "xml_date");
+    //   return true;
+    // });
+
+    gantt.init(this.$refs.gantt);
+    //gantt.parse(this.$props.tasks);
+    gantt.clearAll();
+    gantt.parse(this.tasks);
+  }
+};
+</script>
+
+<style lang='less'>
+@import "~dhtmlx-gantt/codebase/dhtmlxgantt.css";
+.gantt_grid_data .gantt_row.odd:hover,
+.gantt_grid_data .gantt_row:hover {
+  background-color: #d7d4fb;
+}
+.gantt_grid_data .gantt_row.gantt_selected,
+.gantt_grid_data .gantt_row.odd.gantt_selected,
+.gantt_task_row.gantt_selected {
+  background-color: #d7d4fb;
+}
+// .gantt_tree_icon.gantt_open {
+//   background-image: url("../../assets/images/icon/kai.svg");
+// }
+
+// .gantt_tree_icon.gantt_close {
+//   background-image: url("../../assets/images/icon/guan.svg");
+// }
+</style>

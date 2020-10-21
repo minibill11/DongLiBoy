@@ -1,0 +1,173 @@
+﻿@{
+    ViewBag.Title = "客户订单模块扫码";
+}
+<link href="~/Content/styleFile/packaging/index.css" rel="stylesheet" />
+<script src="~/Content/styleFile/packaging/index.js"></script>
+<style>
+    .flex-item {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+        .flex-item > label {
+            padding-right: 10px;
+            margin-bottom: 0;
+        }
+
+    .el-input, .barCount {
+        width: 220px;
+    }
+
+    .barCount {
+        padding: 0 15px;
+        color: #4fa4ff;
+    }
+
+    .main-row {
+        width: 322px;
+        margin: 0 auto;
+    }
+
+    .el-main {
+        padding: 0;
+    }
+</style>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3>扫码</h3>
+        </el-header>
+        <el-main v-loading="loading">
+            <el-row class="main-row">
+                <el-row class="flex-item">
+                    <label>订单号</label>
+                    <select-input v-model.trim="orderNumVal" :options="orderNumOptions" :isfocus="true" :ismultiple="false" size="medium" @@select-val="orderNumHandle" placeholder="选择订单号"></select-input>
+                </el-row>
+                <el-row class="flex-item">
+                    <label>条码号</label>
+                    <el-input v-model.trim="barcodeNum"
+                              v-on:keyup.enter.native="barcodeScan"
+                              ref="barcodeRef"
+                              placeholder="扫码录入"
+                              clearable></el-input>
+                </el-row>
+                <el-row class="flex-item">
+                    <label>订单条码总数</label>
+                    <div class="barCount" style="color:#555;">{{QTY}}</div>
+                </el-row>
+                <el-row class="flex-item">
+                    <label>已扫条码数</label>
+                    <div class="barCount">{{barcodeList.length}}</div>
+                </el-row>
+                <el-row class="flex-item">
+                    <el-table :data="barcodeList"
+                              class="barTable"
+                              size="mini"
+                              height="300"
+                              border>
+                        <el-table-column prop="barcode"
+                                         label="条码号">
+                        </el-table-column>
+                        @*<el-table-column prop="edit"
+                                             label=""
+                                             width="50">
+                                <template slot-scope="scope">
+                                    <el-button @@click.native.prevent="deleteBarcodeNum(scope.$index,scope.row)"
+                                               type="text"
+                                               size="mini"
+                                               style="margin:0;padding:0;width:100%;">
+                                        <i class="el-icon-error"></i>
+                                    </el-button>
+                                </template>
+                            </el-table-column>*@
+                    </el-table>
+                </el-row>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            loading: false,
+            orderNumVal: '',//订单号
+            orderNumOptions: [],
+            barcodeNum: '',
+            barcodeList: [],
+            QTY: '',
+        },
+        mounted: function () {
+            let localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.orderNumVal = localOrder;
+                this.orderNumHandle(this.orderNumVal)
+            };
+            this.getOrderNumList();
+            this.$refs.barcodeRef.focus();
+        },
+        methods: {
+            orderNumHandle(v) {
+                localStorage.setItem('Order', v);
+                this.QTY = '';
+                this.barcodeNum = '';
+                axios.post('/FinalQCs/DisplayCustomer_Order', { ordernum: v }).then(res => {
+                    this.QTY = res.data.QTY;
+                    this.barcodeList = res.data.barcode.map(v => { return { barcode: v } });
+                    this.$refs.barcodeRef.focus();
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            getOrderNumList() {
+                axios.post('/Packagings/GetOrderList').then(res => {
+                    this.orderNumOptions = res.data;
+                }).catch(err => {
+                    console.warn(err);
+                });
+            },
+            saveBarcodeNum() {
+                axios.post('/FinalQCs/AddCustomer_Order', { ordernum: this.orderNumVal, barcode: this.barcodeNum }).then(res => {
+                    if (res.data.pass) {
+                        this.barcodeList = res.data.barcode.map(v => { return { barcode: v } });
+                        this.$message.success(res.data.mes);
+                        this.barcodeNum = '';
+                        this.$refs.barcodeRef.focus();
+                    } else {
+                        this.$message.error(res.data.mes);
+                        this.$refs.barcodeRef.select();
+                    };
+                    this.loading = false;
+                }).catch(err => {
+                    console.warn(err);
+                    this.loading = false;
+                    this.$refs.barcodeRef.select();
+                });
+            },
+            deleteBarcodeNum(index, row) {
+                this.barcodeList.splice(index, 1);
+            },
+            barcodeScan() {
+                this.loading = true;
+                if (this.orderNumVal == '') {
+                    this.barcodeNum = '';
+                    this.$message.warning('请选择订单号');
+                    this.loading = false;
+                };
+                //检查重复
+                for (let i of this.barcodeList) {
+                    if (i.barcode == this.barcodeNum) {
+                        this.$message.warning('已有重复条码');
+                        this.loading = false;
+                        this.$refs.barcodeRef.select();
+                        return;
+                    };
+                };
+                this.saveBarcodeNum();
+            },
+        },
+    });
+</script>

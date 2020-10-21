@@ -1,0 +1,176 @@
+﻿@{
+    ViewBag.Title = "外观电检信息首页";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <h1>@ViewBag.Title</h1>
+        </el-header>
+        <el-main class="main">
+            <el-row class="text-center">
+                <el-form :inline="true" size="small">
+                    <el-form-item label="选择订单">
+                        <select-input v-model.trim="Ordernum" :disabled="false" :appendbody="false" :options="ordernumOptions" :isfocus="true" size="medium"></select-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="onQuerySubmit">查询</el-button>
+                        <a href="Appearance_B" v-show="islimit('开始外观电检')" style="margin-left:10px;"><el-button type="primary" size="small" plain>开始外观电检工作</el-button></a>
+                        <a href="DeleteConfirm" v-show="islimit('条码删除审核')" style="margin-left:10px;"><el-button type="primary" size="small" plain>条码删除审核</el-button></a>
+                        <a href="/Packagings/lookJson" style="margin-left:10px;"><el-button type="primary" size="small" plain>模组号使用情况</el-button></a>
+                        <a href="DisplayTotalModule" style="margin-left:10px;"><el-button type="primary" size="small" plain>模组号信息查看</el-button></a>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <info-component v-show="tableList.length>0" :infodata="infodata" :screensize="screenSize"></info-component>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="small"
+                          align="center"
+                          :span-method="arraySpanMethod"
+                          :row-class-name="tableRowClassName"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号"
+                                     min-width="40"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     min-width="100"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="barcode"
+                                     label="条码号"
+                                     min-width="130"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="moduleNum"
+                                     label="模组号"
+                                     min-width="80"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="principal"
+                                     label="操作人"
+                                     min-width="80"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="startTime"
+                                     label="开始时间"
+                                     min-width="120"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="endTime"
+                                     label="完成时间"
+                                     min-width="120"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="Repetition"
+                                     label="是否重复"
+                                     min-width="60"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="RepetitionCause"
+                                     label="重复原因"
+                                     min-width="100"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="RepairCondition"
+                                     label="维修情况"
+                                     min-width="100"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column prop="nornal"
+                                     label="是否完成"
+                                     min-width="100"
+                                     align="center">
+                    </el-table-column>
+                    <el-table-column label="操作"
+                                     min-width="50"
+                                     align="center">
+                        <template slot-scope="scope">
+                            <a v-if="scope.row.moduleNum==null && scope.row.endTime!=null && scope.row.nornal=='正常'" :href=`Edit/${scope.row.id}` target="_blank">编辑</a>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Shared/_SelectInput.cshtml")
+    @RenderPage("~/Views/Assembles/_index_info.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/echarts4.0.4.min.js"></script>
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    tableList: [],//存储表格总数据
+                    infodata: {},
+                }
+            },
+            mixins: [setModuleManagement],
+            created: function () {
+                //获取订单列表
+                this.getOrdernumList();
+            },
+            //函数方法
+            methods: {
+                //获取订单号选择框下拉清单
+                getOrdernumList() {
+                    axios.post('/Assembles/OrderList').then(res => {
+                        this.ordernumOptions = res.data;
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //总表条件查询
+                onQuerySubmit() {
+                    if (this.Ordernum == null || this.Ordernum == '') {
+                        this.$message('未选择订单');
+                        return;
+                    };
+                    axios.request({
+                        method: 'post',
+                        url: `${vm.MESHOST}/api/AppearancesAPI/NewIndex`,
+                        data: { ordernum: this.Ordernum },
+                        //headers: { 'Authorization': localStorage.getItem('authorization') }
+                    }).then(res => {
+                        let rtd = res.data.Data, info = {}, list = [];
+                        info.ordernum = this.Ordernum;
+                        info.baseinfo = rtd.baseinfo;
+                        info.statuList = rtd.statuList;
+                        info.groupPie = {
+                            title: { text: '班组完成饼图' },
+                            series: [{ data: rtd.groupPie }]
+                        };
+                        info.statuePie = {
+                            title: { text: '异常正常饼图' },
+                            series: [{ data: rtd.statuePie }]
+                        };
+                        this.infodata = info;
+                        for (let i of rtd.table) {
+                            list.push({
+                                ordernum: `${i.group} (${i.tableList.length})`,
+                                barcode: 'title'
+                            });
+                            list = list.concat(i.tableList);
+                        };
+                        this.tableList = list;
+                    });
+                },
+            },
+        };
+    </script>
+}

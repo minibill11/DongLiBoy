@@ -1,0 +1,426 @@
+﻿@{
+    ViewBag.Title = "KPI班组评优汇总表";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/KPI/KPI_TeamEvaluation.less" />
+    <style>
+        #app .el-table th {
+            padding: 3px 0;
+        }
+
+        .bt_form_flex {
+            display: flex;
+            flex-flow: row wrap;
+            margin-top: 10px;
+        }
+
+            .bt_form_flex > .el-form-item {
+                width: 380px;
+            }
+
+            .bt_form_flex .el-input__inner {
+                width: 180px;
+            }
+
+        .btText > .el-form-item__content > div {
+            display: inline-block;
+            text-align: center;
+            height: 20px;
+            line-height: 20px;
+            color: #606266;
+        }
+
+        .table-bottom-left .el-form-item__content {
+            line-height: 20px;
+        }
+    </style>
+}
+
+<el-container id="app" v-cloak>
+    <el-header>
+        <h1 class="title">@ViewBag.Title</h1>
+    </el-header>
+    <el-main @*v-loading="loading"*@>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-date-picker v-model="monthDate"
+                                placeholder="请选择日期"
+                                type="month"
+                                size="small">
+                </el-date-picker>
+                <span>月度汇总</span>
+                <el-button type="primary" size="small" @@click="DisplayTotal">查询</el-button>
+                <a href="KPI_Index_History" target="_blank"><el-button type="primary" size="small" plain>核准记录查看</el-button></a>
+            </div>
+            <div class="table-top-right">
+                <a href="HonorRoll_Index" target="_blank"><el-button type="primary" size="small" plain>光荣榜</el-button></a>
+                <a href="KPI_Ranking" target="_blank"><el-button type="primary" size="small" plain>排名计算</el-button></a>
+                <a href="IntegralTable_Index" target="_blank"><el-button type="primary" size="small" plain>班组积分查询</el-button></a>
+                <a href="/Plans/Section_Enter" target="_blank"><el-button type="primary" size="small" plain>工段工序</el-button></a>
+                <a href="KPI_Daily?show=效率指标" target="_blank"><el-button type="primary" size="small" plain>效率/品质指标汇总表</el-button></a>
+                <a href="KPI_DeparturesNum" target="_blank"><el-button type="primary" size="small" plain>班组人员流失汇总表</el-button></a>
+                <a href="KPI_7S_Summarizing" target="_blank"><el-button type="primary" size="small" plain>7S评比得分汇总表</el-button></a>
+                <el-button type="success" @@click="exportExcel" size="small" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      row-class-name="zero-padding"
+                      max-height="600"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号" fixed></el-table-column>
+                <el-table-column prop="Department" label="部门" fixed></el-table-column>
+                <el-table-column prop="Group" label="班组" fixed></el-table-column>
+                <el-table-column label="效率指标">
+                    <el-table-column prop="Efficiency_IndexName" label="考核指标名称" min-width="120"></el-table-column>
+                    <el-table-column prop="Efficiency_Target" label="目标值"></el-table-column>
+                    <el-table-column prop="Efficiency_Actual" label="实际得分">
+                        <template slot-scope="scope">
+                            {{scope.row.Efficiency_Actual}}%
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Efficiency_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Efficiency_Single" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="品质指标">
+                    <el-table-column prop="Quality_IndexName" label="考核指标名称" min-width="120"></el-table-column>
+                    <el-table-column prop="Quality_Target" label="目标值"></el-table-column>
+                    <el-table-column prop="Quality_Actual" label="实际得分">
+                        <template slot-scope="scope">
+                            {{scope.row.Quality_Actual}}%
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Quality_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Quality_Single" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="月流失率指标">
+                    <el-table-column prop="Turnover_IndexName" label="考核指标名称" min-width="120"></el-table-column>
+                    <el-table-column prop="Turnover_Target" label="目标值"></el-table-column>
+                    <el-table-column prop="Turnover_Actual" label="实际得分">
+                        <template slot-scope="scope">
+                            {{scope.row.Turnover_Actual}}%
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Turnover_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Turnover_Single" label="单项得分"></el-table-column>
+                </el-table-column>
+                <el-table-column label="7S评比指标">
+                    <el-table-column prop="Comparison_IndexName" label="考核指标名称" min-width="120"></el-table-column>
+                    <el-table-column prop="Comparison_Target" label="目标值"></el-table-column>
+                    <el-table-column prop="Comparison_Actual" label="实际得分">
+                        <template slot-scope="scope">
+                            {{scope.row.Comparison_Actual}}%
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Comparison_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Comparison_Single" label="单项得分">
+                        @*<template slot-scope="scope">
+                                {{scope.row.ComparisonGoalScore?.toFixed(2)}}
+                            </template>*@
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="TotalScore" label="合计总分">
+                    @*<template slot-scope="scope">
+                            {{scope.row.TotalScore?.toFixed(2)}}
+                        </template>*@
+                </el-table-column>
+                <el-table-column label="否定项">
+                    <el-table-column prop="Greater" label="总分不得低于90分"></el-table-column>
+                    <el-table-column prop="AvagePersonNum" label="平均人数(不得少于5人)"></el-table-column>
+                    <el-table-column prop="InductrialAccident" label="当月有无工伤事故"></el-table-column>
+                </el-table-column>
+                <el-table-column prop="Attendance" label="出勤率"></el-table-column>
+                <el-table-column prop="ViolationsMessage" label="行政违纪情况"></el-table-column>
+                <el-table-column prop="Ranking" label="排名"></el-table-column>
+                <el-table-column prop="integral" label="积分"></el-table-column>
+            </el-table>
+        </el-row>
+        <el-row class="table-bottom">
+            <div class="table-bottom-left">
+                <el-form class="bt_form_flex" size="small">
+                    <el-form-item v-if="qrShow" class="btText">
+                        <div><b>确认：</b>{{qrObj.HRAudit}}</div><br />
+                        <div><span :class="[qrObj.HRjudge?'green':'red']">{{qrObj.HRjudge?'通过':'不通过'}}</span> &nbsp; {{qrObj.HRAuditDate}}</div>
+                    </el-form-item>
+                    <el-form-item v-else label="确认：">
+                        <el-select v-model="qrValue"
+                                   placeholder="请选择"
+                                   :disabled="qrDisabled"
+                                   clearable>
+                            <el-option v-for="item in btFormOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button type="success" @@click="Audit_SummarySheet('确认',qrValue)" :disabled="qrDisabled">确认</el-button>
+                    </el-form-item>
+                    <el-form-item v-if="shShow" class="btText">
+                        <div><b>审核：</b>{{shObj.HRAudit}}</div><br />
+                        <div><span :class="[shObj.HRjudge?'green':'red']">{{shObj.HRjudge?'通过':'不通过'}}</span> &nbsp; {{shObj.HRAuditDate}}</div>
+                    </el-form-item>
+                    <el-form-item v-else label="审核：">
+                        <el-select v-model="shValue"
+                                   placeholder="请选择"
+                                   :disabled="shDisabled"
+                                   clearable>
+                            <el-option v-for="item in btFormOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button type="success" @@click="Audit_SummarySheet('审核',shValue)" :disabled="shDisabled">确认</el-button>
+                    </el-form-item>
+                    <el-form-item v-if="hzShow" class="btText">
+                        <div><b>核准：</b>{{hzObj.HRAudit}}</div><br />
+                        <div><span :class="[hzObj.HRjudge?'green':'red']">{{hzObj.HRjudge?'通过':'不通过'}}</span> &nbsp; {{hzObj.HRAuditDate}}</div>
+                    </el-form-item>
+                    <el-form-item v-else label="核准：">
+                        <el-select v-model="hzValue"
+                                   placeholder="请选择"
+                                   :disabled="hzDisabled"
+                                   clearable>
+                            <el-option v-for="item in btFormOptions"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <el-button type="success" @@click="ADDSummaryTable('核准',hzValue)" :disabled="hzDisabled">确认</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
+            <div class="table-bottom-right">
+            </div>
+        </el-row>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    @*<script src="~/Scripts/KPI/KPI_TeamEvaluation.js"></script>*@
+    <script>
+        const app = {
+            //mixins: [TeamEvaluation],
+            data: function () {
+                return {
+                    //loading: false,//loading状态开关
+                    tableList: [],
+                    monthDate: null,
+                    btFormOptions: [{
+                        value: true,
+                        label: '通过'
+                    }, {
+                        value: false,
+                        label: '不通过'
+                    }],
+                    qrShow: false,
+                    qrValue: '',
+                    qrObj: {
+                        HRAuditDate: '',
+                        HRAudit: '',
+                        HRjudge: '',
+                    },
+                    qrDisabled: true,
+                    shShow: false,
+                    shValue: '',
+                    shObj: {
+                        HRAuditDate: '',
+                        HRAudit: '',
+                        HRjudge: '',
+                    },
+                    shDisabled: true,
+                    hzShow: false,
+                    hzValue: '',
+                    hzObj: {
+                        HRAuditDate: '',
+                        HRAudit: '',
+                        HRjudge: '',
+                    },
+                    hzDisabled: true,
+                    excelJson: [],
+                }
+            },
+            created() {
+            },
+            mounted() {
+            },
+            methods: {
+                DisplayTotal() {
+                    if (this.checkDateIsNull()) return;
+                    axios.post('/KPI/DisplayTotal', { time: this.monthDate }).then(res => {
+                        //console.dir(res.data);
+                        this.tableList = res.data.Rank;
+                        this.excelJson = res.data.Rank;
+                        this.checkSummary(res.data.Code);
+                        this.$message.success('查询成功');
+                    }).catch(err => {
+                        this.$message.error('后台报错');
+                    });
+                },
+                checkDateIsNull() {
+                    if (this.monthDate == '' || this.monthDate == null) {
+                        this.$message('未选择日期');
+                        return true;
+                    } else {
+                        return false;
+                    };
+                },
+                exportExcel() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Export_SummaryTable", {
+                        value: JSON.stringify(this.excelJson), year: y, month: m
+                    }, { responseType: "blob" }).then(res => {
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(new Blob([res.data]));
+                        link.style.display = 'none';
+                        link.download = `KPI班组评优汇总表${y}-${m}.xlsx`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+                },
+                checkSummary(code) {
+                    this.qrShow = false;
+                    this.qrValue = '';
+                    this.qrObj = {
+                        HRAuditDate: '',
+                        HRAudit: '',
+                        HRjudge: '',
+                    };
+                    this.qrDisabled = true;
+                    this.shShow = false;
+                    this.shValue = '';
+                    this.shObj = {
+                        HRAuditDate: '',
+                        HRAudit: '',
+                        HRjudge: '',
+                    };
+                    this.shDisabled = true;
+                    this.hzShow = false;
+                    this.hzValue = '';
+                    this.hzObj = {
+                        HRAuditDate: '',
+                        HRAudit: '',
+                        HRjudge: '',
+                    };
+                    this.hzDisabled = true;
+                    //权限
+                    if (this.islimit('HR确认数据')) this.qrDisabled = false;
+                    if ('Code' in code && code.Code == null) {
+                    } else {
+                        //确认,审核,核准
+                        if (Object.keys(code.Confirm).length != 0) {
+                            this.qrShow = true;
+                            this.qrValue = '';
+                            this.qrObj = code.Confirm;
+                            if (this.islimit('审核总表数据') && code.Confirm.HRjudge) this.shDisabled = false;
+                        };
+                        if (Object.keys(code.Audit).length != 0) {
+                            this.shShow = true;
+                            this.shValue = '';
+                            this.shObj = code.Audit;
+                            if (this.islimit('核准总表数据') && code.Audit.HRjudge) this.hzDisabled = false;
+                        };
+                        if (Object.keys(code.Approved).length != 0) {
+                            this.hzShow = true;
+                            this.hzValue = '';
+                            this.hzObj = code.Approved;
+                        };
+                    };
+                },
+                Audit_SummarySheet(type, v) {
+                    if (this.checkDateIsNull()) return;
+                    if (v === '') {
+                        this.$message('未选择值');
+                        return;
+                    };
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Audit_SummarySheet", {
+                        year: y, month: m, hrAudit: vm.userName, hrjudge: v, type: type
+                    }).then(res => {
+                        if (res.data.Meg) {
+                            this.$message.success(res.data.Feg);
+                            if (type == '确认') {
+                                this.qrShow = true;
+                                this.qrObj = {
+                                    HRAuditDate: res.data.HRAuditDate,
+                                    HRAudit: res.data.HRAudit,
+                                    HRjudge: v,
+                                };
+                                if (this.islimit('审核总表数据') && v) this.shDisabled = false;
+                            };
+                            if (type == '审核') {
+                                this.shShow = true;
+                                this.shObj = {
+                                    HRAuditDate: res.data.HRAuditDate,
+                                    HRAudit: res.data.HRAudit,
+                                    HRjudge: v,
+                                };
+                                if (this.islimit('核准总表数据') && v) this.hzDisabled = false;
+                            };
+                        } else {
+                            this.$message.error(res.data.Feg);
+                        };
+                    }).catch(err => {
+                        this.$message.error('后台报错');
+                    });
+                },
+                ADDSummaryTable(type, v) {
+                    if (this.checkDateIsNull()) return;
+                    if (v === '') {
+                        this.$message('未选择值');
+                        return;
+                    };
+                    if (this.tableList.length == 0) {
+                        this.$message('表格为空');
+                        return;
+                    } else {
+                        for (let i of this.tableList) {
+                            i.Efficiency_Target = Number.parseFloat(i.Efficiency_Target);
+                            i.Quality_Target = Number.parseFloat(i.Quality_Target);
+                            i.Turnover_Target = Number.parseFloat(i.Turnover_Target);
+                            i.Comparison_Target = Number.parseFloat(i.Comparison_Target);
+                        };
+                    };
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Audit_SummarySheet", {
+                        year: y, month: m, hrAudit: vm.userName, hrjudge: v, type: type
+                    }).then(res => {
+                        if (res.data.Meg) {
+                            axios.post("/KPI/ADDSummaryTable", {
+                                year: y, month: m, indicators: this.tableList
+                            }).then(res => {
+                                if (res.data.mes) {
+                                    this.hzShow = true;
+                                    this.hzObj = {
+                                        HRAuditDate: new Date().toLocaleString(),
+                                        HRAudit: vm.userName,
+                                        HRjudge: v,
+                                    };
+                                    this.$message.success(res.data.feg);
+                                } else {
+                                    this.$message.error(res.data.feg);
+                                };
+                            }).catch(err => {
+                                this.$message.error('报错');
+                            });
+                        } else {
+                            this.$message.error(res.data.Feg);
+                        };
+                    }).catch(err => {
+                        this.$message.error('报错');
+                    });
+                },
+            }
+        };
+    </script>
+}
+

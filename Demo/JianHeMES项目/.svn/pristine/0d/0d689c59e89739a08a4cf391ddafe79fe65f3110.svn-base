@@ -1,0 +1,333 @@
+﻿<script type="text/template" id="KPI_DeparturesNum_Component">
+    <el-row>
+        <el-row class="table-top">
+            <div class="table-top-left">
+                <el-date-picker v-model="monthDate"
+                                type="month"
+                                size="small"
+                                placeholder="请选择日期">
+                </el-date-picker>
+                <el-button type="primary" @@click="onQuerySubmit" size="small">查询</el-button>
+            </div>
+            <div class="table-top-right">
+                <el-button type="primary" v-show="inputlimit" @@click="showChange" size="small" plain>录入数据</el-button>
+                <el-button type="success" @@click="exportExcel" size="small" plain>导出EXCEL表</el-button>
+            </div>
+        </el-row>
+        <el-row class="table-mid">
+            <el-table :data="tableList"
+                      @@cell-click="cellClick"
+                      max-height="600"
+                      ref="filterTable"
+                      size="small"
+                      stripe
+                      border>
+                <el-table-column type="index" label="序号" width="50" fixed></el-table-column>
+                <el-table-column prop="Department" label="部门" width="90"
+                                 :filters="filterObj.Department"
+                                 :filter-method="filterHandler"
+                                 fixed sortable>
+                    <template slot-scope="scope">
+                        <el-select v-if="scope.row.edit" v-model="scope.row.Department" size="mini" filterable clearable>
+                            <el-option v-for="item in departmentlist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <span v-else>{{scope.row.Department}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="Group" label="班组" width="90"
+                                 :filters="filterObj.Group"
+                                 :filter-method="filterHandler"
+                                 fixed sortable>
+                    <template slot-scope="scope">
+                        <el-select v-if="scope.row.edit" v-model="scope.row.Group" size="mini" filterable clearable>
+                            <el-option v-for="item in grouplist"
+                                       :key="item.value"
+                                       :label="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <span v-else>{{scope.row.Group}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="IndicatorsName" label="考核指标名称" width="90" fixed>
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.IndicatorsName = $event"
+                                    :nametext="scope.row.IndicatorsName"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="IndicatorsValue" label="目标值" width="60" fixed>
+                    <template slot-scope="scope">
+                        <span v-if="scope.row.IndicatorsValue">{{scope.row.IndicatorsValue}}</span>
+                        <span v-if="scope.row.IndicatorsValue">%</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="SourceDepartment" label="数据来源部门" width="90" fixed>
+                </el-table-column>
+                <el-table-column prop="BeginNumber" label="月初人数" width="60" fixed>
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.BeginNumber = $event"
+                                    :nametext="scope.row.BeginNumber"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="EndNumber" label="月末人数" width="60" fixed>
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.EndNumber = $event"
+                                    :nametext="scope.row.EndNumber"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="AverageNum" label="月平均人数" width="75" fixed>
+                    <template slot-scope="scope">
+                        <input-edit datatype="string"
+                                    v-on:input="scope.row.AverageNum = $event"
+                                    :nametext="scope.row.AverageNum"
+                                    :isedit="scope.row.edit"></input-edit>
+                    </template>
+                </el-table-column>
+                <el-table-column :label="check_name" prop="Rate">
+                    <el-table-column v-for="(i,index) in rateLength" :label="i+'日'" min-width="100" :prop="'day-'+index" class-name="table-day">
+                        <template slot-scope="scope">
+                            {{scope.row.Rate[index].LossNumber|zero}}
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+                <el-table-column prop="TurnoverMonth" label="月流失人数" min-width="110"></el-table-column>
+                <el-table-column prop="Actual" label="实际得分" min-width="110">
+                </el-table-column>
+                <el-table-column prop="Differences" label="与目标值差异" min-width="110">
+                </el-table-column>
+                <el-table-column prop="Subtotal" label="得分小计" min-width="110">
+                </el-table-column>
+                @*<el-table-column label="操作" v-if="editlimit" prop="Edit" align="center" width="90" fixed="right">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.edit">
+                                <el-button @@click="saveClick(scope.row)" class="cbtn green" type="text">保存</el-button>
+                                <el-button @@click="cancelClick(scope.row)" class="cbtn info" type="text">取消</el-button>
+                            </div>
+                            <div v-else>
+                                <el-button @@click="editClick(scope.row)" class="cbtn blue" type="text">编辑</el-button>
+                            </div>
+                        </template>
+                    </el-table-column>*@
+            </el-table>
+        </el-row>
+        <el-dialog title="修改流失人数"
+                   :visible.sync="dialogVisible"
+                   @@close="dialogClose"
+                   size="small">
+            <el-form v-if="dialogData!=null" label-position="right" label-width="80px" size="small">
+                <div class="el-form-item dialog-from-div">
+                    <label class="el-form-item__label">部门</label>
+                    <div class="el-form-item__content">{{dialogData.Department}}</div>
+                </div>
+                <div class="el-form-item dialog-from-div">
+                    <label class="el-form-item__label">班组</label>
+                    <div class="el-form-item__content">{{dialogData.Group}}</div>
+                </div>
+                <div class="el-form-item dialog-from-div">
+                    <label class="el-form-item__label">流失日期</label>
+                    <div class="el-form-item__content">{{dialogData.DateLoss}}</div>
+                </div>
+                <div class="el-form-item dialog-from-div">
+                    <label class="el-form-item__label">月初人数</label>
+                    <div class="el-form-item__content">{{dialogData.BeginNumber}}</div>
+                </div>
+                <el-form-item label="月末人数">
+                    <el-input-number v-model.trim="dialogData.EndNumber" :min="0">
+                    </el-input-number>
+                </el-form-item>
+                <el-form-item label="流失人数">
+                    <el-input-number v-model.trim="dialogData.LossNumber" :min="0">
+                    </el-input-number>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button @@click="dialogVisible = false" size="small">取 消</el-button>
+                <el-button type="primary" @@click="ModifyTurnover(dialogData)" size="small">确 定</el-button>
+            </span>
+        </el-dialog>
+    </el-row>
+</script>
+<script src="~/Scripts/filterMethod/tableFilter.js"></script>
+<script>
+    Vue.component('kpi-departuresnum-component', {
+        props: ['departmentlist', 'grouplist', 'inputlimit', 'editlimit'],
+        template: document.getElementById("KPI_DeparturesNum_Component"),
+        data: function () {
+            return {
+                tableList: [],
+                initialData: {},
+                monthDate: null,       // 所选时间
+                check_name: '流失人数', //月份表头label
+                rateLength: 31,
+                dialogVisible: false,
+                dialogData: null,
+                filterObj: {
+                    //具体的变量列表
+                    Department: [],
+                    Group: [],
+                }
+            }
+        },
+        mixins: [tableFilterMixin],
+        filters: {
+            zero(v) {
+                if (v == 0) {
+                    return '';
+                } else {
+                    return v;
+                };
+            }
+        },
+        methods: {
+            onQuerySubmit() {
+                if (this.monthDate == '' || this.monthDate == null) {
+                    this.$message('请选择年月');
+                    return;
+                };
+                let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                this.check_name = '流失人数（' + m + '月)'
+                axios.post("/KPI/Turnover_CheckSshift", { year: y, month: m }).then(res => {
+                    if (res.data.length > 0) {
+                        this.tableList = res.data;
+                        this.rateLength = res.data[0].Rate.length;
+                        this.$message.success("查询成功");
+                    } else {
+                        this.$message.warning("查询数据为空");
+                    };
+                }).catch(err => {
+                });
+            },
+            exportExcel() {
+                if (this.monthDate == '' || this.monthDate == null) {
+                    this.$message('需要选择时间');
+                    return;
+                };
+                let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                axios.post("/KPI/Turnover_OutputExcel", {
+                    year: y, month: m
+                }, { responseType: "blob" }).then(res => {
+                    let link = document.createElement('a');
+                    link.href = URL.createObjectURL(new Blob([res.data]));
+                    link.style.display = 'none';
+                    link.download = `班组人员流失汇总表.xlsx`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            },
+            showChange() {
+                vm.mainLoading = true;
+                setTimeout(() => {
+                    this.tableList = [];
+                    this.$emit("input", false);
+                    vm.mainLoading = false;
+                }, 500);
+            },
+            //检查编辑状态
+            checkEditStatus() {
+                for (let i of this.tableList) {
+                    if ('edit' in i && i.edit) {
+                        return true;
+                    };
+                };
+                return false;
+            },
+            //启动编辑
+            editClick(row) {
+                if (this.checkEditStatus()) {
+                    this.$message.warning('存在正在编辑的行');
+                    return
+                };
+                if (!('edit' in row)) {
+                    this.$set(row, 'edit', false);
+                };
+                this.initialData = {};
+                this.initialData = { ...row };
+                row.edit = true;
+            },
+            //取消编辑
+            cancelClick(row) {
+                let item = row, ini = this.initialData;
+                for (let i in ini) {
+                    item[i] = ini[i];
+                };
+                this.initialData = {};
+            },
+            //保存编辑
+            saveClick(row) {
+                axios.post('/KPI/ModifyTurnover', {
+                    turnoverRate: row,
+                }).then(res => {
+                    if (res.data.Meg) {
+                        this.$message.success(res.data.Feg);
+                        row.edit = false;
+                        this.initialData = {};
+                    } else {
+                        this.$message.error(res.data.Feg);
+                    };
+                }).catch(err => {
+                    console.warn("post失败")
+                });
+            },
+            //点击表格
+            cellClick(row, column, cell, event) {
+                if (!this.editlimit) {
+                    return;
+                };
+                let propName = column.property.split('-');
+                if (propName[0] === 'day') {
+                    let dayData = row.Rate[propName[1]];
+                    row.DateLoss = `${row.Year}/${row.Month}/${dayData.DateLoss}`;
+                    row.LossNumber = dayData.LossNumber;
+                    row.propName = propName[1];
+                    this.dialogData = row;
+                    this.dialogVisible = true;
+                };
+            },
+            ModifyTurnover(row) {
+                axios.post('/KPI/ModifyTurnover', {
+                    turnoverRate: row,
+                }).then(res => {
+                    if (res.data.Meg) {
+                        this.$message.success(res.data.Feg);
+                        for (let i of this.tableList) { if (i.Id === row.Id) i.Rate[row.propName].LossNumber = row.LossNumber; };
+                        this.dialogVisible = false;
+                    } else {
+                        this.$message.error(res.data.Feg);
+                    };
+                }).catch(err => {
+                    console.warn("post失败")
+                });
+            },
+            dialogClose() {
+                this.dialogData = null;
+            }
+        },
+        watch: {
+            //监听表的数据
+            tableList(v) {
+                try {
+                    if (v != '') {
+                        let rtArr = this.filterMethod(v);
+                        this.$refs.filterTable.clearFilter();
+                        for (let i in this.filterObj) {
+                            this.$set(this.filterObj, i, rtArr[i]);
+                        };
+                    };
+                } catch (err) {
+                    console.log('筛选错误')
+                }
+            }
+        }
+    });
+</script>

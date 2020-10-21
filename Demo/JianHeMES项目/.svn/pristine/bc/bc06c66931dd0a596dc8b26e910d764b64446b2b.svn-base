@@ -1,0 +1,494 @@
+﻿@{
+    ViewBag.Title = "FQC检查";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .mian-line {
+            border-top: 1px solid #d4e9ff;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .main input, .main textarea, .main select, .main .el-input-number, .main .el-input, .main .el-slider {
+            width: 100%;
+        }
+
+        .row-style {
+            padding: 16px;
+        }
+
+        .abnormal-box {
+            max-width: 215px;
+            min-height: 100px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            border: 1px solid #DCDFE6;
+            padding: 8px;
+        }
+
+            .abnormal-box span {
+                font-size: 14px;
+                line-height: 1.5;
+                padding: 4px 8px;
+            }
+
+        .tip {
+            color: red;
+        }
+
+        .el-card__body {
+            padding: 0;
+            border: 1px solid #c9d3dd6e;
+        }
+
+        .err-header {
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            color: black;
+/*            background-color: #ffdc7b;*/
+            border-bottom: 1px solid #c9d3dd6e;
+        }
+
+        .err-content {
+            padding: 8px;
+        }
+
+        .err-box {
+            display: flex;
+            align-items: center;
+            padding: 0 16px 16px 16px;
+        }
+
+            .err-box p {
+                padding: 0 4px;
+            }
+    </style>
+}
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <h1>{{isTurn?'FQC检查完成':'FQC检查开始'}}</h1>
+        </el-header>
+        <el-main class="main mian-line">
+            <el-row :gutter="30" class="row-style">
+                @*开始FQC*@
+                <el-col :xs="24" :sm="24" :md="24" :lg="7" :xl="6" v-if="!isTurn">
+                    <el-form size="small" label-position="right" label-width="100px">
+                        <el-form-item style="text-align:right;">
+                            <div style="max-width: 215px;">
+                                <el-checkbox v-model.trim="isnuo">挪用库存</el-checkbox>
+                            </div>
+                        </el-form-item>
+                        <el-form-item label="班组">
+                            <el-select v-model.trim="Group" placeholder="请选择班组">
+                                <el-option v-for="item in group_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <template v-if="isnuo">
+                            <el-form-item label="被挪用订单号">
+                                <el-select v-model.trim="nuoOrder" filterable clearable placeholder="请选择">
+                                    <el-option v-for="item in order_options"
+                                               :key="item.value"
+                                               :label="item.label"
+                                               :value="item.value">
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="被挪用条码">
+                                <el-input v-model.trim="nuoBarCode" clearable placeholder="请输入内容" style="max-width:215px;"></el-input>
+                            </el-form-item>
+                            <el-form-item v-if="nuoTip!=''">
+                                <span class="tip">{{nuoTip}}</span>
+                            </el-form-item>
+                        </template>
+                        <el-form-item label="订单号">
+                            <el-select v-model.trim="OrderNum" filterable clearable placeholder="请选择">
+                                <el-option v-for="item in order_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="条码">
+                            <el-input v-model.trim="BarCodesNum" clearable placeholder="请输入内容" style="max-width:215px;"></el-input>
+                        </el-form-item>
+
+                        <el-form-item label="是否重复校正">
+                            <el-checkbox v-model.trim="RepetitionFQCCheck"></el-checkbox>
+                        </el-form-item>
+                        <el-form-item label="重复原因" v-if="RepetitionFQCCheck">
+                            <el-input type="textarea"
+                                      :rows="4"
+                                      style="max-width:215px;"
+                                      placeholder="请输入内容"
+                                      v-model.trim="RepetitionFQCCheckCause">
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="">
+                            <el-button type="primary" @@click="onStartCheck">开始FQC</el-button>
+                        </el-form-item>
+                    </el-form>
+                </el-col>
+                @*完成FQC*@
+                <el-col :xs="24" :sm="24" :md="24" :lg="7" :xl="6" v-if="isTurn">
+                    <el-form size="small" label-position="right" label-width="100px">
+                        <el-form-item style="text-align:right;">
+                            <div style="max-width: 215px;">
+                                <el-checkbox v-model.trim="isnuo">挪用库存</el-checkbox>
+                            </div>
+                        </el-form-item>
+                        <template v-if="isnuo">
+                            <el-form-item label="被挪用订单号">
+                                <el-select v-model.trim="nuoOrder" filterable clearable placeholder="请选择">
+                                    <el-option v-for="item in order_options"
+                                               :key="item.value"
+                                               :label="item.label"
+                                               :value="item.value">
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="被挪用条码">
+                                <el-input v-model.trim="nuoBarCode" clearable placeholder="请输入内容" style="max-width:215px;"></el-input>
+                            </el-form-item>
+                            <el-form-item v-if="nuoTip!=''">
+                                <span class="tip">{{nuoTip}}</span>
+                            </el-form-item>
+                        </template>
+                        <el-form-item label="订单号">
+                            <el-input v-model.trim="OrderNum" disabled placeholder="请输入内容" style="max-width:215px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="条码号">
+                            <el-input v-model.trim="BarCodesNum" disabled placeholder="请输入内容" style="max-width:215px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="开始时间">
+                            <el-input v-model.trim="startTime" disabled placeholder="请输入内容" style="max-width:215px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="正常">
+                            <el-checkbox v-model.trim="isNormal"></el-checkbox>
+                        </el-form-item>
+                        <el-form-item label="备注">
+                            <el-input type="textarea"
+                                      :rows="2"
+                                      style="max-width:215px;"
+                                      placeholder="请输入内容"
+                                      v-model.trim="Remark">
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="FQC异常" v-if="!isNormal">
+                            <div class="abnormal-box">
+                                <span v-for="(item,index) in err_list" :key="index">{{index+1}}.{{item}}</span>
+                            </div>
+                        </el-form-item>
+                        <el-form-item>
+                            <el-button type="primary" @@click="onFinishCheck">完成FQC</el-button>
+                            <el-button type="primary" plain @@click="onToTurn">返回</el-button>
+                        </el-form-item>
+                    </el-form>
+                </el-col>
+
+                @*数量表格*@
+                <el-col :xs="24" :sm="24" :md="24" :lg="17" :xl="18" v-if="!isNormal">
+                    <el-card class="box-card">
+                        <div class="err-header">
+                            异常列表
+                        </div>
+                        <div class="err-content">
+                            <el-row>
+                                <el-col :xs="24" :sm="24" :md="24" :lg="12" :xl="12" v-for="(items,index) in formInfo" :key="index">
+                                    <div class="err-box"><p>{{items.left}}</p><el-input size="mini" class="err-item" v-model.trim="items.item" style="max-width:100px;"></el-input><p>{{items.right}}</p></div>
+                                </el-col>
+                                <el-col :xs="24" :sm="24" :md="24" :lg="12" :xl="12">
+                                    <div class="err-box">  <el-button type="primary" @@click="onAddError">添加异常信息</el-button></div>
+                                </el-col>
+                            </el-row>
+                        </div>
+                    </el-card>
+                </el-col>
+            </el-row>
+
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    isTurn: false,
+                    department: '',
+                    //参数
+                    isnuo: false,
+                    Group: '',
+                    OrderNum: '',
+                    BarCodesNum: '',
+                    //OrderNum: '2020-TEST-4',
+                    //BarCodesNum: '20BC00104A00008',
+                    RepetitionFQCCheck: false,
+                    RepetitionFQCCheckCause: '',
+                    nuoOrder: '',
+                    nuoBarCode: '',
+                    isNormal: true,
+                    FinalQC_FQCCheckAbnormal: '',
+                    Remark: '',
+                    id: '',
+                    startTime: '',
+                    //startTime: '20BC00104A00008',
+                    //提示项
+                    nuoTip: '',
+                    //选择项
+                    group_options: [],
+                    order_options: [],
+                    //fqc异常参数
+                    formInfo: [
+                        { left: '撞灯（', item: '', right: '）颗' },
+                        { left: '常亮条（', item: '', right: '）条' },
+                        { left: '瞎灯（', item: '', right: '）颗' },
+                        { left: '暗条（', item: '', right: '）条' },
+                        { left: '常亮灯（', item: '', right: '）颗' },
+                        { left: '扫描同亮（', item: '', right: '）条' },
+                        { left: '灯暗（', item: '', right: '）颗' },
+                        { left: '瞎块（', item: '', right: '）IC为单位' },
+                        { left: '灯闪（', item: '', right: '）颗' },
+                        { left: '瞎块（', item: '', right: '）模块' },
+                        { left: '高亮（', item: '', right: '）颗' },
+                        { left: '常亮块（', item: '', right: '）块' },
+                        { left: '扫描同亮（', item: '', right: '）颗' },
+                        { left: '不亮（', item: '', right: '）箱' },
+                        { left: '瞎条（', item: '', right: '）条' },
+                        { left: 'PPM（', item: '', right: '）' },
+                        { left: '其他异常（', item: '', right: '）' }
+                    ],
+                    err_list: [],
+                }
+            },
+            created() {
+            },
+            mounted() {
+                if (this.urlSearchParam.orderNum != undefined) {
+                    this.OrderNum = this.urlSearchParam.orderNum;
+                }
+                this.getInitData();
+
+            },
+            watch: {
+                isnuo(val) {
+                    if (!val) {
+                        this.nuoOrder = '';
+                        this.nuoBarCode = '';
+                    }
+                },
+                nuoBarCode(val) {
+                    if (val != '' && this.nuoOrder != '') {
+                        if (this.isnuo && val.length >= 15) {
+                            this.checkorderbar();
+                        }
+                    } else {
+                        this.nuoTip = '';
+                    }
+                },
+                BarCodesNum(val) {
+                    if (val.length >= 15 && this.OrderNum != '') {
+                        this.onCheckRepeat();
+                    }
+                },
+                RepetitionFQCCheck(val) {
+                    if (!val) {
+                        this.RepetitionFQCCheckCause = '';
+                    }
+                },
+                isNormal(val) {
+                    if (val) {
+                        this.err_list = '';
+                        for (let i = 0; i < this.formInfo.length; i++) {
+                            this.formInfo[i].item = '';
+                        }
+                    }
+                }
+            },
+            methods: {
+                //获取初始化数据
+                getInitData() {
+                    axios.post("/Users/DisplayGroup").then(res => {
+                        //console.log(res.data)
+                        let arr = [];
+                        res.data.Group.forEach(item => {
+                            let obj = {
+                                label: item,
+                                value: item
+                            }
+                            arr.push(obj);
+                        })
+                        this.group_options = arr;
+                        this.Group = res.data.Group[0];
+                        this.department = res.data.department;
+                    });
+                    axios.post("/api/CommonAPI/OrderList").then(res => {
+                        //console.log(res);
+                        this.order_options = res.data.Data
+                    })
+                },
+                //检查挪用条码是否可以挪用
+                checkorderbar() {
+                    axios.post('/Commonality/CheckBarCodeNumIsRepertory', {
+                        ordernum: this.nuoOrder,
+                        barcodenum: this.nuoBarCode,
+                    }).then(res => {
+                        //console.log(res, 666)
+                        if (res.data == true) {
+                            this.nuoTip = '';
+                        } else {
+                            this.nuoTip = res.data;
+                        };
+                    }).catch(err => {
+                        console.log(err);
+                    });
+                },
+                //检查条码是否重复FQC
+                onCheckRepeat() {
+                    axios.post("/api/FinalQCsApi/CheckFinish", { barcode: this.BarCodesNum }).then(res => {
+                        //console.log(res.data, 333)
+                        if (res.data.Data.pass) {
+                            this.RepetitionFQCCheck = true;
+                            this.$message.warning("该条码已经通过FQC，重复FQC请先填写原因！")
+                        } else {
+                            this.onStartCheck();
+                        }
+                    })
+                },
+                onToCheck() { },
+                //判断参数必填信息
+                onTip() {
+                    var flag;
+                    if (this.Group != '' && this.OrderNum != '' && this.BarCodesNum != '') {
+                        if (this.isnuo) {
+                            if (this.nuoOrder == '' || this.nuoBarCode == '') {
+                                this.$message.warning("请填写挪用信息！");
+                                flag = false;
+                                return flag;
+                            } else {
+                                flag = true;
+                                return flag;
+                            }
+                        } else {
+                            //console.log(this.RepetitionFQCCheck)
+                            if (this.RepetitionFQCCheck) {
+                                if (this.RepetitionFQCCheckCause == '') {
+                                    this.$message.warning("请填写重复原因信息！");
+                                    flag = false;
+                                    return flag;
+                                } else {
+                                    flag = true;
+                                    return flag;
+                                }
+                            } else {
+                                flag = true;
+                                return flag;
+                            }
+                        }
+                    } else {
+                        this.$message.warning("请补全信息！");
+                        flag = false;
+                        return flag;
+                    }
+                },
+
+                //开始FQC
+                onStartCheck() {
+                    //console.log(this.onTip(), 99)
+                    if (this.onTip()) {
+                        let param = {
+                            BarCodesNum: this.BarCodesNum,
+                            OrderNum: this.OrderNum,
+                            UserName: this.userName,
+                            Department: this.department,
+                            Group: this.Group,
+                            RepetitionFQCCheck: this.RepetitionFQCCheck,
+                            RepetitionFQCCheckCause: this.RepetitionFQCCheckCause,
+                        }
+                        axios.post("/api/FinalQCsApi/FinalQC_B", param).then(res => {
+                            //console.log(res.data, 000000)
+                            if (res.data.Data.pass) {
+                                this.isTurn = true;
+                                this.id = res.data.Data.id;
+                                this.startTime = res.data.Data.startTime;
+                            } else {
+                                this.$message.warning(res.data.Data.mes);
+                            }
+
+                        })
+                    }
+                },
+                //添加异常信息
+                onAddError() {
+                    //console.log(this.formInfo);
+                    let arr = []
+                    this.formInfo.forEach(items => {
+                        if (items.item != '') {
+                            let str = items.left + items.item + items.right;
+                            arr.push(str);
+                        }
+                    })
+                    this.err_list = arr;
+                },
+                //完成FQC
+                onFinishCheck() {
+                    let flag = false;
+                    if (this.isnuo) {
+                        if (this.nuoOrder != '' && this.nuoBarCode != '') {
+                            flag = true;
+                        } else {
+                            flag = false;
+                            this.$message.warning("请填写挪用信息！");
+                        }
+                    }
+                    if (flag) {
+                        if (this.isNormal) {
+                            this.FinalQC_FQCCheckAbnormal = '正常';
+                        } else {
+                            this.FinalQC_FQCCheckAbnormal = this.err_list.toString();
+                        }
+                        let param = {
+                            Id: this.id,
+                            nuoOrder: this.nuoOrder,
+                            nuoBarCode: this.nuoBarCode,
+                            isnuo: this.isnuo,
+                            userNum: this.userNum,
+                            FinalQC_FQCCheckAbnormal: this.FinalQC_FQCCheckAbnormal,
+                            Remark: this.Remark
+                        }
+                        //console.log(param);
+                        axios.post("/api/FinalQCsApi/FinalQC_F", param).then(res => {
+                            //console.log(res.data, 11111111)
+                            if (res.data.Data.pass) {
+                                this.isNormal = true;
+                                this.$message.success(res.data.Data.mes);
+                                window.location.href = "/FinalQCs/New_FinalQC?orderNum=" + this.OrderNum;
+                            } else {
+                                this.$message.warning(res.data.Data.mes);
+                            }
+                        })
+                    }
+                },
+                //返回
+                onToTurn() {
+                    window.location.href = "/FinalQCs/New_FinalQC?orderNum=" + this.OrderNum;
+                },
+            }
+        };
+    </script>
+}

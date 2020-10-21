@@ -1,0 +1,313 @@
+﻿@{
+    ViewBag.Title = "库存金额查询";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/tableStyle/StockAmount.less" />
+    <style>
+        #app {
+            padding: 10px 20px 0 20px;
+            font-family: '微软雅黑';
+        }
+
+        .el-table__header tr, .el-table__header th {
+            padding: 0;
+            height: 25px;
+            line-height: 20px;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .el-table td div {
+            font-size: 12px;
+            color: #293038
+        }
+        .select-style {
+            margin:0px 0px 15px 0px;
+            text-align:center
+        }
+    </style>
+}
+<div id="app" v-loading="loading"
+    element-loading-text="正在生成报告，可能需要几分钟，请耐心等待..."
+    element-loading-spinner="el-icon-loading"
+    element-loading-background="rgba(0, 0, 0, 0.8)"> 
+    <el-header class="text-center">
+        <sa-header :active="active"></sa-header>
+    </el-header>
+    <el-main>
+        <div class="select-style">
+            <span style="font-size:14px">统计截止日期：</span>
+            <el-date-picker v-model="inputDate"
+                            type="month"
+                            placeholder="选择录入日期"
+                            size="small" style="width:180px">
+            </el-date-picker>
+            <el-button type="primary" size="small" v-on:click="selectInfo" v-show="chaxun==true">查询</el-button>
+            <el-button type="success" plain size="small" v-show="tableData.length&&shengcheng==true" v-on:click="exportExcel">导出结果</el-button>
+            <el-button type="success" plain size="small" v-show="tableData.length&&shengcheng==true" v-on:click="createDate">生成报表</el-button>
+            <span style="display:inline-block;font-size:14px">查询时长:{{ count }}秒</span>
+        </div>
+        <el-table v-bind:data="tableData"
+                  style="width:100%"
+                  row-style="height:0"
+                  :header-cell-style="{'text-align':'center'}"
+                  :cell-style="{'padding':'0'}"
+                  max-height="610">
+            <el-table-column prop="Category"
+                             label="类别"
+                             width="100"
+                             align="center"
+                             header-align="center"
+                             fixed>
+                <template slot-scope="scope">
+                    <u style="color:#409eff" type="text" size="middle" v-on:click="getAllRowRecordExcelFile(scope.row.Category)">{{scope.row.Category}}</u>
+                    <form style="display:none;" action="~/Warehouse_Material/StockAmountCalculateGetExcel" method="post">
+                        <input type="text" name="year" id="input7" />
+                        <input type="text" name="month" id="input8" />
+                        <input type="text" name="outputexcelfile" id="input9" />
+                        <button type="submit" id="allrowrecord">下载记录</button>
+                    </form>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Category_Detail"
+                             label="分类明细"
+                             width="140"
+                             align="center"
+                             header-align="center"
+                             fixed>
+                <template slot-scope="scope">
+                    <span type="text" size="middle"> {{scope.row.Category_Detail}}</span>
+                    <form style="display:none;" action="~/Warehouse_Material/StockAmountCalculateGetExcel" method="post">
+                        <input type="text" name="inputDate" id="input2" />
+                        <input type="text" name="endDate" id="input3" />
+                        <input type="text" name="outputexcelfile" id="input1" />
+                        <button type="submit" id="aa">下载记录</button>
+                    </form>
+                </template>
+            </el-table-column>
+            <el-table-column prop=""
+                             label="库龄"
+                             header-align="center">
+                <el-table-column prop="OneMonth"
+                                 label="1个月以内"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="TwoMonths"
+                                 label="2-3个月"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="FourMonths"
+                                 label="4-6个月"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="SevenMonths"
+                                 label="7-12个月"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="OneYear"
+                                 label="1-2年"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="TwoYears"
+                                 label="2-3年"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="ThreeYears"
+                                 label="3-5年"
+                                 width="130"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="FiveYears"
+                                 label="5年以上"
+                                 width="125"
+                                 align="right">
+                </el-table-column>
+                <el-table-column prop="AmountTotal"
+                                 label="合计金额"
+                                 width="140"
+                                 align="right">
+                </el-table-column>
+            </el-table-column>
+            <el-table-column prop="RecordNum"
+                             label="记录条数"
+                             width="105"
+                             align="right">
+            </el-table-column>
+            <el-table-column prop="Remark"
+                             label="备注"
+                             align="right">
+            </el-table-column>
+        </el-table>
+        <span style="font-size:small;">注：每月8号计算出上一个月份的库龄表数据(财务部)。</span>
+    </el-main>   
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_SA_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Scripts/jquery-1.11.3.min.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    active: "",
+                    tableData: [],
+                    inputDate: '',//录入日期
+                    endDate: '',//结案日期
+                    count: 0,
+                    intervalId: null,
+                    Material: '',//物料号
+                    MaterialNameOptions: [{ label: '选项一', value: '等于' }, { label: '选项一', value: '包含' }],
+                    MaterialName: '',//品名
+                    MaterialNameInput: '',
+                    Specification: '',//规格
+                    SpecificationOptions: [{ label: '选项一', value: '等于' }, { label: '选项一', value: '包含' }],
+                    SpecificationInput: '',
+                    otherTableData: [],//第二个表
+                    chaxun: false,//查询权限
+                    shengcheng: false,//生成报表权限
+                    loading: false,//加载
+                }
+            },
+            mounted: function () {
+                //权限设置
+                var roles = JSON.parse(localStorage.getItem("rigths"))
+                if (checkRoles(roles, '查看原始文件')) {
+                    this.chaxun = true
+                };
+                if (checkRoles(roles, '生成报表')) {
+                    this.shengcheng = true
+                };
+            },
+            methods: {
+                //查询
+                selectInfo() {
+                    let inputDate = year(this.inputDate)
+                    let endDate = month(this.inputDate)
+                    this.tableData = []
+                    this.count = 0;
+                    if (this.inputDate != '') {
+                        if (this.intervalId != null) {// 计时器正在进行中，退出函数
+                            return
+                        };
+                        this.intervalId = setInterval(() => {// 计时器为空，操作
+                            this.count += 1
+                        }, 1000)
+                        axios.post('/Warehouse_Material/StockAmountCalculate', {
+                            year: inputDate,//录入日期
+                            month: endDate,//结案日期
+                        }).then(res => {
+                            console.log(res.data)
+                            this.tableData = res.data
+                            if (this.tableData.length > 0) {
+                                // 停止定时器
+                                clearInterval(this.intervalId)//清除计时器
+                                this.intervalId = null;//设置为null
+                            }
+                        }).catch(err => {
+                            console.warn("请求数据失败!")
+                        })
+                    } else {
+                        this.$message({
+                            message: "请选择查询日期！",
+                            duration: 0,
+                            showClose: true,
+                            type: 'warning',
+                        });
+                    }
+                },
+                getAllRowRecordExcelFile(item) {
+                    if (this.inputDate == '') {
+                        this.$message({
+                            message: "请选择日期",
+                            duration: 0,
+                            showClose: true,
+                            type: 'warning',
+                        })
+                    }
+                    $("#input9").val(item)
+                    let inputDate = year(this.inputDate)
+                    let endDate = month(this.inputDate)
+                    $("#input7").val(inputDate)
+                    $("#input8").val(endDate)
+                    $("#allrowrecord").click();
+                },
+                //导出excel方法
+                exportExcel() {
+                    let inputDate = year(this.inputDate)
+                    let endDate = month(this.inputDate)
+                    axios.post("/Warehouse_Material/ExportExcel", {
+                        tableData: JSON.stringify(this.tableData),
+                        year: inputDate,
+                        month: endDate
+                    }, {
+                            responseType: "blob",
+                        }).then(function (res) {
+                            console.log(res.data)
+                            let fileName = inputDate + '年' + endDate + '月库存金额表.xlsx'
+                            let url = window.URL.createObjectURL(new Blob([res.data]))
+                            let link = document.createElement('a')
+                            link.style.display = 'none'
+                            link.href = url
+                            link.setAttribute('download', fileName)
+                            document.body.appendChild(link)
+                            link.click()
+                        })
+                },
+                //生成报表
+                createDate() {
+                    this.loading=true
+                    console.log(this.tableData)
+                    if (this.tableData.length > 0) {
+                        axios.post("/Warehouse_Material/CreateTable", { record: this.tableData, date: this.inputDate }).then(res => {                            
+                            if (res.data == '生成报表成功！') {
+                                this.$message.success(res.data);
+                                this.loading = false;
+                                //window.location.href = '/Warehouse_Material/StockAmount_Query'
+                            }
+                            else {
+                                this.loading = false;
+                                this.$message.error(res.data);
+                            }
+                        })
+                    }
+                }
+            }
+        };
+        function year(data) {
+            let dd = new Date(data);
+            let year = dd.getFullYear();
+            let inputime = `${year}`
+            return inputime;
+        };
+        function month(data) {
+            let dd = new Date(data);
+            let month = (dd.getMonth() + 1).toString();
+            let inputime = `${month}`
+            return inputime;
+        };
+        //检测权限方法
+        function checkRoles(list, roleName) {
+            var flag = false
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        flag = true
+                    }
+                }
+            }
+            return flag
+        }
+    </script>
+}

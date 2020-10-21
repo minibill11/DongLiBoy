@@ -1,0 +1,144 @@
+﻿
+@{
+    ViewBag.Title = "权限人员查看";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        .el-table {
+            margin: 0 auto;
+            margin-top:15px
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        <h3>权限人员查看</h3>
+    </el-header>
+    <el-main>
+        <div class="text-center">
+            <span>模块：</span>
+            <el-select v-model="module" placeholder="请选择模块" size="small">
+                <el-option v-for="item in moduleOptions"
+                           :key="item"
+                           :value="item">
+                </el-option>
+            </el-select>
+            <span>权限组：</span>
+            <el-select v-model="limitGroup" placeholder="请选择权限组" size="small" clearable>
+                <el-option v-for="item in limitGroupOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <span>权限：</span>
+            <el-select v-model="limit" placeholder="请选择权限" size="small" clearable>
+                <el-option v-for="item in limitOptions"
+                           :key="item.value"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+            <el-button type="primary" size="small" @@click="getDate">查询</el-button>            
+        </div>
+            <el-table :data="tableData"
+                      border
+                      style="width: 85%">
+                <el-table-column prop="FourModule"
+                                 label="模块"
+                                 width="250">
+                </el-table-column>
+                <el-table-column prop="RolesName"
+                                 label="权限组"
+                                 width="250">
+                </el-table-column>
+                <el-table-column prop="DiscriptionList"
+                                 label="权限"
+                                 width="250">
+                </el-table-column>
+                <el-table-column prop="Department"
+                                 label="部门"
+                                 width="220">
+                </el-table-column>
+                <el-table-column prop="UserID"
+                                 label="工号"
+                                 width="220">
+                </el-table-column>
+                <el-table-column prop="UserName"
+                                 label="姓名">
+                </el-table-column>
+            </el-table>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    module:'',
+                    moduleOptions: [],
+                    limitGroup:'',
+                    limitGroupOptions: [],
+                    limit:'',
+                    limitOptions: [],
+                    tableData:[],
+                }
+            },
+            mounted: function () {
+                this.getModule()
+            },
+            methods: {
+                //获取模块选项
+                getModule() {
+                    axios.post("/api/Users_Api/Permiss_FourModuleList").then(res => {
+                        this.moduleOptions=res.data.Data                                              
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //获取权限组
+                getlimitGroup() {
+                    axios.post("/api/Users_Api/Permiss_RolesName", { FourModule: this.module }).then(res => {
+                        this.limitGroupOptions = res.data.Data                    
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //获取权
+                getlimit() {
+                    axios.post("/api/Users_Api/Permiss_Discription", { RolesName: this.limitGroup }).then(res => {
+                        this.limitOptions = res.data.Data                       
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //获取表格数据
+                getDate() {
+                    axios.post("/api/Users_Api/PersonnelList", { FourModule: this.module, RolesName: this.limitGroup, Discription: this.limit }).then(res => {                      
+                        console.log(res.data.Data)
+                        this.tableData = res.data.Data
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                }
+            },
+            watch: {
+                module(val) {
+                    if (val != '') {                       
+                        this.getlimitGroup()
+                    }
+                },   
+                limitGroup(val) {
+                    if (val != '') {
+                        this.getlimit()
+                    }
+                }
+            },
+        };
+    </script>
+}
+

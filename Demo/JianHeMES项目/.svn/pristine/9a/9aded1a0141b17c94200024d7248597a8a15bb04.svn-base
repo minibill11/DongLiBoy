@@ -1,0 +1,209 @@
+﻿@{
+    ViewBag.Title = "组装信息查询";
+}
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            @*菜单*@
+            <h1>@ViewBag.Title</h1>
+        </el-header>
+        <el-main v-loading="loading" style="min-height:600px">
+            <el-row class="text-center main">
+                <el-form :inline="true" :model="queryTable" size="small">
+                    <el-form-item label="选择订单">
+                        <select-input v-model.trim="queryTable.ordernum" :disabled="false" @@watchval="watchOrdernum($event)" :appendbody="false" :options="options.ordernum" :isfocus="true" :ismultiple="true" size="medium" :allowcreate="true"></select-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="primary" @@click="onQuerySubmit">?参数查询</el-button>
+                        <el-button type="primary" @@click="onQuerySubmit2">post查询</el-button>
+                        <a href="PQCCheck"><el-button type="primary" size="small" plain>PQC</el-button></a>
+                    </el-form-item>
+                </el-form>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableList"
+                          max-height="600"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          border>
+                    <el-table-column type="index" label="序号"
+                                     align="center"
+                                     fixed>
+                        <template slot-scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ordernum"
+                                     label="订单号"
+                                     min-width="90"
+                                     align="center"
+                                     fixed>
+                    </el-table-column>
+                    <el-table-column prop="type"
+                                     label="平台型号"
+                                     align="center"
+                                     fixed>
+                    </el-table-column>
+                    <el-table-column prop="processingRequire"
+                                     label="制程要求"
+                                     align="center"
+                                     fixed>
+                    </el-table-column>
+                    <el-table-column prop="warehousr"
+                                     label="出入库情况"
+                                     align="center">
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Shared/_SelectInput.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    loading: false,//控制页面loading等待状态
+                    tableList: [],//存储表格总数据
+                    filterResult: [],//存储筛选总数据后的结果
+                    /** 选择框的值
+                        queryTable.ordernum 筛选订单
+                        */
+                    queryTable: {
+                        ordernum: [],
+                    },
+                    /** 选择框的下拉列表
+                        options.ordernum 筛选订单下拉列表
+                        */
+                    options: {
+                        ordernum: [],
+                    },
+                }
+            },
+            mixins: [setModuleManagement],
+            created: function () {
+                //获取订单列表
+                this.getOrdernum();
+            },
+            mounted: function () {
+
+            },
+            //函数方法
+            methods: {
+                //获取订单号选择框下拉清单
+                getOrdernumList() {
+                    axios.post('/ModuleManagement/GetOrderNumList').then(res => {
+                        this.ordernumOptions = res.data;
+                        //本地订单值
+                        let localOrder = localStorage.getItem('Order');
+                        if (localOrder != null) {
+                            this.Ordernum = localOrder;
+                            try {
+                                this.getBarcodeStateList(localOrder);
+                            } catch (err) {
+                                //console.log(err);
+                            };
+                        };
+                    }).catch(err => {
+                        console.warn(err);
+                    });
+                },
+                //总表条件查询
+                onQuerySubmit() {
+
+                    axios.post(`${vm.MESHOST}/api/AssemblesAPI/NewIndex?ordernum=2017-TEST-1`, {}, {
+                        headers: { Authorization: localStorage.getItem('authorization') }
+                    }).then(res => {
+                        console.log(res.data)
+                        //console.log(JSON.parse(res.data))
+                    });
+
+
+                    //axios.request({
+                    //    method: 'post',
+                    //    url: `${vm.MESHOST}/api/AssemblesAPI/NewIndex`,
+                    //    data: {
+                    //        ordernum: '2017-TEST-1'
+                    //    },
+                    //    headers: { 'Authorization': localStorage.getItem('authorization') }
+                    //}).then(res => {
+                    //    console.log(res.data)
+                    //});
+
+
+
+                    //this.loading = true;
+                    //axios.post('/AssemblesAPI/Index', {
+                    //    orderunm: this.queryTable.ordernum
+                    //}).then(res => {
+                    //    console.log(JSON.parse(JSON.stringify(res.data)));
+                    //    this.tableList = res.data;
+                    //    //this.filterResult = res.data;
+                    //    this.loading = false;
+                    //    this.$message.success('查询成功！');
+                    //}).catch(err => {
+                    //    console.warn("查询数据失败");
+                    //    this.loading = false;
+                    //});
+                },
+                onQuerySubmit2() {
+                    axios.request({
+                        method: 'post',
+                        url: `${vm.MESHOST}/api/AssemblesAPI/NewIndex`,
+                        data: {
+                            ordernum: '2017-TEST-1'
+                        },
+                        headers: { 'Authorization': localStorage.getItem('authorization') }
+                    }).then(res => {
+                        console.log(res.data)
+                    });
+                },
+                //获取订单号选择框下拉清单
+                getOrdernum() {
+                    axios.post('/ModuleManagement/GetOrderNumList').then(res => {
+                        this.options.ordernum = res.data;
+                    }).catch(err => {
+                        console.warn("获取选择列表失败")
+                    });
+                },
+                //监听订单选择，调用筛选方法，即时更新筛选后的表格
+                watchOrdernum(v) {
+                    //this.onQuerySubmit();
+                    //this.filterList();
+                },
+                //筛选方法，
+                filterList() {
+                    let array = this.tableList,//所有数据
+                        arr1 = this.queryTable.ordernum,//下拉列表选择的订单值
+                        thisArr1;
+                    //过滤订单值，筛选出过滤后的列表 存为thisArr1
+                    thisArr1 = array.filter(function (val) {
+                        if (arr1 == null || arr1 == "") {
+                            return val;
+                        } else {
+                            for (let i of arr1) {
+                                if (val.platfrom.toLowerCase().indexOf(i.toLowerCase()) > -1) {
+                                    return val;
+                                };
+                            };
+                        };
+                    });
+                    this.filterResult = thisArr1;//存储筛选后的数据
+                }
+            },
+        };
+    </script>
+}

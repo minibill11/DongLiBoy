@@ -1,0 +1,783 @@
+﻿@{
+    ViewBag.Title = "安全库存清单";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        /*    .cell-red {
+            background-color: #fef0f0;
+        }
+
+        .cell-blue {
+            background-color: #ecf5ff;
+        }
+
+        .cell-green {
+            background-color: #e6f8ea;
+        }*/
+
+        .dangerNums {
+            display: inline-block;
+            width: 100%;
+            height: 100%;
+            background-color: #fef0f0;
+        }
+
+        .okayNums {
+            display: inline-block;
+            width: 100%;
+            height: 100%;
+            background-color: #ecf5ff;
+        }
+
+        .quiteOkayNums {
+            display: inline-block;
+            width: 100%;
+            height: 100%;
+            background-color: #e6f8ea;
+        }
+
+        .footerOne, .footerTwo {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+            .footerOne > div, .footerTwo > div {
+                width: 33.333%;
+            }
+
+                .footerOne > div > b, .footerTwo > div > b {
+                    width: 135px;
+                    text-align: right;
+                }
+
+                .footerOne > div > span, .footerTwo > div > span {
+                    display: inline-block;
+                    width: 190px;
+                    text-align: left;
+                }
+
+        .footerRemark {
+            font-size: 12px;
+            color: #59626F;
+            padding: 14px 0;
+        }
+
+        .Equipment_safetyContentTop {
+            display: flex;
+            justify-content: center;
+        }
+
+            .Equipment_safetyContentTop .el-input {
+                width: 180px;
+            }
+
+        .batvhInputEquipments_safety {
+            display: none;
+        }
+
+        .redss {
+            color: red;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <eq-header-component :active="active"></eq-header-component>
+    </el-header>
+    <el-main class="main-box">
+        @* 筛选框s *@
+        <div class="equipment-index-inputcontainer">
+            <template v-if="addFlag==false">
+                <div class="equipment-index-inputcontainer-item">
+                    <div>使用部门：</div>
+                    <el-select v-model="select_department" size="mini" clearable filterable placeholder="请选择使用部门" style="width:140px;">
+                        <el-option v-for="item in department_options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+
+                <div class="equipment-index-inputcontainer-item">
+                    <div>设备名称：</div>
+                    <el-select v-model="select_equipmentName" size="mini" clearable filterable placeholder="请选择设备名称" style="width:140px;">
+                        <el-option v-for="item in equipment_name_options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+
+                <div class="equipment-index-inputcontainer-item">
+                    <div>物料料号：</div>
+                    <el-select v-model="select_material" size="mini" clearable filterable placeholder="请选择物料料号" style="width:140px;">
+                        <el-option v-for="item in material_options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="equipment-index-inputcontainer-item">
+                    <div>规格/型号：</div>
+                    <el-select v-model="select_specifica" size="mini" clearable filterable placeholder="请选择规格/型号" style="width:140px;">
+                        <el-option v-for="item in specifica_options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="equipment-index-inputcontainer-item">
+                    <div>品名：</div>
+                    <el-select v-model="select_descrip" size="mini" clearable filterable placeholder="请选择品名" style="width:140px;">
+                        <el-option v-for="item in descrip_options"
+                                   v-bind:key="item.value"
+                                   v-bind:label="item.label"
+                                   v-bind:value="item.value">
+                        </el-option>
+                    </el-select>
+                </div>
+                <div class="equipment-index-inputcontainer-item">
+                    <div>日期：</div>
+                    <el-date-picker size="mini" clearable v-model="select_date"
+                                    type="month"
+                                    style="width:140px;"
+                                    placeholder="选择日期">
+                    </el-date-picker>
+                </div>
+                <el-button size="mini" type="primary" v-on:click="search">查找</el-button>
+            </template>
+            <el-button type="primary" size="mini" plain @@click="onShowAdd" style="margin-right:10px;">批量添加</el-button>
+            <div v-if="addFlag">
+                <el-select v-model="input_department" size="mini" clearable filterable placeholder="请选择部门" style="width:140px;">
+                    <el-option v-for="item in department_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+                <el-date-picker v-model="input_date"
+                                style="width:140px;"
+                                type="month"
+                                size="mini"
+                                placeholder="选择年月">
+                </el-date-picker>
+                <el-input size="mini" type="textarea" rows="1" v-model="inputInfo" class="textinput" placeholder="表格粘贴处..." style="width:150px;margin-left:10px;"></el-input>
+                <el-button size="mini" type="primary" plain v-on:click="onUpload">确认上传</el-button>
+                <el-button size="mini" type="info" plain v-on:click="onCancel">取消</el-button>
+            </div>
+        </div>
+
+        @* 整体表格 *@
+        <el-table v-bind:data="tableData"
+                  v-loading="loading"
+                  size="small"
+                  max-height="460"
+                  border
+                  highlight-current-row
+                  style="width: 100%">
+            <el-table-column type="index"
+                             label="序号"
+                             width="50">
+            </el-table-column>
+            <el-table-column prop="EquipmentName"
+                             label="设备名称">
+                <template slot-scope="scope">
+                    <div :class="scope.row.color==1?'redss':''">{{scope.row.EquipmentName}}</div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Descrip"
+                             label="品名">
+            </el-table-column>
+            <el-table-column prop="Specifica"
+                             label="规格/型号">
+            </el-table-column>
+            <el-table-column prop="Material"
+                             label="料号">
+            </el-table-column>
+            <el-table-column prop="Servicelife"
+                             label="使用寿命">
+            </el-table-column>
+            <el-table-column prop="Amount"
+                             label="月平均用量">
+            </el-table-column>
+            <el-table-column prop="Safety_stock"
+                             label="安全库存量">
+            </el-table-column>
+            <el-table-column prop="Existing_inventory"
+                             label="仓库存量">
+                <template slot-scope="scope">
+                    <div v-if="!addFlag">
+                        <el-popover placement="right"
+                                    trigger="hover">
+                            <div v-show="scope.row.Existing_inventory==0">
+                                暂无数据
+                            </div>
+                            <div v-show="scope.row.Existing_inventory_Details=='[]'?false:true">
+                                <div><span style="padding-right:12px;">品名：</span>{{scope.row.extitle2}}</div>
+                                <div><span style="padding-right:12px;">编号：</span>{{scope.row.extitle1}}</div>
+                                <div> <span style="padding-right:12px;">规格：</span>{{scope.row.extitle3}}</div>
+                            </div>
+                            <div v-for="item in JSON.parse(scope.row.Existing_inventory_Details)">
+                                <div><span style="padding-right:12px;">料号：</span>{{item.img01}}</div>
+                                <div><span style="padding-right:12px;">仓库：</span>{{item.img02}}</div>
+                                <div><span style="padding-right:12px;">库位：</span>{{item.img03}}</div>
+                                <div><span style="padding-right:12px;">批号：</span>{{item.img04}}</div>
+                                <div v-bind:class="item.img10>0?'redss':''"><span style="padding-right:12px;">数量：</span>{{item.img10}}</div>
+                                <div><span>有效期：</span>{{item.img18 | yxq}}</div>
+                            </div>
+                            <span slot="reference" v-if="compare2(scope.row.Safety_stock,scope.row.Existing_inventory)" class="dangerNums">{{scope.row.Existing_inventory}}</span>
+                            <span slot="reference" v-if="compare3(scope.row.Existing_inventory,scope.row.Safety_stock)" class="okayNums">{{scope.row.Existing_inventory}}</span>
+                            <span slot="reference" v-if="compare1(scope.row.Existing_inventory,scope.row.Safety_stock)" class="quiteOkayNums">{{scope.row.Existing_inventory}}</span>
+                        </el-popover>
+                    </div>
+                    <div v-if="addFlag">{{scope.row.Existing_inventory}}</div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="Purchasing_cycle"
+                             label="采购周期">
+            </el-table-column>
+            <el-table-column prop="Materused"
+                             label="用途">
+            </el-table-column>
+            <el-table-column prop="Remark"
+                             label="备注">
+            </el-table-column>
+            <el-table-column label="操作" width="80">
+                <template slot-scope="scope">
+                    <el-button v-if="!addFlag" v-on:click="changedRowInfos(scope.row)"
+                               type="text"
+                               size="mini" style="text-decoration:underline;">
+                        修改
+                    </el-button>
+                    <el-button v-if="addFlag" v-on:click="removeDetials(scope.row,scope.$index)"
+                               type="text"
+                               size="mini">
+                        移除
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        @* 备注 *@
+        <div v-show="flag" class="footerRemark">
+            <div>
+                <strong>配件安全库存说明：</strong>
+                <p>1）建立配件安全库存目的是为保障公司设备、工具正常运作，提升嫁动率满足生产需求；</p>
+                <p>2）工具、配件、设备保养用品（各种设备保养专用油脂）为日常维修保养用必需用品；</p>
+                <p>3）各种精密设备内部空气过滤器、油雾过滤器的滤芯需每月保养、每年示脏污情况更换处理；</p>
+                <p>4）空压机按每个季度进行保养所产生更换配件技术部定期提前申请，并委托专业人员现场处理；</p>
+                <p>5) 各种叉车按每个季度、年度进行保养工作技术部定期提前给到使用部门申请配件，并委托专业人员现场处理；</p>
+            </div>
+        </div>
+
+        @* 审核审批 *@
+        <div v-show="flag" class="footerOne">
+            <div><b>资料整理：</b><span>{{FinishingName}}/{{formattTime(FinishingDate)}}</span></div>
+            <div v-popover:popover2><b>技术部审核：</b><span>{{Tec_Assessor}}/{{formattTime(Tec_AssessedDate)}}</span></div>
+            <div v-popover:popover5><b>PMC部审核：</b><span>{{Assessor}}/{{formattTime(AssessedDate)}}</span></div>
+            <div v-popover:popover6><b>工厂厂长批准：</b><span>{{Approve}}/{{formattTime(ApprovedDate)}}</span></div>
+        </div>
+        @* popover-- 技术审核 *@
+        <el-popover ref="popover2"
+                    placement="top-start"
+                    title="技术审核"
+                    width="200"
+                    trigger="click">
+            <div v-if="Tec_limt">
+                <el-select size="mini" v-model="popoverVal" placeholder="请选择" @@change="checkOne2(1)">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div v-else>
+                <p>暂无权限或已确认</p>
+            </div>
+        </el-popover>
+        @* popover-- 审核 *@
+        <el-popover ref="popover5"
+                    placement="top-start"
+                    title="审核"
+                    width="200"
+                    trigger="click">
+            <div v-if="Assessor_limt">
+                <el-select size="mini" v-model="popoverVal"
+                           :disabled="Tec_Assessor==(''||null)?true:false"
+                           placeholder="请选择" @@change="checkOne2(2)">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div v-else>
+                <p>暂无权限或已确认</p>
+            </div>
+        </el-popover>
+        @* popover-- 批准 *@
+        <el-popover ref="popover6"
+                    placement="top-start"
+                    title="批准"
+                    width="200"
+                    trigger="click">
+            <div v-if="Approve_limt">
+                <el-select size="mini" v-model="popoverVal"
+                           :disabled="Assessor==(''||null)?true:false"
+                           placeholder="请选择" @@change="checkOne2(3)">
+                    <el-option v-for="item in options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.label"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </div>
+            <div v-else>
+                <p>暂无权限或已确认</p>
+            </div>
+        </el-popover>
+
+        @* 修改当行弹出框 *@
+        <el-dialog title="修改设备维修记录"
+                   v-bind:visible.sync="dialogVisible"
+                   width="25%"
+                   close-on-click-modal="false">
+            <div class="dialogContent">
+                <el-form v-bind:model="changeForm" label-width="90px">
+                    <el-form-item label="设备名称" prop="EquipmentName">
+                        <el-input disabled v-model="changeForm.EquipmentName" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="品名" prop="Descrip">
+                        <el-input disabled v-model="changeForm.Descrip" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="规格/型号" prop="Specifica">
+                        <el-input disabled v-model="changeForm.Specifica" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="料号" prop="Material">
+                        <el-input disabled v-model="changeForm.Material" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="使用部门" prop="Servicelife">
+                        <el-select v-model="changeForm.UserDepartment" size="small" placeholder="请选择使用部门"
+                                   style="width:100%;">
+                            <el-option v-for="item in department_options"
+                                       v-bind:key="item.value"
+                                       v-bind:label="item.label"
+                                       v-bind:value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="使用寿命" prop="Servicelife">
+                        <el-input v-model="changeForm.Servicelife" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="月平均用量" prop="Amount">
+                        <el-input v-model="changeForm.Amount" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="安全库存量" prop="Safety_stock">
+                        <el-input v-model="changeForm.Safety_stock" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="仓库存量" prop="Existing_inventory">
+                        <el-input disabled v-model="changeForm.Existing_inventory" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="采购周期" prop="Purchasing_cycle">
+                        <el-input v-model="changeForm.Purchasing_cycle" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="用途" prop="Materused">
+                        <el-input v-model="changeForm.Materused" size="small"></el-input>
+                    </el-form-item>
+                    <el-form-item label="备注" prop="Remark">
+                        <el-input v-model="changeForm.Remark" size="small"></el-input>
+                    </el-form-item>
+                </el-form>
+            </div>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="mini" v-on:click="dialogVisible = false">取 消</el-button>
+                <el-button size="mini" type="primary" v-on:click="comfirmChanged()">确定修改</el-button>
+            </span>
+        </el-dialog>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Equipment/_Eq_Header.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                loading: true,
+                inputInfo: '',
+                repeat: '',
+                input_department: '',
+                input_date: '',
+                addFlag: false,//批量添加打开
+
+                active: "安全库存清单",
+                dialogVisible: false,
+                flag: false,
+                tableData: [],
+                equipment_name_options: [],
+                material_options: [],
+                descrip_options: [],
+                specifica_options: [],
+                department_options: [],
+                select_equipmentName: '', //设备名称
+                select_material: '', //配料料号
+                select_descrip: '', //品名
+                select_specifica: '', //规格/型号
+                select_department: '', // 使用部门,
+                select_date: '',
+                changeForm: {
+                    EquipmentName: null,   // 设备名称
+                    Descrip: null,   // 品名
+                    Specifica: null,   //规格/型号
+                    Material: null,   //料号
+                    Servicelife: null, //使用寿命
+                    Amount: null,   // 月平均用量
+                    Safety_stock: null,  // 安全库存量
+                    Existing_inventory: null,  // 仓库存量
+                    Purchasing_cycle: null,  //采购周期
+                    Materused: null,  //用途
+                    Remark: null,   // 备注,
+                },
+                options: [
+                    { label: "通过", value: "通过" },
+                    { label: "不通过", value: "不通过" }
+                ],
+                popoverVal: '',
+                FinishingName: '',
+                FinishingDate: '',
+
+                Tec_Assessor: '',
+                Tec_AssessedDate: '',
+                Assessor: '',
+                AssessedDate: '',
+                Approve: '',
+                ApprovedDate: '',
+                Year: '',
+                Month: '',
+                nums: '',
+                //权限
+                Tec_limt: false,
+                Assessor_limt: false,
+                Approve_limt: false,
+            },
+            mounted() {
+                // 页面加载时需要获取选择框的值--有五个选择框所以有五个方法。
+                let list = [
+                    {
+                        url: "/Equipment/Getsafety_equipmentName",
+                        option: this.equipment_name_options,
+                    }, {
+                        url: "/Equipment/Getsafety_material",
+                        option: this.material_options,
+                    }, {
+                        url: "/Equipment/Getsafety_descrip",
+                        option: this.descrip_options,
+                    }, {
+                        url: "/Equipment/Getsafety_specifica",
+                        option: this.specifica_options,
+                    }, {
+                        url: "/Equipment/Getsafety_department",
+                        option: this.department_options,
+                    },
+                ]
+                list.forEach(item => {
+                    this.getSelectOptions(item.url, item.option);
+                })
+                if (this.urlSearchParam.equipmentName != undefined) {
+                    this.select_equipmentName = this.urlSearchParam.equipmentName;
+                }
+                if (this.urlSearchParam.time != undefined) {
+                    this.select_date = new Date(this.urlSearchParam.time);
+                }
+                this.search();
+            },
+            watch: {
+                //监听批量上传粘贴的数据
+                inputInfo(val) {
+                    if (val != null) {
+                        let valOfPaste = val.split("\n");
+                        valOfPaste.pop();
+                        let initDatas = [];
+                        valOfPaste.forEach((item, i) => {
+                            var items = item.split("\t");
+                            initDatas.push(items)
+                        });
+                        let arr = [];
+                        initDatas.forEach(item => {
+                            let obj = {
+                                EquipmentName: item[0],
+                                Descrip: item[1],
+                                Specifica: item[2],
+                                Material: item[3],
+                                Servicelife: item[4],
+                                Amount: item[5],
+                                Safety_stock: item[6],
+                                Existing_inventory: item[7],
+                                Purchasing_cycle: item[8],
+                                Materused: item[9],
+                                Remark: item[10],
+                                color: 0
+                            };
+                            arr.push(obj);
+                        })
+                        this.tableData = arr;
+                        //console.log(this.tableData);
+                    }
+                },
+            },
+            methods: {
+                // 查找
+                search() {
+                    let year = '', month = '';
+                    if (this.select_date != null) {
+                        let dd = new Date(this.select_date);
+                        year = dd.getFullYear();
+                        month = dd.getMonth() + 1;
+                    }
+                    let param = {
+                        userdepartment: this.select_department,
+                        equipmentName: this.select_equipmentName,
+                        descrip: this.select_descrip,
+                        specifica: this.select_specifica,
+                        material: this.select_material,
+                        year: year,
+                        month: month
+                    };
+                    //console.log(this.select_date);
+                    //console.log(param);
+                    axios.post("/Equipment/Safetyquery", param).then(res => {
+                        this.loading = false;
+                        //console.log(res.data)
+                        if (res.data.length > 0) {
+                            this.tableData = res.data;
+                            res.data.forEach(item => {
+                                let extitle1
+                                let extitle2
+                                let extitle3
+                                if (item.Existing_inventory_Details != '[]') {
+                                    extitle1 = JSON.parse(item.Existing_inventory_Details)[0].img01;
+                                    extitle2 = JSON.parse(item.Existing_inventory_Details)[0].ima02;
+                                    extitle3 = JSON.parse(item.Existing_inventory_Details)[0].ima021;
+                                }
+                                item.extitle1 = extitle1
+                                item.extitle2 = extitle2
+                                item.extitle3 = extitle3
+                                item.extitle = '物料编号:' + extitle1 + '品名:' + extitle2 + '规格型号:' + extitle3
+                            });
+                            this.FinishingName = res.data[0].FinishingName;
+                            this.FinishingDate = res.data[0].FinishingDate;
+                            this.Year = res.data[0].Year;
+                            this.Month = res.data[0].Month;
+                            this.Tec_Assessor = res.data[0].Tec_Assessor;
+                            this.Tec_AssessedDate = res.data[0].Tec_AssessedDate;
+                            this.Assessor = res.data[0].Assessor;
+                            this.AssessedDate = res.data[0].AssessedDate;
+                            this.Approve = res.data[0].Approve;
+                            this.ApprovedDate = res.data[0].ApprovedDate;
+                            this.flag = true;
+                            this.onGetPermissions();
+                        } else {
+                            this.tableData = [];
+                            this.flag = false;
+                            this.$message.warning("查找不到相关信息");
+                        }
+
+                    })
+                },
+                //获取权限
+                onGetPermissions() {
+                    if (this.Tec_Assessor == ('' || null) && this.islimit("技术部审核库存清单")) {
+                        this.Tec_limt = true;
+                    } else {
+                        this.Tec_limt = false;
+                    }
+                    if (this.Assessor == ('' || null) && this.islimit("制造中心总监审核库存清单")) {
+                        this.Assessor_limt = true;
+                    } else {
+                        this.Assessor_limt = false;
+                    }
+                    if (this.Approve == ('' || null) && this.islimit("工厂厂长批准库存清单")) {
+                        this.Approve_limt = true;
+                    } else {
+                        this.Approve_limt = false;
+                    }
+                },
+                //打开批量上传
+                onShowAdd() {
+                    this.addFlag = true;
+                    this.tableData = [];
+                },
+                //批量上传
+                onUpload() {
+                    if (this.tableData.length > 0) {
+                        if (this.input_department != '' && this.input_date != null) {
+                            let dd = new Date(this.input_date);
+                            let year = dd.getFullYear();
+                            let month = dd.getMonth() + 1;
+                            axios.post("/Equipment/ADDsafestock", { inputList: this.tableData, year: year, month: month, userdepartment: this.input_department }).then(res => {
+                                //console.log(res.data)
+                                if (res.data == true) {
+                                    this.$message.success("上传成功！");
+                                    this.inputInfo = '';
+                                } else if (res.data == false) {
+                                    this.$message.warning("上传失败！");
+                                } else {
+                                    for (let i = 0; i < res.data.length; i++) {
+                                        this.tableData.forEach(item => {
+                                            if (res.data[i] == item.EquipmentName) {
+                                                item.color = 1
+                                            }
+                                        })
+
+                                    }
+                                    this.$message.warning("存在重复信息，请手动删除！");
+                                }
+                            }).catch(err => {
+                                this.$message.warning("连接服务器失败！");
+                            })
+                        } else {
+                            this.$message.warning("请选择年月跟使用部门!");
+                        }
+                    } else {
+                        this.$message.warning("请导入数据再上传!")
+                    }
+                },
+                //批量上传取消
+                onCancel() {
+                    this.repeat = '';
+                    this.inputInfo = '';
+                    this.addFlag = false;
+                    this.tableData = [];
+                },
+                //移除行数据
+                removeDetials(row, index) {
+                    //console.log(row);
+                    this.tableData.splice(index, 1);
+                    if (this.tableData.length == 0) {
+                        this.repeat = '';
+                    }
+                },
+                // 比较--控制库存背景色
+                compare1(o, t) {
+                    if (parseInt(o) > parseInt(t)) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                },
+                compare2(o, t) {
+                    if (parseInt(o) > parseInt(t)) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                },
+                compare3(o, t) {
+                    if (parseInt(o) == parseInt(t)) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                },
+                // 通用获取查询选择框的列表
+                getSelectOptions(url, options) {
+                    axios.post(url).then(res => {
+                        //console.log(res.data)
+                        res.data.forEach(item => {
+                            let obj = { value: item, label: item }
+                            options.push(obj)
+                        })
+                    })
+                },
+                // 修改当行信息---点击显示弹框
+                changedRowInfos(row) {
+                    if (this.islimit('修改安全库存清单') && this.Approve == null) {
+                        this.changeForm = row;
+                        //console.log(this.changeForm);
+                        this.dialogVisible = true;
+                    } else {
+                        this.$message.warning("暂无操作权限或已批准！");
+                    }
+
+                },
+                // 确认修改保存
+                comfirmChanged() {
+                    axios.post("/Equipment/Modifi_safety", { equipment_Safetystock: this.changeForm }).then(res => {
+                        //console.log(res.data)
+                        if (res.data == false) {
+                            this.$message.warning("存在空数据，请补全");
+                        } else if (res.data.Safety == true) {
+                            this.$message.success("操作成功!");
+                            this.dialogVisible = false;
+                            this.changeForm = {}
+                        } else if (res.data.Safety == false) {
+                            this.$message.warning("保存失败");
+                        }
+                    })
+                },
+                // 审核--预留方法--暂时不用
+                checkOne2(index) {
+                    let postData = {
+                        userdepartment: this.select_department,
+                        year: this.Year,
+                        month: this.Month,
+                        tec_asse: '',
+                        mcdepsr: '',
+                        approve: ''
+                    }
+                    if (index == 1) {
+                        postData.tec_asse = this.userName + '' + this.popoverVal;
+                    } else if (index == 2) {
+                        postData.mcdepsr = this.userName + '' + this.popoverVal;
+                    } else if (index == 3) {
+                        postData.approve = this.userName + '' + this.popoverVal;
+                    }
+                    //console.log(postData,111);
+                    axios.post("/Equipment/Verification", postData).then(res => {
+                        //console.log(res.data,00000)
+                        if (res.data.Safety == true) {
+                            this.$message.success("操作成功!");
+                            this.search();
+                            this.popoverVal = '';
+                        } else {
+                            this.$message.warning("操作失败!");
+                        }
+                    })
+                },
+                //时间格式化
+                formattTime(val) {
+                    if (val == ('' || null)) {
+                        return '';
+                    } else {
+                        let dd = new Date(val);
+                        let year = dd.getFullYear();
+                        let month = dd.getMonth() + 1;
+                        if (month < 10) {
+                            month = "0" + month;
+                        }
+                        let day = dd.getDate();
+                        if (day < 10) {
+                            day = "0" + day;
+                        }
+                        return `${year}-${month}-${day}`;
+
+                    }
+                }
+            }
+        }
+    </script>
+}

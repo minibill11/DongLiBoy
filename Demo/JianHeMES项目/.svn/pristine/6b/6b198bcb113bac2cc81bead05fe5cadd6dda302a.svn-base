@@ -1,0 +1,80 @@
+﻿@*选择搜索框*@
+<script type="text/template" id="selectInput">
+    <div class="selectComponent" style="display:inline-block;">
+        @*多选*@
+        <el-select v-if="ismultiple"
+                   v-model="value"
+                   v-on:input="$emit('input', value)"
+                   v-on:change="$emit('select-val',$event)"
+                   v-on:clear="clear"
+                   :popper-append-to-body="appendbody"
+                   :size="size"
+                   :disabled="disabled"
+                   ref="selectinput"
+                   style="min-width:220px;"
+                   :placeholder="placeholder?placeholder:'输入内容可查询'"
+                   multiple
+                   filterable
+                   default-first-option
+                   collapse-tags
+                   :allow-create="allowcreate"
+                   clearable>
+            <el-option v-for="item in options"
+                       :key="item.value"
+                       :value="item.value">
+            </el-option>
+        </el-select>
+        @*单选*@
+        <el-autocomplete v-else
+                         v-model="value"
+                         v-on:input="$emit('input', value)"
+                         v-on:select="$emit('select-val',value)"
+                         v-on:clear="clear"
+                         :fetch-suggestions="querySearch"
+                         :popper-append-to-body="appendbody"
+                         :trigger-on-focus="isfocus"
+                         :debounce="0"
+                         :size="size"
+                         :disabled="disabled"
+                         ref="selectinput"
+                         :placeholder="placeholder?placeholder:'输入内容可查询'"
+                         highlight-first-item
+                         clearable></el-autocomplete>
+    </div>
+</script>
+<script>
+    Vue.component('select-input', {
+        props: ['value', 'options', 'ismultiple', 'isfocus', 'size', 'disabled', 'appendbody', 'allowcreate', 'placeholder'],
+        template: document.getElementById("selectInput"),
+        methods: {
+            querySearch(queryString, cb) {
+                let restaurants = this.options == null ? [] : this.options;
+                let results = queryString ? restaurants.filter(this.createFilter(queryString)) : restaurants;
+                // 调用 callback 返回建议列表的数据
+                cb(results);
+            },
+            createFilter(queryString) {
+                return (restaurant) => {
+                    return (restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) > -1);
+                };
+            },
+            clear() {
+                this.$nextTick(() => {
+                    this.$refs.selectinput.focus();
+                });
+            }
+        },
+        watch: {
+            value(v) {
+                this.$emit('watchval', v);
+            }
+        }
+    });
+</script>
+
+
+@*使用方法
+    @RenderPage("~/Views/Shared/_SelectInput.cshtml")
+    <select-input v-model.trim="selectVal" :disabled="false" @@watchval="watchHandle($event,scope.row)" :appendbody="false" :options="selectOptions" :isfocus="true" :ismultiple="false" size="medium" @@select-val="selectHandle"></select-input>
+    selectHandle(v) { console.log(v)//v.value }
+*@

@@ -1,0 +1,89 @@
+<template>
+  <div>
+    <cHeader :active="active"></cHeader>
+    <div class="select">
+      <span style="font-size:small">已生成报告：</span>
+      <el-date-picker
+        v-model="inputDate"
+        type="month"
+        placeholder="选择录入日期"
+        size="small"
+        style="width:150px"
+      ></el-date-picker>
+      <el-button type="primary" size="small" @click="GetData" class="btn">查询</el-button>
+      <el-button type="danger" size="small" plain @click="deleteReport" :disabled="!isDisabled">删除</el-button>
+    </div>
+    <cTable ref="table" class="home" :tableType="'月度库存金额'" :time="inputDate"></cTable>
+  </div>
+</template>
+<script>
+import cHeader from "./common/c-header";
+import cTable from "./common/c-table";
+import { getMOnthData } from "@/api/test";
+export default {
+  name: "stock_query",
+  data() {
+    return {
+      active: "月度库存金额",
+      header_list: ["库存金额信息", "月度库存金额", "查询ERP库存月度结存金额"],
+      inputDate: null,
+      isDisabled: false,
+    };
+  },
+  mounted: function () {
+    if (this.$route.query.time != null) {
+      this.inputDate = this.$route.query.time;
+      this.GetData();
+    }
+  },
+  methods: {
+    //查询表格数据
+    GetData() {
+      if (this.inputDate != null) {
+        getMOnthData(this.inputDate).then((res) => {
+          if (JSON.parse(res.data.table).length > 0) {
+            this.$message.success("查询成功！");
+            this.$refs.table.tableDate = JSON.parse(res.data.table);
+            this.isDisabled = true;
+          } else {
+            this.$message.error("暂无数据！");
+          }
+        });
+      } else {
+        this.$message.error("请选择查询日期！");
+      }
+    },
+    //删除表格数据
+    deleteReport() {},
+  },
+  components: {
+    cHeader,
+    cTable,
+  },
+  watch: {
+    inputDate() {
+      if (this.inputDate == null) {
+        this.$refs.table.tableDate = [];
+        this.isDisabled = false;
+      }
+    },
+  },
+};
+</script>
+<style scoped>
+.select {
+  margin: 15px;
+}
+/*设置合计行字体、颜色*/
+
+.home >>> .warning-row {
+  background: #eff2f7;
+  font-size: 12px !important;
+  font-weight: bold;
+  color: black;
+}
+
+.btn {
+  margin: 5px;
+}
+</style>

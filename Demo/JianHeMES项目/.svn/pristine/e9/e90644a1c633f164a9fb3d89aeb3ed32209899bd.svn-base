@@ -1,0 +1,360 @@
+﻿@model JianHeMES.Models.Assemble
+@{
+    ViewBag.Title = "PQC检查开始";
+}
+
+<link href="~/Scripts/Bootstraps/Element-ui.css" rel="stylesheet" />
+<script src="~/Scripts/Bootstraps/Element-ui.js"></script>
+<style>
+    input, textarea, select {
+        max-width: 215px;
+    }
+
+    .barcodeFrame {
+        width: 200px;
+        height: 200px;
+        border: 1px solid #555;
+        overflow: auto;
+        padding: 5px;
+    }
+
+        .barcodeFrame ul {
+            list-style: none;
+            padding: 0;
+        }
+
+    .frameW p {
+        margin: 10px 0;
+    }
+
+    .selectComponent .el-input__inner {
+        width: 215px;
+    }
+
+    @@media screen and (min-width:992px) {
+        .leftform {
+            border-right: 1px solid #555;
+            padding: 80px 40px 0 0;
+            min-height: 500px;
+        }
+
+        .barcodeFrame {
+            height: 400px;
+        }
+    }
+
+    @@media screen and (min-width:768px) {
+        .frameW {
+            text-align: center;
+            padding-right: 0;
+        }
+
+        .barcodeFrame {
+            margin: 0 auto;
+        }
+    }
+
+    .form-group {
+        margin-bottom: 10px;
+    }
+
+    hr {
+        margin: 10px 0;
+    }
+
+    @@media screen and (max-width:768px) {
+        h3 {
+            margin: 10px 0 0;
+        }
+    }
+</style>
+<h3>@ViewBag.Title</h3>
+
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+    <div id="app" class="form-horizontal">
+        <h4 class="hidden-xs">检查开始</h4>
+        <hr />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        @Html.HiddenFor(model => model.Id)
+        @Html.HiddenFor(model => model.BarCode_Prefix)
+        @Html.HiddenFor(model => model.PQCCheckFT, new { @class = "control-label col-md-4" })
+        @Html.HiddenFor(model => model.PQCCheckTime, new { @class = "control-label col-md-4" })
+        @Html.HiddenFor(model => model.PQCCheckAbnormal, new { @class = "control-label col-md-4" })
+        @Html.HiddenFor(model => model.PQCCheckFinish, new { @class = "control-label col-md-4" })
+
+        <div class="col-md-4 leftform">
+            <div class="form-group">
+                <div class="col-md-8  col-md-offset-4">
+                    <div class="btn btn-sm" v-on:click="divert=!divert" v-bind:class="{'btn-success': divert,'btn-primary': !divert }">挪用库存</div>
+                    <input class="checkbox-inline" type="checkbox" name="isnuo" v-model="divert" value="true" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-md-4">班组</label>
+                <div class="col-md-8">
+                    <group-select></group-select>
+                </div>
+            </div>
+            @*挪用*@
+            <div class="form-group" v-show="divert">
+                <label for="nuoOrder" class="control-label col-md-4">被挪用订单号</label>
+                <div class="col-md-8">
+                    <select-input id="nuoOrder" name="nuoOrder" v-model.trim="ordernum.nuo" :disabled="false" :appendbody="false" :options="ordernum.options" :isfocus="true" size="small"></select-input>
+                </div>
+
+                <label for="nuoBarCode" class="control-label col-md-4">被挪用条码号</label>
+                <div class="col-md-8">
+                    <input autocomplete="off" autofocus="autofocus" id="nuoBarCode" name="nuoBarCode" v-model="nuoBarCode" onkeyup="this.value=this.value.toUpperCase().replace(/\s+/g,'')" type="text" class="form-control text-box single-line">
+                    <div v-show="isnuonum" class="text-danger">{{checkmes}}</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.OrderNum, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    <select-input id="OrderNum" name="OrderNum" v-model.trim="ordernum.value" :disabled="false" :appendbody="false" :options="ordernum.options" :isfocus="true" size="small"></select-input>
+                    @Html.ValidationMessageFor(model => model.OrderNum, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.BoxBarCode, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.EditorFor(model => model.BoxBarCode, new { htmlAttributes = new { @class = "form-control", autofocus = "autofocus", onkeyup = "this.value=this.value.toUpperCase().replace(/\\s+/g,'')", autocomplete = "off" } })
+                    @Html.ValidationMessageFor(model => model.BoxBarCode, "", new { @class = "text-danger" })
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <span style="font-size:12px;color:#fd6a6a">扫码需要保持英文输入状态</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                @Html.LabelFor(model => model.Remark, htmlAttributes: new { @class = "control-label col-md-4" })
+                <div class="col-md-8">
+                    @Html.TextAreaFor(model => model.Remark, new { @class = "form-control" })
+                    @Html.ValidationMessageFor(model => model.Remark, "", new { @class = "text-danger" })
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-md-offset-4 col-md-8">
+                    <input type="submit" value="开始PQC检查工作" class="btn btn-default" v-bind:disabled="checknuo" />
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8 " style="padding:0">
+            <div class="col-md-4 col-sm-4 frameW text-danger">
+                <p>未开始 {{NotDoList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:indianred">
+                    <ul>
+                        <li v-for="item in NotDoList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-info">
+                <p>未完成 {{NeverFinish.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:cornflowerblue">
+                    <ul>
+                        <li v-for="item in NeverFinish">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 frameW text-success">
+                <p>已完成 {{FinishList.length}} 个</p>
+                <div class="barcodeFrame" style="border-color:forestgreen">
+                    <ul>
+                        <li v-for="item in FinishList">{{item}}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+<div class="clearfix"></div>
+<div class="row col-md-12">
+    @Html.ActionLink("返回", "New_Index")
+</div>
+@*  引入组件：
+    1/_groupSelect，下拉选择框组件
+*@
+@RenderPage("~/Views/Users/_groupSelect.cshtml")
+@RenderPage("~/Views/Shared/_SelectInput.cshtml")
+<script>
+    var app = new Vue({
+        el: "#app",
+        data: {
+            NotDoList: [],
+            NeverFinish: [],
+            FinishList: [],
+            divert: false,//挪用
+            isnuonum: false,
+            nuoBarCode: "",
+            checkmes: "",
+            ordernum: {
+                nuo: '',
+                value: '',
+                options: []
+            },
+        },
+        computed: {
+            checknuo: function () {
+                if (this.divert == true) {
+                    if (this.nuoBarCode.length != 0 && this.isnuonum == false) {
+                        return false;
+                    } else {
+                        return true;
+                    };
+                } else {
+                    return false;
+                };
+            }
+        },
+        methods: {
+            getInfo: (oNum) => {
+                $.ajax({
+                    url: "/Assembles/Assemblechecklist",
+                    type: "post",
+                    data: {
+                        orderNum: oNum,
+                        station: 'PQCCheck'
+                    },
+                    success: function (data) {
+                        //console.log(data)
+                        var allJson = JSON.parse(data);
+                        for (var i in allJson) {
+                            var iJson = JSON.parse(allJson[i]);
+                            if (i == "NotDoList") {
+                                app.NotDoList = [];
+                                for (var j in iJson) {
+                                    app.NotDoList.push(iJson[j]);
+                                }
+                            };
+                            if (i == "NeverFinish") {
+                                app.NeverFinish = [];
+                                for (var j in iJson) {
+                                    app.NeverFinish.push(iJson[j]);
+                                }
+                            };
+                            if (i == "FinishList") {
+                                app.FinishList = [];
+                                for (var j in iJson) {
+                                    app.FinishList.push(iJson[j]);
+                                }
+                            };
+                        }
+                    },
+                    error: function (err) {
+                        alert("获取订单信息失败")
+                    }
+                });
+            },
+            isnuo: (nuoVal) => {
+                if (nuoVal == true) {
+                    $("#nuoBarCode").attr("name", "nuoBarCode")
+                } else {
+                    $("#nuoBarCode").removeAttr("name")
+                };
+            },
+            //检查挪用条码是否可以挪用
+            checkorderbar(v) {
+                axios.post('/Commonality/CheckBarCodeNumIsRepertory', {
+                    ordernum: this.ordernum.nuo,
+                    barcodenum: v,
+                }).then(res => {
+                    if (res.data == true) {
+                        this.checkmes = "";
+                        this.isnuonum = false;
+                    } else {
+                        this.checkmes = res.data;
+                        this.isnuonum = true;
+                    };
+                }).catch(err => {
+                    console.log("检查失败")
+                });
+            },
+        },
+        watch: {
+            divert: (v) => {//挪用
+                localStorage.setItem('Divert', v);
+                app.isnuo(v);
+                if (v == true) {
+                    app.$nextTick(function () {
+                        $("#nuoBarCode").select();
+                    });
+                } else {
+                    $("#BoxBarCode").select();
+                };
+            },
+            nuoBarCode: (v) => {
+                if (v.length != 0) {
+                    app.checkorderbar(v);
+                } else {
+                    app.isnuonum = false;
+                }
+            },
+            'ordernum.value'(val) {
+                if (val != '' && val != null) {
+                    localStorage.setItem('Order', val);
+                    this.getInfo(val);
+                    $("#BoxBarCode").select();
+                }
+            },
+            'ordernum.nuo'(val) {
+                if (val != '' && val != null) {
+                    localStorage.setItem('nuoOrder', val);
+                    if (this.nuoBarCode.length != 0) {
+                        this.checkorderbar(this.nuoBarCode);
+                    } else {
+                        this.isnuonum = false;
+                    };
+                    $("#nuoBarCode").select();
+                }
+            }
+        },
+        mounted: function () {
+            axios.post('/OrderMgms/GetOrderList').then(res => {
+                this.ordernum.options = res.data;
+            });
+            var localOrder = localStorage.getItem('Order');
+            if (localOrder != null) {
+                this.ordernum.value = localOrder;
+                this.getInfo(localOrder);
+            };
+            //挪用订单
+            var localDivert = localStorage.getItem('Divert');
+            if (localDivert != null) {
+                let localNuo = localDivert == 'true' ? true : false;
+                this.divert = localNuo;
+                this.isnuo(localNuo);
+            };
+
+            var localNuoOrder = localStorage.getItem('nuoOrder');
+            if (localNuoOrder != null) {
+                this.ordernum.nuo = localNuoOrder;
+            };
+
+            $("#nuoBarCode").keypress(function (e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    $("#BoxBarCode").select();
+                };
+            });
+
+            $("#BoxBarCode").keypress(function (e) {
+                if (e.keyCode == 13) {
+                    //e.preventDefault();
+                    //if (app.divert == true) {
+                    //    $("#nuoBarCode").select();
+                    //};
+                };
+            });
+
+            $("#BoxBarCode").select();
+        }
+    });
+</script>

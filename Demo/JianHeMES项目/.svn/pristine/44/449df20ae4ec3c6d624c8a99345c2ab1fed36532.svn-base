@@ -1,0 +1,317 @@
+﻿@{
+    //ViewBag.Title = "客诉损失明细按故障及平台分类查询";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/styleFile/moduleManagement/module.less" />
+    <style>
+        .table-top {
+            margin-bottom: 20px;
+        }
+        .m-right {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+        .table .cell, .el-table th, .el-table td, .el-table tr {
+            padding: 2px;
+            font-size: 12px;
+            height: 28px;
+            line-height: 28px;
+        }
+        .lineh {
+            line-height:18px;  
+            cursor:pointer;
+        }
+    </style>
+}
+
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3 class="top-title">客诉损失明细按故障及平台分类查询</h3>
+        </el-header>
+        <el-main>
+            @*日期选择框 *@
+            <el-row class="text-center table-top">
+                <el-select v-model="queryCondition"
+                           @@change="selectCondition"
+                           placeholder="请选择查询方式"
+                           size="medium"
+                           style="width:120px;">
+                    <el-option label="按年查询" value="y">
+                    </el-option>
+                    <el-option label="按年月查询" value="m">
+                    </el-option>
+                </el-select>
+
+                <el-date-picker v-show="queryCondition=='y'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="year"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年">
+                </el-date-picker>
+
+                <el-date-picker v-show="queryCondition=='m'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="month"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年月">
+                </el-date-picker>
+                <el-button type="primary" v-on:click="queryData" size="medium">查询</el-button>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          min-height="234"
+                          max-height="660"
+                          cell-class-name="cellParent"
+                          stripe                                                   
+                          border
+                          v-bind:cell-style="yellowBg">
+                    <el-table-column prop="Fault_Classification"
+                                     label="故障分类"
+                                     align="center"
+                                     min-width="98" style="background:#ff6a00">
+                    </el-table-column>
+                    <el-table-column prop="Fault_Classification"
+                                     label="产品平台"
+                                     align="center">
+                        <el-table-column prop="VF_Platform"
+                                         label="VF平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VF_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VF_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="VL_Platform"
+                                         label="VL平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VL_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VL_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="VK_Platform"
+                                         label="VK平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VK_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VK_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="VH_Platform"
+                                         label="VH平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VH_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VH_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="RE_Platform"
+                                         label="RE平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.RE_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.RE_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="VMQ_Platform"
+                                         label="VMQ平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VMQ_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VMQ_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="VPQ_Platform"
+                                         label="VPQ平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VPQ_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.VPQ_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="FM_Platform"
+                                         label="FM平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.FM_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.FM_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="F_FS_Platform"
+                                         label="F/FS平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.F_FS_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.F_FS_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="FI_FL_Platform"
+                                         label="FI/FL平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.FI_FL_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.FI_FL_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="L_LS_Platform"
+                                         label="L/LS平台"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.L_LS_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.L_LS_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Customization_Platform"
+                                         label="定制屏"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.Customization_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.Customization_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="AllInOne_Platform"
+                                         label="一体机"
+                                         align="center"
+                                         min-width="74">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.AllInOne_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.AllInOne_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Others_Platform"
+                                         label="其他"
+                                         align="center"
+                                         min-width="78">
+                            <template scope="scope">
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.Others_Platform.count|countFilter}}</div>
+                                <div class="lineh" @@click="onSelectData(scope)">{{scope.row.Others_Platform.sum|sumFilter}}</div>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column prop="Times"
+                                     label="发生次数"
+                                     align="center"
+                                     min-width="78">
+                        <template scope="scope">
+                            <div>{{scope.row.Times.count|countFilter}}</div>                           
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="TotalLoss"
+                                     label="累计损失金额"
+                                     align="center"
+                                     min-width="78">
+                        <template scope="scope">
+                            <div>{{scope.row.TotalLoss.sum|sumFilter}}</div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+</div>
+@* 分部页放置处 *@
+@section renderPage {
+    @RenderPage("~/Views/Warehouse_Material/_wareEdit.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+    <script src="~/Content/styleFile/moduleManagement/module.js"></script>
+    <script>
+        Vue.filter("countFilter", function (val) {
+            if (val == 0 || val == undefined) return '';
+            else return `${val}`+"次"            
+        })
+        Vue.filter("sumFilter", function (val) {
+           if (val == 0 || val == undefined) return '';
+            else return "￥"+`${val}`
+        })
+        const app = {
+            data: function () {
+                return {                    
+                    queryCondition: 'm',
+                    selectTime: null,     // 所选时间
+                    year: '',
+                    month: '',
+                    tableData: [],        // 客诉损失表格                                                       
+                }
+            },
+            created: function () {
+            },
+            mounted: function () {
+                this.selectDate();
+            },
+            //函数方法
+            methods: {              
+                selectCondition() {
+                    this.selectDate(this.selectTime);
+                },
+                //选择时间
+                selectDate(v) {
+                    if (v != "" && v != null) {
+                        let dd = new Date(this.selectTime)
+                        if (this.queryCondition == 'y') {//按月
+                            this.year = dd.getFullYear()
+                            this.month = 0
+                        };
+                        if (this.queryCondition == 'm') {//按年月
+                            this.year = dd.getFullYear()
+                            this.month = dd.getMonth() + 1
+                        };
+                    }
+                },
+
+                //查询 表格渲染
+                queryData() {
+                    axios.post("/Customer_Complaints/Customer_loss_byFaultOrType_Query", { year: this.year, month: this.month }).then(res => {
+                        console.log(res.data)
+                        this.tableData = res.data
+                    })
+
+                },
+
+                yellowBg({ row, column, rowIndex, columnIndex }) {
+                    if (columnIndex == 0) {
+                        return {
+                            background: '#E4ECF7',
+                        }                    
+                    } else {
+                        return {
+                            color: '',
+                        }
+                    };
+                },
+
+                onSelectData(scope) {
+                    if (scope.row.Fault_Classification != "发生次数" && scope.row.Fault_Classification != "累计损失金额") {
+                        window.open("/Customer_Complaints/Customer_loss?" + "year=" + this.year + "&month=" + this.month + "&PlatformOptions_value=" + scope.column.label + "&Fault_Classification_Options_value=" + scope.row.Fault_Classification)
+                    } else {
+                        this.$message.error("此行不允许点击查询")
+                    }
+                }
+                
+            },
+        };
+    </script>
+}
