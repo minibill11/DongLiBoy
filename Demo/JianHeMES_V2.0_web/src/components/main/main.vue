@@ -1,78 +1,99 @@
 <template>
-<div v-cloak>
-  <Layout>
-    <Header class="header-top">
-      <div class="logo-con">
-        <img :src="Logo" />
-      </div>
-       <header-bar :collapsed="collapsed" @on-coll-change="handleCollapsedChange">
-          </header-bar>
-      <user :user-info="userInfo" />
-      <!-- <user :message-unread-count="unreadCount" :user-avatar="userAvatar" /> -->
-    </Header>
-    <Layout class="main">
-      <Sider
-        hide-trigger
-        collapsible
-        :width="240"
-        :collapsed-width="50"
-        v-model="collapsed"
-        class="left-sider"
-        :style="{overflow: 'hidden'}"
-      >
-        <side-menu
-          accordion
-          ref="sideMenu"
-          :active-name="$route.name"
+  <div v-cloak>
+    <Layout>
+      <Header class="header-top">
+        <div class="logo-con">
+          <img :src="Logo" v-if="flag"/>
+          <img :src="LogoCollapsed" v-if="!flag"/>
+        </div>
+        <header-bar
           :collapsed="collapsed"
-          @on-select="turnToPage"
-          :menu-list="menuList"
+          :flag="flag"
+          @on-coll-change="handleCollapsedChange"
         >
-        </side-menu>
-      </Sider>
-      <!-- <Layout>
-        <Content class="main-content-con"> -->
-          <Layout class="main-layout-con">
-            <Content class="content-wrapper">
-              <keep-alive :include="cacheList">
-                <router-view />
-              </keep-alive>
-              <ABackTop :height="100" :bottom="80" :right="50" container=".content-wrapper"></ABackTop>
-              <Footer></Footer>
-            </Content>
-          </Layout>
-        <!-- </Content>
-      </Layout> -->
-      
+        </header-bar>
+        <user :user-info="userInfo" />
+        <!-- <user :message-unread-count="unreadCount" :user-avatar="userAvatar" /> -->
+      </Header>
+      <Layout class="main">
+        <Sider
+          breakpoint="md"
+          hide-trigger
+          collapsible
+          :width="flag?'240':screenWidth"
+          :collapsed-width="50"
+          v-model="collapsed"
+          class="left-sider"
+          :style="{ overflow: 'auto' }"
+        >
+          <side-menu
+            accordion
+            ref="sideMenu"
+            :active-name="$route.name"
+            :collapsed="collapsed"
+            @on-select="turnToPage"
+            :menu-list="menuList"
+          >
+          </side-menu>
+        </Sider>
+        <Layout class="main-layout-con">
+          <div :class="'tag-nav-wrapper'">
+            <tags-nav
+              :value="$route"
+              @input="handleClick"
+              :list="tagNavList"
+              @on-close="handleCloseTag"
+            />
+          </div>
+          <Content class="content-wrapper">
+            <keep-alive :include="cacheList">
+              <router-view />
+            </keep-alive>
+            <ABackTop
+              :height="100"
+              :bottom="80"
+              :right="50"
+              container=".content-wrapper"
+            ></ABackTop>
+          </Content>
+          <Footer></Footer>
+        </Layout>
+      </Layout>
     </Layout>
-  </Layout>
   </div>
 </template>
 <script>
 import SideMenu from "./components/side-menu";
 import HeaderBar from "./components/header-bar";
+import TagsNav from "./components/tags-nav";
 import User from "./components/user";
 import ABackTop from "./components/a-back-top";
 import Footer from "./components/footer";
 import { mapMutations, mapActions, mapGetters } from "vuex";
-import { getNewTagList, routeEqual } from "@/libs/util";
+import { getNewTagList, routeEqual, localRemove } from "@/libs/util";
 import routers from "@/router/routers";
 import Logo from "@/assets/images/logo/logo.png";
+import LogoCollapsed from "@/assets/images/logo/logo-collapsed.png";
 import "./main.less";
 export default {
   name: "Main",
+  inject: ["reload"],
   components: {
     SideMenu,
     HeaderBar,
     User,
+    TagsNav,
     Footer,
-    ABackTop
+    ABackTop,
   },
   data() {
     return {
-      userInfo:this.$store.state.user.userInfo,
+      flag: false,
+      userInfo: this.$store.state.user.userInfo,
       collapsed: false,
-      Logo
+      Logo,
+      LogoCollapsed,
+      screenWidth:'',
     };
   },
   computed: {
@@ -82,17 +103,17 @@ export default {
     tagRouter() {
       return this.$store.state.app.tagRouter;
     },
-    userAvatar() {
-      return this.$store.state.user.avatarImgPath;
-    },
+    // userAvatar() {
+    //   return this.$store.state.user.avatarImgPath;
+    // },
     cacheList() {
       const list = [
         "ParentView",
         ...(this.tagNavList.length
           ? this.tagNavList
-              .filter(item => !(item.meta && item.meta.notCache))
-              .map(item => item.name)
-          : [])
+              .filter((item) => !(item.meta && item.meta.notCache))
+              .map((item) => item.name)
+          : []),
       ];
       return list;
     },
@@ -104,16 +125,15 @@ export default {
     },
     unreadCount() {
       return this.$store.state.user.unreadCount;
-    }
+    },
   },
   methods: {
     ...mapMutations([
       "setBreadCrumb",
       "setTagNavList",
       "addTag",
-      "setLocal",
       "setHomeRoute",
-      "closeTag"
+      "closeTag",
     ]),
     ...mapActions(["handleLogin", "getUnreadMessageCount"]),
     turnToPage(route) {
@@ -131,11 +151,14 @@ export default {
       this.$router.push({
         name,
         params,
-        query
+        query,
       });
+      if(!this.flag){
+        this.collapsed=true;
+      }
     },
-    handleCollapsedChange(state) {
-      this.collapsed = state;
+    handleCollapsedChange(val) {
+      this.collapsed = val;
     },
     handleCloseTag(res, type, route) {
       if (type !== "others") {
@@ -144,6 +167,7 @@ export default {
         } else {
           if (routeEqual(this.$route, route)) {
             this.closeTag(route);
+           
           }
         }
       }
@@ -151,48 +175,55 @@ export default {
     },
     handleClick(item) {
       this.turnToPage(item);
-    }
+        this.reload();
+    },
   },
   watch: {
     $route(newRoute) {
       const { name, query, params, meta } = newRoute;
       this.addTag({
         route: { name, query, params, meta },
-        type: "push"
+        type: "push",
       });
       this.setBreadCrumb(newRoute);
       this.setTagNavList(getNewTagList(this.tagNavList, newRoute));
       this.$refs.sideMenu.updateOpenName(newRoute.name);
-    }
+    },
   },
   mounted() {
+    // 判断当前屏幕
+    if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
+      this.flag=false;   //移动端
+      this.screenWidth =window.screen.width;
+      return;
+    } else {
+      this.flag = true;       //pc端
+    }
     // console.log(this.userInfo);
     /**
      * @description 初始化设置面包屑导航和标签导航
      */
     // console.log(JSON.stringify(this.userInfo)=='{}');
-    if(JSON.stringify(this.userInfo)=='{}'){
-       this.$router.push({
-        name: 'login'
+    if (JSON.stringify(this.userInfo) == "{}") {
+      this.$router.push({
+        name: "login",
       });
     }
     this.setTagNavList();
     this.setHomeRoute(routers);
     const { name, params, query, meta } = this.$route;
     this.addTag({
-      route: { name, params, query, meta }
+      route: { name, params, query, meta },
     });
     this.setBreadCrumb(this.$route);
-    // 设置初始语言
-    this.setLocal(this.$i18n.locale);
     // 如果当前打开页面不在标签栏中，跳到homeName页
-    if (!this.tagNavList.find(item => item.name === this.$route.name)) {
+    if (!this.tagNavList.find((item) => item.name === this.$route.name)) {
       this.$router.push({
-        name: this.$config.homeName
+        name: this.$config.homeName,
       });
     }
     // 获取未读消息条数
     // this.getUnreadMessageCount();
-  }
+  },
 };
 </script>

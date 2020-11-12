@@ -469,6 +469,14 @@ namespace JianHeMES.Models
         [Display(Name = "班组"), StringLength(50)]
         public string Group { get; set; }
 
+        [Display(Name = "颜色"), StringLength(50)]
+        public string COLOURS { get; set; }
+
+        [Display(Name = "规格型号"), StringLength(50)]
+        public string ITEMNO { get; set; }
+
+        [Display(Name = "备注"), StringLength(200)]
+        public string Remark { get; set; }
     }
 
 

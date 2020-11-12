@@ -1364,7 +1364,7 @@ namespace JianHeMES.Controllers
 
         #region ------内箱or外箱装箱规则
         #region 内箱OR外箱装箱规则
-        public ActionResult GetInnerInfo(List<ModulePackageRule> modulePackageRule)
+        public ActionResult GetInnerInfo(List<ModulePackageRule> modulePackageRule, string ITEMNO = null, string COLOURS = null, string Remark = null)
         {
             //先删除原有的
             var ordernum = modulePackageRule.Select(c => c.OrderNum).FirstOrDefault();//提出订单号
@@ -1377,6 +1377,9 @@ namespace JianHeMES.Controllers
             {
                 modulePackageRule.ForEach(c => { c.CreateDate = DateTime.Now; c.Creator = ((Users)Session["User"]).UserName; });
                 db.ModulePackageRule.AddRange(modulePackageRule);//添加
+                db.SaveChanges();
+                var info = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).ToList();
+                info.ForEach(c => { c.ITEMNO = ITEMNO; c.COLOURS = COLOURS; c.Remark = Remark; });
                 db.SaveChanges();
                 return Content("ok");
             }
@@ -1394,17 +1397,20 @@ namespace JianHeMES.Controllers
         /// <returns></returns>
         public ActionResult GetValueFromOrderNum(string ordernum, string statue)
         {
-            JObject valueitem = new JObject();
-            JObject value = new JObject();
+
+            JArray value = new JArray();
+            JObject result = new JObject();
+
             var packingList = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).ToList();//根据订单显示包装规则信息
 
-            if (packingList == null)//如果规则信息为空
+            if (packingList.Count == 0)//如果规则信息为空
             {
                 return Content("");
             }
             int i = 0;
             foreach (var item in packingList)//循环规则信息
             {
+                JObject valueitem = new JObject();
                 valueitem.Add("packingType", item.Type);//包装类型
                 valueitem.Add("itemNum", item.OuterBoxCapacity);//包装容量
                 valueitem.Add("Num", item.Quantity);//包装数量
@@ -1431,13 +1437,30 @@ namespace JianHeMES.Controllers
                     valueitem.Add("update", "false");//有包装打印记录，不可以修改
                     valueitem.Add("min", count);
                 }
-                value.Add(i.ToString(), valueitem);
+                value.Add(valueitem);
                 i++;
-                valueitem = new JObject();
             }
-            return Content(JsonConvert.SerializeObject(value));
+            result.Add("Data", value);
+            return Content(JsonConvert.SerializeObject(result));
         }
 
+        //拿到规格型号,颜色,备注
+        public ActionResult InformationFromOrderNum(string ordernum)
+        {
+            
+            JObject result = new JObject();
+
+            var packingList = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).ToList();//根据订单显示包装规则信息
+
+            if (packingList.Count == 0)//如果规则信息为空
+            {
+                return Content("");
+            }
+            result.Add("ITEMNO", packingList.FirstOrDefault().ITEMNO);//规格型号
+            result.Add("COLOURS", packingList.FirstOrDefault().COLOURS);//颜色
+            result.Add("Remark", packingList.FirstOrDefault().Remark);//特长的一段字符串
+            return Content(JsonConvert.SerializeObject(result));
+        }
         #endregion
 
         #region------内箱装箱记录
@@ -1553,6 +1576,12 @@ namespace JianHeMES.Controllers
                         break;
                     }
                 }
+                var rule = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).Select(c => new { c.ITEMNO, c.COLOURS, c.Remark }).FirstOrDefault();
+                var boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity * c.OuterBoxCapacity);
+                result.Add("ITEMNO", rule.ITEMNO);
+                result.Add("COLOURS", rule.COLOURS);
+                result.Add("Remark", rule.Remark);
+                result.Add("CTNS_PSC", boxnum);//数量 3/boxnum
                 JArray completeArray = new JArray();
                 var ruleinfo = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue != "外箱").Select(c => c.Statue).Distinct();
                 foreach (var item in ruleinfo)
@@ -1696,6 +1725,13 @@ namespace JianHeMES.Controllers
             #region 数量信息
             var countfromint = basicInfo.FirstOrDefault().OuterBoxCapacity;
             result.Add("count", countfromint);
+            //itemof
+            var rule = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).Select(c=>new { c.ITEMNO,c.COLOURS,c.Remark}).FirstOrDefault();
+            var boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum&&c.Statue=="外箱").Sum(c=>c.Quantity*c.OuterBoxCapacity);
+            result.Add("ITEMNO", rule.ITEMNO);
+            result.Add("COLOURS", rule.COLOURS);
+            result.Add("Remark", rule.Remark);
+            result.Add("CTNS_PSC", boxnum);//数量 3/boxnum
             #endregion
 
             #region 重量信息
@@ -2064,7 +2100,7 @@ namespace JianHeMES.Controllers
         #region---包装打印标签
         //打印标签
         [HttpPost]
-        public ActionResult OutsideBoxLablePrint(int screennum = 1, string ordernum = "", string packagingordernum = "", string outsidebarcode = "", string material_discription = "", int pagecount = 1, string sntn = "", string qty = "", bool logo = true, string ip = "", int port = 0, int concentration = 5, string[] mn_list = null, double? g_Weight = null, double? n_Weight = null, string leng = "", bool testswitch = false, int BPPJNum = 0)
+        public ActionResult OutsideBoxLablePrint(int screennum = 1, string ordernum = "", string packagingordernum = "", string outsidebarcode = "", string material_discription = "", int pagecount = 1, string sntn = "", string qty = "", bool logo = true, string ip = "", int port = 0, int concentration = 5, string[] mn_list = null, double? g_Weight = null, double? n_Weight = null, string leng = "", bool testswitch = false, int BPPJNum = 0, string version = "old")
         {
             if (BPPJNum != 0)
             {
@@ -2084,15 +2120,30 @@ namespace JianHeMES.Controllers
             else
             {
                 if (!String.IsNullOrEmpty(packagingordernum)) ordernum = packagingordernum;//如果有包装新订单号，则使用包装新订单号。
-                var bm = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
-                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-                int totalbytes = bm.ToString().Length;
-                int rowbytes = 10;
-                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-                data += totalbytes + "," + rowbytes + "," + hex;
-                data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
-                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
-                return Content(result);
+                if (version == "new")
+                {
+                    var bm = CreateOutsideBoxLableNewVersion(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                    string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                    int totalbytes = bm.ToString().Length;
+                    int rowbytes = 10;
+                    string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                    data += totalbytes + "," + rowbytes + "," + hex;
+                    data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                    string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                    return Content(result);
+                }
+                else
+                {
+                    var bm = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                    string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                    int totalbytes = bm.ToString().Length;
+                    int rowbytes = 10;
+                    string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                    data += totalbytes + "," + rowbytes + "," + hex;
+                    data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                    string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                    return Content(result);
+                }
             }
         }
         #endregion
@@ -2467,17 +2518,60 @@ namespace JianHeMES.Controllers
             //引入毛重量
             System.Drawing.Font myFont_g_Weight;
             myFont_g_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
+            System.Drawing.Font myFont_n_Weight;
+            myFont_n_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_material_discription;
+            myFont_material_discription = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_screennum;
+            myFont_screennum = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_sntn;
+            myFont_sntn = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_qty;
+            myFont_qty = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "简")
             {
                 theGraphics.DrawString("毛重量(kg)", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("净重(kg)", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序号", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件号/数", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("数量", myFont_qty, bush, 410, 415);
             }
             else if (leng == "英")
             {
                 theGraphics.DrawString("G.W.(kg)", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("N.W.(kg)", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("DESC", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("NO.", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("SN/TN", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("QTY", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("毛重量(kg)", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("淨重(kg)", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序號", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件號/數", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("數量", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("毛重量(G.W.)kg", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("淨重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序號(NO.)", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件號/數(SN/TN)", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("數量(QTY)", myFont_qty, bush, 410, 415);
             }
             else
             {
                 theGraphics.DrawString("毛重量(G.W.)kg", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("净重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序号(NO.)", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件号/数(SN/TN)", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("数量(QTY)", myFont_qty, bush, 410, 415);
             }
 
             //引入毛重量值
@@ -2488,23 +2582,7 @@ namespace JianHeMES.Controllers
 
             //double G_Weight = g_Weight == null ? 0 : (double)g_Weight;           
             theGraphics.DrawString(g_Weight.ToString(), myFont_g_Weight_content, bush, 280, 295);
-
-
-            //引入净重
-            System.Drawing.Font myFont_n_Weight;
-            myFont_n_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("净重(kg)", myFont_n_Weight, bush, 410, 295);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("N.W.(kg)", myFont_n_Weight, bush, 410, 295);
-            }
-            else
-            {
-                theGraphics.DrawString("净重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
-            }
+            
 
             //引入净重值
             System.Drawing.Font myFont_n_Weight_content;
@@ -2514,43 +2592,20 @@ namespace JianHeMES.Controllers
             //double N_Weight = n_Weight == null ? 0 : (double)n_Weight;
             theGraphics.DrawString(n_Weight.ToString(), myFont_n_Weight_content, bush, 600, 295);
 
-
-            //引入物料描述
-            System.Drawing.Font myFont_material_discription;
-            myFont_material_discription = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("DESC", myFont_material_discription, bush, 55, 355);
-            }
-            else
-            {
-                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
-            }
-
             //引入物料描述内容
-            System.Drawing.Font myFont_material_discription_content;
-            myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 275, 355);
-
-            //引入屏序号
-            System.Drawing.Font myFont_screennum;
-            myFont_screennum = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
+            if (leng == "英")
             {
-                theGraphics.DrawString("屏序号", myFont_screennum, bush, 410, 355);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("NO.", myFont_screennum, bush, 410, 355);
+                System.Drawing.Font myFont_material_discription_content;
+                myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 265, 355);
             }
             else
             {
-                theGraphics.DrawString("屏序号(NO.)", myFont_screennum, bush, 410, 355);
+                System.Drawing.Font myFont_material_discription_content;
+                myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 275, 355);
             }
+           
 
             //引入屏序号值
             System.Drawing.Font myFont_screennum_data;
@@ -2559,43 +2614,13 @@ namespace JianHeMES.Controllers
             myFont_screennum_data = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
             theGraphics.DrawString(screennum.ToString(), myFont_screennum_data, bush, 615, 355);
 
-            ////引入SN/TN
-            System.Drawing.Font myFont_sntn;
-            myFont_sntn = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("件号/数", myFont_sntn, bush, 55, 415);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("SN/TN", myFont_sntn, bush, 55, 415);
-            }
-            else
-            {
-                theGraphics.DrawString("件号/数(SN/TN)", myFont_sntn, bush, 55, 415);
-            }
-
+           
             //引入SN/TN内容
             System.Drawing.Font myFont_sntn_content;
             myFont_sntn_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
             theGraphics.DrawString(sntn, myFont_sntn_content, bush, 290, 415);
 
-            //引入数量QTY
-            System.Drawing.Font myFont_qty;
-            myFont_qty = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("数量", myFont_qty, bush, 410, 415);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("QTY", myFont_qty, bush, 410, 415);
-            }
-            else
-            {
-                theGraphics.DrawString("数量(QTY)", myFont_qty, bush, 410, 415);
-            }
-
+           
             //引入数量QTY内容
             System.Drawing.Font myFont_qty_content;
             myFont_qty_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
@@ -2650,8 +2675,263 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+        #region---生成标签图片新版本
+        //生成标签
+        public Bitmap CreateOutsideBoxLableNewVersion(string[] mn_list, string ordernum, string outsidebarcode, string material_discription, string sntn, string qty, bool logo = false, int screennum = 1, double? g_Weight = null, double? n_Weight = null, string leng = "")
+        {
+            //开始绘制图片
+            int initialWidth = 750, initialHeight = 1000;//高4宽3
+            Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
+            Graphics theGraphics = Graphics.FromImage(AllBitmap);
+            Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
+                                                                    //呈现质量
+            theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            //背景色
+            theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+            //double beishuhege = 0.37;
+            Pen pen = new Pen(Color.Black, 3);
+            theGraphics.DrawRectangle(pen, 50, 50, 640, 850);
+            //横线
+            theGraphics.DrawLine(pen, 50, 108, 690, 108);//起点x,起点y坐标，终点x,终点y坐标
+            theGraphics.DrawLine(pen, 50, 175, 690, 175);
+            theGraphics.DrawLine(pen, 50, 242, 690, 242);
+            theGraphics.DrawLine(pen, 50, 308, 690, 308);
+            theGraphics.DrawLine(pen, 50, 375, 690, 375);
+            theGraphics.DrawLine(pen, 50, 441, 690, 441);
+            theGraphics.DrawLine(pen, 50, 570, 690, 570);
+            //竖线
+            theGraphics.DrawLine(pen, 250, 50, 250, 242);
+            theGraphics.DrawLine(pen, 400, 108, 400, 242);
+            theGraphics.DrawLine(pen, 570, 108, 570, 242);
+
+            theGraphics.DrawLine(pen, 250, 308, 250, 441);
+            theGraphics.DrawLine(pen, 400, 308, 400, 441);
+            theGraphics.DrawLine(pen, 570, 308, 570, 441);
+           
+            System.Drawing.Font myFont_g_Weight;
+            myFont_g_Weight = new System.Drawing.Font("Microsoft YaHei UI", 13, FontStyle.Regular);
+
+            if (leng == "简")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+                theGraphics.DrawString("订单号", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("颜色", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("数量", myFont2, bush, 60, 190);
+
+                theGraphics.DrawString("件号", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("屏序号", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重 kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("净重 kg", myFont2, bush, 405, 385);
+
+            }
+            else if (leng == "简/英" || leng == "")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 13, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString("订单号 P0#", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号ITEM NO", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("颜色 COLOURS", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("数量 QTY(CTNS/PCS)", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("件号 PACKAGE#", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述(DESC)", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("屏序号(NO.)", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重(G.W)kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("净重(N.W)kg", myFont2, bush, 405, 385);
+            }
+            else if (leng == "繁")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+                theGraphics.DrawString("訂單號", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("顏色", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("數量", myFont2, bush, 60, 190);
+
+                theGraphics.DrawString("件號", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述", myFont, bush, 60, 320);
+
+                theGraphics.DrawString("屏序號", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重 kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("淨重 kg", myFont2, bush, 405, 385);
+            }
+            else if (leng == "繁/英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 13, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString("訂單號 P0#", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號ITEM NO", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("顏色 COLOURS", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("數量 QTY(CTNS/PCS)", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("件號 PACKAGE#", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述(DESC)", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("屏序號(NO.)", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重(G.W)kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("淨重(N.W)kg", myFont2, bush, 405, 385);
+            }
+            else if (leng == "英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 17, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 21, FontStyle.Regular);
+                theGraphics.DrawString("P0#", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("ITEM NO", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("COLOURS", myFont, bush, 405, 120);
+
+                theGraphics.DrawString("QTY(CTNS/PCS)", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("PACKAGE#", myFont, bush, 405, 190);
+
+                theGraphics.DrawString("DESC", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("NO.", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("(G.W)kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("(N.W)kg", myFont2, bush, 405, 385);
+            }
+            //订单
+            System.Drawing.Font value;
+            value = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+            System.Drawing.Font value2;
+            value2 = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+            StringFormat geshi = new StringFormat();
+            geshi.Alignment = StringAlignment.Center; //居中
+            //geshi.LineAlignment = StringAlignment.Center; //居中
+            theGraphics.DrawString(ordernum, value2, bush, 320, 60);
+
+            //规格型号
+            var info = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").FirstOrDefault();
+            theGraphics.DrawString(info.ITEMNO, value2, bush, 258, 120);
+            //颜色
+            theGraphics.DrawString(info.COLOURS, value, bush, 575, 120);
+            //数量
+            string boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").Sum(c => c.Quantity * c.OuterBoxCapacity).ToString();
+            theGraphics.DrawString(qty + "/" + boxnum, value2, bush, 258, 190);
+            //件号
+            string[] s = sntn.Split('/');
+            theGraphics.DrawString(s[0] + " OF " + s[1], value, bush, 575, 190);
+            //备注
+            theGraphics.DrawString(info.Remark, value2, bush, 215, 260);
+            //物料描述
+            if (leng == "英")
+            {
+                System.Drawing.Font value3;
+                value3 = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString(material_discription, value3, bush, 255, 325);
+            }
+            else
+            {
+                theGraphics.DrawString(material_discription, value2, bush, 258, 320);
+            }
+            //屏序号
+            theGraphics.DrawString(screennum.ToString(), value2, bush, 575, 320);
+            //毛重
+            theGraphics.DrawString(g_Weight.ToString(), value2, bush, 258, 385);
+            //净重
+            theGraphics.DrawString(n_Weight.ToString(), value2, bush, 575, 385);
+            //条形码
+            Bitmap bmp_barcode = BarCodeLablePrint.BarCodeToImg(outsidebarcode, 600, 70);
+            theGraphics.DrawImage(bmp_barcode, 70, 450, (float)bmp_barcode.Width, (float)bmp_barcode.Height);
+
+            //引入条码号
+            System.Drawing.Font myFont_boxbarcode;
+            myFont_boxbarcode = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(outsidebarcode, myFont_boxbarcode, bush, 220, 530);
+
+            //引入模组号清单
+            int mn_E_count = mn_list.Count();
+            //12位模组号以上，包括条码号
+            if (mn_E_count > 5 && mn_E_count <= 10)
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 600;
+                int left_x = 50;
+                for (int i = 0; i < mn_list.Count(); i++)
+                {
+                    theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    if ((i % 2) == 0)
+                    {
+                        left_x += 325;
+                    }
+                    else
+                    {
+                        top_y += 50;
+                        left_x = 50;
+                    }
+                }
+
+            }
+            //11-12位模组号
+            else if (mn_E_count <= 5)
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 30, FontStyle.Regular);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 600;
+                int left_x = 180;
+                for (int i = 0; i < mn_list.Count(); i++)
+                {
+                    theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+
+                    top_y += 90;
+                }
+
+            }
+            //组织数据
+            Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(AllBitmap)));//图形转二值
+            return bm;
+        }
+        #endregion
+
         #region ---查看标签
-        public ActionResult OutsideBoxLablePrintToImg(string outsidebarcode, int BPPJNum = 0, string leng = "")
+        public ActionResult OutsideBoxLablePrintToImg(string outsidebarcode, int BPPJNum = 0, string leng = "", string version = "old")
         {
             var outsidebarcode_recordlist = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode);
             var screem = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
@@ -2660,6 +2940,10 @@ namespace JianHeMES.Controllers
             string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
             string type = outsidebarcode_recordlist.FirstOrDefault().Type;
             string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
+            if (leng == "英")
+            {
+                material_discription = "LED Modules";
+            }
             string sntn = "";
             if (BPPJNum != 0)
             {
@@ -2679,16 +2963,27 @@ namespace JianHeMES.Controllers
                                       //如果有包装新订单号，则使用包装新订单号。
             string packagingordernum = outsidebarcode_recordlist.FirstOrDefault().PackagingOrderNum;
             ordernum = String.IsNullOrEmpty(packagingordernum) ? ordernum : packagingordernum;
-            var AllBitmap = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
-            MemoryStream ms = new MemoryStream();
-            AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            AllBitmap.Dispose();
-            return File(ms.ToArray(), "image/Png");
+            if (version == "new")
+            {
+                var AllBitmap = CreateOutsideBoxLableNewVersion(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                MemoryStream ms = new MemoryStream();
+                AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                AllBitmap.Dispose();
+                return File(ms.ToArray(), "image/Png");
+            }
+            else
+            {
+                var AllBitmap = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                MemoryStream ms = new MemoryStream();
+                AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                AllBitmap.Dispose();
+                return File(ms.ToArray(), "image/Png");
+            }
         }
         #endregion
 
         #region---重复打印
-        public ActionResult OutsideBoxLablePrintAgain(string outsidebarcode, int BPPJNum = 0, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = "")
+        public ActionResult OutsideBoxLablePrintAgain(string outsidebarcode, int BPPJNum = 0, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = "", string version = "old")
         {
             var outsidebarcode_recordlist = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode);
             var screem = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
@@ -2697,6 +2992,10 @@ namespace JianHeMES.Controllers
             string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
             string type = outsidebarcode_recordlist.FirstOrDefault().Type;
             string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
+            if (leng == "英")
+            {
+                material_discription = "LED Modules";
+            }
             string sntn = "";
             if (BPPJNum != 0)
             {
@@ -2716,15 +3015,30 @@ namespace JianHeMES.Controllers
                                       //如果有包装新订单号，则使用包装新订单号。
             string packagingordernum = outsidebarcode_recordlist.FirstOrDefault().PackagingOrderNum;
             ordernum = String.IsNullOrEmpty(packagingordernum) ? ordernum : packagingordernum;
-            var bm = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
-            int totalbytes = bm.ToString().Length;
-            int rowbytes = 10;
-            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-            data += totalbytes + "," + rowbytes + "," + hex;
-            data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
-            string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
-            return Content(result);
+            if (version == "new")
+            {
+                var bm = CreateOutsideBoxLableNewVersion(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return Content(result);
+            }
+            else
+            {
+                var bm = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return Content(result);
+            }
 
 
 
@@ -2765,7 +3079,7 @@ namespace JianHeMES.Controllers
                     //sqlInnerBarcode = InnerBarcode;
                     var substring = new List<string>();
                     tempprint.ForEach(c => substring.Add(c.Substring(c.IndexOf('B'))));
-                    var bm = CreateIntsideBoxLable(substring.ToArray(), orderNumber, sqlInnerBarcode, SN + "/100");
+                    var bm = CreateIntsideBoxLable(substring.ToArray(), orderNumber, sqlInnerBarcode, SN + "/100", "");
                     int totalbytes = bm.ToString().Length;//返回参数总共字节数
                     int rowbytes = 10; //返回参数每行的字节数
                     string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
@@ -2797,7 +3111,7 @@ namespace JianHeMES.Controllers
                 if (i % 10 == 0)
                 { SN++; }
                 i++;
-                
+
             }
             /*
             if (lastprint.Count == 5)
@@ -2821,7 +3135,7 @@ namespace JianHeMES.Controllers
         }
 
 
-        public ActionResult ModuleInsideBoxLablePrint(string[] barcodelist, string orderNumber, string InnerBarcode, string ip = "", int port = 0, int concentration = 5)
+        public ActionResult ModuleInsideBoxLablePrint(string[] barcodelist, string orderNumber, string InnerBarcode, string ip = "", int port = 0, int concentration = 5, string version = "old", string leng = "简")
         {
             var quantity = db.ModulePackageRule.Where(c => c.OrderNum == orderNumber && c.Statue == "纸箱").Select(c => c.Quantity).ToList();
             var tn = 0;
@@ -2830,21 +3144,39 @@ namespace JianHeMES.Controllers
                 tn = quantity.Sum();
             }
             var sn = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == InnerBarcode).Select(c => c.SN).FirstOrDefault();
+            if (version == "new")
+            {
+                string type = barcodelist.Count().ToString();
 
-            var bm = CreateIntsideBoxLable(barcodelist, orderNumber, InnerBarcode, sn + "/" + tn);
-            int totalbytes = bm.ToString().Length;//返回参数总共字节数
-            int rowbytes = 10; //返回参数每行的字节数
-            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);//位图转ZPL指令
-            data += totalbytes + "," + rowbytes + "," + hex;
-            data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
-            var result = ZebraUnity.IPPrint(data.ToString(), 1, ip, port);
+                Bitmap bm = CreateIntsideBoxLableNewVersion(barcodelist, orderNumber, InnerBarcode, sn + "/" + tn, leng);
+                int totalbytes = bm.ToString().Length;//返回参数总共字节数
+                int rowbytes = 10; //返回参数每行的字节数
+                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);//位图转ZPL指令
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                var result = ZebraUnity.IPPrint(data.ToString(), 1, ip, port);
 
-            return Content(result);
+                return Content(result);
+            }
+            else
+            {
+                Bitmap bm = CreateIntsideBoxLable(barcodelist, orderNumber, InnerBarcode, sn + "/" + tn, leng);
+                int totalbytes = bm.ToString().Length;//返回参数总共字节数
+                int rowbytes = 10; //返回参数每行的字节数
+                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);//位图转ZPL指令
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                var result = ZebraUnity.IPPrint(data.ToString(), 1, ip, port);
+
+                return Content(result);
+            }
+
         }
 
         #region--生成模块内箱标签图片
-        public Bitmap CreateIntsideBoxLable(string[] mn_list, string ordernum, string innboxNUm, string sntn)
+        public Bitmap CreateIntsideBoxLable(string[] mn_list, string ordernum, string innboxNUm, string sntn, string leng)
         {
             #region 60*30版本
             //int initialWidth = 500, initialHeight = 250;
@@ -2938,10 +3270,36 @@ namespace JianHeMES.Controllers
             //theGraphics.DrawLine(pen, 358, 353, 700, 353);
             //画竖线
             // theGraphics.DrawLine(pen, 458, 50, 458, 175);
-
             System.Drawing.Font myFont_orderNumber1;
             myFont_orderNumber1 = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            theGraphics.DrawString("订单号:    " + ordernum, myFont_orderNumber1, bush, 60, 60);//{
+            System.Drawing.Font myFont_jianhao;
+            myFont_jianhao = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "简")
+            {
+                theGraphics.DrawString("订单号:    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件号/数(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("Order No:    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("PACKAGE(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("訂單號:    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件號/數(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("訂單號(Order No):   " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件號/數 PACKAGE(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else
+            {
+                theGraphics.DrawString("订单号(Order No):    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件号/数 PACKAGE(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+           
 
             //System.Drawing.Font myFont_orderNumber;
             ////字体微软雅黑，大小40，样式加粗
@@ -2952,9 +3310,6 @@ namespace JianHeMES.Controllers
             //theGraphics.DrawString(ordernum, myFont_orderNumber, bush, 100, 60);
 
             //}
-            System.Drawing.Font myFont_jianhao;
-            myFont_jianhao = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            theGraphics.DrawString("件号/数(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
             //引入SNTN
             //设置格式            
             //System.Drawing.Font myFont_snt;
@@ -3025,52 +3380,256 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+        #region--生成模块新版内箱标签图片
+        public Bitmap CreateIntsideBoxLableNewVersion(string[] mn_list, string ordernum, string innboxNUm, string sntn, string leng)
+        {
+            int initialWidth = 750, initialHeight = 1000;
+            Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
+            Graphics theGraphics = Graphics.FromImage(AllBitmap);
+            Brush bush = new SolidBrush(System.Drawing.Color.Black);
+            theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+            Pen pen = new Pen(Color.Black, 3);//定义笔的大小
+            theGraphics.DrawRectangle(pen, 50, 50, 650, 900);  //x,y,width:绘制矩形的宽度,height：绘制的矩形的高度
+                                                               //画横线                                                 
+            theGraphics.DrawLine(pen, 50, 108, 700, 108);//起点x,起点y坐标，终点x,终点y坐标
+            theGraphics.DrawLine(pen, 50, 175, 700, 175);
+            theGraphics.DrawLine(pen, 50, 242, 700, 242);
+            theGraphics.DrawLine(pen, 50, 308, 700, 308);
+            theGraphics.DrawLine(pen, 50, 375, 700, 375);
+            theGraphics.DrawLine(pen, 50, 441, 700, 441);
+            theGraphics.DrawLine(pen, 50, 570, 700, 570);
+            //theGraphics.DrawLine(pen, 358, 353, 700, 353);
+            //画竖线
+            theGraphics.DrawLine(pen, 300, 50, 300, 375);
+            if (leng == "简")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("订单号", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("颜色", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("数量", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件号", myFont, bush, 60, 320);
+            }
+            else if (leng == "简/英" || leng == "")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("订单号 PO#", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号 ITEM NO ", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("颜色 COLOURS", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("数量 QTY(PSC)", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件号 PACKAGE#", myFont, bush, 60, 320);
+            }
+            else if (leng == "繁")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("訂單號", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("顏色", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("數量", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件號", myFont, bush, 60, 320);
+            }
+            else if (leng == "繁/英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("訂單號 PO#", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號 ITEM NO", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("顏色 COLOURS", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("數量 QTY(PSC)", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件號 PACKAGE#", myFont, bush, 60, 320);
+            }
+            else if (leng == "英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("PO#", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("ITEM NO", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("COLOURS", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("QTY(PSC)", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("PACKAGE#", myFont, bush, 60, 320);
+            }
+            //订单号
+            System.Drawing.Font value;
+            value = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(ordernum, value, bush, 380, 60);
+            //规格型号
+            var info = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).FirstOrDefault();
+            theGraphics.DrawString(info.ITEMNO, value, bush, 380, 120);
+            //颜色
+            theGraphics.DrawString(info.COLOURS, value, bush, 380, 190);
+            //数量
+            string boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "纸箱").Sum(c => c.Quantity * c.OuterBoxCapacity).ToString();
+            int mn_E_count = mn_list.Count();
+            theGraphics.DrawString(mn_E_count + "/" + boxnum, value, bush, 380, 255);
+            //件号
+            string[] s = sntn.Split('/');
+            theGraphics.DrawString(s[0] + " OF " + s[1], value, bush, 380, 320);
+            //备注
+            theGraphics.DrawString(info.Remark, value, bush, 215, 388);
+            //引入条形码
+            Bitmap spc_barcode = BarCodeLablePrint.BarCodeToImg(innboxNUm, 550, 60);
+            //double beishuhege = 0.7;
+            theGraphics.DrawImage(spc_barcode, 100, 450, (float)spc_barcode.Width, (float)spc_barcode.Height);
+
+            //引入条码号
+            System.Drawing.Font myFont_spc_OuterBoxBarcode;
+            myFont_spc_OuterBoxBarcode = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Bold);
+            theGraphics.DrawString(innboxNUm, myFont_spc_OuterBoxBarcode, bush, 230, 520);
+
+            //引入模组号清单
+
+            //20位模组号以上，包括条码号
+            if (mn_list.Count() <= 20)
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 28, FontStyle.Bold);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 580;
+                int left_x = 60;
+                for (int i = 1; i < mn_list.Count() + 1; i++)
+                {
+                    theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    if ((i % 4) != 0)
+                    {
+                        left_x += 155;
+                    }
+                    else
+                    {
+                        top_y += 50;
+                        left_x = 60;
+                    }
+                }
+            }
+            else
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Bold);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 580;
+                int left_x = 60;
+                for (int i = 1; i < mn_list.Count() + 1; i++)
+                {
+                    theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    if ((i % 5) != 0)
+                    {
+                        left_x += 124;
+                    }
+                    else
+                    {
+                        top_y += 30;
+                        left_x = 60;
+                    }
+                }
+            }
+            Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(AllBitmap)));//图形转二值
+            return bm;
+        }
+        #endregion
+
         #region ---查看内箱标签
-        public ActionResult InsideBoxLablePrintToImg(string outsidebarcode, string statue)
+        public ActionResult InsideBoxLablePrintToImg(string outsidebarcode, string statue, string version = "old", string leng = "简/英")
         {
             var outsidebarcode_recordlist = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode);
             var ordernum = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode).Select(c => c.OrderNum).FirstOrDefault();//订单和挪用订单
                                                                                                                                        //string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
-            string type = outsidebarcode_recordlist.FirstOrDefault().Type;
-            string sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity);
+                                                                                                                                       //string type = outsidebarcode_recordlist.FirstOrDefault().Type;
+            var sn = outsidebarcode_recordlist.FirstOrDefault().SN;
+            var tn = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity);
+
             var mn_list = outsidebarcode_recordlist.Select(c => c.ModuleBarcode).ToList();
             List<string> barcodelsit = new List<string>();
-            var ss = mn_list[1].Substring(mn_list[1].IndexOf('B')).ToString();
+            //var ss = mn_list[1].Substring(mn_list[1].IndexOf('B')).ToString();
             mn_list.ForEach(c => barcodelsit.Add(c.Substring(c.IndexOf('B')).ToString()));
-
-            var AllBitmap = CreateIntsideBoxLable(barcodelsit.ToArray(), ordernum, outsidebarcode, sntn);
-            MemoryStream ms = new MemoryStream();
-            AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            AllBitmap.Dispose();
-            return File(ms.ToArray(), "image/Png");
+            if (version == "new")
+            {
+                var boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity * c.OuterBoxCapacity);
+                var AllBitmap = CreateIntsideBoxLableNewVersion(barcodelsit.ToArray(), ordernum, outsidebarcode, sn + "/" + tn, leng);
+                MemoryStream ms = new MemoryStream();
+                AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                AllBitmap.Dispose();
+                return File(ms.ToArray(), "image/Png");
+            }
+            else
+            {
+                var AllBitmap = CreateIntsideBoxLable(barcodelsit.ToArray(), ordernum, outsidebarcode, sn + "/" + tn, leng);
+                MemoryStream ms = new MemoryStream();
+                AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                AllBitmap.Dispose();
+                return File(ms.ToArray(), "image/Png");
+            }
         }
+
         #endregion
 
         #region---内箱重复打印
-        public ActionResult InsideBoxLablePrintAgain(string outsidebarcode, string statue, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = "")
+        public ActionResult InsideBoxLablePrintAgain(string outsidebarcode, string statue, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = "", string version = "old")
         {
             var outsidebarcode_recordlist = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode);
             var ordernum = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode).Select(c => c.OrderNum).FirstOrDefault();//订单和挪用订单
 
-            string sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity);
+            var sn = outsidebarcode_recordlist.FirstOrDefault().SN;
+            var tn = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity);
+
 
             var mn_list = outsidebarcode_recordlist.Select(c => c.ModuleBarcode).ToList();
             List<string> barcodelsit = new List<string>();
-            var ss = mn_list[1].Substring(mn_list[1].IndexOf('B')).ToString();
+            //var ss = mn_list[1].Substring(mn_list[1].IndexOf('B')).ToString();
             mn_list.ForEach(c => barcodelsit.Add(c.Substring(c.IndexOf('B')).ToString()));
 
             //如果有包装新订单号，则使用包装新订单号。
-            var bm = CreateIntsideBoxLable(barcodelsit.ToArray(), ordernum, outsidebarcode, sntn);
-            int totalbytes = bm.ToString().Length;
-            int rowbytes = 10;
-            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-            data += totalbytes + "," + rowbytes + "," + hex;
-            data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
-            string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
-            return Content(result);
+            if (version == "new")
+            {
+                var type = outsidebarcode_recordlist.FirstOrDefault().Type.Substring(2);
+                var boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity * c.OuterBoxCapacity);
+                var bm = CreateIntsideBoxLableNewVersion(barcodelsit.ToArray(), ordernum, outsidebarcode, sn + "/" + tn, leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return Content(result);
 
-
+            }
+            else
+            {
+                var bm = CreateIntsideBoxLable(barcodelsit.ToArray(), ordernum, outsidebarcode, sn + "/" + tn, leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data += totalbytes + "," + rowbytes + "," + hex;
+                data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return Content(result);
+            }
 
         }
         #endregion
@@ -4513,7 +5072,7 @@ namespace JianHeMES.Controllers
         {
             string ordernum = data["ordernum"].ToString();//订单
             string UserName = data["UserName"].ToString();//用户
-            var modulbarcode = data["modulbarcode"].ToList();//条码列表
+            List<string> modulbarcode =JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject( data["modulbarcode"]));//条码列表
             JObject result = new JObject();
             if (ModelState.IsValid)
             {
@@ -4624,39 +5183,33 @@ namespace JianHeMES.Controllers
         [ApiAuthorize]
         public JObject InnerInfo([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+
+            string ITEMNO = obj.ITEMNO.ToString();//规格型号
+            string COLOURS = obj.COLOURS.ToString();//颜色
+            string Remark = obj.Remark.ToString();//备注
+            string UserName = obj.UserName.ToString();//用户名
+            //string Department = data["Department"].ToString();//部门
+            //string Group = data["Group"].ToString();//班组
+            List<ModulePackageRule> modulePackageRule = JsonConvert.DeserializeObject<List<ModulePackageRule>>(JsonConvert.SerializeObject(obj.modulePackageRule));
             //先删除原有的
-            string ordernum = data["ordernum"].ToString();//订单号
-            string statue = data["statue"].ToString();//纸箱,纸盒,外箱
-            string UserName = data["UserName"].ToString();//用户名
-            string Department = data["Department"].ToString();//部门
-            string Group = data["Group"].ToString();//班组
-            JArray modulePackageRule = (JArray)data["modulePackageRule"];//数据包含装箱类型:Type,每箱数量:OuterBoxCapacity,包装箱件数:Quantity,是否分屏:IsSeparate,屏序:ScreenNum,是否分批:IsBatch,批次号:Batch
+            string ordernum = modulePackageRule.Select(c => c.OrderNum).FirstOrDefault();//提出订单号
+            string statue = modulePackageRule.FirstOrDefault().Statue;
             var list = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).ToList();//根据订单找到信息
             db.ModulePackageRule.RemoveRange(list);//移除
             db.SaveChanges();
             //生成新的
-            List<ModulePackageRule> ruliList = new List<ModulePackageRule>();
-            foreach (var item in modulePackageRule)
+            if (ModelState.IsValid)//判断数据格式是否正确
             {
-                ModulePackageRule rule = new ModulePackageRule();
-                rule.OrderNum = ordernum;
-                rule.Statue = statue;
-                rule.Type = item["Type"].ToString();//装箱类型
-                rule.OuterBoxCapacity = int.Parse(item["OuterBoxCapacity"].ToString());//每箱数量
-                rule.Creator = UserName;//创建人
-                rule.CreateDate = DateTime.Now;//创建时间
-                rule.Quantity = int.Parse(item["Quantity"].ToString());//包装箱件数
-                rule.IsSeparate = bool.Parse(item["IsSeparate"].ToString());//是否分屏
-                rule.ScreenNum = int.Parse(item["ScreenNum"].ToString());//屏序号
-                rule.IsBatch = bool.Parse(item["IsBatch"].ToString());//是否分批
-                rule.Batch = int.Parse(item["Batch"].ToString());//批次号
-                rule.Department = Department;//批次号
-                rule.Group = Group;//批次号
-                ruliList.Add(rule);
+                modulePackageRule.ForEach(c => { c.CreateDate = DateTime.Now; c.Creator = UserName; });
+                db.ModulePackageRule.AddRange(modulePackageRule);//添加
+                db.SaveChanges();
+                var info = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).ToList();
+                info.ForEach(c => { c.ITEMNO = ITEMNO; c.COLOURS = COLOURS; c.Remark = Remark; });
+                db.SaveChanges();
+                return com.GetModuleFromJobjet(null, true, "成功");
             }
-            db.ModulePackageRule.AddRange(ruliList);//添加
-            db.SaveChanges();
-            return com.GetModuleFromJobjet(null, true, "OK");
+            return com.GetModuleFromJobjet(null, false, "失败");
         }
 
         #endregion
@@ -4672,8 +5225,9 @@ namespace JianHeMES.Controllers
         [ApiAuthorize]
         public JObject ValueFromOrderNum([System.Web.Http.FromBody]JObject data)
         {
-            string ordernum = data["ordernum"].ToString();//订单
-            string statue = data["statue"].ToString();//纸盒纸箱外箱
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;//订单
+            string statue = obj.statue;//纸盒纸箱外箱
             JObject valueitem = new JObject();
             JObject value = new JObject();
             var packingList = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).ToList();//根据订单显示包装规则信息
@@ -4718,6 +5272,26 @@ namespace JianHeMES.Controllers
             return com.GetModuleFromJobjet(value);
         }
 
+        [HttpPost]
+        [ApiAuthorize]
+        //拿到规格型号,颜色,备注
+        public JObject InformationFromOrderNum([System.Web.Http.FromBody]JObject data)
+        {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;//订单
+            JObject result = new JObject();
+
+            var packingList = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).ToList();//根据订单显示包装规则信息
+
+            if (packingList.Count == 0)//如果规则信息为空
+            {
+                return com.GetModuleFromJobjet(null, false, "规则信息为空");
+            }
+            result.Add("ITEMNO", packingList.FirstOrDefault().ITEMNO);//规格型号
+            result.Add("COLOURS", packingList.FirstOrDefault().COLOURS);//颜色
+            result.Add("Remark", packingList.FirstOrDefault().Remark);//特长的一段字符串
+            return com.GetModuleFromJobjet(result, true, "规则信息为空");
+        }
         #endregion
 
         #region------内箱装箱记录
@@ -4726,7 +5300,7 @@ namespace JianHeMES.Controllers
          * 1.不常用,内箱打印剩余条码
          * 根据订单拿到已经后焊的条码列表和已经装内箱的条码列表,求差得到已后焊但没有装内箱的条码列表
          * 循环已后焊但没有装内箱的条码列表,根据订单拼出内箱条码号,序列号那已装内省的最后一个序列号+1,根据装箱类型 例如1装10,循环到第10个,就开始打印条码.并且序列号+1.以此类推
-         */
+        
         [HttpPost]
         [ApiAuthorize]
         public void Remaining([System.Web.Http.FromBody]JObject data)
@@ -4783,6 +5357,7 @@ namespace JianHeMES.Controllers
             }
 
         }
+         */
         //输入订单号显示内箱条码和SN/TN/类型
         /* 1.先根据订单和装箱款式找是否有创建装箱规则
          * 2.拿到装箱规则定义的装箱数量,去对比已经装箱的数量,判断该订单是否都已经装箱完成
@@ -4846,6 +5421,12 @@ namespace JianHeMES.Controllers
                         break;
                     }
                 }
+                var rule = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).Select(c => new { c.ITEMNO, c.COLOURS, c.Remark }).FirstOrDefault();
+                var boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity * c.OuterBoxCapacity);
+                result.Add("ITEMNO", rule.ITEMNO);
+                result.Add("COLOURS", rule.COLOURS);
+                result.Add("Remark", rule.Remark);
+                result.Add("CTNS_PSC", boxnum);//数量 3/boxnum
                 JArray completeArray = new JArray();
                 var ruleinfo = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue != "外箱").Select(c => c.Statue).Distinct();
                 foreach (var item in ruleinfo)
@@ -4872,16 +5453,17 @@ namespace JianHeMES.Controllers
         [ApiAuthorize]
         public JObject ModuleInsideTheBoxCreate([System.Web.Http.FromBody]JObject data)
         {
-            string type = data["type"].ToString();//1装10
-            string ordernum = data["ordernum"].ToString();//订单
-            string innerBarccode = data["innerBarccode"].ToString();//内箱标签
-            string UserName = data["UserName"].ToString();//用户名
-            int SN = int.Parse(data["SN"].ToString());//SN
-            string statue = data["statue"].ToString();//装箱款式
-            string Department = data["Department"].ToString();//部门
-            string Group = data["Group"].ToString();//班组
-            var barcodeList = data["barcodeList"].ToList();//条码列表
-            bool IsLast = bool.Parse(data["IsLast"].ToString());//是否是尾箱
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string type = obj.type;//1装10
+            string ordernum = obj.ordernum;//订单
+            string innerBarccode = obj.innerBarccode;//内箱标签
+            string UserName = obj.UserName;//用户名
+            int SN = obj.SN == null ? 0 : obj.SN;//SN
+            string statue = obj.statue;//装箱款式
+            string Department = obj.Department;//部门
+            string Group = obj.Group;//班组
+            List<string> barcodeList = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(obj.barcodeList));//条码列表
+            bool IsLast = obj.IsLast == null ? false : obj.IsLast;//是否是尾箱
             List<ModuleInsideTheBox> moduleList = new List<ModuleInsideTheBox>();
 
 
@@ -4916,8 +5498,9 @@ namespace JianHeMES.Controllers
         //根据订单判断是否有内内箱
         [HttpPost]
         [ApiAuthorize]
-        public JObject PackList(string ordernum)
+        public JObject PackList([System.Web.Http.FromBody]JObject data)
         {
+            string ordernum = data["ordernum"].ToString();
             var orders = db.ModulePackageRule.OrderByDescending(m => m.ID).Where(c => c.OrderNum == ordernum && c.Statue != "外箱").Select(m => m.Statue).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
             JArray result = new JArray();
             foreach (var item in orders)
@@ -4943,11 +5526,12 @@ namespace JianHeMES.Controllers
         [ApiAuthorize]
         public JObject OuthersideBoxInfo([System.Web.Http.FromBody]JObject data)
         {
-            string ordernum = data["ordernum"].ToString();//订单
-            string type = data["type"].ToString();//类型
-            int screenNum = int.Parse(data["screenNum"].ToString());//屏序号
-            int batchNum = int.Parse(data["batchNum"].ToString());//批次号
-            bool IsLast = bool.Parse(data["IsLast"].ToString());//是否是尾箱
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;//订单
+            string type = obj.type;//类型
+            int screenNum = obj.screenNum == null ? 1 : obj.screenNum;//屏序号
+            int batchNum = obj.batchNum == null ? 1 : obj.batchNum;//批次号
+            bool IsLast = obj.IsLast == null ? false : obj.IsLast;//是否是尾箱
             JObject result = new JObject();
 
             var basicInfo = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Type == type && c.ScreenNum == screenNum && c.Batch == batchNum && c.Statue == "外箱").ToList(); //查找包装规则信息
@@ -5016,6 +5600,12 @@ namespace JianHeMES.Controllers
             #region 数量信息
             var countfromint = basicInfo.FirstOrDefault().OuterBoxCapacity;
             result.Add("count", countfromint);
+            var rule = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).Select(c => new { c.ITEMNO, c.COLOURS, c.Remark }).FirstOrDefault();
+            var boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").Sum(c => c.Quantity * c.OuterBoxCapacity);
+            result.Add("ITEMNO", rule.ITEMNO);
+            result.Add("COLOURS", rule.COLOURS);
+            result.Add("Remark", rule.Remark);
+            result.Add("CTNS_PSC", boxnum);//数量 3/boxnum
             #endregion
 
             #region 重量信息
@@ -5105,10 +5695,11 @@ namespace JianHeMES.Controllers
         [ApiAuthorize]
         public JObject CheckBarcode([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
             string ordernum = data["ordernum"].ToString();
             string barcode = data["barcode"].ToString();
             string statue = data["statue"].ToString();
-            bool hybrid = bool.Parse(data["hybrid"].ToString());
+            bool hybrid = obj.hybrid == null ? false : obj.hybrid;
 
             bool pass = false;
             string mes = "";
@@ -5181,13 +5772,14 @@ namespace JianHeMES.Controllers
         /// <param name="ordernum">订单号</param>
         /// <param name="isupdate">是否是更新</param>
         /// <returns></returns>
-        
+
         [HttpPost]
         [ApiAuthorize]
         public JObject PackangPrint([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
             List<ModuleOutsideTheBox> printings = data["printings"].ToObject<List<ModuleOutsideTheBox>>();//list对象
-            bool IsLast = bool.Parse(data["IsLast"].ToString());//是否是尾箱
+            bool IsLast = obj.IsLast == null ? false : obj.IsLast;//是否是尾箱
             string ordernum = data["ordernum"].ToString();//订单
             string Department = data["Department"].ToString();//部门
             string Group = data["Group"].ToString();//班组
@@ -5429,43 +6021,45 @@ namespace JianHeMES.Controllers
         [ApiAuthorize]
         public JObject OutsideBoxLablePrint([System.Web.Http.FromBody]JObject data)
         {
-            string ordernum = data["ordernum"].ToString();//订单
-            string packagingordernum = data["packagingordernum"].ToString();//显示单号,没值就传null
-            string outsidebarcode = data["outsidebarcode"].ToString();//外箱条码
-            string material_discription = data["material_discription"].ToString();//物料描述
-            string sntn = data["sntn"].ToString();//件数/号
-            string qty = data["qty"].ToString();//数量10psc
-            string ip = data["ip"].ToString();//打印机地址
-            string leng = data["leng"].ToString();//语言选择
-            int screennum = int.Parse(data["screennum"].ToString());//屏序号
-            int pagecount = int.Parse(data["pagecount"].ToString());//打印数量
-            int port = int.Parse(data["port"].ToString());//端口
-            int concentration = int.Parse(data["concentration"].ToString());//打印浓度
-            int BPPJNum = int.Parse(data["BPPJNum"].ToString());//叠加备品配件数量
-            double g_Weight = double.Parse(data["g_Weight"].ToString());//毛重
-            double n_Weight = double.Parse(data["n_Weight"].ToString());//净重
-            bool logo = bool.Parse(data["logo"].ToString());//是否有LOGO
-            bool testswitch = bool.Parse(data["testswitch"].ToString());//是否显示图片
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;//订单
+            string packagingordernum = obj.packagingordernum;//显示单号
+            string outsidebarcode = obj.outsidebarcode;//外箱条码
+            string material_discription = obj.material_discription;//物料描述
+            string sntn = obj.sntn;//件数/号
+            string qty = obj.qty;//数量10psc
+            string ip = obj.ip;//打印机地址
+            string leng = obj.leng;//语言选择
+            int screennum = obj.screennum == null ? 1 : obj.screennum;//屏序号
+            int pagecount = obj.pagecount == null ? 1 : obj.pagecount;//打印数量
+            int port = obj.port;//端口
+            int concentration = obj.concentration == null ? 5 : obj.concentration;//打印浓度
+            int BPPJNum = obj.BPPJNum == null ? 0 : obj.BPPJNum;//叠加备品配件数量
+            double g_Weight = obj.g_Weight;//毛重
+            double n_Weight = obj.n_Weight;//净重
+            bool logo = obj.logo == null ? true : obj.logo;//是否有LOGO
+            string version = obj.version == null ? "old" : obj.version;//新版打印还是旧版打印
             var mn_list = data["mn_list"].ToObject<string[]>();
             if (BPPJNum != 0)
             {
                 var array = sntn.Split('/');
                 sntn = array[0] + "/" + (int.Parse(array[1]) + BPPJNum);
             }
-            if (testswitch == true)
+            if (!String.IsNullOrEmpty(packagingordernum)) ordernum = packagingordernum;//如果有包装新订单号，则使用包装新订单号。
+            if (version == "new")
             {
-                //组织数据
-
-                var AllBitmap = OutsideBoxLableCreate(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
-                MemoryStream ms = new MemoryStream();
-                AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                AllBitmap.Dispose();
-                //return File(ms.ToArray(), "image/Png");
-                return com.GetModuleFromJobjet(null, null, "图片显示成功");
+                var bm = CreateOutsideBoxLableNewVersion(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                string value = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                value += totalbytes + "," + rowbytes + "," + hex;
+                value += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(value.ToString(), pagecount, ip, port);
+                return com.GetModuleFromJobjet(null, null, "打印成功");
             }
             else
             {
-                if (!String.IsNullOrEmpty(packagingordernum)) ordernum = packagingordernum;//如果有包装新订单号，则使用包装新订单号。
                 var bm = OutsideBoxLableCreate(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
                 string value = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
                 int totalbytes = bm.ToString().Length;
@@ -5476,13 +6070,12 @@ namespace JianHeMES.Controllers
                 string result = ZebraUnity.IPPrint(value.ToString(), pagecount, ip, port);
                 return com.GetModuleFromJobjet(null, null, "打印成功");
             }
+
         }
         #endregion
 
         #region---生成标签图片
         //生成标签
-        [HttpPost]
-        [ApiAuthorize]
         public Bitmap OutsideBoxLableCreate(string[] mn_list, string ordernum = "", string outsidebarcode = "", string material_discription = "", string sntn = "", string qty = "", bool logo = true, int screennum = 1, double? g_Weight = null, double? n_Weight = null, string leng = "")
         {
             //开始绘制图片
@@ -5851,17 +6444,60 @@ namespace JianHeMES.Controllers
             //引入毛重量
             System.Drawing.Font myFont_g_Weight;
             myFont_g_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
+            System.Drawing.Font myFont_n_Weight;
+            myFont_n_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_material_discription;
+            myFont_material_discription = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_screennum;
+            myFont_screennum = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_sntn;
+            myFont_sntn = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            System.Drawing.Font myFont_qty;
+            myFont_qty = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "简")
             {
                 theGraphics.DrawString("毛重量(kg)", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("净重(kg)", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序号", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件号/数", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("数量", myFont_qty, bush, 410, 415);
             }
             else if (leng == "英")
             {
                 theGraphics.DrawString("G.W.(kg)", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("N.W.(kg)", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("DESC", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("NO.", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("SN/TN", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("QTY", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("毛重量(kg)", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("淨重(kg)", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序號", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件號/數", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("數量", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("毛重量(G.W.)kg", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("淨重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序號(NO.)", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件號/數(SN/TN)", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("數量(QTY)", myFont_qty, bush, 410, 415);
             }
             else
             {
                 theGraphics.DrawString("毛重量(G.W.)kg", myFont_g_Weight, bush, 55, 295);
+                theGraphics.DrawString("净重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
+                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
+                theGraphics.DrawString("屏序号(NO.)", myFont_screennum, bush, 410, 355);
+                theGraphics.DrawString("件号/数(SN/TN)", myFont_sntn, bush, 55, 415);
+                theGraphics.DrawString("数量(QTY)", myFont_qty, bush, 410, 415);
             }
 
             //引入毛重量值
@@ -5874,22 +6510,6 @@ namespace JianHeMES.Controllers
             theGraphics.DrawString(g_Weight.ToString(), myFont_g_Weight_content, bush, 280, 295);
 
 
-            //引入净重
-            System.Drawing.Font myFont_n_Weight;
-            myFont_n_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("净重(kg)", myFont_n_Weight, bush, 410, 295);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("N.W.(kg)", myFont_n_Weight, bush, 410, 295);
-            }
-            else
-            {
-                theGraphics.DrawString("净重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
-            }
-
             //引入净重值
             System.Drawing.Font myFont_n_Weight_content;
             StringFormat geshi2 = new StringFormat();
@@ -5898,43 +6518,20 @@ namespace JianHeMES.Controllers
             //double N_Weight = n_Weight == null ? 0 : (double)n_Weight;
             theGraphics.DrawString(n_Weight.ToString(), myFont_n_Weight_content, bush, 600, 295);
 
-
-            //引入物料描述
-            System.Drawing.Font myFont_material_discription;
-            myFont_material_discription = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("DESC", myFont_material_discription, bush, 55, 355);
-            }
-            else
-            {
-                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
-            }
-
             //引入物料描述内容
-            System.Drawing.Font myFont_material_discription_content;
-            myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 275, 355);
-
-            //引入屏序号
-            System.Drawing.Font myFont_screennum;
-            myFont_screennum = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
+            if (leng == "英")
             {
-                theGraphics.DrawString("屏序号", myFont_screennum, bush, 410, 355);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("NO.", myFont_screennum, bush, 410, 355);
+                System.Drawing.Font myFont_material_discription_content;
+                myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 265, 355);
             }
             else
             {
-                theGraphics.DrawString("屏序号(NO.)", myFont_screennum, bush, 410, 355);
+                System.Drawing.Font myFont_material_discription_content;
+                myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 275, 355);
             }
+
 
             //引入屏序号值
             System.Drawing.Font myFont_screennum_data;
@@ -5943,42 +6540,12 @@ namespace JianHeMES.Controllers
             myFont_screennum_data = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
             theGraphics.DrawString(screennum.ToString(), myFont_screennum_data, bush, 615, 355);
 
-            ////引入SN/TN
-            System.Drawing.Font myFont_sntn;
-            myFont_sntn = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("件号/数", myFont_sntn, bush, 55, 415);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("SN/TN", myFont_sntn, bush, 55, 415);
-            }
-            else
-            {
-                theGraphics.DrawString("件号/数(SN/TN)", myFont_sntn, bush, 55, 415);
-            }
 
             //引入SN/TN内容
             System.Drawing.Font myFont_sntn_content;
             myFont_sntn_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
             theGraphics.DrawString(sntn, myFont_sntn_content, bush, 290, 415);
 
-            //引入数量QTY
-            System.Drawing.Font myFont_qty;
-            myFont_qty = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            if (leng == "中")
-            {
-                theGraphics.DrawString("数量", myFont_qty, bush, 410, 415);
-            }
-            else if (leng == "英")
-            {
-                theGraphics.DrawString("QTY", myFont_qty, bush, 410, 415);
-            }
-            else
-            {
-                theGraphics.DrawString("数量(QTY)", myFont_qty, bush, 410, 415);
-            }
 
             //引入数量QTY内容
             System.Drawing.Font myFont_qty_content;
@@ -6034,50 +6601,333 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-        #region ---查看标签
-        [HttpPost]
-        [ApiAuthorize]
-        public Bitmap OutsideBoxLablePrintToImg(string outsidebarcode, int BPPJNum = 0, string leng = "")
+        #region---生成标签图片新版本
+        //生成标签
+        public Bitmap CreateOutsideBoxLableNewVersion(string[] mn_list, string ordernum, string outsidebarcode, string material_discription, string sntn, string qty, bool logo = true, int screennum = 1, double? g_Weight = null, double? n_Weight = null, string leng = "")
         {
-            var outsidebarcode_recordlist = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode);
-            var screem = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
-            var batch = outsidebarcode_recordlist.FirstOrDefault().Batch;
-            var ordernum1 = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode).Select(c => new { c.OrderNum, c.EmbezzleOrdeNum }).FirstOrDefault();//订单和挪用订单
-            string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
-            string type = outsidebarcode_recordlist.FirstOrDefault().Type;
-            string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
-            string sntn = "";
-            if (BPPJNum != 0)
+            //开始绘制图片
+            int initialWidth = 750, initialHeight = 1000;//高4宽3
+            Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
+            Graphics theGraphics = Graphics.FromImage(AllBitmap);
+            Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
+                                                                    //呈现质量
+            theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            //背景色
+            theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+            //double beishuhege = 0.37;
+            Pen pen = new Pen(Color.Black, 3);
+            theGraphics.DrawRectangle(pen, 50, 50, 640, 850);
+            //横线
+            theGraphics.DrawLine(pen, 50, 108, 690, 108);//起点x,起点y坐标，终点x,终点y坐标
+            theGraphics.DrawLine(pen, 50, 175, 690, 175);
+            theGraphics.DrawLine(pen, 50, 242, 690, 242);
+            theGraphics.DrawLine(pen, 50, 308, 690, 308);
+            theGraphics.DrawLine(pen, 50, 375, 690, 375);
+            theGraphics.DrawLine(pen, 50, 441, 690, 441);
+            theGraphics.DrawLine(pen, 50, 570, 690, 570);
+            //竖线
+            theGraphics.DrawLine(pen, 250, 50, 250, 242);
+            theGraphics.DrawLine(pen, 400, 108, 400, 242);
+            theGraphics.DrawLine(pen, 570, 108, 570, 242);
+
+            theGraphics.DrawLine(pen, 250, 308, 250, 441);
+            theGraphics.DrawLine(pen, 400, 308, 400, 441);
+            theGraphics.DrawLine(pen, 570, 308, 570, 441);
+
+            System.Drawing.Font myFont_g_Weight;
+            myFont_g_Weight = new System.Drawing.Font("Microsoft YaHei UI", 13, FontStyle.Regular);
+
+            if (leng == "简")
             {
-                sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + (db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.ScreenNum == screem && c.Batch == batch && c.Statue == "外箱").Sum(c => c.Quantity) + BPPJNum);
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+                theGraphics.DrawString("订单号", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("颜色", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("数量", myFont2, bush, 60, 190);
+
+                theGraphics.DrawString("件号", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("屏序号", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重 kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("净重 kg", myFont2, bush, 405, 385);
+
+            }
+            else if (leng == "简/英" || leng == "")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 13, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString("订单号 P0#", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号ITEM NO", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("颜色 COLOURS", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("数量 QTY(CTNS/PCS)", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("件号 PACKAGE#", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述(DESC)", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("屏序号(NO.)", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重(G.W)kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("净重(N.W)kg", myFont2, bush, 405, 385);
+            }
+            else if (leng == "繁")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+                theGraphics.DrawString("訂單號", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("顏色", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("數量", myFont2, bush, 60, 190);
+
+                theGraphics.DrawString("件號", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述", myFont, bush, 60, 320);
+
+                theGraphics.DrawString("屏序號", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重 kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("淨重 kg", myFont2, bush, 405, 385);
+            }
+            else if (leng == "繁/英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 13, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString("訂單號 P0#", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號ITEM NO", myFont2, bush, 60, 120);
+
+                theGraphics.DrawString("顏色 COLOURS", myFont2, bush, 405, 120);
+
+                theGraphics.DrawString("數量 QTY(CTNS/PCS)", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("件號 PACKAGE#", myFont2, bush, 405, 190);
+
+                theGraphics.DrawString("物料描述(DESC)", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("屏序號(NO.)", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("毛重(G.W)kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("淨重(N.W)kg", myFont2, bush, 405, 385);
+            }
+            else if (leng == "英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 17, FontStyle.Regular);
+                System.Drawing.Font myFont2;
+                myFont2 = new System.Drawing.Font("Microsoft YaHei UI", 21, FontStyle.Regular);
+                theGraphics.DrawString("P0#", myFont2, bush, 60, 60);
+
+                theGraphics.DrawString("ITEM NO", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("COLOURS", myFont, bush, 405, 120);
+
+                theGraphics.DrawString("QTY(CTNS/PCS)", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("PACKAGE#", myFont, bush, 405, 190);
+
+                theGraphics.DrawString("DESC", myFont2, bush, 60, 320);
+
+                theGraphics.DrawString("NO.", myFont2, bush, 405, 320);
+
+                theGraphics.DrawString("(G.W)kg", myFont2, bush, 60, 385);
+
+                theGraphics.DrawString("(N.W)kg", myFont2, bush, 405, 385);
+            }
+            //订单
+            System.Drawing.Font value;
+            value = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+            System.Drawing.Font value2;
+            value2 = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+            StringFormat geshi = new StringFormat();
+            geshi.Alignment = StringAlignment.Center; //居中
+            //geshi.LineAlignment = StringAlignment.Center; //居中
+            theGraphics.DrawString(ordernum, value2, bush, 320, 60);
+
+            //规格型号
+            var info = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").FirstOrDefault();
+            theGraphics.DrawString(info.ITEMNO, value2, bush, 258, 120);
+            //颜色
+            theGraphics.DrawString(info.COLOURS, value, bush, 575, 120);
+            //数量
+            string boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").Sum(c => c.Quantity * c.OuterBoxCapacity).ToString();
+            theGraphics.DrawString(qty + "/" + boxnum, value2, bush, 258, 190);
+            //件号
+            string[] s = sntn.Split('/');
+            theGraphics.DrawString(s[0] + " OF " + s[1], value, bush, 575, 190);
+            //备注
+            theGraphics.DrawString(info.Remark, value2, bush, 215, 260);
+            //物料描述
+            if (leng == "英")
+            {
+                System.Drawing.Font value3;
+                value3 = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Regular);
+                theGraphics.DrawString(material_discription, value3, bush, 255, 325);
             }
             else
             {
-                sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.ScreenNum == screem && c.Batch == batch && c.Statue == "外箱").Sum(c => c.Quantity);
+                theGraphics.DrawString(material_discription, value2, bush, 258, 320);
             }
-            bool logo = outsidebarcode_recordlist.FirstOrDefault().IsLogo;
-            double? g_Weight = outsidebarcode_recordlist.FirstOrDefault().G_Weight;
-            double? n_Weight = outsidebarcode_recordlist.FirstOrDefault().N_Weight;
-            string[] mn_list = outsidebarcode_recordlist.Select(c => c.InnerBarcode).ToArray();
+            //屏序号
+            theGraphics.DrawString(screennum.ToString(), value2, bush, 575, 320);
+            //毛重
+            theGraphics.DrawString(g_Weight.ToString(), value2, bush, 258, 385);
+            //净重
+            theGraphics.DrawString(n_Weight.ToString(), value2, bush, 575, 385);
+            //条形码
+            Bitmap bmp_barcode = BarCodeLablePrint.BarCodeToImg(outsidebarcode, 600, 70);
+            theGraphics.DrawImage(bmp_barcode, 70, 450, (float)bmp_barcode.Width, (float)bmp_barcode.Height);
 
-            string qty = mn_list.Count().ToString();
-            int screennum = screem;   //屏序号
-                                      //如果有包装新订单号，则使用包装新订单号。
+            //引入条码号
+            System.Drawing.Font myFont_boxbarcode;
+            myFont_boxbarcode = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(outsidebarcode, myFont_boxbarcode, bush, 220, 530);
+
+            //引入模组号清单
+            int mn_E_count = mn_list.Count();
+            //12位模组号以上，包括条码号
+            if (mn_E_count > 5 && mn_E_count <= 10)
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Regular);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 600;
+                int left_x = 50;
+                for (int i = 0; i < mn_list.Count(); i++)
+                {
+                    theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    if ((i % 2) == 0)
+                    {
+                        left_x += 325;
+                    }
+                    else
+                    {
+                        top_y += 50;
+                        left_x = 50;
+                    }
+                }
+
+            }
+            //11-12位模组号
+            else if (mn_E_count <= 5)
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 30, FontStyle.Regular);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 600;
+                int left_x = 180;
+                for (int i = 0; i < mn_list.Count(); i++)
+                {
+                    theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+
+                    top_y += 90;
+                }
+
+            }
+            //组织数据
+            Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(AllBitmap)));//图形转二值
+            return bm;
+        }
+        #endregion
+
+
+
+        #region ---查看标签
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OutsideBoxLablePrintToImg([System.Web.Http.FromBody]JObject data)
+        {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string outsidebarcode = obj.outsidebarcode;
+            string leng = obj.leng;
+            int BPPJNum = obj.BPPJNum == null ? 0 : obj.BPPJNum;
+
+            JObject result = new JObject();
+            var outsidebarcode_recordlist = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode);
+            //如果有包装新订单号，则使用包装新订单号。
+            var ordernum1 = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode).Select(c => new { c.OrderNum, c.EmbezzleOrdeNum }).FirstOrDefault();//订单和挪用订单
+            string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
             string packagingordernum = outsidebarcode_recordlist.FirstOrDefault().PackagingOrderNum;
             ordernum = String.IsNullOrEmpty(packagingordernum) ? ordernum : packagingordernum;
-            var AllBitmap = OutsideBoxLableCreate(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
-            //MemoryStream ms = new MemoryStream();
-            //AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            //AllBitmap.Dispose();
-            return AllBitmap;
+            result.Add("ordernum", ordernum);//显示的订单号
+
+            result.Add("OutsideBarcode", outsidebarcode);//外箱条码号
+            var screenNum = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
+            result.Add("ScreenNum", screenNum);//屏序号
+            string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
+            result.Add("Materiel", material_discription);//物料描述
+
+            var batch = outsidebarcode_recordlist.FirstOrDefault().Batch;
+            string sntn = "";
+            if (BPPJNum != 0)
+            {
+                sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + (db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.ScreenNum == screenNum && c.Batch == batch && c.Statue == "外箱").Sum(c => c.Quantity) + BPPJNum);
+            }
+            else
+            {
+                sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.ScreenNum == screenNum && c.Batch == batch && c.Statue == "外箱").Sum(c => c.Quantity);
+            }
+            result.Add("SNTN", sntn);//件号
+            bool logo = outsidebarcode_recordlist.FirstOrDefault().IsLogo;
+            result.Add("LOGO", logo);//logo
+            double? g_Weight = outsidebarcode_recordlist.FirstOrDefault().G_Weight;
+            result.Add("G_Weight", g_Weight);//毛重
+            double? n_Weight = outsidebarcode_recordlist.FirstOrDefault().N_Weight;
+            result.Add("N_Weight", n_Weight);//净重
+            string[] mn_list = outsidebarcode_recordlist.Select(c => c.InnerBarcode).ToArray();
+            result.Add("BarcodeList", JsonConvert.DeserializeObject<JArray>(JsonConvert.SerializeObject(mn_list)));//条码列表
+            string qty = mn_list.Count().ToString();
+            result.Add("Qty", qty);//数量
+            var ruleinfo = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.ScreenNum == screenNum && c.Batch == batch && c.Statue == "外箱").ToList();
+            result.Add("itemno", ruleinfo.FirstOrDefault().ITEMNO);
+            result.Add("COLOURS", ruleinfo.FirstOrDefault().COLOURS);
+            result.Add("Remark", ruleinfo.FirstOrDefault().Remark);
+            result.Add("BoxNum", ruleinfo.Sum(c => c.Quantity * c.OuterBoxCapacity));
+            return com.GetModuleFromJobjet(result);
         }
         #endregion
 
         #region---重复打印
         [HttpPost]
         [ApiAuthorize]
-        public JObject OutsideBoxLablePrintAgain(string outsidebarcode, int BPPJNum = 0, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = "")
+        public JObject OutsideBoxLablePrintAgain([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string outsidebarcode = obj.outsidebarcode;//外箱条码
+            string ip = obj.ip;//ip
+            string leng = obj.leng;//语言
+            int BPPJNum = obj.BPPJNum == null ? 0 : obj.BPPJNum; //备品叠加数量
+            int pagecount = obj.pagecount == null ? 1 : obj.pagecount; //打印份数
+            int concentration = obj.concentration == null ? 5 : obj.concentration; //打印浓度
+            int port = obj.port == null ? 0 : obj.port; //端口
+            string version = obj.version == null ? "old" : obj.version;//新版打印还是旧版打印
+
             var outsidebarcode_recordlist = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode);
             var screem = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
             var batch = outsidebarcode_recordlist.FirstOrDefault().Batch;
@@ -6085,6 +6935,10 @@ namespace JianHeMES.Controllers
             string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
             string type = outsidebarcode_recordlist.FirstOrDefault().Type;
             string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
+            if (leng == "英")
+            {
+                material_discription = "LED Modules";
+            }
             string sntn = "";
             if (BPPJNum != 0)
             {
@@ -6104,25 +6958,35 @@ namespace JianHeMES.Controllers
                                       //如果有包装新订单号，则使用包装新订单号。
             string packagingordernum = outsidebarcode_recordlist.FirstOrDefault().PackagingOrderNum;
             ordernum = String.IsNullOrEmpty(packagingordernum) ? ordernum : packagingordernum;
-            var bm = OutsideBoxLableCreate(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
-            int totalbytes = bm.ToString().Length;
-            int rowbytes = 10;
-            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-            data += totalbytes + "," + rowbytes + "," + hex;
-            data += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
-            string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
-            return com.GetModuleFromJobjet(null, null, "成功");
-
-
-
+            if (version == "new")
+            {
+                var bm = CreateOutsideBoxLableNewVersion(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data1 += totalbytes + "," + rowbytes + "," + hex;
+                data1 += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return com.GetModuleFromJobjet(null, null, "成功");
+            }
+            else
+            {
+                var bm = OutsideBoxLableCreate(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data1 += totalbytes + "," + rowbytes + "," + hex;
+                data1 += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+                return com.GetModuleFromJobjet(null, null, "成功");
+            }
         }
         #endregion
         #endregion
 
         #region 模块内箱标签打印
-        [HttpPost]
-        [ApiAuthorize]
         public void temp(string ip = "", int port = 0, int concentration = 5)
         {
             string orderNumber = "2020-YA364-3";
@@ -6197,10 +7061,17 @@ namespace JianHeMES.Controllers
             db.SaveChanges();
         }
 
-        [HttpPost]
-        [ApiAuthorize]
-        public JObject ModuleInsideBoxLablePrint(string[] barcodelist, string orderNumber, string InnerBarcode, string ip = "", int port = 0, int concentration = 5)
+        public JObject ModuleInsideBoxLablePrint([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string orderNumber = obj.orderNumber;//订单号
+            string InnerBarcode = obj.InnerBarcode;//内箱条码
+            string leng = obj.leng == null ? "简" : obj.leng;//语言
+            string ip = obj.ip;//ip
+            string version = obj.version == null ? "old" : obj.version;//新版打印还是旧版打印
+            int port = obj.port == null ? 9101 : obj.port;//端口
+            string[] barcodelist = JsonConvert.DeserializeObject<string[]>(JsonConvert.SerializeObject(obj.barcodelist));//条码列表
+            int concentration = obj.concentration == null ? 5 : obj.concentration;//浓度
             var quantity = db.ModulePackageRule.Where(c => c.OrderNum == orderNumber && c.Statue == "纸箱").Select(c => c.Quantity).ToList();
             var tn = 0;
             if (quantity.Count != 0)
@@ -6208,24 +7079,110 @@ namespace JianHeMES.Controllers
                 tn = quantity.Sum();
             }
             var sn = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == InnerBarcode).Select(c => c.SN).FirstOrDefault();
-
-            var bm = OutsideBoxLableCreate(barcodelist, orderNumber, InnerBarcode, sn + "/" + tn);
-            int totalbytes = bm.ToString().Length;//返回参数总共字节数
-            int rowbytes = 10; //返回参数每行的字节数
-            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);//位图转ZPL指令
-            data += totalbytes + "," + rowbytes + "," + hex;
-            data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
-            var result = ZebraUnity.IPPrint(data.ToString(), 1, ip, port);
-
-            return com.GetModuleFromJobjet(null,null,"成功");
+            if (version == "new")
+            {
+                var bm = CreateIntsideBoxLableNewVersion(barcodelist, orderNumber, InnerBarcode, sn + "/" + tn, leng);
+                int totalbytes = bm.ToString().Length;//返回参数总共字节数
+                int rowbytes = 10; //返回参数每行的字节数
+                string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);//位图转ZPL指令
+                data1 += totalbytes + "," + rowbytes + "," + hex;
+                data1 += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                var result = ZebraUnity.IPPrint(data.ToString(), 1, ip, port);
+            }
+            else
+            {
+                var bm = CreateIntsideBoxLable(barcodelist, orderNumber, InnerBarcode, sn + "/" + tn, leng);
+                int totalbytes = bm.ToString().Length;//返回参数总共字节数
+                int rowbytes = 10; //返回参数每行的字节数
+                string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);//位图转ZPL指令
+                data1 += totalbytes + "," + rowbytes + "," + hex;
+                data1 += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                var result = ZebraUnity.IPPrint(data.ToString(), 1, ip, port);
+            }
+            return com.GetModuleFromJobjet(null, null, "成功");
         }
 
         #region--生成模块内箱标签图片
-        [HttpPost]
-        [ApiAuthorize]
-        public Bitmap IntsideBoxLableCreate(string[] mn_list, string ordernum, string innboxNUm, string sntn)
+        public Bitmap CreateIntsideBoxLable(string[] mn_list, string ordernum, string innboxNUm, string sntn, string leng)
         {
+            #region 60*30版本
+            //int initialWidth = 500, initialHeight = 250;
+            //Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
+            //Graphics theGraphics = Graphics.FromImage(AllBitmap);
+            //Brush bush = new SolidBrush(System.Drawing.Color.Black);
+            //theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            //theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+            //Pen pen = new Pen(Color.Black, 3);//定义笔的大小
+            //theGraphics.DrawRectangle(pen, 25, 16, 450, 218);  //x,y,width:绘制矩形的宽度,height：绘制的矩形的高度
+            //                                                   //画横线                                                 
+            //theGraphics.DrawLine(pen, 25, 50, 475, 50);//起点x,起点y坐标，终点x,终点y坐标
+            //theGraphics.DrawLine(pen, 25, 83, 475, 83);
+            //theGraphics.DrawLine(pen, 25, 141, 475, 141);
+            ////theGraphics.DrawLine(pen, 358, 353, 700, 353);
+            ////画竖线
+            //theGraphics.DrawLine(pen, 267, 16, 267, 83);
+
+            //System.Drawing.Font myFont_orderNumber1;
+            //myFont_orderNumber1 = new System.Drawing.Font("Microsoft YaHei UI", 10, FontStyle.Regular);
+            //theGraphics.DrawString("订单号 Order NO", myFont_orderNumber1, bush, 28, 20);//{
+
+            //System.Drawing.Font myFont_orderNumber;
+            ////字体微软雅黑，大小40，样式加粗
+            //myFont_orderNumber = new System.Drawing.Font("Microsoft YaHei UI", 10, FontStyle.Bold);
+            ////设置格式
+            //StringFormat format = new StringFormat();
+            //format.Alignment = StringAlignment.Center;
+            //theGraphics.DrawString(ordernum, myFont_orderNumber, bush, 270, 20);
+
+            ////}
+            //System.Drawing.Font myFont_jianhao;
+            //myFont_jianhao = new System.Drawing.Font("Microsoft YaHei UI", 10, FontStyle.Regular);
+            //theGraphics.DrawString("件号/数(SN/TN)", myFont_jianhao, bush, 28, 55);
+            ////引入SNTN
+            ////设置格式            
+            //System.Drawing.Font myFont_snt;
+            //myFont_snt = new System.Drawing.Font("Microsoft YaHei UI", 10, FontStyle.Regular);
+            //theGraphics.DrawString(sntn, myFont_snt, bush, 270, 55);
+
+
+            ////引入条形码
+            //Bitmap spc_barcode = BarCodeLablePrint.BarCodeToImg(innboxNUm, 400, 30);
+            ////double beishuhege = 0.7;
+            //theGraphics.DrawImage(spc_barcode, 45, 88, (float)spc_barcode.Width, (float)spc_barcode.Height);
+
+            ////引入条码号
+            //System.Drawing.Font myFont_spc_OuterBoxBarcode;
+            //myFont_spc_OuterBoxBarcode = new System.Drawing.Font("Microsoft YaHei UI", 10, FontStyle.Bold);
+            //theGraphics.DrawString(innboxNUm, myFont_spc_OuterBoxBarcode, bush, 190, 120);
+
+            ////引入模组号清单
+            //int mn_E_count = mn_list.Count();
+            ////12位模组号以上，包括条码号
+            //System.Drawing.Font myFont_modulenum_list;
+            //myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 15, FontStyle.Bold);
+            //StringFormat listformat = new StringFormat();
+            //listformat.Alignment = StringAlignment.Near;
+            //int top_y = 142;
+            //int left_x = 25;
+            //for (int i = 1; i < mn_list.Count() + 1; i++)
+            //{
+            //    theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //    if ((i % 4) != 0)
+            //    {
+            //        left_x += 110;
+            //    }
+            //    else
+            //    {
+            //        top_y += 20;
+            //        left_x = 25;
+            //    }
+            //}
+            //Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(AllBitmap)));//图形转二值
+            //return bm;
+            #endregion
+
             #region 备品配件大小的打印
             int initialWidth = 750, initialHeight = 583;
             Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
@@ -6239,14 +7196,55 @@ namespace JianHeMES.Controllers
             theGraphics.DrawLine(pen, 50, 108, 700, 108);//起点x,起点y坐标，终点x,终点y坐标
             theGraphics.DrawLine(pen, 50, 175, 700, 175);
             theGraphics.DrawLine(pen, 50, 308, 700, 308);
-
+            //theGraphics.DrawLine(pen, 358, 353, 700, 353);
+            //画竖线
+            // theGraphics.DrawLine(pen, 458, 50, 458, 175);
             System.Drawing.Font myFont_orderNumber1;
             myFont_orderNumber1 = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            theGraphics.DrawString("订单号:    " + ordernum, myFont_orderNumber1, bush, 60, 60);//{
-            
             System.Drawing.Font myFont_jianhao;
             myFont_jianhao = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
-            theGraphics.DrawString("件号/数(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            if (leng == "简")
+            {
+                theGraphics.DrawString("订单号:    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件号/数(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("Order No:    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("PACKAGE(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("訂單號:    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件號/數(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("訂單號(Order No):   " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件號/數 PACKAGE(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+            else
+            {
+                theGraphics.DrawString("订单号(Order No):    " + ordernum, myFont_orderNumber1, bush, 60, 60);
+                theGraphics.DrawString("件号/数 PACKAGE(SN/TN):    " + sntn, myFont_jianhao, bush, 60, 110);
+            }
+
+
+            //System.Drawing.Font myFont_orderNumber;
+            ////字体微软雅黑，大小40，样式加粗
+            //myFont_orderNumber = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Bold);
+            ////设置格式
+            //StringFormat format = new StringFormat();
+            //format.Alignment = StringAlignment.Center;
+            //theGraphics.DrawString(ordernum, myFont_orderNumber, bush, 100, 60);
+
+            //}
+            //引入SNTN
+            //设置格式            
+            //System.Drawing.Font myFont_snt;
+            //myFont_snt = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString(sntn, myFont_snt, bush, 100, 110);
+
 
             //引入条形码
             Bitmap spc_barcode = BarCodeLablePrint.BarCodeToImg(innboxNUm, 550, 60);
@@ -6311,39 +7309,228 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
+        #region--生成模块新版内箱标签图片
+        public Bitmap CreateIntsideBoxLableNewVersion(string[] mn_list, string ordernum, string innboxNUm, string sntn, string leng)
+        {
+            int initialWidth = 750, initialHeight = 1000;
+            Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
+            Graphics theGraphics = Graphics.FromImage(AllBitmap);
+            Brush bush = new SolidBrush(System.Drawing.Color.Black);
+            theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+            Pen pen = new Pen(Color.Black, 3);//定义笔的大小
+            theGraphics.DrawRectangle(pen, 50, 50, 650, 900);  //x,y,width:绘制矩形的宽度,height：绘制的矩形的高度
+                                                               //画横线                                                 
+            theGraphics.DrawLine(pen, 50, 108, 700, 108);//起点x,起点y坐标，终点x,终点y坐标
+            theGraphics.DrawLine(pen, 50, 175, 700, 175);
+            theGraphics.DrawLine(pen, 50, 242, 700, 242);
+            theGraphics.DrawLine(pen, 50, 308, 700, 308);
+            theGraphics.DrawLine(pen, 50, 375, 700, 375);
+            theGraphics.DrawLine(pen, 50, 441, 700, 441);
+            theGraphics.DrawLine(pen, 50, 570, 700, 570);
+            //theGraphics.DrawLine(pen, 358, 353, 700, 353);
+            //画竖线
+            theGraphics.DrawLine(pen, 300, 50, 300, 375);
+            if (leng == "简")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("订单号", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("颜色", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("数量", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件号", myFont, bush, 60, 320);
+            }
+            else if (leng == "简/英" || leng == "")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("订单号 PO#", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("规格型号 ITEM NO ", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("颜色 COLOURS", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("数量 QTY(PSC)", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件号 PACKAGE#", myFont, bush, 60, 320);
+            }
+            else if (leng == "繁")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("訂單號", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("顏色", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("數量", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件號", myFont, bush, 60, 320);
+            }
+            else if (leng == "繁/英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("訂單號 PO#", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("規格型號 ITEM NO", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("顏色 COLOURS", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("數量 QTY(PSC)", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("件號 PACKAGE#", myFont, bush, 60, 320);
+            }
+            else if (leng == "英")
+            {
+                System.Drawing.Font myFont;
+                myFont = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+                theGraphics.DrawString("PO#", myFont, bush, 60, 60);
+
+                theGraphics.DrawString("ITEM NO", myFont, bush, 60, 120);
+
+                theGraphics.DrawString("COLOURS", myFont, bush, 60, 190);
+
+                theGraphics.DrawString("QTY(PSC)", myFont, bush, 60, 255);
+
+                theGraphics.DrawString("PACKAGE#", myFont, bush, 60, 320);
+            }
+            //订单号
+            System.Drawing.Font value;
+            value = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(ordernum, value, bush, 380, 60);
+            //规格型号
+            var info = db.ModulePackageRule.Where(c => c.OrderNum == ordernum).FirstOrDefault();
+            theGraphics.DrawString(info.ITEMNO, value, bush, 380, 120);
+            //颜色
+            theGraphics.DrawString(info.COLOURS, value, bush, 380, 190);
+            //数量
+            string boxnum = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "纸箱").Sum(c => c.Quantity * c.OuterBoxCapacity).ToString();
+            int mn_E_count = mn_list.Count();
+            theGraphics.DrawString(mn_E_count + "/" + boxnum, value, bush, 380, 255);
+            //件号
+            string[] s = sntn.Split('/');
+            theGraphics.DrawString(s[0] + " OF " + s[1], value, bush, 380, 320);
+            //备注
+            theGraphics.DrawString(info.Remark, value, bush, 215, 388);
+            //引入条形码
+            Bitmap spc_barcode = BarCodeLablePrint.BarCodeToImg(innboxNUm, 550, 60);
+            //double beishuhege = 0.7;
+            theGraphics.DrawImage(spc_barcode, 100, 450, (float)spc_barcode.Width, (float)spc_barcode.Height);
+
+            //引入条码号
+            System.Drawing.Font myFont_spc_OuterBoxBarcode;
+            myFont_spc_OuterBoxBarcode = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Bold);
+            theGraphics.DrawString(innboxNUm, myFont_spc_OuterBoxBarcode, bush, 230, 520);
+
+            //引入模组号清单
+
+            //20位模组号以上，包括条码号
+            if (mn_list.Count() <= 20)
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 28, FontStyle.Bold);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 580;
+                int left_x = 60;
+                for (int i = 1; i < mn_list.Count() + 1; i++)
+                {
+                    theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    if ((i % 4) != 0)
+                    {
+                        left_x += 155;
+                    }
+                    else
+                    {
+                        top_y += 50;
+                        left_x = 60;
+                    }
+                }
+            }
+            else
+            {
+                System.Drawing.Font myFont_modulenum_list;
+                myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Bold);
+                StringFormat listformat = new StringFormat();
+                listformat.Alignment = StringAlignment.Near;
+                int top_y = 580;
+                int left_x = 60;
+                for (int i = 1; i < mn_list.Count() + 1; i++)
+                {
+                    theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    if ((i % 5) != 0)
+                    {
+                        left_x += 124;
+                    }
+                    else
+                    {
+                        top_y += 30;
+                        left_x = 60;
+                    }
+                }
+            }
+            Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(AllBitmap)));//图形转二值
+            return bm;
+        }
+        #endregion
+
         #region ---查看内箱标签
         [HttpPost]
         [ApiAuthorize]
-        public Bitmap InsideBoxLablePrintToImg([System.Web.Http.FromBody]JObject data)
+        public JObject InsideBoxLablePrintToImg([System.Web.Http.FromBody]JObject data)
         {
-            string outsidebarcode = data["outsidebarcode"].ToString();
-            string statue = data["statue"].ToString();
+            string outsidebarcode = data["outsidebarcode"].ToString();//外箱条码
+            string statue = data["statue"].ToString();//装箱款式
+
+            JObject result = new JObject();
+
             var outsidebarcode_recordlist = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode);
             var ordernum = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode).Select(c => c.OrderNum).FirstOrDefault();//订单和挪用订单
-                                                                                                                                       //string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrdeNum) ? ordernum1.OrderNum : ordernum1.EmbezzleOrdeNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
+            var rule = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Select(c => new { c.Quantity, c.OuterBoxCapacity, c.ITEMNO, c.COLOURS, c.Remark }).ToList();
+           result.Add("Ordernum", ordernum);
             string type = outsidebarcode_recordlist.FirstOrDefault().Type;
-            string sntn = outsidebarcode_recordlist.FirstOrDefault().SN + "/" + db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == statue).Sum(c => c.Quantity);
+            result.Add("type", type);
+            int sn = outsidebarcode_recordlist.FirstOrDefault().SN;
+            int tn= rule.Sum(c => c.Quantity);
+            result.Add("SN", sn);
+            result.Add("TN", tn);
+            int boxnum = rule.Sum(c => c.Quantity*c.OuterBoxCapacity);
+            result.Add("BoxNum", boxnum);
+            result.Add("ITEMNO", rule.FirstOrDefault().ITEMNO);
+            result.Add("COLOURS", rule.FirstOrDefault().COLOURS);
+            result.Add("Remark", rule.FirstOrDefault().Remark);
+            
+             
             var mn_list = outsidebarcode_recordlist.Select(c => c.ModuleBarcode).ToList();
             List<string> barcodelsit = new List<string>();
-            var ss = mn_list[1].Substring(mn_list[1].IndexOf('B')).ToString();
             mn_list.ForEach(c => barcodelsit.Add(c.Substring(c.IndexOf('B')).ToString()));
-
-            var AllBitmap = OutsideBoxLableCreate(barcodelsit.ToArray(), ordernum, outsidebarcode, sntn);
-            //MemoryStream ms = new MemoryStream();
-            //AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-            //AllBitmap.Dispose();
-
-            // Image.FromStream(ms)
-            //(ms.ToArray(), "image/Png");
-            return AllBitmap;
+            result.Add("BarcodeList", JsonConvert.DeserializeObject<JArray>(JsonConvert.SerializeObject(barcodelsit)));
+            return com.GetModuleFromJobjet(result);
         }
         #endregion
 
         #region---内箱重复打印
         [HttpPost]
         [ApiAuthorize]
-        public JObject InsideBoxLablePrintAgain(string outsidebarcode, string statue, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = "")
+        public JObject InsideBoxLablePrintAgain([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string outsidebarcode = obj.outsidebarcode;//外箱条码
+            string ip = obj.ip;//ip
+            string statue = obj.statue;//装箱款式
+            string leng = obj.leng;//语言
+            int pagecount = obj.pagecount == null ? 1 : obj.pagecount; //打印份数
+            int concentration = obj.concentration == null ? 5 : obj.concentration; //打印浓度
+            int port = obj.port == null ? 0 : obj.port; //端口
+            string version = obj.version == null ? "old" : obj.version;//新版打印还是旧版打印
+
             var outsidebarcode_recordlist = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode);
             var ordernum = db.ModuleInsideTheBox.Where(c => c.InnerBarcode == outsidebarcode).Select(c => c.OrderNum).FirstOrDefault();//订单和挪用订单
 
@@ -6355,14 +7542,28 @@ namespace JianHeMES.Controllers
             mn_list.ForEach(c => barcodelsit.Add(c.Substring(c.IndexOf('B')).ToString()));
 
             //如果有包装新订单号，则使用包装新订单号。
-            var bm = OutsideBoxLableCreate(barcodelsit.ToArray(), ordernum, outsidebarcode, sntn);
-            int totalbytes = bm.ToString().Length;
-            int rowbytes = 10;
-            string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
-            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-            data += totalbytes + "," + rowbytes + "," + hex;
-            data += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
-            string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+            if (version == "new")
+            {
+                var bm = CreateIntsideBoxLableNewVersion(barcodelsit.ToArray(), ordernum, outsidebarcode, sntn,leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data1 += totalbytes + "," + rowbytes + "," + hex;
+                data1 += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+            }
+            else
+            {
+                var bm = CreateIntsideBoxLable(barcodelsit.ToArray(), ordernum, outsidebarcode, sntn,leng);
+                int totalbytes = bm.ToString().Length;
+                int rowbytes = 10;
+                string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+                data1 += totalbytes + "," + rowbytes + "," + hex;
+                data1 += "^LH0,3^FO38,0^XGR:ZONE.GRF^FS^XZ";
+                string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+            }
             return com.GetModuleFromJobjet(null, null, "成功");
 
 

@@ -9,6 +9,7 @@ var app = new Vue({
         tableData: {}
     },
     methods: {
+        //获取订单记录
         OrderNumReport(v) {
             axios.post('/Query/OrderNumReport', { ordernum: v }).then(res => {
                 console.log(JSON.parse(JSON.stringify(res.data)));
@@ -19,6 +20,7 @@ var app = new Vue({
         }
     },
     created: function () {
+        //获取条码列表
         axios.post('/Packagings/GetOrderList').then(rer => {
             this.selectOptions = rer.data;
         }).catch(err => {

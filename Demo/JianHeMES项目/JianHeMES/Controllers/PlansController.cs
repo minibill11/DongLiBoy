@@ -1,4 +1,5 @@
-﻿using JianHeMES.Models;
+﻿using JianHeMES.AuthAttributes;
+using JianHeMES.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -458,16 +459,16 @@ namespace JianHeMES.Controllers
                 return Content(JsonConvert.SerializeObject(result));
             }
 
-            if ((info.Select(c=>c.PlanCreateor).Distinct().Count()>1|| info.Select(c => c.PlanCreateor).FirstOrDefault()!= ((Users)Session["User"]).UserName) && ((Users)Session["User"]).Role != "系统管理员")
+            if ((info.Select(c => c.PlanCreateor).Distinct().Count() > 1 || info.Select(c => c.PlanCreateor).FirstOrDefault() != ((Users)Session["User"]).UserName) && ((Users)Session["User"]).Role != "系统管理员")
             {
                 var name = ((Users)Session["User"]).UserName;
                 var username = info.Where(c => c.PlanCreateor != name).Select(c => c.PlanCreateor).Distinct().ToList();
-                result.Add("mes", "记录包含"+string.Join(",", username)+ "的记录,你没有权限删除该条信息");
+                result.Add("mes", "记录包含" + string.Join(",", username) + "的记录,你没有权限删除该条信息");
                 result.Add("pass", false);
                 return Content(JsonConvert.SerializeObject(result));
 
             }
-           
+
             db.Plan_FromKPI.RemoveRange(info);
             db.SaveChanges();
             UserOperateLog log = new UserOperateLog()
@@ -496,4 +497,318 @@ namespace JianHeMES.Controllers
         }
         #endregion
     }
+    
+    public class Plans_ApiController : System.Web.Http.ApiController
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonController com = new CommonController();
+
+        #region 工段工序功能集合
+        //显示工段工序(只显示部门班组工段工序)
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DisplayPlanSectionParameter()
+        {
+            JArray result = new JArray();
+            var value = db.Plan_SectionParameter.Select(c => c.Department).Distinct().ToList();
+            foreach (var dep in value)
+            {
+                var group = db.Plan_SectionParameter.Where(c => c.Department == dep).Select(c => c.Group).Distinct().ToList();
+                foreach (var groupitem in group)
+                {
+                    var seaction = db.Plan_SectionParameter.Where(c => c.Department == dep && c.Group == groupitem).Select(c => c.Section).Distinct().ToList();
+                    foreach (var seac in seaction)
+                    {
+                        var process = db.Plan_SectionParameter.Where(c => c.Department == dep && c.Group == groupitem && c.Section == seac).Select(c => c.Process).Distinct().ToList();
+                        foreach (var proitem in process)
+                        {
+                            var info = db.Plan_SectionParameter.Where(c => c.Department == dep && c.Group == groupitem && c.Section == seac && c.Process == proitem && c.IndicatorsType == "效率指标").FirstOrDefault();
+                            JObject obj = new JObject();
+                            obj.Add("id", info.Id);
+                            obj.Add("Department", dep);
+                            obj.Add("Group", groupitem);
+                            obj.Add("Section", seac);
+                            obj.Add("Process", proitem);
+                            result.Add(obj);
+                        }
+                    }
+
+                }
+
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //输入工段工序(只输入部门班组工段工序)
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject AddPlanSectionParameter([System.Web.Http.FromBody]JObject data)
+        {
+            string Department = data["Department"].ToString();
+            string Group = data["Group"].ToString();
+            string process = data["process"].ToString();
+            string seaction = data["seaction"].ToString();
+            string UserName = data["UserName"].ToString();
+
+            JObject result = new JObject();
+            var info = db.Plan_SectionParameter.Count(c => c.Department == Department && c.Group == Group && c.Process == process && c.Section == seaction);
+            if (info != 0)
+            {
+                return com.GetModuleFromJobjet(null, false, "已有重复工段工序");
+            }
+
+            Plan_SectionParameter plan_ = new Plan_SectionParameter() { Department = Department, Group = Group, Process = process, Section = seaction, Createor = UserName, CreateTime = DateTime.Now, IndicatorsType = "效率指标" };
+            db.Plan_SectionParameter.Add(plan_);
+            db.SaveChanges();
+
+            result.Add("id", plan_.Id);
+            result.Add("Department", Department);
+            result.Add("Group", Group);
+            result.Add("Process", process);
+            result.Add("Section", seaction);
+
+            return com.GetModuleFromJobjet(result, true, "新增成功");
+        }
+
+        //修改工段工序
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject UpdatePlanSectionParameter([System.Web.Http.FromBody]JObject data)
+        {
+            int id = int.Parse(data["id"].ToString());
+            string newDepartment = data["newDepartment"].ToString();
+            string newGroup = data["newGroup"].ToString();
+            string newProcess = data["newProcess"].ToString();
+            string newSection = data["newSection"].ToString();
+            string UserName = data["UserName"].ToString();
+
+            var info = db.Plan_SectionParameter.Find(id);
+            if (info == null)
+            {
+                return com.GetModuleFromJarray(null, false, "找不到该信息记录");
+            }
+            if (info.Process != newProcess || info.Section != newSection || info.Department != newDepartment || info.Group != newGroup)
+            {
+                //判断是否有重复的记录
+                var check = db.Plan_SectionParameter.Count(c => c.Process == newProcess && c.Section == newSection && c.Department == newDepartment && c.Group == newGroup);
+                if (check != 0)
+                {
+                    return com.GetModuleFromJarray(null, false, "已有重复记录");
+                }
+            }
+            UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = UserName, OperateRecord = "修改工段工序,从" + info.Department + info.Group + info.Process + info.Section + "改为" + newDepartment + newGroup + newProcess + newSection };
+            info.Department = newDepartment;
+            info.Group = newGroup;
+            info.Process = newProcess;
+            info.Section = newSection;
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+
+            return com.GetModuleFromJarray(null, true, "修改成功");
+        }
+
+        //删除工段工序
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DeletePlanSectionParameter([System.Web.Http.FromBody]JObject data)
+        {
+            int id =int.Parse( data["id"].ToString());
+            string UserName = data["UserName"].ToString();
+            var info = db.Plan_SectionParameter.Find(id);
+            if (info == null)
+            {
+                return com.GetModuleFromJarray(null,false,"找不到改信息记录");
+            }
+            db.Plan_SectionParameter.Remove(info);
+            UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = UserName, OperateRecord = "删除工段工序," + info.Department + info.Group + info.Process + info.Section };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+
+            return com.GetModuleFromJarray(null, true, "删除成功");
+        }
+        #endregion
+
+        #region 各工段工序计划录入
+        //显示
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DisplayPlan_FromKPI([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = datavalue.ordernum;//订单
+            string deparment = datavalue.deparment;//部门
+            string group = datavalue.group;//班组
+            string section = datavalue.section;//工段
+            string process = datavalue.process;//工序
+            DateTime? time = datavalue.time;//时间
+
+            JArray result = new JArray();
+            var totalvalue = db.Plan_FromKPI.ToList();
+            if (!string.IsNullOrEmpty(ordernum))
+            {
+                totalvalue = totalvalue.Where(c => c.OrderNum == ordernum).ToList();
+            }
+            if (!string.IsNullOrEmpty(deparment))
+            {
+                totalvalue = totalvalue.Where(c => c.Department == deparment).ToList();
+            }
+            if (!string.IsNullOrEmpty(group))
+            {
+                totalvalue = totalvalue.Where(c => c.Group == group).ToList();
+            }
+            if (!string.IsNullOrEmpty(process))
+            {
+                totalvalue = totalvalue.Where(c => c.Process == process).ToList();
+            }
+            if (!string.IsNullOrEmpty(section))
+            {
+                totalvalue = totalvalue.Where(c => c.Section == section).ToList();
+            } 
+
+            if (time != null)
+            {
+                totalvalue = totalvalue.Where(c => c.PlanTime >= time && c.PlanTime < time.Value.AddMonths(1)).ToList();
+            }
+            foreach (var item in totalvalue)
+            {
+                JObject obj = new JObject();
+                obj.Add("ID", item.Id); //订单
+                obj.Add("OrderNum", item.OrderNum); //订单
+                obj.Add("Department", item.Department);//部门
+                obj.Add("Group", item.Group);//班组
+                obj.Add("Process", item.Process);//工段
+                obj.Add("Section", item.Section);//工序
+                obj.Add("IndicatorsType", item.IndicatorsType);//品质或者效率
+                obj.Add("CheckDepartment", item.CheckDepartment);//检验部门
+                obj.Add("CheckGroup", item.CheckGroup);//检验班组
+                obj.Add("CheckSection", item.CheckSection);//抽检或全检
+                obj.Add("CheckProcess", item.CheckProcess);//抽检或全检
+                obj.Add("CheckNum", item.CheckNum);//抽检或全检
+                obj.Add("CheckType", item.CheckType);//抽检或全检
+                obj.Add("PlanTime", item.PlanTime.ToString());//计划时间
+                obj.Add("PlanNum", item.PlanNum);//计划数量
+                obj.Add("PlanCreateor", item.PlanCreateor);//创建人员
+                result.Add(obj);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //新增
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject AddPlan_FromKPI([System.Web.Http.FromBody]JObject data)
+        {
+            List<Plan_FromKPI> Record = JsonConvert.DeserializeObject<List<Plan_FromKPI>>(JsonConvert.SerializeObject(data["Record"]));
+            string UserName = data["UserName"].ToString();
+            string error = "";
+            foreach (var item in Record)
+            {
+                var info = db.Plan_FromKPI.Count(c => c.PlanTime == item.PlanTime && c.OrderNum == item.OrderNum && c.Department == item.Department && c.Group == item.Group && c.Process == item.Process && c.Section == item.Section);
+                if (info != 0)
+                {
+                    error = error + item.OrderNum + "在" + item.PlanTime + "已有" + item.Department + item.Group + "的计划记录.";
+
+                }
+            }
+            if (string.IsNullOrEmpty(error))
+            {
+                Record.ForEach(c => { c.PlanCreateor =UserName; c.PlanCreateTime = DateTime.Now; });
+                db.Plan_FromKPI.AddRange(Record);
+                db.SaveChanges();
+                return com.GetModuleFromJarray(null,true,"新增成功");
+            }
+            else
+            {
+                return com.GetModuleFromJarray(null, false, error);
+            }
+
+        }
+        //修改
+        public JObject UpdatePlan_FromKPI([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+
+            int id = datavalue.id;
+            string UserName = datavalue.UserName;
+            string Role = datavalue.Role;
+            Plan_FromKPI Record = JsonConvert.DeserializeObject<Plan_FromKPI>(JsonConvert.SerializeObject(datavalue.Record));
+
+            var info = db.Plan_FromKPI.Find(id);
+            JObject result = new JObject();
+            if (info == null)
+            {
+                return com.GetModuleFromJarray(null,false, "没有找到数据");
+            }
+            if (UserName != info.PlanCreateor && Role != "系统管理员")
+            {
+                return com.GetModuleFromJarray(null, false, "你没有权限删除该条信息");
+
+            }
+            UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = UserName, OperateRecord = "修改KPI计划" };
+            info.OrderNum = Record.OrderNum;
+            info.Department = Record.Department;
+            info.Group = Record.Group;
+            info.Process = Record.Process;
+            info.Section = Record.Section;
+            info.IndicatorsType = Record.IndicatorsType;
+            info.CheckDepartment = Record.CheckDepartment;
+            info.CheckGroup = Record.CheckGroup;
+            info.CheckProcess = Record.CheckProcess;
+            info.CheckSection = Record.CheckSection;
+            info.CheckNum = Record.CheckNum;
+            info.CheckType = Record.CheckType;
+            info.PlanTime = Record.PlanTime;
+            info.PlanNum = Record.PlanNum;
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+            result.Add("mes", "修改成功");
+            result.Add("pass", true);
+            return com.GetModuleFromJarray(null, true, "修改成功");
+
+        }
+
+        //删除
+
+        public JObject DeletePlan_FromKPI([System.Web.Http.FromBody]JObject data)
+        {
+            List<int> id = JsonConvert.DeserializeObject<List<int>>(JsonConvert.SerializeObject(data["id"]));
+            string UserName = data["UserName"].ToString();
+            string Role = data["UserName"].ToString();
+
+            var info = db.Plan_FromKPI.Where(c => id.Contains(c.Id));
+            JObject result = new JObject();
+            if (info.Count() == 0)
+            {
+                return com.GetModuleFromJarray(null,false, "找不到该信息");
+            }
+
+            if ((info.Select(c => c.PlanCreateor).Distinct().Count() > 1 || info.Select(c => c.PlanCreateor).FirstOrDefault() != UserName) && Role != "系统管理员")
+            {
+                var name = UserName;
+                var username = info.Where(c => c.PlanCreateor != name).Select(c => c.PlanCreateor).Distinct().ToList();
+                result.Add("mes", "记录包含" + string.Join(",", username) + "的记录,你没有权限删除该条信息");
+                result.Add("pass", false);
+                return com.GetModuleFromJarray(null, false, "记录包含" + string.Join(",", username) + "的记录,你没有权限删除该条信息");
+
+            }
+
+            db.Plan_FromKPI.RemoveRange(info);
+            db.SaveChanges();
+            UserOperateLog log = new UserOperateLog()
+            {
+                OperateDT = DateTime.Now,
+                Operator = UserName,
+                OperateRecord = "删除计划数据" + string.Join(" ", info.Select(c => c.Department).Distinct().ToList()) + string.Join(" ", info.Select(c => c.Group).Distinct().ToList())
+            };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+            result.Add("mes", "删除成功");
+            result.Add("pass", true);
+            return com.GetModuleFromJarray(null, true, "删除成功");
+        }
+
+
+        #endregion
+    }
+    
 }

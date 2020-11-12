@@ -1160,42 +1160,5 @@ namespace JianHeMES.Controllers
         //    }
         //}
         #endregion
-
-
-
-        #region --------------------GetOrderList()取出整个OrderMgms的OrderNum订单号列表
-        [HttpPost]
-        [ApiAuthorize]
-        public JObject OrderList()
-        {
-            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
-            JArray result = new JArray();
-            foreach (var item in orders)
-            {
-                JObject List = new JObject();
-                List.Add("value", item);
-
-                result.Add(List);
-            }
-            return common.GetModuleFromJarray(result);
-        }
-        //----------------------------------------------------------------------------------------
-        #endregion
-        #region --------------------GetnuoOrderList()取出整个OrderMgms的挪用单号列表
-        //public JObject nuoOrderList()
-        //{
-        //    var orders = db.OrderMgm.OrderByDescending(m => m.ID).Where(m => m.IsRepertory == true).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
-        //    JArray result = new JArray();
-        //    foreach (var item in orders)
-        //    {
-        //        JObject List = new JObject();
-        //        List.Add("value", item);
-
-        //        result.Add(List);
-        //    }
-        //    return common.GetModuleFromJarray(result);
-        //}
-        //----------------------------------------------------------------------------------------
-        #endregion
     }
 }

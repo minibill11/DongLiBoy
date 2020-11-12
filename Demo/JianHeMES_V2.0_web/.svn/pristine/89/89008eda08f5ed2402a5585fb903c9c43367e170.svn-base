@@ -1,0 +1,122 @@
+<template>
+  <div>
+    <h2>Chat</h2>
+    <div class="container">
+      用户名： <input type="text" id="displayname" /> <br />
+      信息：<input type="text" id="message" /><br />
+      <input type="button" id="sendmessage" value="Send" />
+      <ul id="discussion"></ul>
+    </div>
+  </div>
+</template>
+
+<script>
+import * as signalR from "@microsoft/signalr";
+
+function htmlEncode(value) {
+  var encodedValue = $("<div />").text(value).html();
+  return encodedValue;
+}
+
+$(function () {
+  var mypush = $.connection.Hub1;
+  mypush.client.sendTH1 = function (TH1_json) {
+    console.log(TH1_json);
+  };
+  $.connection.hub.start();
+});
+
+export default {
+  name: "th_firstfloor",
+  data() {
+    return {
+      user: "",
+      msg: "",
+      remsg: "",
+    };
+  },
+  mounted() {
+    $(function () {
+      $.connection.hub.url = "http://172.16.6.145:8080/chathub"; //按照后台Hub接口名字修改url
+      console.log("这里0");
+      var chat = $.connection.hub;
+      console.log("这里1");
+      console.log("Send按钮的值为：" + $("#sendmessage")[0].defaultValue);
+      console.log($);
+      console.log(chat);
+      chat.client.addNewMessageToPage = function (name, message) {
+        $("#discussion").append(
+          "<li><strong>" +
+            htmlEncode(name) +
+            "</strong>: " +
+            htmlEncode(message) +
+            "</li>"
+        );
+      };
+      console.log("这里2");
+      chat.client.welcome = function (data) {
+        //当后台触发了Hello方法的时候会进行回调当前事件
+        alert(data);
+      };
+      console.log("这里3");
+      $("#displayname").val(prompt("Enter your name:", "")); //赋予displayname输入的名字
+      $("#message").focus();
+      $.connection.hub
+        .start({ jsonp: true })
+        .done(function () {
+          //start(带JSONP配置参数)
+          //alert("Connected");
+          chat.server.hello(); //连接创建成功后台进行回调
+          $("#sendmessage").click(function () {
+            chat.server.send($("#displayname").val(), $("#message").val());
+            $("#message").val("").focus();
+          });
+        })
+        .fail(function () {
+          alert("Connection failed!");
+        });
+    });
+  },
+  methods: {
+    // handle: function () {
+    //   if (this.msg.trim() == "") {
+    //     alert("不能发送空白消息");
+    //     return;
+    //   }
+    //   //调用后端方法 SendMsg 传入参数
+    //   connection.invoke("SendMsg", this.user, this.msg);
+    //   this.msg = "";
+    // },
+  },
+};
+</script>
+
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style scoped>
+h1,
+h2 {
+  font-weight: normal;
+}
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+li {
+  display: inline-block;
+  margin: 0 10px;
+}
+a {
+  color: #42b983;
+}
+#el-input {
+  display: inline-block;
+  width: 96%;
+  /* float: left; */
+}
+#message {
+  overflow-y: auto;
+  text-align: left;
+  border: #42b983 solid 1px;
+  height: 500px;
+}
+</style>

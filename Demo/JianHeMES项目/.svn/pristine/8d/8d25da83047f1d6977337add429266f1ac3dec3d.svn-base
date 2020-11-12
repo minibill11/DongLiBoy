@@ -1,0 +1,173 @@
+﻿<script type="text/template" id="Daily_From">
+  @* 新增/修改弹框 *@
+  <el-dialog :title="dailytype==0?'添加日报信息':'修改日报信息'"
+             @@close="onCancel"
+             top="50px"
+             v-bind:visible.sync="show"
+             width="660px"
+             style="text-align:left;">
+    <el-form v-model="dailyinfo">
+      <el-form-item label="部门：" label-width="240px">
+        <el-select size="mini"
+                   style="width:180px;"
+                   v-model="dailyinfo.Department"
+                   placeholder="请选择..." filterable allow-create clearable>
+          <el-option v-for="item in department_options"
+                     :key="item.value"
+                     :label="item.label"
+                     :value="item.value">
+          </el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="负责人：" label-width="240px">
+        <el-input placeholder="请输入..."
+                  size="mini"
+                  v-model="dailyinfo.Principal"
+                  style="width:180px;"
+                  clearable>
+        </el-input>
+      </el-form-item>
+      <el-form-item label="编制人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Aurhorized_personnel" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="刚需人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Need_personnel" size="mini" controls-position="right" :min="0"></el-input-number>
+        <span class="note">若无刚需人数，则刚需人数填＝编制人数。 </span>
+      </el-form-item>
+      @*<el-form-item label="" label-width="240px">
+          <span class="note">若无刚需人数，则刚需人数填＝编制人数。 </span>
+        </el-form-item>*@
+      <el-form-item label="今日在岗人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Today_dutynum" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="来惠工程人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Engineering" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当日正式工人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Employees_personnel" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当日劳务工人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Workers_personnel" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当日入职正式工人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Today_on_board_employees" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当日入职劳务工人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Today_on_board_workers" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当天离职正式工_入职满七天：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Todoy_dimission_employees_over7days" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当天离职正式工_入职未满七天：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Todoy_dimission_employees_nvever_over7days" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当天离职劳务工：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Todoy_dimission_workers" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当月待离职正式工人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Resigned_that_month" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <el-form-item label="当月待离职劳务工人数：" label-width="240px">
+        <el-input-number v-model="dailyinfo.Resigned_workers_that_month" size="mini" controls-position="right" :min="0"></el-input-number>
+      </el-form-item>
+      <template v-if="dailytype==1">
+        <el-form-item label="预填表人数：" label-width="240px">
+          <el-input-number v-model="dailyinfo.Interview" size="mini" controls-position="right" :min="0"></el-input-number>
+        </el-form-item>
+        <el-form-item label="日期：" label-width="240px">
+          <el-date-picker v-model="dailyinfo.Date"
+                          type="datetime"
+                          size="mini"
+                          placeholder="选择日期" style="width:180px;">
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item label="日报提交人：" label-width="240px">
+          <el-input placeholder="请输入..."
+                    size="mini"
+                    v-model="dailyinfo.Reporter"
+                    style="width:180px;"
+                    clearable>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="" label-width="240px">
+          <el-upload class="upload-demo"
+                     ref="upload"
+                     action=""
+                     :on-preview="handlePreview"
+                     :on-remove="handleRemove"
+                     :file-list="fileList"
+                     :auto-upload="false">
+            <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+            <el-button style="margin-left: 10px;" size="small" type="success" @@click="submitUpload">上传</el-button>
+            <span slot="tip" class="el-upload__tip">上传文件不超过500kb</span>
+          </el-upload>
+        </el-form-item>
+      </template>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+      <el-button size="mini" v-on:click="onCancel">取 消</el-button>
+      <el-button size="mini" type="primary" v-on:click="confirm">保存</el-button>
+    </span>
+  </el-dialog>
+
+</script>
+<script>
+  Vue.component('daily-from-component', {
+    props: ["show", "dailytype", "dailyinfo"],
+    template: document.getElementById("Daily_From"),
+    data: function () {
+      return {
+        department_options: [
+          { label: "PMC部", value: "PMC部" },
+          { label: "SMT部", value: "SMT部" },
+          { label: "总装一部", value: "总装一部" },
+          { label: "总装二部", value: "总装二部" },
+          { label: "配套加工部", value: "配套加工部" },
+          { label: "技术部", value: "技术部" },
+          { label: "品质部", value: "品质部" },
+          { label: "行政后勤部", value: "行政后勤部" },
+          { label: "人力资源部", value: "人力资源部" },
+          { label: "财务部", value: "财务部" },
+          { label: "工厂厂长", value: "工厂厂长" },
+          { label: "厂务中心", value: "厂务中心" },
+          { label: "品技中心", value: "品技中心" },
+          { label: "厂长助理", value: "厂长助理" }
+        ],
+        fileList: [],
+      }
+    },
+    mounted() {
+    },
+    watch: {
+    },
+    methods: {
+      onCancel() {
+        this.$emit("cancel", false);
+      },
+      submitUpload() {
+        this.$refs.upload.submit();
+      },
+      handleRemove(file, fileList) {
+        console.log(file, fileList);
+      },
+      handlePreview(file) {
+        console.log(file);
+      },
+      confirm() {
+        if (this.dailytype == 0) {
+          axios.post("/api/Personnel_Api/Create", { data: this.dailyinfo }).then(res => {
+            //console.log(res.data.Data)
+
+          })
+        } else {
+          axios.post("/api/Personnel_Api/Edit", { data: this.dailyinfo }).then(res => {
+            console.log(res.data.Data)
+
+          })
+        }
+      },
+    }
+
+  });
+
+</script>

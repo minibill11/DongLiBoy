@@ -191,6 +191,7 @@ namespace JianHeMES.Controllers
     public class VersionManagement_ApiController : System.Web.Http.ApiController
     {
         private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonController com = new CommonController();
 
         [HttpPost]
         [ApiAuthorize]
@@ -239,7 +240,13 @@ namespace JianHeMES.Controllers
             return result;
         }
 
-
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject LasrVersion()
+        {
+            var verssion = db.VersionInfo.Where(c => c.MESVersion != "Next").OrderByDescending(c => c.Id).Select(c => c.MESVersion).FirstOrDefault();
+            return com.GetModuleFromJobjet(null,null,verssion);
+        }
     }
 
 

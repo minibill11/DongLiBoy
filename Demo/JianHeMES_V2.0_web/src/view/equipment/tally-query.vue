@@ -1,9 +1,9 @@
 <!--- 点检查询 --->
 <template>
   <div>
-    <eqHeader :active="active"></eqHeader>
+    <EqHeader :active="active"></EqHeader>
     <el-main class="main-box">
-      <!-- @* 查询选择框s *@ -->
+      <!-- @* 查询选择框 *@ -->
       <div class="equipment-index-inputcontainer">
         <div class="equipment-index-inputcontainer-item">
           <div>设备名称：</div>
@@ -104,7 +104,7 @@
       <!-- @* 点检表 *@ -->
       <div class="bottomContainer">
         <el-table
-          :data="tableData"
+          v-bind:data="tableData"
           border
           stripe
           size="small"
@@ -120,11 +120,44 @@
           </el-table-column>
           <el-table-column prop="EquipmentNumber" sortable label="设备编号">
           </el-table-column>
-          <el-table-column label="状态" sortable>
-            <template slot-scope="scope">
-              <div v-if="!scope.row.State" class="red-text">当天未点检</div>
-              <div v-if="scope.row.State" class="green-text">当天已点检</div>
-            </template>
+          <el-table-column label="状态" align="center">
+            <el-table-column prop="State" label="日检" sortable>
+              <template slot-scope="scope">
+                <div :class="scope.row.State ? 'green-text' : 'red-text'">
+                  {{ scope.row.State ? "当天已点检" : "当天未点检" }}
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="Week_State" label="周检" sortable>
+              <template slot-scope="scope">
+                <div
+                  :class="{
+                    'red-text': scope.row.Week_State == 0,
+                    'orange-text': scope.row.Week_State == 1,
+                    'green-text': scope.row.Week_State == 2,
+                  }"
+                >
+                  {{ scope.row.Week_State == 0 ? "当周未点检" : ""
+                  }}{{ scope.row.Week_State == 1 ? "当周已保养待确认" : ""
+                  }}{{ scope.row.Week_State == 2 ? "当周已点检" : "" }}
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="Month_State" label="月检" sortable>
+              <template slot-scope="scope">
+                <div
+                  :class="{
+                    'red-text': scope.row.Month_State == 0,
+                    'orange-text': scope.row.Month_State == 1,
+                    'green-text': scope.row.Month_State == 2,
+                  }"
+                >
+                  {{ scope.row.Month_State == 0 ? "当月未点检" : ""
+                  }}{{ scope.row.Month_State == 1 ? "当月已保养待确认" : ""
+                  }}{{ scope.row.Month_State == 2 ? "当月已点检" : "" }}
+                </div>
+              </template>
+            </el-table-column>
           </el-table-column>
           <el-table-column label="时间">
             <template slot-scope="scope">
@@ -158,11 +191,21 @@
           </el-table-column>
         </el-table>
         <div class="tally-tip">
-          <span class="green-text">已点检数：{{ HaveTallyNum }}</span>
-          <span class="red-text">未点检数：{{ TallyNum }}</span>
+          <span class="green-text">当天已点检数：{{ HaveTallyNum }}</span>
+          <span class="red-text">当天未点检数：{{ TallyNum }}</span>
+          <span class="green-text">当周已点检数：{{ week_HaveTallyNum }}</span>
+          <span class="orange-text"
+            >当周已保养待确认：{{ week_TallyNum_yes }}</span
+          >
+          <span class="red-text">当周未点检数：{{ week_TallyNum_no }}</span>
+          <span class="green-text">当月已点检数：{{ month_HaveTallyNum }}</span>
+          <span class="orange-text"
+            >当月已保养待确认：{{ month_TallyNum_yes }}</span
+          >
+          <span class="red-text">当月未点检数：{{ month_TallyNum_no }}</span>
         </div>
         <div class="grey-tip">
-          备注：点检查询表中状态一列，红色：表示设备当天未点检，绿色：表示设备当天已点检
+          备注：点检查询表中状态一列，红色：表示未点检，绿色：表示已点检；橙色：表示已保养待确认
         </div>
       </div>
       <!-- @* 创建点检表弹框 *@ -->
@@ -232,7 +275,7 @@
               size="mini"
               type="month"
               placeholder="选择时间"
-              style="width: 150px"
+              style="width: 150px" value-format="yyyy-MM-dd HH:mm:ss"
             >
             </el-date-picker>
           </el-form-item>
@@ -326,7 +369,7 @@
               v-model="copyMonth.old"
               size="mini"
               type="month"
-              placeholder="选择月"
+              placeholder="选择月" value-format="yyyy-MM-dd HH:mm:ss"
             >
             </el-date-picker>
           </el-form-item>
@@ -335,7 +378,7 @@
               v-model="copyMonth.new"
               size="mini"
               type="month"
-              placeholder="选择月"
+              placeholder="选择月" value-format="yyyy-MM-dd HH:mm:ss"
             >
             </el-date-picker>
           </el-form-item>
@@ -440,11 +483,11 @@
 </template>
 
 <script>
-import eqHeader from "./page-components/_eq_header";
+import EqHeader from "./page-components/_eq_header";
 import {
   Checked_maintenance,
   Tally_List,
-  Tally_Deparlist,
+  Userdepartment_list,
   EquipmentInfo_getdata_by_eqnum,
   LineNameList,
   ModifyUseDepartment,
@@ -456,6 +499,7 @@ export default {
   data() {
     return {
       active: "点检查询",
+      loading: true,
       EquipmentName: null, // 设备名称
       LineNum: null, // 产线
       EquipmentNumber: null, // 设备编号
@@ -489,18 +533,25 @@ export default {
       //查看日点检情况
       select_department: "",
       dayCheckDialogVisible: false,
-      HaveTallyNum: 0, //已点检数
       HaveTallyList: [], //已点检列表
-      TallyNum: 0, //未点检数
       TallyList: [], //未点检列表
+      HaveTallyNum: "0", //已点检数
+      TallyNum: "0", //未点检数
+      week_HaveTallyNum: 0, //已点检数
+      week_TallyNum_yes: 0, //已保养待确认
+      week_TallyNum_no: 0, //未点检数
+      month_HaveTallyNum: 0, //已点检数
+      month_TallyNum_yes: 0, //已保养待确认
+      month_TallyNum_no: 0, //未点检数
     };
   },
-  components: { eqHeader },
+  components: { EqHeader },
   computed: {},
   watch: {
     "addCheck.EquipmentNumber": {
       handler(val) {
         if (val != "") {
+          console.log(val)
           this.getAssetNumsDetail(val);
         }
       },
@@ -516,24 +567,59 @@ export default {
   methods: {
     // 查找方法，根据所选设备名称、订单号、时间段、使用部门来获取点检表数据
     initData() {
-      if (this.time != "") {
+      // console.log(this.time)
+      if (this.time != ""&&this.time!=null) {
         let param = {
           equipmentName: this.EquipmentName,
           LineNum: this.LineNum,
           equipmentNumber: this.EquipmentNumber,
           time: this.time,
-          userDepartment: this.UserDepartment,
+          userdepartment: this.UserDepartment,
         };
         Checked_maintenance(param).then((res) => {
+          this.loading = false;
           //console.log(res.data.Data, 222222222222);
           let arr1 = res.data.Data.Retul ? res.data.Data.Retul : [];
           let arr2 = res.data.Data.Have_retul ? res.data.Data.Have_retul : [];
-          this.tableData = arr1.concat(arr2);
           //console.log(this.tableData);
-          this.TallyNum = res.data.Data.Number ? res.data.Data.Number : 0;
+          this.TallyNum = res.data.Data.Number ? res.data.Data.Number : "0";
           this.HaveTallyNum = res.data.Data.HaveTally
             ? res.data.Data.HaveTally
-            : 0;
+            : "0";
+          this.tableData = arr1.concat(arr2);
+          let week_HaveTallyNum = 0,
+            week_TallyNum_no = 0,
+            week_TallyNum_yes = 0,
+            month_HaveTallyNum = 0,
+            month_TallyNum_no = 0,
+            month_TallyNum_yes = 0;
+          //0是未点检，1是已点检待确认，2是已点检
+          this.tableData.forEach((item) => {
+            if (item.Week_State == 0) {
+              week_TallyNum_no += 1;
+            }
+            if (item.Week_State == 1) {
+              week_TallyNum_yes += 1;
+            }
+            if (item.Week_State == 2) {
+              week_HaveTallyNum += 1;
+            }
+            if (item.Month_State == 0) {
+              month_TallyNum_no += 1;
+            }
+            if (item.Month_State == 1) {
+              month_TallyNum_yes += 1;
+            }
+            if (item.Month_State == 2) {
+              month_HaveTallyNum += 1;
+            }
+          });
+          this.week_HaveTallyNum = week_HaveTallyNum;
+          this.week_TallyNum_no = week_TallyNum_no;
+          this.week_TallyNum_yes = week_TallyNum_yes;
+          this.month_HaveTallyNum = month_HaveTallyNum;
+          this.month_TallyNum_no = month_TallyNum_no;
+          this.month_TallyNum_yes = month_TallyNum_yes;
         });
       } else {
         this.$message.warning("请选择日期");
@@ -550,7 +636,7 @@ export default {
           });
         })
         .catch((err) => {});
-      Tally_Deparlist()
+      Userdepartment_list()
         .then((res) => {
           //console.log(res.data.Data)
           res.data.Data.forEach((item) => {
@@ -582,13 +668,14 @@ export default {
       EquipmentInfo_getdata_by_eqnum({
         equipmentNumber: val,
       }).then((res) => {
-        //console.log(res.data.Data,111);
-        if (res.data.Data.length == 0) {
+        let result = JSON.parse(res.data.Data)
+        // console.log(result,111);
+        if (result == 0) {
           this.$message.warning("此资产编号无对应数据");
         } else {
-          this.addCheck.EquipmentName = res.data.Data.EquipmentName;
-          this.addCheck.LineNum = res.data.Data.LineNum;
-          this.addCheck.UserDepartment = res.data.Data.UserDepartment;
+          this.addCheck.EquipmentName = result.EquipmentName;
+          this.addCheck.LineNum = result.LineNum;
+          this.addCheck.UserDepartment = result.UserDepartment;
         }
       });
     },
@@ -602,17 +689,16 @@ export default {
           EquipmentNumber: item.EquipmentNumber,
           time: dd,
         };
-        //console.log(param)
-         this.$router.push(
-        {name: 'Equipment_Check_Record',
-        query:{ paramData:JSON.stringify(param),
-        canchange:'false'
-        }});
-        // window.open(
-        //   "/Equipment/Equipment_Check_Record?paramData=" +
-        //     JSON.stringify(param) +
-        //     "&canchange=false"
-        // );
+        // console.log(param)
+        // this.$router.push({
+        //   name: "Equipment_Check_Record",
+        //   query: { paramData: JSON.stringify(param), canchange: "false" },
+        // });
+        window.open(
+          "/Equipment/Equipment_Check_Record?paramData=" +
+            JSON.stringify(param) +
+            "&canchange=false"
+        );
       } else {
         this.$message.warning("暂无权限！");
       }
@@ -625,7 +711,7 @@ export default {
     },
     onChangeUserDepartment(val) {
       LineNameList({ newdepartment: val }).then((res) => {
-        console.log(res.data.Data);
+        // console.log(res.data.Data);
         let arr = [];
         res.data.Data.forEach((item) => {
           let obj = {
@@ -644,13 +730,14 @@ export default {
       } else {
         let param = {
           id: this.eqMsg.Id,
-          newdepartment: this.eqMsg.UserDepartment,
+          userDepartment: this.eqMsg.UserDepartment,
           newLineName: this.eqMsg.LineName,
           equipmentName: this.eqMsg.EquipmentName,
         };
+        // console.log(param)
         ModifyUseDepartment(param).then((res) => {
-          if (res.data.Data.Result == true) {
-            this.$message.success("修改成功！");
+          if (res.data.Result) {
+            this.$message.success(res.data.Message);
             this.showMsg = false;
             this.initData();
           }
@@ -685,7 +772,11 @@ export default {
     },
     //复制月数据
     onShowCopy() {
-      this.copyMonthDialogVisible = true;
+      if (this.$limit("复制月点检表")) {
+        this.copyMonthDialogVisible = true;
+      } else {
+        this.$message.warning("暂无权限！");
+      }
     },
     addCopyMonth() {
       if (this.copyMonth.old == "" || this.copyMonth.new == "") {
@@ -710,8 +801,8 @@ export default {
           .then((res) => {
             this.$loading().close();
             //console.log(res.data.Data);
-            if (res.data.Data.meg) {
-              this.$message.success(res.data.Data.copy);
+            if (res.data.Result) {
+              this.$message.success(res.data.Message);
               this.copyMonth = {
                 old: "",
                 new: "",
@@ -719,7 +810,7 @@ export default {
               };
               this.copyMonthDialogVisible = false;
             } else {
-              this.$message.error(res.data.Data.copy);
+              this.$message.error(res.data.Message);
             }
           })
           .catch((err) => {
@@ -739,11 +830,10 @@ export default {
         EquipmentNumber: item.EquipmentNumber,
         time: new Date(),
       };
-       this.$router.push(
-        {name: 'Equipment_Check_Record',
-        query:{ paramData:JSON.stringify(obj),
-        canchange:'false'
-        }});
+      this.$router.push({
+        name: "Equipment_Check_Record",
+        query: { paramData: JSON.stringify(obj), canchange: "false" },
+      });
       // window.open(
       //   "/Equipment/Equipment_Check_Record?paramData=" +
       //     JSON.stringify(obj) +
@@ -766,7 +856,7 @@ export default {
     this.getEnumnbers();
     //this.query();
     this.initData();
-  }
+  },
 };
 </script>
 
@@ -815,6 +905,9 @@ export default {
 
 .red-text {
   color: red;
+}
+.orange-text {
+  color: #e6a23c;
 }
 
 .green-text {

@@ -22,19 +22,11 @@ export default {
    */
   baseUrl: {
 
-    dev: 'http://172.16.6.145/api/',
-    // dev: 'http://localhost:18863/api/',
+    // dev: 'http://172.16.6.145/api/',
+    dev: 'http://localhost:18863/api/',
     // pro: 'http://localhost:18863/api/'
     pro: 'http://172.16.6.145/api/',
     proTwo:'http://hzjhgd.vicp.io/api/',
-  },
-  loadPath: {
-
-    dev: 'http://172.16.6.145/',
-    // dev: 'http://localhost:18863/',
-    // pro: 'http://localhost:18863/'
-    pro: 'http://172.16.6.145/',
-    proTwo:'http://hzjhgd.vicp.io/',
   },
   /**
    * @description 默认打开的首页的路由name值，默认为home

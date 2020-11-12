@@ -179,7 +179,7 @@ const setMuneList = [
                 limits: [],
             },
             {
-                url: '/SMT/SMT_ProductionPlan',
+                url: '/SMT/New_SMT_ProductionPlan',
                 title: 'SMT生产计划',
                 limits: [],
             },
@@ -212,7 +212,7 @@ const setMuneList = [
             {
                 url: '/Packagings/DeleteConfirmAll',
                 title: '删除入库信息',
-                limits: ['系统管理员'],
+                limits: ['删除入库信息'],
             },
             {
                 url: '/Warehouse_Material/QueryData',
@@ -570,11 +570,12 @@ const setMuneList = [
             }
         ]
     },
-
+    //订单交付
+    //{}，
     {
         url: '/people',
-        title: '人力资源部',
-        limits: [],
+        title: '人力资源',
+        limits: ['人力资源'],
         departmentLimits: {
             KeepOrExclude: false,
             JudgeArray: ['合约部', '销售部', '财务部', '采购部', '客户服务部', '研发部']
@@ -637,7 +638,7 @@ const setMuneList = [
                 title: '7S管理',
                 limits: [],
             }, {
-                url: '/Personnel_Framework/Index',
+                url: '/Personnel_Framework/Index2',
                 title: '组织架构',
                 limits: ['显示组织架构'],
                 specialLimits: {
@@ -673,6 +674,138 @@ const setMuneList = [
                 title: '系统用户',
                 limits: ['查看工厂用户清单', '查看总部用户清单'],
             },
+        ]
+    },
+    {
+        url: '/sbgl',
+        title: '设备管理',
+        limits: ['设备管理'],
+        departmentLimits: {
+            KeepOrExclude: false,
+            JudgeArray: ['合约部', '销售部', '财务部', '客户服务部', '研发部']
+        },
+        specialLimits: {
+            KeepOrExclude: false,
+            JudgeArray: ['姜春艳', '刘秋如']
+        },
+        children: [{
+            url: '/Equipment/Equipment_NewIndex',
+            title: '运行状态',
+            limits: ['设备查询'],
+        }, {
+            url: '/Equipment/Equipment_Parameter',
+            title: '设备台账',
+            limits: ['查看设备台账'],
+        }, {
+            url: '/Equipment/Equipment_Production_line',
+            title: '产线设备',
+            limits: ['查看产线设备'],
+        }, {
+            url: '/Equipment/Equipment_Tally_Query',
+            title: '点检查询',
+            limits: ['查询点检保养表'],
+        }, {
+            url: '/Equipment/Equipment_Fixbill_Query',
+            title: '报修单查询',
+            limits: ['查询设备报修单'],
+        }, {
+            url: '/Equipment/Equipment_Safety_Bill',
+            title: '安全库存清单',
+            limits: ['查看安全库存'],
+        }, {
+            url: '/Equipment/Equipment_Quality_Goal',
+            title: '指标达成率',
+            limits: ['查看指标达成率'],
+        }, {
+            url: '/Equipment/Equipment_ScanCode_Check',
+            title: '扫码点检',
+            limits: ['扫码点检'],
+        }, {
+            url: '/Equipment/Equipment_Gas_Supply',
+            title: '供气系统',
+            limits: ['查看供气系统'],
+        },
+        ]
+    },
+    {
+        url: '/hj',
+        title: '环境监测',
+        limits: ['环境监测'],
+        departmentLimits: {
+            KeepOrExclude: false,
+            JudgeArray: ['合约部', '销售部', '财务部', '采购部', '客户服务部', '研发部']
+        },
+        specialLimits: {
+            KeepOrExclude: false,
+            JudgeArray: ['姜春艳', '刘秋如']
+        },
+        children: [
+            {
+                url: '/allKongYa',
+                title: '全厂温湿度',
+                limits: [],
+                departmentLimits: {
+                    KeepOrExclude: false,
+                    JudgeArray: ['合约部', '销售部', '财务部', '采购部', '客户服务部', '研发部']
+                },
+                specialLimits: {
+                    KeepOrExclude: false,
+                    JudgeArray: ['姜春艳', '刘秋如']
+                },
+                children: [
+                    {
+                        url: '/kongYaFloor',
+                        title: '楼层',
+                        limits: [],
+                        children: [
+                            {
+                                url: '/KongYaHT/KongYa/FirstFloor',
+                                title: '一楼',
+                                limits: [],
+                            },
+                            {
+                                url: '/KongYaHT/KongYa/SecondFloor',
+                                title: '二楼',
+                                limits: [],
+                            },
+                            {
+                                url: '/KongYaHT/KongYa/ThirdFloor',
+                                title: '三楼',
+                                limits: [],
+                            },
+                            {
+                                url: '/KongYaHT/KongYa/FourthFloor',
+                                title: '四楼',
+                                limits: [],
+                            },
+                            {
+                                url: '/KongYaHT/KongYa/FifthFloor',
+                                title: '五楼',
+                                limits: [],
+                            },
+                            {
+                                url: '/KongYaHT/KongYa/Sixthfloor',
+                                title: '六楼',
+                                limits: [],
+                            },]
+                    },
+                    {
+                        url: '/KongYaHT/KongYa/OutputTHDataToExcel',
+                        title: '导出数据',
+                        limits: [],
+                    },
+                ]
+            },
+            {
+                url: '/KongYaHT/KongYa/FloorDataShow',
+                title: '温湿度汇总表',
+                limits: [],
+            },
+            {
+                url: '/KPI/KPI_7S_Summarizing',
+                title: '7S管理',
+                limits: [],
+            }
         ]
     },
     {

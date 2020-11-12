@@ -8,10 +8,14 @@
 @section cssStyle {
     <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
     <style>
-        a:link {
-            color: #409eff;
-            text-decoration: underline;
-        }
+      .production-line-box{
+        min-width:1300px;
+        overflow:auto;   
+      }
+      a:link {
+        color: #409eff;
+        text-decoration: underline;
+      }
 
         .line-box {
             margin-top: 10px;
@@ -49,7 +53,7 @@
         }
 
         .line-card-head-center span {
-            margin: 0 10px;
+            margin: 0 5px;
             text-align: center;
         }
 
@@ -110,6 +114,14 @@
             border-radius: 4px;
             cursor: pointer;
             background-color: #fb6d75;
+        }
+
+        .status-mainte {
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #409eff;
         }
 
         .status-outage {
@@ -173,7 +185,7 @@
         @*标题*@
         <eq-header-component :active="active"></eq-header-component>
     </el-header>
-    <el-main class="main-box">
+    <el-main class="main-box production-line-box">
         @* 查询选择框s *@
         <div class="equipment-index-inputcontainer">
             <div class="equipment-index-inputcontainer-item">
@@ -189,12 +201,13 @@
             <el-button type="primary" size="mini" v-on:click="onAddLine">增加产线</el-button>
         </div>
         <div class="line-box">
-            <div v-for="(item,index) in cardData" :class="{'line-card-run':item.productLineStatus=='运行','line-card-stop':item.productLineStatus=='停机','line-card-unknown':item.productLineStatus=='其他状态','line-card-fix':item.productLineStatus=='维修'}">
+            <div v-for="(item,index) in cardData" :class="{'line-card-run':item.productLineStatus=='运行','line-card-stop':item.productLineStatus=='停机','line-card-unknown':item.productLineStatus=='其他状态'||'保养','line-card-fix':item.productLineStatus=='维修'}">
                 <el-row class="line-card-head">
                     <el-col :span="8">{{item.department}}&nbsp;&nbsp; | &nbsp;&nbsp;产线：{{item.linenum}}</el-col>
                     <el-col :span="8" class="line-card-head-center">
                         <span style="color: #22c49e;">运行：{{item.sum_run}}台</span>
                         <span style="color: #f7c73a;">停机：{{item.sum_stop}}台</span>
+                        <span style="color: #409eff;">保养：{{item.sum_mainte}}台</span>
                         <span style="color: #fb6d75;">维修：{{item.sum_fix}}台</span>
                         <span style="color: #8ea0b8;">断电：{{item.sum_outage}}台</span>
                     </el-col>
@@ -202,11 +215,13 @@
                         <span v-if="item.productLineStatus=='运行'" style="color: #22c49e;">整线{{item.productLineStatus}}</span>
                         <span v-if="item.productLineStatus=='停机'" style="color: #f7c73a;">整线{{item.productLineStatus}}</span>
                         <span v-if="item.productLineStatus=='其他状态'" style="color: #409eff;">{{item.productLineStatus}}</span>
-                        <span v-if="item.productLineStatus=='维修/保养'" style="color: #fb6d75;">{{item.productLineStatus}}</span>
+                        <span v-if="item.productLineStatus=='保养'" style="color: #409eff;">{{item.productLineStatus}}</span>
+                        <span v-if="item.productLineStatus=='维修'" style="color: #fb6d75;">{{item.productLineStatus}}</span>
                         <i v-if="item.productLineStatus=='运行'" style="color: #22c49e;font-size: 20px;" class="el-icon-loading"></i>
+                        <i v-if="item.productLineStatus=='保养'" style="color: #409eff;font-size: 20px;" class="el-icon-loading"></i>
                         <i v-if="item.productLineStatus=='停机'" style="color: #f7c73a;font-size: 20px;" class="el-icon-video-pause"></i>
                         <i v-if="item.productLineStatus=='其他状态'" style="color: #409eff;font-size: 20px;" class="el-icon-remove-outline"></i>
-                        <i v-if="item.productLineStatus=='维修/保养'" style="color: #fb6d75; font-size: 20px;" class="el-icon-remove-outline"></i>
+                        <i v-if="item.productLineStatus=='维修'" style="color: #fb6d75; font-size: 20px;" class="el-icon-remove-outline"></i>
                         <el-popover ref="popover1"
                                     placement="bottom"
                                     trigger="click">
@@ -214,13 +229,13 @@
                                 <el-button type="success" size="mini" style="padding: 4px 8px;margin-bottom: 8px;background-color: #22c49e;border-color: #22c49e;" @@click="onMachineAdjustment(item,'运行')">整线运行</el-button><br />
                                 <el-button type="primary" size="mini" style="padding: 4px 8px;background-color: #f7c73a;border-color: #f7c73a;" @@click="onMachineAdjustment(item,'停机')">整线停机</el-button>
                             </div>
-                            <el-button :disabled="item.sum_fix!=0 || item.sum_outage!=0" slot="reference" type="primary" size="mini" style="padding: 4px 8px;margin-left:10px;">整线调整</el-button>
+                            <el-button :disabled="item.sum_fix!=0 || item.sum_outage!=0||item.sum_mainte!=0" slot="reference" type="primary" size="mini" style="padding: 4px 8px;margin-left:10px;">整线调整</el-button>
                         </el-popover>
                     </el-col>
                 </el-row>
                 <div class="line-card-item">
-                    <el-row :gutter="30">
-                        <el-col :xs="12" :sm="6" :md="3" :lg="3" v-for="(cardItem,i) in item.mechines">
+                    <el-row :gutter="15">
+                        <el-col :xs="6" :sm="6" :md="4" :lg="3" v-for="(cardItem,i) in item.mechines">
                             <div class="line-card-item-box">
                                 <div class="line-icon">
                                     <i class="el-icon-circle-plus-outline left" v-on:click="addNewEquipment(item,cardItem,'left')"></i>
@@ -230,19 +245,20 @@
                                     <div class="line-card-item-title" @@click="showDetails(cardItem,item)">{{cardItem.mechineindex}}号 {{cardItem.equipmentName}}</div>
 
                                     <div class="line-card-item-content">
-                                        <a :href="onToTurn(cardItem,0)" class="detail-style" target="_blank">点检</a>
-                                        <a :href="onToTurn(cardItem,1)" class="detail-style" target="_blank">报修</a>
+                                        <el-button type="text" @@click="onToTurn(cardItem,0)" class="detail-style" target="_blank">点检</el-button>
+                                        <el-button type="text" @@click="onToTurn(cardItem,1)" class="detail-style" target="_blank">报修</el-button>
                                         <el-popover ref="popover2"
                                                     placement="right"
                                                     trigger="click">
                                             <div style="display:flex;flex-direction:column;">
                                                 <span class="line-card-item-status status-run" @@click="onChangeStatus(cardItem,'运行',item)" style="margin-bottom: 8px;">运行</span>
                                                 <span class="line-card-item-status status-stop" @@click="onChangeStatus(cardItem,'停机',item)" style="margin-bottom: 8px;">停机</span>
+                                                <span class="line-card-item-status status-mainte" @@click="onChangeStatus(cardItem,'保养',item)" style="margin-bottom: 8px;">保养</span>
                                                 <span class="line-card-item-status status-fix" @@click="onChangeStatus(cardItem,'维修',item)">维修</span>
                                             </div>
                                             <div v-if="item.linenum!='空压机'"
                                                  slot="reference"
-                                                 :class="{'status-run':cardItem.status=='运行','status-stop':cardItem.status=='停机','status-fix':cardItem.status=='维修','status-outage':cardItem.status=='断电'}">
+                                                 :class="{'status-run':cardItem.status=='运行','status-stop':cardItem.status=='停机','status-mainte':cardItem.status=='保养','status-fix':cardItem.status=='维修','status-outage':cardItem.status=='断电'}">
                                                 {{cardItem.status}}
                                             </div>
                                         </el-popover>
@@ -252,11 +268,12 @@
                                             <div v-if="cardItem.status!='运行'&&cardItem.status!='断电'" style="display:flex;flex-direction:column;">
                                                 <span class="line-card-item-status status-stop" @@click="onChangeStatus(cardItem,'停机',item)" style="margin-bottom: 8px;">停机</span>
                                                 <span class="line-card-item-status status-fix" @@click="onChangeStatus(cardItem,'维修',item)" style="margin-bottom: 8px;">维修</span>
+                                                <span class="line-card-item-status status-mainte" @@click="onChangeStatus(cardItem,'保养',item)" style="margin-bottom: 8px;">保养</span>
                                                 <span class="line-card-item-status status-outage" @@click="onChangeStatus(cardItem,'断电',item)">断电</span>
                                             </div>
                                             <div v-if="item.linenum=='空压机'"
                                                  slot="reference"
-                                                 :class="{'status-run':cardItem.status=='运行','status-stop':cardItem.status=='停机','status-fix':cardItem.status=='维修','status-outage':cardItem.status=='断电'}">
+                                                 :class="{'status-run':cardItem.status=='运行','status-stop':cardItem.status=='停机','status-mainte':cardItem.status=='保养','status-fix':cardItem.status=='维修','status-outage':cardItem.status=='断电'}">
                                                 {{cardItem.status}}
                                             </div>
                                         </el-popover>
@@ -444,11 +461,12 @@
                 statusList: [
                     { label: "运行", value: "运行" },
                     { label: "停机", value: "停机" },
+                    { label: "保养", value: "保养" },
                     { label: "维修", value: "维修" }
                 ],
 
                 // 添加产线
-                addLine: true,
+                //addLine: true,
                 showAddLine: false,
                 addlinemachinechioed: [],
                 showImg: false,
@@ -489,10 +507,10 @@
                     this.selete_department = this.urlSearchParam.paramData;
                 }
                 //console.log(this.selete_department, 555);
-                //判断权限
-                if (this.islimit('设备产线添加')) {
-                    this.addLine = true
-                }
+                ////判断权限
+                //if (this.islimit('设备产线添加')) {
+                //    this.addLine = true
+                //}
 
                 this.onGetDepartment();
                 this.getAllAssetNums();
@@ -517,14 +535,13 @@
                 //跳转
                 onToTurn(val, index) {
                     //console.log(val,11);
-                    let url;
                     let dd = new Date();
                     if (index == 0) {
                         let param = {
                             EquipmentNumber: val.equipmentNumber,
                             time: dd
                         }
-                        url = "/Equipment/Equipment_Check_Record?paramData=" + JSON.stringify(param) + "&canchange=false";
+                        window.open("/Equipment/Equipment_Check_Record?paramData=" + JSON.stringify(param) + "&canchange=false");
                     }
                     if (index == 1) {
                         if (this.islimit("新建报修单")) {
@@ -533,12 +550,11 @@
                                 EquipmentName: val.equipmentName,
                                 UserDepartment: this.selete_department
                             }
-                            url = "/Equipment/Equipment_Fixbill_Detail?paramData=" + JSON.stringify(param) + "&canchange=true";
+                            window.open("/Equipment/Equipment_Fixbill_Detail?paramData=" + JSON.stringify(param) + "&canchange=true");
                         } else {
                             this.$message.warning("暂无权限！")
                         }
                     }
-                    return url;
                 },
                 // 获取所有设备的资产编号
                 getAllAssetNums() {
@@ -613,7 +629,7 @@
                                 //console.log(cardData, 99)
                             }
                             cardData.map(item => {
-                                let sum_stop = 0, sum_run = 0, sum_fix = 0, sum_outage = 0;
+                                let sum_stop = 0, sum_run = 0, sum_fix = 0, sum_mainte = 0, sum_outage = 0;
                                 item.mechines.forEach(m_item => {
                                     if (m_item.status == "运行") {
                                         sum_run += 1;
@@ -623,6 +639,8 @@
                                     }
                                     if (m_item.status == "维修") {
                                         sum_fix += 1;
+                                    } if (m_item.status == "保养") {
+                                        sum_mainte += 1;
                                     }
                                     if (m_item.status == "断电") {
                                         sum_outage += 1;
@@ -636,6 +654,7 @@
                                     sum_run: sum_run,
                                     sum_stop: sum_stop,
                                     sum_fix: sum_fix,
+                                    sum_mainte: sum_mainte,
                                     sum_outage: sum_outage
 
                                 }
@@ -648,7 +667,7 @@
                 },
                 //增加产线
                 onAddLine() {
-                    if (this.addLine) {
+                    if (this.islimit('设备产线添加')) {
                         this.showAddLine = true;
 
                     } else {
@@ -753,7 +772,7 @@
                 onChangeStatus(item, status, items) {
                     if (this.islimit("设备状态修改")) {
                         //console.log(item)
-                        //console.log(status)
+                        console.log(status)
                         //console.log(items)
                         if (item.status != status) {
                             //console.log('111')

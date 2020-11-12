@@ -1,7 +1,7 @@
 <!--- 报修单查询 --->
 <template>
   <div v-cloak>
-    <eqHeader :active="active"></eqHeader>
+    <EqHeader :active="active"></EqHeader>
     <el-main class="main-box">
       <div class="topContainer">
         <!-- @* 查询选择 *@ -->
@@ -88,7 +88,7 @@
             type="year"
             style="width: 150px"
             :disabled="yearSamryFlag"
-            placeholder="选择年"
+            placeholder="选择年" value-format="yyyy-MM-dd HH:mm:ss"
           >
           </el-date-picker>
         </div>
@@ -129,46 +129,45 @@
       </div>
       <!-- @* 查询结果表格 *@ -->
       <div class="bottomContainer">
-        <el-table :data="tableData" max-height="600" border style="width: 100%">
+        <el-table
+          v-bind:data="tableData"
+          size="small"
+          max-height="600"
+          style="width: 100%"
+          border
+          stripe
+        >
           <el-table-column prop="index" label="序号" width="50">
+            <template slot-scope="scope">
+              <div>{{ scope.$index + 1 }}</div>
+            </template>
           </el-table-column>
-          <el-table-column
-            prop="EquipmentNumber"
-            label="设备编号"
-            sortable
-            width="120"
-          >
+          <el-table-column prop="EquipmentNumber" label="设备编号" sortable>
           </el-table-column>
-          <el-table-column
-            prop="EquipmentName"
-            label="设备名称"
-            sortable
-            width="120"
-          >
+          <el-table-column prop="EquipmentName" label="设备名称" sortable>
           </el-table-column>
-          <el-table-column prop="FaultTime" label="故障时间" width="120">
+          <el-table-column prop="FaultTime" label="故障时间" sortable>
           </el-table-column>
-          <el-table-column prop="Emergency" label="紧急状态" width="120">
+          <el-table-column prop="Emergency" label="紧急状态" sortable>
           </el-table-column>
           <el-table-column prop="FauDescription" label="报修内容">
           </el-table-column>
-          <el-table-column label="报修状态">
-            <template slot-scope="scope">
-              <div style="text-align: left">
-                <div>{{ scope.row.State ? scope.row.State : "" }}</div>
-                <div>{{ scope.row.State1 ? scope.row.State1 : "" }}</div>
-                <div>{{ scope.row.State2 ? scope.row.State2 : "" }}</div>
+          <el-table-column prop="DeparAssessedDate" label="报修时间" sortable>
+             <template slot-scope="scope">
+              <div>
+                {{ scope.row.DeparAssessedDate | formatTime }}
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="要求完成时间" width="150">
-            <template slot-scope="scope">
-              <span v-if="scope.row.RequirementsTime != null">{{
-                scope.row.RequirementsTime | formatTime
-              }}</span>
-            </template>
+          <el-table-column prop="MaintenanceTime" label="维修时长">
           </el-table-column>
-          <el-table-column prop="StateRepair" label="报修结果" width="100" sortable>
+          <el-table-column
+            prop="RepairStatus"
+            label="维修状态"
+            :filter-method="filterTag"
+            :filters="filterList"
+            sortable
+          >
           </el-table-column>
           <el-table-column label="操作" width="100">
             <template slot-scope="scope">
@@ -188,7 +187,7 @@
 </template>
 
 <script>
-import eqHeader from "./page-components/_eq_header";
+import EqHeader from "./page-components/_eq_header";
 import {
   InstrumentList,
   Deparlist,
@@ -215,9 +214,16 @@ export default {
       deparlist: [],
       yearSamry: null,
       monthSamry: null,
+      filterList: [
+        { text: "报修中", value: "报修中" },
+        { text: "维修中", value: "维修中" },
+        { text: "采购中", value: "采购中" },
+        { text: "验收中", value: "验收中" },
+        { text: "已结案", value: "已结案" },
+      ]
     };
   },
-  components: { eqHeader },
+  components: { EqHeader },
   computed: {},
   watch: {
     // 监听故障时间
@@ -270,6 +276,11 @@ export default {
     },
   },
   methods: {
+    //筛选报修状态
+    filterTag(value, row) {
+      //console.log(value, row);
+      return row.RepairStatus == value;
+    },
     // 页面加载时获取所有可选设备编号列表以及使用部门列表
     initData() {
       InstrumentList()
@@ -339,22 +350,24 @@ export default {
     // 详细按钮跳转传参
     showDetials(item) {
       //console.log(item);
-      this.$router.push(
-        {name: 'Equipment_Fixbill_Deatil',
-        query:{ EquipmentNumber:item.EquipmentNumber,
-        EquipmentName:item.EquipmentName,
-        time:item.FaultTime,
-        canchange:'false'
-        }});
-      // window.open(
-      //   "/Equipment/Equipment_Fixbill_Detail?EquipmentNumber=" +
-      //     item.EquipmentNumber +
-      //     "&EquipmentName=" +
-      //     item.EquipmentName +
-      //     "&time=" +
-      //     item.FaultTime +
-      //     "&canchange=false"
-      // );
+      // this.$router.push({
+      //   name: "Equipment_Fixbill_Deatil",
+      //   query: {
+      //     EquipmentNumber: item.EquipmentNumber,
+      //     EquipmentName: item.EquipmentName,
+      //     time: item.FaultTime,
+      //     canchange: "false",
+      //   },
+      // });
+      window.open(
+        "/Equipment/Equipment_Fixbill_Detail?EquipmentNumber=" +
+          item.EquipmentNumber +
+          "&EquipmentName=" +
+          item.EquipmentName +
+          "&time=" +
+          item.FaultTime +
+          "&canchange=false"
+      );
     },
   },
   created() {},
@@ -371,7 +384,7 @@ export default {
     let startTime = new Date(`${y}-01-01`);
     this.TimeRange.push(startTime, dd);
     this.query();
-  }
+  },
 };
 </script>
 

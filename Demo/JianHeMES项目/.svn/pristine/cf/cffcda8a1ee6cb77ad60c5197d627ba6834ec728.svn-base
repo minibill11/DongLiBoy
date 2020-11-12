@@ -1,0 +1,485 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    @*<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />*@
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@ViewBag.Title - 健和光电MES</title>
+    @Scripts.Render("~/Scripts/jquery")
+    @Scripts.Render("~/Scripts/jqueryval")
+    @*@Scripts.Render("~/Scripts_home")*@
+    @*@Scripts.Render("~/Scripts/echarts")*@
+    @*@Scripts.Render("~/Scripts/easyui")*@
+    @*@Scripts.Render("~/Scripts/modernizr")*@
+    @Scripts.Render("~/Scripts/bootstrap")
+    @Scripts.Render("~/Scripts/vue")
+    @*@Scripts.Render("~/Scripts/highcharts")*@
+    @Styles.Render("~/Content/easyuicss")
+    @Styles.Render("~/Content/css")
+    <script src="~/Scripts/axios.min.js"></script>
+    <link href="~/Scripts/animate.css" rel="stylesheet" />
+    <script src="~/Scripts/main/print.ip.js"></script>
+    <style>
+        .navbar-toggle {
+            float: left;
+            margin-left: 20px;
+            margin-right: 0;
+        }
+
+        .navbar-fixed-top .navbar-collapse {
+            max-height: 100%;
+        }
+
+        .navbar-nav {
+            margin: 0px;
+        }
+
+        @@media(max-width:768px) {
+            .navbar-nav > li > a {
+                padding-top: 6px;
+                padding-bottom: 6px;
+            }
+
+            .dropdown-menu .divider {
+                margin: 2px 0;
+            }
+
+            .navbar-nav .open .dropdown-menu > li > a {
+                padding: 1px;
+            }
+
+            .navbar-nav .open .dropdown-menu li {
+                text-align: left;
+                padding: 0 25px;
+            }
+
+            .nav > li > a, .navbar-brand {
+                padding: 3px 15px;
+            }
+
+            .dropdown-menu {
+                padding: 0;
+            }
+        }
+
+        @@media (min-width:768px) and (max-width: 992px) {
+            .navbar .dropdownToolbarButton a {
+                font-size: 13px;
+                padding: 15px 10px;
+            }
+        }
+
+        @@media (min-width:768px) and (max-width: 1200px) {
+            .body-content {
+                margin-top: 50px;
+            }
+        }
+
+        @@media (min-width: 768px) {
+            .titleul {
+                width: 718px;
+            }
+
+            .nav > li > a, .navbar-brand {
+                padding: 10px;
+                height: 50px;
+                line-height: 30px;
+            }
+        }
+
+        @@media (min-width: 992px) {
+            .titleul {
+                width: 930px;
+            }
+
+            .loginlabel {
+                text-align: right;
+            }
+        }
+
+        @@media (min-width: 1200px) {
+            .titleul {
+                width: 1130px;
+            }
+
+            .navbar-collapse {
+                width: 1300px;
+            }
+
+            .container {
+                width: 1300px;
+            }
+        }
+
+        .titleul a {
+            padding-left: 6px !important;
+        }
+
+        [v-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+@*@using StackExchange.Profiling;*@
+
+<body>
+    @*获取UserRoles*@
+    @{var UserRoles = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role; }
+
+
+    <div class="container body-content">
+        @RenderBody()
+        @RenderSection("scripts", false)
+    </div>
+
+    @{
+
+        var UserRole = Session["User"] == null ? string.Empty : ((JianHeMES.Models.Users)Session["User"]).Role;
+        var UserIds = Session["User"] == null ? 0 : ((JianHeMES.Models.Users)Session["User"]).UserNum;
+        var ischeck = ViewBag.editinfo;
+    }
+    <script>
+
+        var infor = new Vue({
+            el: "#headerApp",
+            data: {
+                num:null,
+            },
+            created: function() {
+                this.message()
+            },
+            methods: {
+                timer() {
+                    return setTimeout(() => {
+                        this.message()
+                    }, 2000)
+                },
+                message() {
+                    axios.post("/Tips/Pending_Work", { userId: @UserIds }).then(res => {
+                        if (res.data == 0) {
+                            $('badge').hide()
+                        } else {
+                            this.num = res.data
+                            $('badge').show()
+                            this.timer()
+                        }
+                    }).catch(err => { })
+                },
+                getInfor() {
+                    //window.location.href = '/Tips/Index'
+                    window.open('/Tips/Index');
+                }
+            },
+        })
+    </script>
+    <script>
+        var login = new Vue({
+            el: "#login",
+            data: {
+                UserNum: "",
+                UserId:'',
+                PassWord: "",
+                clickAddress: "",
+                loginPrompt: ""
+            },
+            mounted: function () {
+                var that = this
+                that.UserId = @UserIds
+                $("#UserNum").keypress(function (e) {
+                    if (e.which == 13) {// 判断所按是否回车键
+                        $("#PassWord").focus(); // 设置焦点
+                        return false;// 取消默认的提交行为
+                    };
+                });
+                $("#PassWord").keypress(function (e) {
+                    if (e.keyCode == 13) {// 判断所按是否回车键
+                        login.$options.methods.userlogin();
+                    };
+                });
+                $('.dropdown').mouseover(function () {
+                    $(this).addClass('open');
+                }).mouseout(function () { $(this).removeClass('open'); });
+
+                @*$(".checkstatus").click(function () {
+                    if ("@Session["User"]" == "") {
+                        login.clickAddress = $(this).attr("href");
+                        $("#login").modal();
+                        return false;
+                    } else {
+                        return true;
+                    }
+                });*@
+
+                $('#login').on('show.bs.modal', function () {
+                    login.loginPrompt = "";
+                    if (login.clickAddress == "") {
+                        login.clickAddress = window.location.pathname == "/Users/Login" ? "" : window.location.pathname;
+                    };
+                });
+                $('#login').on('shown.bs.modal', function () {
+                    if ($("#UserNum").val() == "") {
+                        $("#UserNum").focus();
+                    } else if ($("#PassWord").val() == "") {
+                        $("#PassWord").focus();
+                    } else {
+                        $("#nowfocus").focus();
+                    }
+                });
+                $('#login').on('hide.bs.modal', function () {
+                    login.clickAddress = "";
+                    login.loginPrompt = "";
+                });
+
+                var that = this
+                //console.log(localStorage.getItem('rigths'))
+                if ("@Session["User"]" != "") {
+                    if (localStorage.getItem('rigths') == "{}" || localStorage.getItem('rigths') == null) {
+                        //alert("请求权限数据了！！")
+                        axios.post("/Common/Permissions", { id: that.UserId }).then(res=> {
+                            localStorage.setItem('rigths', JSON.stringify(res.data));
+                            showNav()
+                    }).catch(err=> {
+
+                    });
+                    }else{}
+                    showNav()
+                } else {
+                    localStorage.removeItem('rigths');
+                    //alert("退出登录")
+                }
+            },
+            methods: {
+                userlogin: function () {
+                    login.loginPrompt = "";
+                    $.ajax({
+                        url: "/Users/loginCheck",
+                        type: "post",
+                        data: {
+                            user: {
+                                UserNum: login.UserNum,
+                                PassWord: login.PassWord,
+                            }
+                        },
+                        success: function (returnVal) {
+                            if (returnVal == "success") {
+                                window.location.href = "http://" + window.location.host + login.clickAddress;
+                            } else if (returnVal == "error") {
+                                login.loginPrompt = "登录失败，请检查员工编号及密码是否有误！";
+                            }
+                        },
+                        error: function (err) {
+                            alert("登录出错！");
+                        }
+                    });
+                },
+
+            }
+        });
+
+        var roles = JSON.parse(localStorage.getItem("rigths"))   //
+        function checkRoles(list, roleName) {   //检测权限
+            if (list && roleName) {
+                for (let item in list) {
+                    if (list[item] == roleName) {
+                        return true;
+                    };
+                };
+            };
+            return false;
+        }
+
+        function showNav() {
+
+            let rolse = JSON.parse(localStorage.getItem("rigths"))
+            if (checkRoles(rolse, '显示人事日报表')) {
+                $('.Dailys').show()
+            } else {
+                $('.Dailys').hide()
+            }
+            if (checkRoles(rolse, '显示人工成本对比表')) {
+                $('.Contrast').show()
+            } else {
+                $('.Contrast').hide()
+            }
+            if (checkRoles(rolse, '显示月流失率')) {
+                $('.Turnoverrate').show()
+            } else {
+                $('.Turnoverrate').hide()
+            }
+            if (checkRoles(rolse, '显示招聘周报')) {
+                $('.Recruitment').show()
+            } else {
+                $('.Recruitment').hide()
+            }
+            if (checkRoles(rolse, '显示离职员工工龄表')) {
+                $('.LeavedPersonServiceLength').show()
+            } else {
+                $('.LeavedPersonServiceLength').hide()
+            }
+            if (checkRoles(rolse, '显示花名册')) {
+                $('.huamingce').show()
+            } else {
+                $('.huamingce').hide()
+            }
+            if (checkRoles(rolse, '显示组织架构')) {
+                $('.Index2').show()
+                $('.tree').show()
+            } else {
+                $('.Index2').hide()
+                $('.tree').hide()
+            }
+            if (checkRoles(rolse, '显示离职员工调查')) {
+                $('.yuanyin').show()
+            } else {
+                $('.yuanyin').hide()
+            }
+            if (checkRoles(rolse, '显示请假记录')) {
+                $('.leave').show()
+            } else {
+                $('.leave').hide()
+            }
+            if (checkRoles(rolse, 'MES计划模块')) {
+                //$('.PCdepar').show()
+            } else {
+                //$('.PCdepar').hide()
+            }
+            if (checkRoles(rolse, 'MESExcution模块')) {
+                //$('.productC').show()
+                //$('.zhuangpei12').show()
+                //$('.quantityDepar').show()
+                //$('.SMTdepar').show()
+                //$('.techDepar').show()
+            } else {
+                //$('.productC').hide()
+                //$('.zhuangpei12').hide()
+                ///$('.quantityDepar').hide()
+                //$('.SMTdepar').hide()
+                //$('.techDepar').hide()
+            }
+            if (checkRoles(rolse, '人力资源')) {
+                $('.HRdepar').show()
+            } else {
+                $('.HRdepar').hide()
+            }
+            if (checkRoles(rolse, '包装箱信息录入修改')) {
+                $('.Packagingsinput').show()
+            } else {
+                $('.Packagingsinput').hide()
+            } if (checkRoles(rolse, '内箱装箱确认')) {
+                $('.neixiangqueren').show()
+            } else {
+                $('.neixiangqueren').hide()
+            } if (checkRoles(rolse, '入库信息录入')) {
+                $('.rukexinxicaozuo').show()
+            } else {
+                $('.rukexinxicaozuo').hide()
+            }
+            if (checkRoles(rolse, '出库信息录入')) {
+                $('.chukuxinxicaozuo').show()
+            } else {
+                $('.chukuxinxicaozuo').hide()
+            } if (checkRoles(rolse, '库位号修改')) {
+                $('.kuweihaoxiugai').show()
+            } else {
+                $('.kuweihaoxiugai').hide()
+            } if (checkRoles(rolse, '产值看板查看')) {
+                //$('.chanzhikanbanchakan').show()
+            } else {
+                //$('.chanzhikanbanchakan').hide()
+            } if (checkRoles(rolse, '设备查询')) {
+                //$('.shebeichaxun').show()
+            } else {
+                //$('.shebeichaxun').hide()
+            }
+            if (checkRoles(rolse, '查看小样报告')) {
+                //$('.xiaoyangchaxun').show()
+            } else {
+                //$('.xiaoyangchaxun').hide()
+            }
+            if (checkRoles(rolse, '产值看板查看') || checkRoles(rolse, '入库信息录入') || checkRoles(rolse, '库位号修改') || checkRoles(rolse, '出库信息录入')) {
+                //$('.showMcDepars').show()
+            } else {
+                //$('.showMcDepars').hide()
+            }
+            if (checkRoles(rolse, '查看工序产能首页')) {
+                $('.gxcnsy').show()
+            } else {
+                $('.gxcnsy').hide()
+            }
+            if (checkRoles(rolse, '工序产能信息录入')) {
+                $('.gxcnlr').show()
+            } else {
+                $('.gxcnlr').hide()
+            }
+            if (checkRoles(rolse, '显示月度优秀班组评选')) {
+                $('.yueduyouxiu').show()
+            } else {
+                $('.yueduyouxiu').hide()
+            }
+            if (checkRoles(rolse, '老化拼屏操作')) {
+                $('.kaishipinping').show()
+            } else {
+                $('.kaishipinping').hide()
+            }
+            if (true) {  // checkRoles(rolse, '查询锡膏页面')
+                $('.xigaokanban').show()
+            } else {
+                $('.xigaokanban').hide()
+            }
+            if (checkRoles(rolse, 'MC锡膏仓库操作')) {
+                $('.mcxigaocaozuo').show()
+            } else {
+                $('.mcxigaocaozuo').hide()
+            }
+            if (checkRoles(rolse, 'SMT锡膏入SMT冰柜')) {
+                $('.smtxigaocaozuo').show()
+            } else {
+                $('.smtxigaocaozuo').hide()
+            }
+            if (checkRoles(rolse, '查看外箱标签')) {
+                $('.waixiangzhuangxiang').show()
+            } else {
+                $('.waixiangzhuangxiang').hide()
+            }
+            if (checkRoles(rolse, '产线信息录入')) {
+                $('.chanxiancaozuo').show()
+            } else {
+                $('.chanxiancaozuo').hide()
+            }
+            if (checkRoles(rolse, '新增班组') || checkRoles(rolse, '删除班组')) {
+                $('.banzuEdit').show()
+            } else {
+                $('.banzuEdit').hide()
+            }
+            if (checkRoles(rolse, '合约中心查询')) {
+                $('.heyue').show()
+            } else {
+                $('.heyue').hide()
+            }
+            if (checkRoles(rolse, '销售中心查询')) {
+                $('.xiaoshou').show()
+            } else {
+                $('.xiaoshou').hide()
+            }
+            if (checkRoles(rolse, '创建订单客诉表') || checkRoles(rolse, '修改订单客诉表')) {
+                $('.keshu').show()
+            } else {
+                $('.keshu').hide()
+            }
+            if (checkRoles(rolse, '查看工厂用户清单') || checkRoles(rolse, '查看总部用户清单')) {
+                $('.xitongyonghu').show()
+            } else {
+                $('.xitongyonghu').hide()
+            }
+            if (checkRoles(rolse, '查询库存金额表') ) {
+               // $('.StockAmountCalculate').show()
+            } else {
+               // $('.StockAmountCalculate').hide()
+            }
+        }
+    </script>
+</body>
+@*@MiniProfiler.RenderIncludes();*@
+</html>

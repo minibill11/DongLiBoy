@@ -1,0 +1,175 @@
+﻿
+@{
+    ViewBag.Title = "Customer_Classification";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+@* css放置处 *@
+@section cssStyle {
+    <style>
+        .el-table__header tr, .el-table__header th {
+            padding: 0;
+            height: 25px;
+            line-height: 36px;
+        }
+        el-table th, .el-table td {
+            text-align: center;
+            padding: 2px 0;
+        }
+        el-form-item {
+            margin-bottom: 22px;
+            margin-top: 20px;
+        }
+    </style>
+}
+    <el-container id="app" v-cloak>
+        <el-header class="text-center">
+            <h3>客诉损失分类管理</h3>
+            <el-button size="small" plain type="primary" style="margin:10px" @@click="copyVisible=true">添加类</el-button>
+        </el-header>
+        <div>
+            <el-table :data="tabledatas" border height="700px" style="margin:0 auto;max-width:1002px">
+                <el-table-column prop="Id" label="ID" width="100">
+                </el-table-column>
+                <el-table-column label="大分类" width="300" prop="Classification" sortable>
+                    <template slot-scope="scope">
+                        <el-input placeholder="请输入内容" v-show="scope.row.show" v-model="scope.row.Classification"></el-input>
+                        <span v-show="!scope.row.show">{{scope.row.Classification}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="小分类" width="300">
+                    <template slot-scope="scope">
+                        <el-input placeholder="请输入内容" v-show="scope.row.show" v-model="scope.row.Fault_Classification"></el-input>
+                        <span v-show="!scope.row.show">{{scope.row.Fault_Classification}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="300">
+                    <template slot-scope="scope">
+                        <el-button @@click="scope.row.show=true" type="text" v-show="!scope.row.show"><u>编辑</u></el-button>
+                        <el-button @@click="delData(scope.row)" type="text" v-show="!scope.row.show" style="color:red"><u>删除</u></el-button>
+                        <el-button @@click="cancelData(scope.row)" v-show="scope.row.show==true" type="text"><u>取消</u></el-button>
+                        <el-button @@click="saveData(scope.row)" type="text" v-show="scope.row.show==true"><u>保存</u></el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
+        <el-dialog title="提示" v-bind:visible.sync="copyVisible" width="370px">
+            <span slot="title">
+                <h4 style="text-align:center;">添加分类</h4>
+                <el-form label-position="labelPosition" label-width="80px" style="margin-top:15px">
+                    <el-form-item label="大类">
+                        <el-select v-model="broadHeadingValue" placeholder="请选择"  filterable allow-create size="small">
+                            <el-option v-for="item in broadHeadingList"
+                                       :key="item.value"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="小类">
+                        <el-input v-model="littleBroadHeading" size="small" style="width:183px;"></el-input>
+                    </el-form-item>
+                </el-form>
+            </span>
+            <span slot="footer" class="dialog-footer">
+                <el-button v-on:click="copyVisible=false" size="small">取 消</el-button>
+                <el-button type="primary" v-on:click="addData" size="small">添 加</el-button>
+            </span>
+        </el-dialog>
+    </el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: function () {
+                return {
+                    tabledatas: [],    
+                    broadHeadingList: [],
+                    broadHeadingValue:null,
+                    littleBroadHeading: null,
+                    copyVisible: false,
+                }
+            },
+            mounted: function () {
+                this.getTableDate();
+                this.getClassification()
+            },
+            //函数方法
+            methods: {
+                //取消编辑
+                cancelData(row) {
+                    row.show = false
+                    this.getTableDate()
+                },             
+                //添加类
+                addData() {
+                    if (this.broadHeadingValue == null && this.littleBroadHeading == null) {
+                        this.$message.error("添加内容不能为空！");
+                        return;
+                    }
+                    let arr=[]
+                    let obj = { Classification: this.broadHeadingValue, Fault_Classification: this.littleBroadHeading }
+                    arr.push(obj)
+                    axios.post("/Customer_Complaints/ADDClassification", { faultTypes: arr }).then(res => {
+                        console.log(res.data)
+                        if (res.data.meg == true) {
+                            this.broadHeadingValue = this.littleBroadHeading=null
+                            this.copyVisible =false
+                            this.getTableDate()
+                            this.$message.success(res.data.feg);
+                        } else if (res.data.meg == false) {
+                            this.$message.error(res.data.feg);
+                        } else {
+                            this.$message.error("此记录已存在，不允许重复添加");                    
+                        }
+                    })
+                },
+                //获取获取大类数据
+                getClassification() {
+                    axios.post("/Customer_Complaints/ClassificationList").then(res => {
+                        this.broadHeadingList = res.data
+                    })
+                },
+                //获取表格数据
+                getTableDate() {
+                    axios.post("/Customer_Complaints/QueryClassification").then(res => {                        
+                        res.data.forEach(item => {
+                            item.show=false
+                        })
+                        this.tabledatas=res.data
+                    })
+                },
+                //保存编辑数据
+                saveData(row) {                    
+                    let obj = { Id: row.Id, Classification: row.Classification, Fault_Classification: row.Fault_Classification }
+                    axios.post("/Customer_Complaints/ModifyClassification", { faultTypes: obj }).then(res => {
+                        console.log(res.data)
+                        if (res.data.meg == true) {
+                            row.show = false
+                            this.getTableDate()
+                            this.$message.success(res.data.feg);
+                        } else {
+                            this.$message.error(res.data.feg);
+                        }
+                    })
+                },
+                //删除数据
+                delData(row) {
+                    this.$confirm('确认删除这条信息吗？').then(_ => {
+                        axios.post("/Customer_Complaints/DELClassification", { id: row.Id }).then(res => {
+                            console.log(res.data)
+                            if (res.data.Result == true) {
+                                this.getTableDate()
+                                this.$message.success(res.data.Message);
+                            } else {
+                                this.$message.error(res.data.Message);
+                            }
+                        })
+
+                    })
+                }                 
+            }
+        };
+    </script>
+}

@@ -11,10 +11,12 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Web.Http;
+using System.Web.Http.Cors;
 
 namespace JianHeMES.Controllers
 {
     [RoutePrefix("api/Token")]
+    [EnableCors(origins: "*", headers: "*", methods: "*")]
     public class TokenController : ApiController
     {
         private ApplicationDbContext db = new ApplicationDbContext();
@@ -43,7 +45,7 @@ namespace JianHeMES.Controllers
 
                 //模拟数据库数据，真正的数据应该从数据库读取
                 //身份验证信息
-                AuthInfo authInfo = new AuthInfo { UserNumber = userNumber.ToString("D5"),UserName = user.UserName, Roles = new List<string> { "admin", "commonrole" }, IsAdmin = isAdmin, ExpiryDateTime = DateTime.Now.AddHours(5) };
+                AuthInfo authInfo = new AuthInfo { UserNumber = userNumber.ToString("D5"),UserName = user.UserName ,Department = user.Department , Roles = new List<string> { "admin", "commonrole" }, IsAdmin = isAdmin, ExpiryDateTime = DateTime.Now.AddHours(5) };
                 const string secretKey = "JianHeMES";//口令加密秘钥
                 try
                 {

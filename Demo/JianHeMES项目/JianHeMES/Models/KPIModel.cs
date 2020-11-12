@@ -395,6 +395,9 @@ namespace JianHeMES.Models
         [Display(Name = "班组"), StringLength(100)]
         public string Group { get; set; }
 
+        [Display(Name = "族群"), StringLength(50)]
+        public string Ethnic_Group { get; set; }
+
         //效率指标
         [Display(Name = "效率指标"), StringLength(50)]
         public string Efficiency_Indicators { get; set; }

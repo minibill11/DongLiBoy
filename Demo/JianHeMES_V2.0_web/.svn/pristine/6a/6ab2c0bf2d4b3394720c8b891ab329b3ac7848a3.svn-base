@@ -1,0 +1,287 @@
+<!---  --->
+<template>
+  <div>
+     <cHeader :active="active"></cHeader>
+     <div class="select">
+       <span style="font-size:small" class="timelength">已生成报告：</span>
+       <el-date-picker value-format="yyyy-MM-dd HH:mm:ss" v-model="inputDate" type="month" placeholder="选择录入日期" size="small" style="width:150px"></el-date-picker>
+       <el-button type="primary" size="small" @click="GetData" class="query-btn">查询</el-button>
+       <cExcel :excelData="tableleng" class="query-btn" v-show="tableleng.length>0" :time="inputDate"></cExcel>
+       <el-button type="danger" size="small" plain @click="deleteData" v-show="$limit('删除库存金额报告')&&tableleng.length>0">删除</el-button>      
+    </div>
+    <cTable ref="table" class="home" :tableType="'月度库存金额'" :time="inputDate"></cTable>
+    <el-row class="table-bottom">
+      <div class="table-bottom-left">
+          <el-form class="bt-form-flex" size="small">
+               <el-form-item label="财务核对：">
+                   <el-select v-model="finance_Proofread"
+                             placeholder="请选择" v-show="(finance_Proofread==null||finance_Proofread=='通过'||finance_Proofread=='不通过')&&($limit('财务核对'))" :disabled="tableleng.length==0"> 
+                      <el-option v-for="item in Options"
+                                 :key="item.value"
+                                 :value="item.label">
+                      </el-option>
+                  </el-select> 
+               <label v-show="finance_Proofread!=null&&(finance_Proofread==1||finance_Proofread==2)">{{assess.Finance_Proofreader+" / "}}{{assess.Finance_Proofread_Date|formatTime}}{{" "+assess.Finance_Proofread_Reason}}</label>
+                 <el-button type="success" class="btn" v-show="(finance_Proofread==null||finance_Proofread=='通过'||finance_Proofread=='不通过')&&($limit('财务核对'))" @click="Confirm(1)" :disabled="tableleng.length==0">确认</el-button> 
+              </el-form-item>
+
+              <el-form-item label="PMC核对：">
+                  <el-select v-model="pmc_Proofread"
+                             placeholder="请选择" v-show="(pmc_Proofread==null||pmc_Proofread=='通过'||pmc_Proofread=='不通过')&&($limit('PMC核对'))" :disabled="tableleng.length==0">
+                      <el-option v-for="item in Options"
+                                 :key="item.value"
+                                 :value="item.label">
+                      </el-option>
+                  </el-select>
+                  <label v-show="pmc_Proofread!=null&&(pmc_Proofread==1||pmc_Proofread==2)">{{assess.Finance_Finance_Proofreader+" / "}}{{assess.PMC_Proofread_Date|formatTime}}{{" "+assess.PMC_Proofread_Reason}}</label>
+                  <el-button type="success" class="btn" v-show="(pmc_Proofread==null||pmc_Proofread=='通过'||pmc_Proofread=='不通过')&&($limit('PMC核对'))" @click="Confirm(2)" :disabled="tableleng.length==0">确认</el-button>
+              </el-form-item>
+
+              <el-form-item label="财务审核：">
+                  <el-select v-model="finance_Assessed"
+                             placeholder="请选择" v-show="(finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过')&&($limit('财务审核'))" v-bind:disabled="pmc_Proofread==null||pmc_Proofread=='通过'||pmc_Proofread=='不通过'||finance_Proofread==null||finance_Proofread=='通过'||finance_Proofread=='不通过'">
+                      <el-option v-for="item in Options"
+                                 :key="item.value"
+                                 :value="item.label">
+                      </el-option>
+                  </el-select>
+                  <label v-show="finance_Assessed!=null&&(finance_Assessed==1||finance_Assessed==2)">{{assess.Finance_Assessor+" / "}}{{assess.Finance_Assessed_Date|formatTime}}{{" "+assess.Finance_Assessed_Reason}}</label>
+                  <el-button type="success" class="btn" v-show="(finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过')&&($limit('财务审核'))" @click="Confirm(3)" v-bind:disabled="finance_Assessed==null">确认</el-button>
+              </el-form-item> 
+          </el-form>
+      </div>
+      <div class="table-bottom-right">
+      </div>
+    </el-row>
+    <el-dialog title="提示" v-bind:visible.sync="assVisible" width="400px">
+      <span slot="title">
+          <h3 style="text-align:center;">不通过原因</h3>
+          <el-form label-position="labelPosition" label-width="80px">
+              <el-form-item label="原因：" style="margin-top:25px">
+                  <el-input v-model="reason" size="small" style="width:250px;" type="textarea"></el-input>
+              </el-form-item>
+          </el-form>
+      </span>
+      <span slot="footer" class="dialog-footer">
+          <el-button v-on:click="assVisible=false" size="small">取 消</el-button>
+          <el-button type="primary" v-on:click="assVisible=false" size="small">添 加</el-button>
+      </span>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import cHeader from "./page-components/_stock_header";
+import cTable from "./page-components/_stock_table";
+import cExcel from "./page-components/_export_sareport";
+import { getMOnthData,approveReport,deleteReport } from "@/api/order/warehouse";
+import {formatTime} from "@/filters";
+export default {
+  name: 'stock_query',
+  props: {},
+  data() {
+    return {
+      active: "月度库存金额",      
+      inputDate: null,
+      isDisabled: false,
+      assess:{},//审核数据
+      finance_Proofread: null,//财务核对
+      pmc_Proofread: null,//PMC核对
+      finance_Assessed: null,//财务审核
+      Options: [{ value: '选项1', label: '通过' }, { value: '选项2', label: '不通过' }],
+      assVisible: false,
+      reason: '',                  
+      deleteRoles: false,//删除报告权限   
+      tableleng:[],           
+    };
+  },
+  components: {
+    cHeader,
+    cTable,
+    cExcel
+  },
+  computed: {},
+  watch: {
+     //控制弹框显示
+    finance_Assessed() {
+        if (this.finance_Assessed == "不通过") {
+            this.assVisible = true
+        }
+    },
+    pmc_Proofread() {
+        if (this.pmc_Proofread == "不通过") {
+            this.assVisible = true
+        }
+    },
+    finance_Proofread() {
+        if (this.finance_Proofread == "不通过") {
+            this.assVisible = true
+        }
+    },
+    inputDate() {
+      if (this.inputDate == null) {
+        this.$refs.table.tableDate = [];
+        this.tableleng=[]
+        this.finance_Assessed = this.pmc_Proofread = this.finance_Proofread = null;
+      }
+    },
+  },
+  methods: {
+    //查询表格数据
+    GetData() {
+      if (this.inputDate != null) {
+        this.finance_Assessed = this.pmc_Proofread = this.finance_Proofread = null;
+        getMOnthData(this.inputDate).then(res => {
+          this.$refs.table.lastMonth=[]
+          if (JSON.parse(res.data.Data.Data).length > 0) {
+            this.$message.success("查询成功！");
+            this.$refs.table.tableDate = JSON.parse(res.data.Data.Data);
+            this.tableleng =this.$refs.table.tableDate
+          } else {
+            this.$message.error("暂无数据！");
+          };
+         if (JSON.parse(res.data.Data.lastMonth).length > 0) {
+            this.$refs.table.lastMonth= JSON.parse(res.data.Data.lastMonth);                   
+          };
+          if(JSON.parse(res.data.Data.DataOne).length>0){           
+              this.assess=JSON.parse(res.data.Data.DataOne)[0]    
+              let record = JSON.parse(res.data.Data.DataOne)[0]
+              //财务审核
+              if (record.Finance_Assessed == true) {
+                  this.finance_Assessed = '1'
+              } else if (record.Finance_Assessed == false) {
+                  this.finance_Assessed = '2'
+              };
+              //PMC核对
+              if (record.PMC_Proofread == true) {
+                  this.pmc_Proofread = '1'
+              } else if (record.PMC_Proofread == false) {
+                  this.pmc_Proofread = '2'
+              };
+              //财务核对
+              if (record.Finance_Proofread == true) {
+                  this.finance_Proofread = '1'
+              } else if (record.Finance_Proofread == false) {
+                  this.finance_Proofread = '2'
+              };                 
+          }                       
+        });
+      } else {
+        this.$message.error("请选择查询日期！");
+      }
+    },
+    //删除表格数据
+    deleteData() {
+      let comfirm = confirm(`确认删除此报告吗？`);
+      if (comfirm) {
+          deleteReport(this.inputDate).then(res => {
+              if (res.data.Data.Result == true) {
+                  this.$message.success(res.data.Data.Message);
+                  this.$refs.table.tableDate = [];
+                  this.tableleng=[]
+                  this.finance_Assessed = this.pmc_Proofread = this.finance_Proofread= null;
+              } else {
+                  this.$message.error(res.data.Message);
+              }
+          })
+      }
+    },
+    //审核、核准方法
+    Confirm(str) {
+        let res = null;
+        if (this.finance_Assessed == "通过" || this.pmc_Proofread == "通过" || this.finance_Proofread == "通过") {
+            res = true
+        } else if (this.finance_Assessed == "不通过" || this.pmc_Proofread == "不通过" || this.finance_Proofread == "不通过") {
+            res = false
+            if (this.reason == '') {
+                this.$message.error("原因不能为空！");
+                return;
+            }
+        } else {
+            str == 3 ? this.$message.error("请选择审核内容") : this.$message.error("请选择核对内容");
+            return;
+        }
+        let obj ={ id: (this.assess.Id).toString(), reason: this.reason, approve_Type: str, approve_Result: res };
+        approveReport(obj).then(res => {
+            console.log(res.data)
+            if (res.data.Data.Result ==true) {
+                this.$message.success(res.data.Data.Message);
+                this.reason = '';
+                this.GetData()
+            }
+            else {
+                this.$message.error(res.data.Data.Message);
+            }
+        })
+    },
+  },
+  created() {},
+  mounted() {
+      this.inputDate = this.$route.query.time
+      if (this.$route.query.time != null) {       
+          this.GetData();
+      }       
+  },
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {},
+}
+</script>
+
+<style scoped>
+.select {
+  margin: 15px;
+  display: inline-flex;
+}
+.timelength{
+  margin: 5px;
+}
+.home >>> .warning-row {
+  background: #eff2f7;
+  font-size: 12px !important;
+  font-weight: bold;
+  color: black;
+}
+.home >>> .el-table thead.is-group th {
+    background: #E4ECF7;
+}
+.btn {
+  margin: 5px;
+}
+
+.query-btn{
+  margin-left: 5px;
+  margin-right: 5px;
+}
+.el-form-item {
+  font-weight: 200
+}
+.bt-form-flex {
+  display: flex;
+  flex-flow: row wrap;
+  margin-top: 10px;
+}
+
+.bt-form-flex > .el-form-item {
+  width: 380px;
+}
+
+.bt-form-flex .el-input__inner {
+  width: 150px;
+}
+
+.el-form-item__label {
+  color: #000000;
+  font-weight: 600
+}
+.el-button--success.is-disabled, .el-button--success.is-disabled:active, .el-button--success.is-disabled:focus, .el-button--success.is-disabled:hover {
+   color: #FFF;
+   background-color: #CCD3DE;
+   border-color: #CCD3DE;
+}
+
+</style>

@@ -104,6 +104,12 @@
                                      align="center"
                                      min-width="78">
                     </el-table-column>
+                    <el-table-column prop="Classification"
+                                     label="分类"
+                                     align="center"
+                                     min-width="78">
+                    </el-table-column>
+
                     <el-table-column prop="Fault_Classification"
                                      label="故障分类/产品型号"
                                      align="center"
@@ -274,7 +280,7 @@
                     selectTime: null,  // 所选时间
                     lossesList: [],
                     customerList: '',    //单条数据
-                    exists: ['毛毛虫（PCB）', '毛毛虫（灯管）', '毛毛虫（使用环境）', '灯管类', '电源类', 'IC类', '系统卡类', 'PCB板类', '接插件类', '外设类', '塑胶套件类', '设计不良', '作业不良', '外发加工不良', '运输不良', '错发漏发' , 'VF平台', 'VA平台', 'VL平台', 'VK平台', 'VH平台', 'RE平台', 'VMQ平台', 'VPQ平台', 'FM平台', 'F/FS平台', 'FI/FL平台', 'L/LS平台', '定制屏', '一体机', '其他',],
+                    exists: ['VF平台', 'VA平台', 'VL平台', 'VK平台', 'VH平台', 'RE平台', 'VMQ平台', 'VPQ平台', 'FM平台', 'F/FS平台', 'FI/FL平台', 'L/LS平台', '定制屏', '一体机', '其他',],
                     pingtai: 0,
                     guzhang: 0,
                 }
@@ -283,10 +289,22 @@
 
             },
             mounted: function () {
+                this.getClassificationDate()
 
             },
             //函数方法
             methods: {
+                //获取故障分类(小类)
+                getClassificationDate() {
+                    axios.post("/Customer_Complaints/FaulClassificationList", { classification: null }).then(res => {
+                        if (res.data.length > 0) {
+                            res.data.forEach(item => {
+                                this.exists.push(item.value)
+                            })
+                            console.log(this.exists)
+                        }                       
+                    })
+                },
                 // 客诉损失表格删除单独行
                 deleteRow(index) {
                     this.numberOfzf--;
@@ -335,7 +353,6 @@
                 //保存添加的数据
                 postData() {
                     if (this.count > 1) {//批量上传 (不包括上传质量损失和责任判定)
-                        alert(44)
                         if (this.selectTime != null) {
                             let dd = new Date(this.selectTime)
                             let year = dd.getFullYear()
@@ -406,16 +423,21 @@
                             }
                             this.customerList = this.tableData;
                             axios.post("/Customer_Complaints/ADDLoss", { customerList: this.customerList[0], year: year, month: month, lossesList: this.lossesList }).then(res => {
-                                if (this.selectTime != null && this.customerList[0].CustomerName != null && this.customerList[0].OrderNum != null && this.customerList[0].ComplaintsDate != null && this.lossesList != '') {
-                                    if (res.data.meg == true) {
+                                if (res.data.meg == true) {
+                                    this.$message({
+                                        message: "上传成功！",
+                                        type: "success"
+                                    });
+                                    this.delated();
+                                } else if (res.data.meg == false) {
+                                    // 注意：此时给表格的数据增加一个color属性并不会触发视图重新渲染；新增的属性无法触发，但是修改原有属性的值却是可以触发渲染的
+                                    // 所以在初次给表格赋值的时候就需要添加上color属性
+                                    if (res.data.feg == "保存出错！" || res.data.feg == "数据出错！") {
                                         this.$message({
-                                            message: "上传成功！",
-                                            type: "success"
+                                            message: res.data.feg,
+                                            type: "warning"
                                         });
-                                        this.delated();
-                                    } else if (res.data.meg == false) {
-                                        // 注意：此时给表格的数据增加一个color属性并不会触发视图重新渲染；新增的属性无法触发，但是修改原有属性的值却是可以触发渲染的
-                                        // 所以在初次给表格赋值的时候就需要添加上color属性
+                                    } else {
                                         this.customerList.forEach(item => {
                                             item.color = 200
                                         })
@@ -424,26 +446,6 @@
                                             type: "warning"
                                         });
                                     }
-                                } else if (this.tableData[0].CustomerName == null) {
-                                    this.$message({
-                                        message: "客户名称为空!",
-                                        type: "warning"
-                                    })
-                                } else if (this.tableData[0].OrderNum == null) {
-                                    this.$message({
-                                        message: "订单号为空!",
-                                        type: "warning"
-                                    })
-                                } else if (this.tableData[0].ComplaintsDate == null) {
-                                    this.$message({
-                                        message: "投诉日期为空!",
-                                        type: "warning"
-                                    })
-                                } else if (this.lossesList == null) {
-                                    this.$message({
-                                        message: "质量损失不能为空!",
-                                        type: "warning"
-                                    })
                                 }
                             })
                         } else {
@@ -472,59 +474,59 @@
                     });
                     initDatas.forEach(item => {
                         let obj = {
-                            serialNumber: item[0], CustomerName: item[1], Platform: item[2], ContractNum: item[3], Fault_Classification: item[4], BadType: item[5], DeliveryDate: item[6], ComplaintsDate: item[7], SettlementDate: item[8], ProductModel: item[9],
-                            OrderNum: item[10], Customer_phenomenon: item[11], Cause_Analysis: item[12], Interim_Disposal: item[13], Longterm_Treatment: item[14], ClaimIs: item[15],
-                            ClaimConfirm: ((item[16].split('￥').join("")).split(',').join("")),
-                            Contract_Amount: ((item[17].split('￥').join("")).split(',').join("")),
-                            Losses_Amount: ((item[18].split('￥').join("")).split(',').join("")),
-                            LossRate: item[19].split('%').join(""),
-                            QualityLoss1: item[20],
-                            QualityLoss2: item[21],
-                            QualityLoss3: item[22],
-                            QualityLoss4: item[23],
-                            QualityLoss5: item[24],
-                            QualityLoss6: item[25],
+                            serialNumber: item[0], CustomerName: item[1], Platform: item[2], ContractNum: item[3], Classification:item[4], Fault_Classification: item[5], BadType: item[6], DeliveryDate: item[7], ComplaintsDate: item[8], SettlementDate: item[9], ProductModel: item[10],
+                            OrderNum: item[11], Customer_phenomenon: item[12], Cause_Analysis: item[13], Interim_Disposal: item[14], Longterm_Treatment: item[15], ClaimIs: item[16],
+                            ClaimConfirm: ((item[17].split('￥').join("")).split(',').join("")),
+                            Contract_Amount: ((item[18].split('￥').join("")).split(',').join("")),
+                            Losses_Amount: ((item[19].split('￥').join("")).split(',').join("")),
+                            LossRate: item[20].split('%').join(""),
+                            QualityLoss1: item[21],
+                            QualityLoss2: item[22],
+                            QualityLoss3: item[23],
+                            QualityLoss4: item[24],
+                            QualityLoss5: item[25],
+                            QualityLoss6: item[26],
                             color: 202
                         };
-                        if (item[20] != '') {
-                            let arr = {
-                                Responsibility: '惠州工厂',
-                                QualityLoss: ((item[20].split('￥').join("")).split(',').join(""))
-                            }
-                            this.lossesList.push(arr)
-                        }
                         if (item[21] != '') {
                             let arr = {
-                                Responsibility: '订单管理部',
+                                Responsibility: '惠州工厂',
                                 QualityLoss: ((item[21].split('￥').join("")).split(',').join(""))
                             }
                             this.lossesList.push(arr)
                         }
                         if (item[22] != '') {
                             let arr = {
-                                Responsibility: '采购部',
+                                Responsibility: '订单管理部',
                                 QualityLoss: ((item[22].split('￥').join("")).split(',').join(""))
                             }
                             this.lossesList.push(arr)
                         }
                         if (item[23] != '') {
                             let arr = {
-                                Responsibility: '研发中心',
+                                Responsibility: '采购部',
                                 QualityLoss: ((item[23].split('￥').join("")).split(',').join(""))
                             }
                             this.lossesList.push(arr)
                         }
                         if (item[24] != '') {
                             let arr = {
-                                Responsibility: '工程售后部',
+                                Responsibility: '研发中心',
                                 QualityLoss: ((item[24].split('￥').join("")).split(',').join(""))
                             }
                             this.lossesList.push(arr)
                         }
                         if (item[25] != '') {
                             let arr = {
-                                Responsibility: '风控中心',
+                                Responsibility: '工程售后部',
                                 QualityLoss: ((item[25].split('￥').join("")).split(',').join(""))
+                            }
+                            this.lossesList.push(arr)
+                        }
+                        if (item[26] != '') {
+                            let arr = {
+                                Responsibility: '风控中心',
+                                QualityLoss: ((item[26].split('￥').join("")).split(',').join(""))
                             }
                             this.lossesList.push(arr)
                         }

@@ -56,11 +56,14 @@
             }
 
         .red-text {
-            color: red;
+            color: #ff8590;
+        }
+        .orange-text {
+            color: #e6a23c;
         }
 
         .green-text {
-            color: green;
+            color: #2bcfaa;
         }
 
         .tally-tip {
@@ -159,11 +162,26 @@
                 <el-table-column prop="EquipmentNumber" sortable
                                  label="设备编号">
                 </el-table-column>
-                <el-table-column label="状态" sortable>
-                    <template slot-scope="scope">
-                        <div v-if="!scope.row.State" class="red-text">当天未点检</div>
-                        <div v-if="scope.row.State" class="green-text">当天已点检</div>
-                    </template>
+                <el-table-column label="状态">
+                    <el-table-column prop="State" label="日检" sortable>
+                        <template slot-scope="scope">
+                            <div :class="scope.row.State?'green-text':'red-text'">{{scope.row.State?'当天已点检':'当天未点检'}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Week_State" label="周检" sortable>
+                        <template slot-scope="scope">
+                            <div :class="{'red-text':scope.row.Week_State==0,'orange-text':scope.row.Week_State==1,'green-text':scope.row.Week_State==2}">
+                                {{scope.row.Week_State==0?'当周未点检':''}}{{scope.row.Week_State==1?'当周已保养待确认':''}}{{scope.row.Week_State==2?'当周已点检':''}}
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Month_State" label="月检" sortable>
+                        <template slot-scope="scope">
+                            <div :class="{'red-text':scope.row.Month_State==0,'orange-text':scope.row.Month_State==1,'green-text':scope.row.Month_State==2}">
+                                {{scope.row.Month_State==0?'当月未点检':''}}{{scope.row.Month_State==1?'当月已保养待确认':''}}{{scope.row.Month_State==2?'当月已点检':''}}
+                            </div>
+                        </template>
+                    </el-table-column>
                 </el-table-column>
                 <el-table-column label="时间">
                     <template slot-scope="scope">
@@ -182,10 +200,16 @@
                 </el-table-column>
             </el-table>
             <div class="tally-tip">
-                <span class="green-text">已点检数：{{HaveTallyNum}}</span>
-                <span class="red-text">未点检数：{{TallyNum}}</span>
+                <span class="green-text">当天已点检数：{{HaveTallyNum}}</span>
+                <span class="red-text">当天未点检数：{{TallyNum}}</span>
+                <span class="green-text">当周已点检数：{{week_HaveTallyNum}}</span>
+                <span class="orange-text">当周已保养待确认：{{week_TallyNum_yes}}</span>
+                <span class="red-text">当周未点检数：{{week_TallyNum_no}}</span>
+                <span class="green-text">当月已点检数：{{month_HaveTallyNum}}</span>
+                <span class="orange-text">当月已保养待确认：{{month_TallyNum_yes}}</span>
+                <span class="red-text">当月未点检数：{{month_TallyNum_no}}</span>
             </div>
-            <div class="grey-tip">备注：点检查询表中状态一列，红色：表示设备当天未点检，绿色：表示设备当天已点检</div>
+            <div class="grey-tip">备注：点检查询表中状态一列，红色：表示未点检，绿色：表示已点检；橙色：表示已保养待确认</div>
         </div>
         @* 创建点检表弹框 *@
         <el-dialog title="创建点检表"
@@ -358,7 +382,7 @@
     <script>
         const app = {
             data: {
-                loading: true,
+                loading: true, 
                 active: "点检查询",
                 EquipmentName: null,   // 设备名称
                 LineNum: null, // 产线
@@ -393,10 +417,16 @@
                 //查看日点检情况
                 select_department: '',
                 dayCheckDialogVisible: false,
-                HaveTallyNum: '0',   //已点检数
                 HaveTallyList: [],   //已点检列表
-                TallyNum: '0',     //未点检数
-                TallyList: []     //未点检列表
+                TallyList: [],     //未点检列表
+                HaveTallyNum: '0',   //已点检数
+                TallyNum: '0',     //未点检数 
+                week_HaveTallyNum: 0,  //已点检数
+                week_TallyNum_yes: 0,     //已保养待确认
+                week_TallyNum_no: 0,     //未点检数
+                month_HaveTallyNum: 0,   //已点检数
+                month_TallyNum_yes: 0,    //已保养待确认
+                month_TallyNum_no: 0     //未点检数
             },
             mounted() {
                 if (this.islimit('修改点检表')) {
@@ -437,10 +467,33 @@
                             //console.log(res.data, 222222222222);
                             let arr1 = res.data.Retul ? res.data.Retul : [];
                             let arr2 = res.data.Have_retul ? res.data.Have_retul : [];
-                            this.tableData = arr1.concat(arr2);
                             //console.log(this.tableData);
                             this.TallyNum = res.data.Number ? res.data.Number : '0';
                             this.HaveTallyNum = res.data.HaveTally ? res.data.HaveTally : '0';
+                            this.tableData = arr1.concat(arr2);
+                            let week_HaveTallyNum = 0,week_TallyNum_no = 0,week_TallyNum_yes = 0,month_HaveTallyNum = 0,month_TallyNum_no = 0,month_TallyNum_yes = 0;
+                            //0是未点检，1是已点检待确认，2是已点检
+                            this.tableData.forEach(item => {
+                                if (item.Week_State == 0) {
+                                    week_TallyNum_no += 1;
+                                }if (item.Week_State == 1) {
+                                    week_TallyNum_yes += 1;
+                                }if (item.Week_State == 2) {
+                                    week_HaveTallyNum += 1;
+                                }if (item.Month_State == 0) {
+                                    month_TallyNum_no += 1;
+                                }if (item.Month_State == 1) {
+                                    month_TallyNum_yes += 1;
+                                }if (item.Month_State == 2) {
+                                    month_HaveTallyNum += 1;
+                                }
+                            })
+                            this.week_HaveTallyNum = week_HaveTallyNum;
+                            this.week_TallyNum_no = week_TallyNum_no;
+                            this.week_TallyNum_yes = week_TallyNum_yes;
+                            this.month_HaveTallyNum = month_HaveTallyNum;
+                            this.month_TallyNum_no = month_TallyNum_no;
+                            this.month_TallyNum_yes = month_TallyNum_yes;
                         })
                     } else {
                         this.$message.warning("请选择日期")
@@ -457,7 +510,7 @@
                     }).catch(err => {
 
                     })
-                    axios.post("/Equipment/Tally_Deparlist").then(res => {
+                  axios.post("/Equipment/Userdepartment_list").then(res => {
                         //console.log(res.data)
                         res.data.forEach(item => {
                             let obj = { value: item, label: item }
@@ -515,7 +568,7 @@
                 },
                 onChangeUserDepartment(val) {
                     axios.post('/Equipment/LineNameList', { newdepartment: val }).then(res => {
-                        console.log(res.data);
+                        //console.log(res.data);
                         let arr = [];
                         res.data.forEach(item => {
                             let obj = {

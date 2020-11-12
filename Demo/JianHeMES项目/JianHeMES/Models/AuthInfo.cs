@@ -22,6 +22,12 @@ namespace JianHeMES.Models
         public string UserName { get; set; }
 
         /// <summary>
+        /// 部门
+        /// </summary>
+        public string Department { get; set; }
+
+
+        /// <summary>
         /// 角色
         /// </summary>
         public List<string> Roles { get; set; }

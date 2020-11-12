@@ -12,7 +12,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using iTextSharp.text.pdf;
 using Org.BouncyCastle.Utilities;
-
+using JianHeMES.AuthAttributes;
 
 namespace JianHeMES.Controllers
 {
@@ -154,7 +154,7 @@ namespace JianHeMES.Controllers
                 //}
 
                 var t = new DateTime(Year.Value, month, 28);
-                var lastVT = db.Personnel_Architecture.Where(c => c.ExecutionTime <= t ).Max(c => c.ExecutionTime);
+                var lastVT = db.Personnel_Architecture.Where(c => c.ExecutionTime <= t).Max(c => c.ExecutionTime);
                 departmentlist = db.Personnel_Architecture.Where(c => c.ExecutionTime == lastVT).ToList();
 
                 List<string> department = new List<string>();
@@ -590,5 +590,320 @@ namespace JianHeMES.Controllers
 
         public int Employees_personnel { get; set; }
     }
+
+
+    //API接口
+    public class Personnel_Turnoverrate_ApiController : System.Web.Http.ApiController
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonalityController comm = new CommonalityController();
+        private CommonController common = new CommonController();
+        CommonController dateTime = new CommonController();
+
+      
+
+        #region ------ 按月查看部门流失率情况
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Turnoverrate([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            int? Year = obj.Year;//年
+            int? Month = obj.Month;//月
+            if (Year == null || Month == null)
+            {
+                return common.GetModuleFromJobjet(result, false, Year == null ? "年份" : "" + Month == null ? "月份" : "" + "未选择！");
+            }
+            JObject Department_record = new JObject();
+            var Year_Month_Allrecord = db.Personnel_daily.Where(c => c.Date.Value.Year == Year && c.Date.Value.Month == Month).ToList();
+            var Department_list = Year_Month_Allrecord.Select(c => c.Department).Distinct().ToList();
+            if (Year_Month_Allrecord.Count() == 0)
+            {
+                return common.GetModuleFromJobjet(result, false, "没有记录！");
+            }
+            var departmentlist = new List<Personnel_Architecture>();
+            DateTime exdate = new DateTime(Year.Value, Month.Value, 28, 0, 0, 0);
+            departmentlist = dateTime.CompanyDatetime(exdate);
+            List<string> dp_list = new List<string>();
+            List<string> others = new List<string>();
+            foreach (var s in departmentlist)
+            {
+                if (Department_list.Contains(s.Department))
+                {
+                    dp_list.Add(s.Department);
+                }
+                else
+                {
+                    others.Add(s.Department);
+                }
+            }
+            dp_list.AddRange(others);
+            decimal average_sum = 0;
+            decimal totalbegin = 0;
+            decimal totalend = 0;
+            int departure_month_sum = 0;
+            int i = 0;
+            foreach (var department in dp_list)
+            {
+                ////月初日期
+                //var begin_date  = Year_Month_Allrecord.Where(c => c.Department == department).Min(c=>c.Date);
+                ////月末日期
+                //var end_date = Year_Month_Allrecord.Where(c => c.Department == department).Max(c => c.Date);
+                int countByDepartment = Year_Month_Allrecord.Count(c => c.Department == department);
+
+                Department_record.Add("department", department);
+                //月初人数
+                var begin_day_of_month = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel;
+                totalbegin = totalbegin + begin_day_of_month;
+                Department_record.Add("begin_day_of_month", begin_day_of_month);
+                //月末人数
+                var end_day_of_month = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + Year_Month_Allrecord.Where(c => c.Department == department).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                totalend = totalend + end_day_of_month;
+                Department_record.Add("end_day_of_month", end_day_of_month);
+                //平均人数
+                decimal average = (begin_day_of_month + end_day_of_month) / 2;
+                Department_record.Add("average", average);
+                //整月离职人数之和
+                var departure_sum = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == department).Sum(c => c.Todoy_dimission_employees_over7days);
+                departure_month_sum = departure_month_sum + departure_sum;
+                Department_record.Add("leave_sum", departure_sum);
+                //流失率
+                decimal turnoverrate = average == 0 ? 0 : departure_sum * 100 / average;
+                Department_record.Add("turnoverrate", turnoverrate);
+                result.Add(i.ToString(), Department_record);
+                Department_record = new JObject();
+                i++;
+            }
+            average_sum = (totalbegin + totalend) / 2;
+            //右下角总平均数值
+            result.Add("month_average", average_sum == 0 ? 0 : departure_month_sum * 100 / average_sum);
+            return common.GetModuleFromJobjet(result);
+        }
+
+        #endregion
+
+        #region------ 流失率年度折线图数据
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject TurnoverrateYearlyLineChartData([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            int? Year = obj.Year;//年
+            if (Year == null)
+            {
+                return common.GetModuleFromJobjet(result, false, Year == null ? "年份未选择！" : "");
+            }
+            JObject yearChartDate = new JObject();
+            string List = "";
+            string[] YearList = new string[12];
+            JObject depChartDate = new JObject();
+            var Year_Allrecord = db.Personnel_daily.Where(c => c.Date.Value.Year == Year).ToArray();
+            var department0 = Year_Allrecord.Select(c => c.Department).Distinct().ToList();
+            var months = Year_Allrecord.Select(c => c.Date.Value.Month).Distinct().ToList();
+            if (months.Count() > 0)
+            {
+                #region------折线图
+                foreach (var month in months)
+                {
+                    decimal average_sum = 0;
+                    decimal stratNum = 0;
+                    decimal endNum = 0;
+                    int departure_month_sum = 0;
+                    var departmentlist = new List<Personnel_Architecture>();
+                    var t = new DateTime(Year.Value, month, 28);
+                    var lastVT = db.Personnel_Architecture.Where(c => c.ExecutionTime <= t).Max(c => c.ExecutionTime);
+                    departmentlist = db.Personnel_Architecture.Where(c => c.ExecutionTime == lastVT).ToList();
+
+                    List<string> department = new List<string>();
+                    List<string> others = new List<string>();
+                    foreach (var s in departmentlist)
+                    {
+                        if (department0.Contains(s.Department))
+                        {
+                            department.Add(s.Department);
+                        }
+                        else
+                        {
+                            others.Add(s.Department);
+                        }
+                    }
+                    department.AddRange(others);
+
+                    foreach (var dep in department)
+                    {
+                        int count = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == month).Count();
+                        if (count != 0)
+                        {
+                            //月初人数 
+                            var begin_day_of_month = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == month).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel;
+                            stratNum = stratNum + begin_day_of_month;
+                            //月末人数
+                            var end_day_of_month = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == month).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == month).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                            endNum = endNum + end_day_of_month;
+                            //平均数
+                            decimal average = (begin_day_of_month + end_day_of_month) / 2;
+                            //average_sum = average_sum + average;
+                            //离职人数总和
+                            var departure_sum = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == month).Sum(c => c.Todoy_dimission_employees_over7days);
+                            departure_month_sum = departure_month_sum + departure_sum;
+                            //每个部门的每月流失率
+                            decimal turnoverrate = departure_sum * 100 / average;
+                            //部门
+                            // avageTurnoverrate = avageTurnoverrate + turnoverrate;
+                        }
+                    }
+                    average_sum = (stratNum + endNum) / 2;
+                    YearList[month - 1] = average_sum == 0 ? 0.ToString() : (departure_month_sum * 100 / average_sum).ToString("F2");
+
+                }
+                string yearListString = string.Join(",", YearList);
+                result.Add("line", yearListString);
+                #endregion
+
+                #region -----柱状图
+                foreach (var itme in months)
+                {
+                    decimal average_sum1 = 0;
+                    int departure_month_sum1 = 0;
+                    var departmentlist = new List<Personnel_Architecture>();
+                    var t = new DateTime(Year.Value, itme, 28);
+                    var lastVT = db.Personnel_Architecture.Where(c => c.ExecutionTime <= t).Max(c => c.ExecutionTime);
+                    departmentlist = db.Personnel_Architecture.Where(c => c.ExecutionTime == lastVT).ToList();
+
+                    List<string> department = new List<string>();
+                    List<string> others = new List<string>();
+                    foreach (var s in departmentlist)
+                    {
+                        if (department0.Contains(s.Department))
+                        {
+                            department.Add(s.Department);
+                        }
+                        else
+                        {
+                            others.Add(s.Department);
+                        }
+                    }
+                    department.AddRange(others);
+
+                    foreach (var dep in department)
+                    {
+                        //decimal avageTurnoverrate = 0;
+
+                        int count = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == itme).Count();
+                        if (count == 0)
+                        {
+                            List = "0.00";
+                        }
+                        else
+                        {
+                            //月初人数 
+                            var begin_day_of_month = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == itme).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel;
+                            //月末人数
+                            var end_day_of_month = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == itme).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == itme).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                            //平均数
+                            decimal average = (begin_day_of_month + end_day_of_month) / 2;
+                            average_sum1 = average_sum1 + average;
+                            //离职人数总和
+                            var departure_sum = Year_Allrecord.Where(c => c.Department == dep && c.Date.Value.Month == itme).Sum(c => c.Todoy_dimission_employees_over7days);
+                            departure_month_sum1 = departure_month_sum1 + departure_sum;
+                            //每个部门的每月流失率
+                            decimal turnoverrate = departure_sum * 100 / average;
+
+                            List = turnoverrate.ToString("F2");
+
+                            //部门
+                            // avageTurnoverrate = avageTurnoverrate + turnoverrate;
+                        }
+                        depChartDate.Add(dep, List);
+                        //string mouthList = string.Join(",", List);
+                        //depChartDate.Add("data", mouthList);
+                        //depChartDate.Add("mouthYear", departure_month_sum * 100 / average_sum);
+                        //各个部门的每月流失率
+
+                    }
+                    yearChartDate.Add(itme.ToString(), depChartDate);
+                    depChartDate = new JObject();
+                }
+                result.Add("columnar", yearChartDate);
+                #endregion
+
+                return common.GetModuleFromJobjet(result);
+            }
+            else
+                return common.GetModuleFromJobjet(result, false, "没有记录！");
+        }
+        #endregion
+
+        #region------ 查看部门整年流失率情况
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject TurnoverrateYearly([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            int? year = obj.year;//年
+            string department = obj.department == null ? null : obj.department;
+            if (department == null || year == null)
+            {
+                return common.GetModuleFromJobjet(result, false, department == null ? "部门为空！" : "" + year == null ? "年份未选择！" : "");
+            }
+            //var datalist = await db.Personnel_Turnoverrate.Where(c => c.Department == department && c.Year == year).ToListAsync();
+            JObject MouthList = new JObject();
+            var Year_Department_Allrecord = db.Personnel_daily.Where(c => c.Date.Value.Year == year && c.Department == department).ToArray();
+            if (Year_Department_Allrecord.Count() > 0)
+            {
+                var mouths = Year_Department_Allrecord.Select(c => c.Date.Value.Month).Distinct();
+                decimal totalTurnoverrate = 0;
+                int i = 0;
+                foreach (var mouth in mouths)
+                {
+                    i++;
+                    int count = Year_Department_Allrecord.Where(c => c.Date.Value.Month == mouth).Count();
+
+                    MouthList.Add("Mcouth", mouth);
+                    //月初人数
+                    var begin_day_of_month = Year_Department_Allrecord.Where(c => c.Date.Value.Month == mouth).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel;
+                    MouthList.Add("begin_day_of_month", begin_day_of_month);
+                    //月末人数
+                    var end_day_of_month = Year_Department_Allrecord.Where(c => c.Date.Value.Month == mouth).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + Year_Department_Allrecord.Where(c => c.Date.Value.Month == mouth).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                    MouthList.Add("end_day_of_month", end_day_of_month);
+                    //平均人数
+                    decimal average = (begin_day_of_month + end_day_of_month) / 2;
+                    //average_sum = average_sum + average;
+                    MouthList.Add("average", average);
+                    //整月离职人数之和
+                    var departure_sum = Year_Department_Allrecord.Where(c => c.Date.Value.Month == mouth).Sum(c => c.Todoy_dimission_employees_over7days);
+                    //departure_month_sum = departure_month_sum + departure_sum;
+                    MouthList.Add("leave_sum", departure_sum);
+                    //流失率
+                    decimal turnoverrate = departure_sum * 100 / average;
+                    totalTurnoverrate = totalTurnoverrate + turnoverrate;
+                    MouthList.Add("turnoverrate", turnoverrate);
+
+                    result.Add(mouth.ToString(), MouthList);
+                    MouthList = new JObject();
+                }
+                result.Add("avgturnoverrate", totalTurnoverrate / i);
+
+                return common.GetModuleFromJobjet(result);
+            }
+            else
+            {
+                return common.GetModuleFromJobjet(result, false, "没有记录！");
+            }
+        }
+
+        #endregion
+
+
+
+    }
+
+
 }
 

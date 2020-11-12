@@ -1,4 +1,5 @@
-﻿using JianHeMES.Models;
+﻿using JianHeMES.AuthAttributes;
+using JianHeMES.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -8,6 +9,7 @@ using System.Data.Entity;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -4616,7 +4618,18 @@ namespace JianHeMES.Controllers
                     { num = 1; }
                     else//否则在上一次出库次数的基础上+1
                     {
-                        num = list.Max(c => c.WarehouseOutNum) + 1;
+                        JObject orderjobject = new JObject();
+                        orderjobject.Add("orderNum", null);//订单号
+                        orderjobject.Add("barcode", null);
+                        orderjobject.Add("warehousOutCount", null);
+                        orderjobject.Add("warehousCount", null);
+                        orderjobject.Add("notPrintCount", null);
+                        orderjobject.Add("message", "不能重复出库");
+                        array.Add(orderjobject);
+                        total.Add("mes", array);
+                        total.Add("pass", false);
+                        total.Add("newOutherBarocode", newOutherBarcode);//挪用后新生成的外箱条码
+                        return Content(JsonConvert.SerializeObject(total));
                     }
                     //添加出库信息
                     foreach (var warehouse_Join in info)
@@ -4715,7 +4728,18 @@ namespace JianHeMES.Controllers
                         { num = 1; }
                         else//否则在上一次出库次数的基础上+1
                         {
-                            num = list.Max(c => c.WarehouseOutNum) + 1;
+                            JObject orderjobject = new JObject();
+                            orderjobject.Add("orderNum", null);//订单号
+                            orderjobject.Add("barcode", null);
+                            orderjobject.Add("warehousOutCount", null);
+                            orderjobject.Add("warehousCount", null);
+                            orderjobject.Add("notPrintCount", null);
+                            orderjobject.Add("message", "不能重复出库");
+                            array.Add(orderjobject);
+                            total.Add("mes", array);
+                            total.Add("pass", false);
+                            total.Add("newOutherBarocode", newOutherBarcode);//挪用后新生成的外箱条码
+                            return Content(JsonConvert.SerializeObject(total));
                         }
                         //添加出库信息
                         foreach (var warehouse_Join in info)
@@ -4763,7 +4787,7 @@ namespace JianHeMES.Controllers
                     JObject orderjobject = new JObject();
                     orderjobject.Add("orderNum", item);//订单号
                     var warehouseList = commom.GetCurrentwarehousList(item);//获取本次周期的出入库信息
-                    var warehouse = db.Warehouse_Join.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode != item && c.State == "模组").Select(c => c.OuterBoxBarcode).Distinct().Count();//出库了的数量
+                    //var warehouse = db.Warehouse_Join.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode != item && c.State == "模组").Select(c => c.OuterBoxBarcode).Distinct().Count();//出库了的数量
 
                     //现在挪用出库要还能找到之前的信息,暂时去掉
                     JArray barcodes = new JArray();
@@ -4771,10 +4795,18 @@ namespace JianHeMES.Controllers
                     orderjobject.Add("barcode", barcodes);
 
                     //出库数量
-                    var warhhousrout = warehouseList.Where(c => c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    var warhhousrout = db.Warehouse_Join.Where(c => c.IsOut == true && (c.OrderNum == item || c.NewBarcode == item)).Select(c => c.OuterBoxBarcode).Distinct().Count();
                     //入库数量
-                    var warhhousr = warehouseList.Select(c => c.OuterBoxBarcode).Distinct().Count();
-
+                    var warhhousr = db.Warehouse_Join.Where(c => c.OrderNum == item || c.NewBarcode == item).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    //定义包装数量
+                    var rulecount = db.Packing_BasicInfo.Where(c => c.OrderNum == item).Sum(c => c.Quantity);
+                    if (rulecount == warhhousrout)
+                    {
+                        var maxtime = db.Warehouse_Join.Where(c => c.IsOut == true && (c.OrderNum == item || c.NewBarcode == item)).Max(c => c.WarehouseOutDate);
+                        var ruleinfo = db.Packing_BasicInfo.Where(c => c.OrderNum == item).ToList();
+                        ruleinfo.ForEach(c => c.WarehouseTime = maxtime);
+                        db.SaveChanges();
+                    }
                     //已出库
                     orderjobject.Add("warehousOutCount", warhhousrout);
                     //剩下未出库数量
@@ -4784,10 +4816,28 @@ namespace JianHeMES.Controllers
                     orderjobject.Add("message", "");
                     array.Add(orderjobject);
                 }
+                if (isDelete)
+                {
+                    //出库数量
+                    var warhhousrout = db.Warehouse_Join.Where(c => c.IsOut == true && (c.OrderNum == warehousordernum || c.NewBarcode == warehousordernum)).Select(c => c.OuterBoxBarcode).Distinct().Count();
+
+                    //定义包装数量
+                    var rulecount = db.Packing_BasicInfo.Where(c => c.OrderNum == warehousordernum).Sum(c => c.Quantity);
+                    if (rulecount == warhhousrout)
+                    {
+                        var maxtime = db.Warehouse_Join.Where(c => c.IsOut == true && (c.OrderNum == warehousordernum || c.NewBarcode == warehousordernum)).Max(c => c.WarehouseOutDate);
+                        var ruleinfo = db.Packing_BasicInfo.Where(c => c.OrderNum == warehousordernum).ToList();
+                        ruleinfo.ForEach(c => c.WarehouseTime = maxtime);
+                        db.SaveChanges();
+                    }
+                }
                 total.Add("mes", array);
                 total.Add("pass", true);
                 total.Add("newOutherBarocode", newOutherBarcode);//挪用后新生成的外箱条码
             }
+
+
+
             return Content(JsonConvert.SerializeObject(total));
         }
 
@@ -5039,44 +5089,6 @@ namespace JianHeMES.Controllers
         }
 
         #endregion
-        //public ActionResult CheackBarcodeFromWarehouseOut(string barcode,bool isinnek,string ordernum=null)
-        //{
-
-        //}
-
-        ///// <summary>
-        ///// 返回挪用订单需要打印的参数信息
-        ///// </summary>
-        ///// <param name="ordernum">订单号</param>
-        ///// <param name="outherBarcode">外箱条码列表</param>
-        ///// <param name="screenNum">屏序号</param>
-        ///// <returns></returns>
-        //public ActionResult GetOutsideBoxLablePrintParameter(string ordernum, List<string> outherBarcode, int screenNum)
-        //{
-        //    JObject result = new JObject();
-        //    JArray total = new JArray();
-        //    var count = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).Sum(c => c.Quantity);
-        //    foreach (var item in outherBarcode)
-        //    {
-        //        var info = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == item && c.EmbezzleOrderNum == ordernum).ToList();
-        //        //result.Add("ordernum", ordernum);//订单,显示的订单
-        //        //result.Add("screen", screenNum);//屏序号
-        //        //result.Add("outheBarcode", item);//外箱条码
-        //        result.Add("G_Weight", info.FirstOrDefault().G_Weight);//毛重
-        //        result.Add("N_Weight", info.FirstOrDefault().N_Weight);//净重
-        //        result.Add("Materiel", info.FirstOrDefault().Materiel);//物料描述
-        //        result.Add("SN/TN", info.FirstOrDefault().SNTN + "/" + count);//件数/号
-        //        result.Add("ModuleCount", info.Count);//数量
-        //        var barcode = info.Select(c => new { c.BarCodeNum, c.ModuleGroupNum }).ToList();
-        //        JArray ModuleList = new JArray();
-        //        barcode.ForEach(c => ModuleList.Add(c.ModuleGroupNum != null ? c.ModuleGroupNum : c.BarCodeNum));// 如果模组号不为空则传模组号,否则条码号
-        //        result.Add("ModuleList", ModuleList);//模组列表
-        //        result.Add("IsLogo", info.FirstOrDefault().IsLogo);//是否有LOGO
-
-        //        total.Add(result);
-        //    }
-        //    return Content(JsonConvert.SerializeObject(total)); ;
-        //}
 
         #region 产值操作
 
@@ -6151,7 +6163,7 @@ namespace JianHeMES.Controllers
             {
                 Directory.CreateDirectory(@"D:\MES_Data\TemDate\OrderSequence");
             }
-           
+
             foreach (var item in sequences)//循环类型数据
             {
                 for (int i = 0; i < item.Num; i++)//循环规则号定义数量
@@ -6175,7 +6187,7 @@ namespace JianHeMES.Controllers
             if (number.Count != barcodenum)
             {
                 result.Add("mes", "订单数量与录入规则的数量不符合,订单数量为" + barcodenum);
-                result.Add("pass",false);
+                result.Add("pass", false);
                 return Content(JsonConvert.SerializeObject(result));
             }
             normal.Add("Normal", number);
@@ -8204,6 +8216,3775 @@ namespace JianHeMES.Controllers
         //}
     }
 
+    public class Packagings_ApiController : System.Web.Http.ApiController
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonController com = new CommonController();
+        private CommonalityController comm = new CommonalityController();
 
+        public class Sequence
+        {
+            public string Prefix { get; set; }
+
+            public string Suffix { get; set; }
+
+            public int Num { get; set; }
+
+            public bool Rule { get; set; }
+
+            public int startNum { get; set; }
+
+        }
+
+
+        #region ---包装基本信息录入
+        /// <summary>
+        /// 作用:添加包装基本信息,除了尾箱，一个订单的包装类型的信息应该只有一条
+        /// 逻辑：先根据订单删除原有的,在添加刚刚传过来的
+        /// 结果:返回成功
+        /// </summary>
+        /// <param name="packinginfo">规则信息</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CreatePacking([System.Web.Http.FromBody]JObject data)
+        {
+            List<Packing_BasicInfo> packinginfo = JsonConvert.DeserializeObject<List<Packing_BasicInfo>>(JsonConvert.SerializeObject(data["packinginfo"]));
+            string Department = data["Department"].ToString();
+            string Group = data["Group"].ToString();
+            #region  版本1
+            //先删除原有的
+            var ordernum = packinginfo.Select(c => c.OrderNum).FirstOrDefault();//提出订单号
+            var list = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();//根据订单找到信息
+            db.Packing_BasicInfo.RemoveRange(list);//移除
+            db.SaveChanges();
+            //生成新的
+            packinginfo.ForEach(c => { c.Department = Department; c.Group = Group; });
+            db.Packing_BasicInfo.AddRange(packinginfo);//添加
+            db.SaveChanges();
+            return com.GetModuleFromJarray(null, true, "OK");
+
+            #endregion
+        }
+
+        /// <summary>
+        /// 作用:根据给的订单号，显示包装信息
+        /// 逻辑:根据订单号查找包装录入规则,把其中的包装的类型,容量,数量是否分屏,能否修改信息,将信息放回前端(能放修改逻辑:没有打印的可以修改,已经打印的,返回前端一个已经打印的数量,前端根据这个数量,设置只能增加,不能减少)
+        /// 结果:将信息放回前端
+        /// </summary>
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject ValueFromOrderNum([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            JObject valueitem = new JObject();
+            JObject value = new JObject();
+            var packingList = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();//根据订单显示包装规则信息
+            if (packingList == null)//如果规则信息为空
+            {
+                return com.GetModuleFromJobjet(null);
+            }
+            int i = 0;
+            foreach (var item in packingList)//循环规则信息
+            {
+                valueitem.Add("packingType", item.Type);//包装类型
+                valueitem.Add("itemNum", item.OuterBoxCapacity);//包装容量
+                valueitem.Add("Num", item.Quantity);//包装数量
+                                                    //分屏
+                                                    //if (item.IsSeparate)
+                                                    //{
+                valueitem.Add("isSeparate", item.IsSeparate); //是否分屏
+                valueitem.Add("screenNum", item.ScreenNum); //分屏号
+                valueitem.Add("isBatch", item.IsBatch); //是否分批
+                valueitem.Add("batch", item.Batch); //批号
+                var print = db.Packing_BarCodePrinting.Where(c => (c.CartonOrderNum == item.OrderNum || c.EmbezzleOrderNum == item.OrderNum) && c.Type == item.Type && c.QC_Operator == null && c.Batch == item.Batch && c.ScreenNum == item.ScreenNum).ToList();//根据订单号和类型找包装打印记录
+                if (print.Count == 0)
+                {
+                    valueitem.Add("update", "true"); //没有包装打印记录，可以修改
+                    valueitem.Add("min", 0);
+                }
+                else
+                {
+                    valueitem.Add("update", "false");//有包装打印记录，不可以修改
+                    var count = db.Packing_BarCodePrinting.Where(c => (c.CartonOrderNum == item.OrderNum || c.EmbezzleOrderNum == item.OrderNum) && c.Type == item.Type && c.ScreenNum == item.ScreenNum && c.QC_Operator == null && c.Batch == item.Batch).Select(c => c.OuterBoxBarcode).Distinct().Count();//根据订单、类型、分屏号查找包装打印数量
+                    valueitem.Add("min", count);
+                }
+                value.Add(i.ToString(), valueitem);
+                i++;
+                valueitem = new JObject();
+            }
+            return com.GetModuleFromJobjet(value);
+        }
+        #endregion
+
+        #region ---内箱包装信息录入
+        /// <summary>
+        /// 作用:内箱确认录入
+        /// 逻辑:查找内箱包装确认表,查看是否有重复记录
+        /// 结果:,查看是否有重复记录,如果有,怎提示出来,没有则录入表中
+        /// </summary>
+        /// <param name="packing_InnerChecks">内箱确认数据集合</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject InnerBoxCheck([System.Web.Http.FromBody]JObject data)
+        {
+            List<Packing_InnerCheck> packing_InnerChecks = JsonConvert.DeserializeObject<List<Packing_InnerCheck>>(JsonConvert.SerializeObject(data["packinginfo"]));
+            string Department = data["Department"].ToString();
+            string UserName = data["UserName"].ToString();
+            string Group = data["Group"].ToString();
+            if (ModelState.IsValid)//判断数据格式是否正确
+            {
+                string error = "";
+                foreach (var item in packing_InnerChecks)//循环内箱确认数据
+                {
+                    var check = db.Packing_InnerCheck.Count(c => c.Barcode == item.Barcode);//查找是否含有重复条码
+                    if (check > 0)//如果有,则记录在error,进行下一个循环
+                    {
+                        error = error + item.Barcode + ",";
+                        continue;
+                    }
+                    item.QC_Operator = UserName;//登录人
+                    item.QC_ComfirmDate = DateTime.Now;//现在时间
+                    item.Department = Department;
+                    item.Group = Group;
+                    db.Packing_InnerCheck.Add(item);//添加数据
+                    db.SaveChanges();
+                };
+                if (!string.IsNullOrEmpty(error))//判断error是否有内容,由内容则提示错误
+                {
+                    return com.GetModuleFromJobjet(null, false, "条码已重复");
+                }
+                return com.GetModuleFromJobjet(null, true, "成功");
+            }
+            return com.GetModuleFromJobjet(null, false, "失败");
+        }
+
+        /// <summary>
+        /// 作用:输出已经确认的条码列表
+        /// 逻辑:根据订单号找出已经内箱确认的条码列表
+        /// 结果:返回带有条码,和模组号的json内容
+        /// </summary>
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject BarcodeList([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            //根据订单号查内箱确认清单
+            var list = db.Packing_InnerCheck.Where(c => c.OrderNum == ordernum).OrderBy(c => c.Barcode).ToList();//从内箱确认呢表中根据订单找到条码号
+            JArray List = new JArray();
+            foreach (var item in list)//循环条码列表
+            {
+                JObject itemjob = new JObject();
+                itemjob.Add("barcode", item.Barcode);
+                itemjob.Add("boxcode", item.ModuleNum);
+                List.Add(itemjob);
+            }
+            return com.GetModuleFromJarray(List);
+        }
+        #endregion
+
+        #region ---外箱操作
+        /// <summary>
+        /// 返回装箱类型
+        /// </summary>
+        /// <param name="ordernum">订单</param>
+        /// <returns></returns>
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject BoxType([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            var orders = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).Select(m => m.Type).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        /// <summary>
+        /// 返回批次列表
+        /// </summary>
+        /// <param name="ordernum">订单</param>
+        /// <param name="type">装箱类型</param>
+        /// <returns></returns>
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject BatchNum([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            string type = data["type"].ToString();
+            JObject message = new JObject();
+            var count = db.Packing_BasicInfo.Count(c => c.OrderNum == ordernum && c.IsBatch == true);//是否分批
+            if (count > 0)
+                message.Add("IsBatch", true);
+            else
+                message.Add("IsBatch", false);
+
+            var orders = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == type).Select(m => m.Batch).Distinct();    //分屏号清单
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            message.Add("List", result);
+            return com.GetModuleFromJobjet(message);
+        }
+
+        /// <summary>
+        /// 返回分屏号
+        /// </summary>
+        /// 先判断是否分屏,返回前端,在列出分屏号清单
+        /// <param name="ordernum">订单</param>
+        /// <param name="type">类型</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject ScreenNum([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            string type = data["type"].ToString();
+            int batchNum = int.Parse(data["batchNum"].ToString());
+            JObject message = new JObject();
+            var count = db.Packing_BasicInfo.Count(c => c.OrderNum == ordernum && c.IsSeparate == true);//是否分屏
+            if (count > 0)
+                message.Add("IsScreen", true);
+            else
+                message.Add("IsScreen", false);
+
+            var orders = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == type && c.Batch == batchNum).Select(m => m.ScreenNum).Distinct();    //分屏号清单
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            message.Add("List", result);
+            return com.GetModuleFromJobjet(message);
+        }
+
+
+        //根据订单,类型,是否尾箱,屏号,批号,得到重量,完成数量情况,可以打印数量,标签信息
+        //1.根据订单和类型,先判断是否有包装规则,没有直接返回错误提示,没找到该订单的类型包装信息
+        //2标签信息:判断打印数量是否有超过定义数量,超过则返回错误提示"订单已经打印完",否则通过循环已经打印的条码找到下一个外箱条码
+        //3数量信息:找到装箱规则定义的装箱数量
+        //4重量信息:如果是尾箱,拿到尾箱的毛重和净重.否则拿不是尾箱的毛重和净重
+        //5完成信息:先循环类型再循环批号再循环屏号,拿到完成数量,完成率.再计算总的完成率打印数/定义数
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OuthersideBoxInfo([System.Web.Http.FromBody]JObject data)
+        {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;//订单
+            string type = obj.type;//类型
+            int screenNum = obj.screenNum == null ? 1 : obj.screenNum;//屏序号
+            int batchNum = obj.batchNum == null ? 1 : obj.batchNum;//批次号
+            bool IsLast = obj.IsLast == null ? false : obj.IsLast;//是否是尾箱
+            JObject result = new JObject();
+
+            var basicInfo = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == type && c.ScreenNum == screenNum && c.Batch == batchNum).ToList(); //查找包装规则信息
+            if (basicInfo.Count == 0)//如果找不到包装规则信息
+            {
+                result.Add("G_Weight", null);//毛重量
+                result.Add("N_Weight", null);//净重
+                result.Add("Complate", null);
+                result.Add("count", null);//装的数量
+                result.Add("boxNum", null);//外箱条码
+                result.Add("SNTN", null);//SN/TN
+                return com.GetModuleFromJobjet(result, false, "没找到该订单的类型包装信息");
+            }
+            #region 标签信息
+            var count = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Sum(c => c.Quantity);//根据订单、分屏号查找规定的包装数量总和
+            var printCount = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OuterBoxBarcode).Distinct().ToList().Count();//根据订单、分屏号查找打印的外箱数量
+            if (printCount < count)//判断打印的数量是否大于定义包装数量,如果打印数量大于等于定义包装数量,则返回null
+            {
+                #region 外箱条码生成
+
+                string[] str = ordernum.Split('-');//将订单号分割
+                string OuterBoxBarCodeNum = "";
+                string OldOuterBoxBarCodeNum = "";
+                if (str.Count() == 2)
+                {
+                    OuterBoxBarCodeNum = ordernum + "-" + batchNum.ToString().PadLeft(2, '0') + "-" + screenNum.ToString().PadLeft(2, '0') + "-";
+                }
+                else
+                {
+                    string start = str[0].Substring(2);//取出 如2017-test-1 的17
+                    OuterBoxBarCodeNum = start + str[1] + "-" + str[2] + "-" + batchNum.ToString().PadLeft(2, '0') + "-" + screenNum.ToString().PadLeft(2, '0') + "-";//外箱条码组成 
+                    OldOuterBoxBarCodeNum = start + str[1] + "-" + str[2] + "-" + screenNum.ToString().PadLeft(2, '0') + "-";//外箱条码组成 
+                }
+                int SN = 0;
+                for (int i = 1; i <= count; i++)//从1开始循环,最大数为定义的打印数,用来确定标签的序列号
+                {
+                    var num = OuterBoxBarCodeNum + i.ToString().PadLeft(3, '0');//生成含有序列数的标签号
+                    var oldnum = OldOuterBoxBarCodeNum + i.ToString().PadLeft(3, '0');//生成旧的含有序列数的标签号
+                    if (db.Packing_BarCodePrinting.Count(c => c.OuterBoxBarcode == oldnum) == 0 && db.Packing_BarCodePrinting.Count(c => c.OuterBoxBarcode == num) == 0)//判断打印表里是否有相同的标签号,没有则将此标签号存入数据中,有则继续循环
+                    {
+                        OuterBoxBarCodeNum = OuterBoxBarCodeNum + i.ToString().PadLeft(3, '0');
+                        SN = i;
+                        //外箱条码
+                        result.Add("boxNum", OuterBoxBarCodeNum);
+                        //SN/TN
+                        result.Add("SNTN", SN + "/" + count);
+                        break;
+                    }
+
+                }
+                #endregion
+            }
+            else
+            {
+                result.Add("G_Weight", null);//毛重量
+                result.Add("N_Weight", null);//净重
+                result.Add("Complate", null);
+                result.Add("count", null);
+                result.Add("boxNum", null);//外箱条码
+                result.Add("SNTN", null);//SN/TN
+                result.Add("pass", false);
+                result.Add("mes", "订单已经打印完");
+                return com.GetModuleFromJobjet(result, false, "订单已经打印完");
+            }
+            #endregion
+
+            #region 数量信息
+            var countfromint = basicInfo.FirstOrDefault().OuterBoxCapacity;
+            result.Add("count", countfromint);
+            #endregion
+
+            #region 重量信息
+            if (IsLast)//是尾箱
+            {
+                var last = basicInfo.FirstOrDefault();//查找尾箱重量不为0的信息
+                if (last != null)//如果信息不为空
+                {
+                    result.Add("G_Weight", last.Tail_G_Weight);//毛重量
+                    result.Add("N_Weight", last.Tail_N_Weight);//净重
+                }
+
+            }
+            else//不是尾箱
+            {
+                var full = basicInfo.FirstOrDefault();//找到整箱重量不为0的信息
+                if (full != null)//如果信息不为空
+                {
+                    result.Add("G_Weight", full.Full_G_Weight);//毛重量
+                    result.Add("N_Weight", full.Full_N_Weight);//净重
+                }
+            }
+            #endregion
+
+            #region 完成信息
+            JArray total = new JArray();
+            total = GetcompleteInfoFunction(ordernum);
+            result.Add("Complate", total);
+            #endregion
+
+            return com.GetModuleFromJobjet(result, true, "查找成功");
+        }
+
+
+        /// <summary>
+        /// 作用:打印条码界面，显示完成数量
+        /// </summary>
+        /// 逻辑:根据订单查找包装规则中定义的类型集合,循环类型,找到每个类型对应的屏序号集合,循环屏序号,将其中的类型,完成数量(打印数/定义数),屏序,完成率(打印数 除以 定义数),和总的完成数量(打印数/定义数),屏序,完成率(打印数 除以 定义数)显示出来
+        /// 结果:返回json文件或者空josn文件
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        /// 
+        public JArray GetcompleteInfoFunction(string ordernum)
+        {
+            var type = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).Select(c => c.Type).Distinct().ToList();//查找订单查包装规则的类型
+            JArray total = new JArray();
+            foreach (var item in type)//循环类型
+            {
+                var batchList = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == item).Select(c => c.Batch).Distinct().ToList();//根据订单、类型查找包装规则的分屏号
+                foreach (var batchnum in batchList)//循环批号
+                {
+                    var screemNumList = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == item && c.Batch == batchnum).Select(c => c.ScreenNum).Distinct().ToList();
+                    foreach (var screenNum in screemNumList)//循环屏序号
+                    {
+                        JObject info = new JObject();
+                        var totleNum = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Type == item && c.ScreenNum == screenNum && c.Batch == batchnum).Sum(c => c.Quantity);//根据订单号、类型、分屏号查找包装规则的包装总数量(用于显示完成数量的分母显示)
+                        var printBarcode = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum && c.Type == item && c.ScreenNum == screenNum && c.Batch == batchnum).Select(c => c.OuterBoxBarcode).Distinct().Count();//根据订单号根据订单号、类型、分屏号查找包装打印外箱列表(用于显示完成数量的分子显示)
+                        //类型
+                        info.Add("type", item);
+                        //完成数量
+                        info.Add("completeNum", printBarcode.ToString() + "/" + totleNum.ToString());
+                        //屏序
+                        info.Add("screenNum", screenNum);
+                        //批次
+                        info.Add("batchNum", batchnum);
+                        //完成率
+                        info.Add("complete", totleNum == 0 ? 0 + "%" : ((printBarcode * 100) / totleNum).ToString("F2") + "%");
+
+                        total.Add(info);
+                    }
+                }
+            }
+            #region 计算总计
+            JObject info2 = new JObject();
+            var printBarcodeinfo2 = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum).Select(c => c.OuterBoxBarcode).Distinct().Count();//根据订单查包装打印的总的外箱数量
+            var totle = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();
+            var totleNum2 = 0;
+            if (totle.Count != 0)
+            {
+                totleNum2 = totle.Sum(c => c.Quantity);//总的打印数量
+            }
+
+            //类型
+            info2.Add("type", "总计");
+            //完成数量
+            info2.Add("completeNum", printBarcodeinfo2.ToString() + "/" + totleNum2.ToString());
+            //屏序
+            info2.Add("screenNum", "--");
+            //批次
+            info2.Add("batchNum", "--");
+            //完成率
+            info2.Add("complete", totleNum2 == 0 ? 0 + "%" : ((printBarcodeinfo2 * 100) / totleNum2).ToString("F2") + "%");
+
+            total.Add(info2);
+            #endregion
+            return total;
+        }
+
+        /// <summary>
+        /// 作用:根据条码号，判断条码是否打印,没有打印则显示箱体号,用于打印外箱标签,扫条码显示箱体号
+        /// </summary>
+        ///   /// 逻辑:查找条码表,根据订单找到模组号
+        /// 结果:如果没有模组号,则返回空模组和订单json,有则返回模组和订单json
+        /// <param name="barcode">条码号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject ModulbarCode([System.Web.Http.FromBody]JObject data)
+        {
+            string barcode = data["barcode"].ToString();
+
+            var exit = db.Packing_BarCodePrinting.Count(c => c.BarCodeNum == barcode);//查找打印表里是否有相同的条码号
+            if (exit != 0)//有就传fasle
+            {
+                return com.GetModuleFromJobjet(null, false, "此条码已打印");
+            }
+            else//没有就传true
+            {
+
+                var list = db.BarCodes.Where(c => c.BarCodesNum == barcode).Select(c => new { c.ModuleGroupNum, c.OrderNum }).FirstOrDefault();//根据条码找模组号
+                JObject result = new JObject();
+                if (!string.IsNullOrEmpty(list.ModuleGroupNum))//判断是否有模组号,有就返回模组号
+                {
+                    result.Add("module", list.ModuleGroupNum);
+                    result.Add("orderNum", list.OrderNum);
+                    return com.GetModuleFromJobjet(result, true, "ok");
+                }
+                else//没有模组号为空
+                {
+                    result.Add("module", "");
+                    result.Add("orderNum", list.OrderNum);
+                    return com.GetModuleFromJobjet(result, true, "ok");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 作用:判断条码与订单是否相符(用于内箱检测时或者是外箱打印条码时,扫条码,判断条码是否与订单相符)
+        /// </summary>
+        /// 
+        /// 逻辑与结果:
+        /// 根据条码在BarCodes找到订单号,订单号找不到则返回"不存在此条码".
+        /// 如果找到的订单号与传过来的订单号不服,则返回"此条码的订单号应为XX",如果传过来的hybrid为true,则不进行此判断,.
+        /// 根据条码在Appearance表找已经完成电检的信息,如果没有条码信息,则返回"此条码未通过外观电检"
+        /// 根据条码在iscCheck表中找是否有信息,有信息,并且传过来的isInner为true ,则返回"此条码已完成过内箱装箱确认"
+        /// <param name="ordernum">订单</param>
+        /// <param name="barcode">条码</param>
+        /// <param name="isInner">是否有完成内箱检查</param>
+        /// <param name="hybrid">是否是混装,混装不进行条码与订单判断</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject IsCheckBarcode([System.Web.Http.FromBody]JObject data)
+        {
+            //string ordernum, string barcode, bool isInner = false, bool hybrid = false
+            string ordernum = data["ordernum"].ToString();
+            string barcode = data["barcode"].ToString();
+            bool isInner = bool.Parse(data["isInner"].ToString());
+            bool hybrid = bool.Parse(data["hybrid"].ToString());
+            var order = db.BarCodes.Where(c => c.BarCodesNum == barcode).Select(c => c.OrderNum).FirstOrDefault();//根据条码在条码表找订单
+            var exit = db.Appearance.Count(c => c.BarCodesNum == barcode && c.OQCCheckFinish == true);//根据条码查找完成电检数量
+            var iscCheck = db.Packing_InnerCheck.Count(c => c.Barcode == barcode);//查找内检完的数量
+            if (order == null)
+            {
+                return com.GetModuleFromJobjet(null, false, "不存在此条码");
+            }
+            else if (order != ordernum && hybrid == false)
+            {
+                return com.GetModuleFromJobjet(null, false, "此条码的订单号应为" + order);
+            }
+            else if (exit == 0)
+            {
+                return com.GetModuleFromJobjet(null, false, "此条码未通过外观电检");
+            }
+            else if (isInner == true && iscCheck != 0)
+            {
+                return com.GetModuleFromJobjet(null, false, "此条码已完成过内箱装箱确认");
+            }
+            else
+            {
+                return com.GetModuleFromJobjet(null, true, "true");
+            }
+        }
+
+
+        /// <summary>
+        /// 创建外箱打印记录
+        /// </summary>
+        /// 首先检查需要录入外箱打印表里面的条码号是否重复,重复则提示错误,然后再找订单定义的总数量,将已打印的数量+此次要添加记录的数量,等到的数量与定义总数量做对比,如果定义总数量小于打印数量,则提示错误,否则添加数据
+        /// <param name="printings">外箱打印记录</param>
+        /// <param name="ordernum">订单号</param>
+        /// <param name="isupdate">是否是更新</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CreatePackangPrint([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            List<Packing_BarCodePrinting> printings = JsonConvert.DeserializeObject<List<Packing_BarCodePrinting>>(JsonConvert.SerializeObject(datavalue.printings));
+            string ordernum = datavalue.ordernum;
+            string Department = datavalue.Department;
+            string Group = datavalue.Group;
+
+            if (ModelState.IsValid)//判断数据格式是否正确
+            {
+                var printbarcodelist = printings.Select(c => c.BarCodeNum).Distinct().ToList();
+                var exit = db.Packing_BarCodePrinting.Where(c => printbarcodelist.Contains(c.BarCodeNum)).Select(c => c.BarCodeNum).ToList();//查看条码是否已经打印了
+                if (exit.Count() != 0)//已经打印,将信息记录在error中
+                {
+                    return com.GetModuleFromJarray(null, false, "条码" + string.Join(",", exit) + "已包装");
+                }
+                else
+                {
+                    var count = db.Packing_BarCodePrinting.Count(c => c.CartonOrderNum == ordernum);//根据订单找打印表数量,代表此订单 已打印的数量
+                    var real = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();//查看此订单是否有定义装箱规则
+                    var realCount = 0;
+                    if (real.Count != 0)
+                    {
+                        realCount = real.Sum(c => c.Quantity * c.OuterBoxCapacity);//计算出总共应该打印多少条码数(装箱容量*装箱数)
+                    }
+                    if (realCount < count + printings.Count())//如果已打印的数量大于定义总数量
+                    {
+                        return com.GetModuleFromJarray(null, false, "已超过定义的包装数量");
+                    }
+                    printings.ForEach(c => { c.CartonOrderNum = ordernum; c.Department = Department; c.Group = Group; });//保存数据
+                    db.Packing_BarCodePrinting.AddRange(printings);
+                    db.SaveChanges();
+                    return com.GetModuleFromJarray(null, true, "成功");
+                }
+            }
+            return com.GetModuleFromJarray(null, false, "数据格式不对");
+
+        }
+
+        /// <summary>
+        /// 删除外箱条码记录
+        /// </summary>
+        /// 查看inside是否为true ,为true则是删除入库,否则是删除外箱打印记录,删除完后,记录日志
+        /// <param name="ordernum">订单号</param>
+        /// <param name="barcodelist">外箱条码列表</param>
+        /// <param name="inside">是否是删除入库的</param>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public void DelBarcodePrint([System.Web.Http.FromBody]JObject data)
+        {
+            List<string> barcodelist = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(data));
+            string message = "";
+            foreach (var item in barcodelist)//循环条码列表
+            {
+                var list = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == item).ToList();
+                var barcodelsit = list.Select(c => c.BarCodeNum).ToList();
+                //已打印的列表
+                db.Packing_BarCodePrinting.RemoveRange(list);//移除记录
+                db.SaveChanges();
+
+                message = message + "外箱条码:" + item + ",模组条码:" + string.Join(",", barcodelsit);//信息
+
+            }
+            //填写日志
+            UserOperateLog log = new UserOperateLog { Operator = "", OperateDT = DateTime.Now, OperateRecord = "删除外箱记录//" + message };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+        }
+
+
+        /// <summary>
+        /// 根据订单拿到已打印的外箱条码列表
+        /// </summary>
+        /// <param name="ordernum"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CompletePrintBarcode([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            var OutsideBoxBarCodeNumList = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum || c.EmbezzleOrderNum == ordernum).Select(c => c.OuterBoxBarcode).Distinct().ToList();
+            JArray result = new JArray();
+            foreach (var item in OutsideBoxBarCodeNumList)
+            {
+                result.Add(item);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+
+        /// <summary>
+        /// //根据订单输出可删除的外箱条码号清单
+        /// </summary>
+        /// <param name="ordernum"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DelBarcodeBeforeWarehouse([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            var OutsideBoxBarCodePackagingNumList = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum || c.EmbezzleOrderNum == ordernum).Select(c => c.OuterBoxBarcode).Distinct().ToList();
+            var OutsideBoxBarCodeWarehouseJoinNumList = db.Warehouse_Join.Where(c => c.CartonOrderNum == ordernum || c.NewBarcode == c.OrderNum).Select(c => c.OuterBoxBarcode).Distinct().ToList();
+            var OutsideBoxBarCodeNumList = OutsideBoxBarCodePackagingNumList.Except(OutsideBoxBarCodeWarehouseJoinNumList);
+            JArray result = new JArray();
+            foreach (var item in OutsideBoxBarCodeNumList)
+            {
+                result.Add(item);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+        /// <summary>
+        /// 输入外箱条码,判断是否能删除
+        /// </summary>
+        /// <param name="outsidebarcode"></param>
+        /// <param name="ordernum"></param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CheckOutsideBoxBadeCodeNumExist([System.Web.Http.FromBody]JObject data)
+        {
+            string outsidebarcode = data["outsidebarcode"].ToString();
+            JObject message = new JObject();
+            var count = db.Packing_BarCodePrinting.Count(c => c.OuterBoxBarcode == outsidebarcode);
+            if (count > 0)
+            {
+                var warejoin = db.Warehouse_Join.Where(c => c.OuterBoxBarcode == outsidebarcode).FirstOrDefault();
+                if (warejoin == null)
+                {
+                    return com.GetModuleFromJarray(null, true, "ok");
+                }
+                else
+                {
+
+                    return com.GetModuleFromJarray(null, false, warejoin.IsOut == false ? "此条码已经入库" : "此条码已经出库");
+
+                }
+            }
+            else
+            {
+                return com.GetModuleFromJarray(null, false, "没有找到此条码");
+            }
+        }
+
+        #endregion
+
+        #region ---仓库录入
+
+        /// <summary>
+        /// 外箱入库信息显示
+        /// </summary>
+        /// 查看入库表是否有相同的外箱号,包括已出库的,如果有则提示已入库
+        /// 查找打印表中是否有传过来的外箱条码,没有则提示找不到此条码
+        /// 否则根据类型和分屏号,将订单的完成信息显示出来(先根据类型循环,在根据分屏号循环,找到不同类型和分屏号的打印数量和定义数量,一一显示出来)
+        /// <param name="outerBarcode"></param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DisaplyMessage([System.Web.Http.FromBody]JObject data)
+        {
+            string outerBarcode = data["outerBarcode"].ToString();
+            JObject result = new JObject();
+
+            var warejoin = db.Warehouse_Join.Count(c => c.OuterBoxBarcode == outerBarcode && (c.OrderNum == c.NewBarcode || c.NewBarcode == null));//入库订单列表
+            if (warejoin > 0)//含有入库信息
+            {
+                result.Add("ordernum", null);
+                result.Add("table", null);
+                result.Add("barcode", null);
+                result.Add("message", "此条码已入库");
+                return com.GetModuleFromJobjet(result);
+            }
+            var ordernum = "";
+            if (outerBarcode.Substring(outerBarcode.Length - 5, 2) == "MK")
+            {
+                ordernum = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outerBarcode).Select(c => c.OrderNum).FirstOrDefault();//打印表查找外箱条码
+            }
+            else
+            {
+                ordernum = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outerBarcode && c.QC_Operator == null).Select(c => c.CartonOrderNum).FirstOrDefault();//打印表查找外箱条码
+            }
+            if (ordernum == null)//在打印表里找不到此外箱条码信息
+            {
+                result.Add("ordernum", null);
+                result.Add("table", null);
+                result.Add("barcode", null);
+                result.Add("message", "找不到此条码");
+                return com.GetModuleFromJobjet(result);
+            }
+            result.Add("ordernum", ordernum);
+
+            JArray total = new JArray();
+            total = GetcompleteInfoFunction(ordernum);
+
+            result.Add("table", total);
+            result.Add("barcode", outerBarcode);
+            result.Add("message", "");
+            return com.GetModuleFromJobjet(result);
+        }
+
+        /// <summary>
+        /// 外箱入库录入
+        /// </summary>
+        /// 循环传过来的外箱条码列表,判断Warehouse_Join是否有已入库的信息,如果已有入库信息,则不录入表中,否则录入表中,并往ordernumList添加订单.
+        /// 循环ordernumList,将订单号,条码号,计划包装数量,已包装数量,入库数量,已入库,剩下已包装未入库,未包装数量信息 返回给前端
+        /// <param name="warehouseNum">库位号</param>
+        /// <param name="outherboxbarcode">外箱条码列表</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CretecWarehouseInfo([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            List<string> outherboxbarcode = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(datavalue.outherboxbarcode));
+            string warehouseNum = datavalue.warehouseNum;
+            string UserName = datavalue.UserName;
+            string Department = datavalue.Department1;
+            string Group = datavalue.Group;
+
+            JArray total = new JArray();
+            List<string> ordernumList = new List<string>();
+            foreach (var outheritem in outherboxbarcode)//循环外箱条码列表
+            {
+                if (db.Warehouse_Join.Count(c => c.OuterBoxBarcode == outheritem && c.IsOut == false) == 0)//查找外箱条码是否已入库没出库,是的话不做任何操作
+                {
+                    #region 模块录入
+                    if (outheritem.Substring(outheritem.Length - 5, 2) == "MK")
+                    {
+                        //外箱条码号已包装的记录
+                        var barcodeList = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outheritem).ToList();
+                        //订单号
+                        var ordernum = barcodeList.Select(c => c.OrderNum).FirstOrDefault();
+                        if (!ordernumList.Contains(ordernum))
+                        {
+                            ordernumList.Add(ordernum);//添加要入库的订单列表
+                        }
+                        //往数据库加数据
+                        foreach (var item in barcodeList)
+                        {
+                            Warehouse_Join join = new Warehouse_Join() { OrderNum = item.OrderNum, BarCodeNum = item.InnerBarcode, OuterBoxBarcode = outheritem, Operator = UserName, Date = DateTime.Now, WarehouseNum = warehouseNum, CartonOrderNum = ordernum, State = "模块", Department = Department, Group = Group };
+                            db.Warehouse_Join.Add(join);
+                            db.SaveChangesAsync();
+                        }
+                        //实时看板更新时间
+                        var board = db.ModuleBoard.Where(c => c.Ordernum == ordernum && c.Section == "出入库").FirstOrDefault();
+                        if (board == null)
+                        {
+                            ModuleBoard moduleBoard = new ModuleBoard() { Ordernum = ordernum, Section = "出入库", UpdateDate = DateTime.Now };
+                            db.ModuleBoard.Add(moduleBoard);
+                            db.SaveChanges();
+                        }
+                        else
+                        {
+                            board.UpdateDate = DateTime.Now;
+                            db.SaveChanges();
+                        }
+                    }
+                    #endregion
+
+                    #region 模组录入
+                    else
+                    {
+                        //外箱条码号已包装的记录
+                        var barcodeList = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outheritem && c.QC_Operator == null).ToList();
+                        //订单号
+                        var ordernum = barcodeList.Select(c => c.CartonOrderNum).FirstOrDefault();
+                        if (!ordernumList.Contains(ordernum))
+                        {
+                            ordernumList.Add(ordernum);//添加要入库的订单列表
+                        }
+                        //往数据库加数据
+                        foreach (var item in barcodeList)
+                        {
+                            Warehouse_Join join = new Warehouse_Join() { OrderNum = item.OrderNum, BarCodeNum = item.BarCodeNum, ModuleGroupNum = item.ModuleGroupNum, OuterBoxBarcode = outheritem, Operator = UserName, Date = DateTime.Now, WarehouseNum = warehouseNum, CartonOrderNum = ordernum, State = "模组", Department = Department, Group = Group };
+                            db.Warehouse_Join.Add(join);
+                            db.SaveChangesAsync();
+                        }
+                    }
+                    #endregion
+                }
+            }
+            //根据不同的订单列表提示信息
+            foreach (var item in ordernumList)
+            {
+                JObject orderjobject = new JObject();
+                orderjobject.Add("orderNum", item);//订单号
+
+                var outherBacode = db.Warehouse_Join.Where(c => c.OrderNum == item && outherboxbarcode.Contains(c.OuterBoxBarcode)).Select(c => c.OuterBoxBarcode).Distinct().ToList();//查找外箱条码号
+                JArray barcode = new JArray();
+                barcode.Add(outherBacode);
+                orderjobject.Add("barcode", barcode);//外箱条码号
+                //计划包装数量
+                var planPrint = db.Packing_BasicInfo.Where(c => c.OrderNum == item).Count() == 0 ? 0 : db.Packing_BasicInfo.Where(c => c.OrderNum == item).Sum(c => c.Quantity);
+                //已包装数量
+                var printCount = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == item && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                //入库数量
+                var warhhousr = com.GetCurrentwarehousList(item).Select(c => c.OuterBoxBarcode).Distinct().Count();
+
+                //已入库
+                orderjobject.Add("warehousjoinCount", warhhousr);
+                //剩下已包装未入库
+                orderjobject.Add("printCount", printCount - warhhousr);
+                //未包装数量
+                orderjobject.Add("notPrintCount", planPrint - printCount);
+                total.Add(orderjobject);
+            }
+            return com.GetModuleFromJarray(total);
+
+        }
+
+        /// <summary>
+        /// 修改外箱库位号
+        /// </summary>
+        /// 循环外箱条码号,根据外箱条码号找Warehouse_Join中是否有未出库的信息,如果有,则修改库位号,没有则跳过,最后填写日志
+        /// <param name="ordernum">订单号</param>
+        /// <param name="outherboxbarcode">外箱条码号</param>
+        /// <param name="warehouNum">库位号</param>
+        [HttpPost]
+        [ApiAuthorize]
+        public void StockNumEdit([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            List<string> outherboxbarcode = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(datavalue.outherboxbarcode));
+            string warehouNum = datavalue.warehouNum;
+            string UserName = datavalue.UserName;
+            string ordernum = datavalue.ordernum;
+
+            string warehouse = "";
+            foreach (var barcode in outherboxbarcode)//循环外箱条码集合
+            {
+                var list = db.Warehouse_Join.Where(c => c.OuterBoxBarcode == barcode && c.IsOut == false).ToList();//查找列表已入库但没出库列表
+                warehouse = list.FirstOrDefault().WarehouseNum;//得到原库位号
+                if (list.Count != 0)
+                {
+                    foreach (var item in list)
+                    {
+                        item.WarehouseNum = warehouNum;//修改新库位号
+                        db.SaveChangesAsync();
+                    }
+
+                }
+            }
+            //填写日志
+            UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "外箱库位号修改，订单" + ordernum + ",外箱条码" + string.Join(",", outherboxbarcode.ToArray()) + "原库位号为" + warehouse + "修改为" + warehouNum };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+        }
+
+        /// <summary>
+        /// 退库
+        /// </summary>
+        /// <param name="data"></param>
+        [HttpPost]
+        [ApiAuthorize]
+        public void DelWarehouse([System.Web.Http.FromBody]JObject data)
+        {
+            List<string> barcodelist = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(data));
+            string message = "";
+            foreach (var item in barcodelist)//循环条码列表
+            {
+
+                var warehous = db.Warehouse_Join.Where(c => c.OuterBoxBarcode == item && c.IsOut == false).ToList();//未出库已入库的列表
+                List<string> barcdeoList = warehous.Select(c => c.BarCodeNum).ToList();
+                db.Warehouse_Join.RemoveRange(warehous);//删除
+                db.SaveChanges();
+
+
+                message = message + "外箱条码:" + item + ",模组条码:" + string.Join(",", barcdeoList);//信息
+
+            }
+            //填写日志
+            UserOperateLog log = new UserOperateLog { Operator = "", OperateDT = DateTime.Now, OperateRecord = "删除入库记录//" + message };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+        }
+
+        /// <summary>
+        /// 修改库位号/出库/退库 操作前条码检验
+        /// </summary>
+        /// <param name="outsidebarcode"></param>
+        /// <param name="ordernum"></param>
+        /// <param name="isInside"></param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject NotWarehousOutBarcodeCheck([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string outsidebarcode = datavalue.outsidebarcode;
+            string ordernum = datavalue.ordernum;
+            bool isInside = datavalue.isInside == null ? false : datavalue.isInside;
+            JObject message = new JObject(); var count = 0;
+            if (outsidebarcode.Substring(outsidebarcode.Length - 5, 2) == "MK")//是不是模块
+            {
+                count = isInside == false ? db.ModuleOutsideTheBox.Count(c => c.OutsideBarcode == outsidebarcode) : 0;
+            }
+            else
+            {
+                count = db.Packing_BarCodePrinting.Count(c => (isInside == false ? c.OuterBoxBarcode == outsidebarcode : c.BarCodeNum == outsidebarcode) && c.QC_Operator == null);
+            }
+            //有外箱装箱记录
+            if (count > 0)
+            {
+                //有订单则要判断条码与订单是否相符
+                if (!string.IsNullOrEmpty(ordernum))
+                {
+                    string currentorder = "";
+                    if (outsidebarcode.Substring(outsidebarcode.Length - 5, 2) == "MK")//是不是模块
+                    {
+                        currentorder = db.ModuleOutsideTheBox.Where(c => c.OutsideBarcode == outsidebarcode).Select(c => c.OrderNum).FirstOrDefault();
+                    }
+                    else
+                    {
+                        currentorder = db.Packing_BarCodePrinting.Where(c => (isInside == false ? c.OuterBoxBarcode == outsidebarcode : c.BarCodeNum == outsidebarcode) && c.QC_Operator == null).Select(c => c.CartonOrderNum).FirstOrDefault();
+                    }
+                    if (ordernum != currentorder)
+                    {
+                        return com.GetModuleFromJarray(null, false, isInside == false ? "此外箱条码的订单号应该是:" + currentorder : "此内箱条码的订单号应该是:" + currentorder);
+                    }
+
+                }
+                //判断是否入库
+                var warejoin = db.Warehouse_Join.Count(c => isInside == false ? c.OuterBoxBarcode == outsidebarcode : c.BarCodeNum == outsidebarcode);
+                if (warejoin == 0)
+                {
+                    return com.GetModuleFromJarray(null, false, isInside == false ? "此外箱条码未入库" : "此内箱条码未入库");
+                }
+                //判断是否出库
+                var wareout = db.Warehouse_Join.Count(c => isInside == false ? c.OuterBoxBarcode == outsidebarcode : c.BarCodeNum == outsidebarcode && c.IsOut == true);
+                if (wareout != 0)
+                {
+                    return com.GetModuleFromJarray(null, false, isInside == false ? "此外箱条码已出库" : "此内箱条码已出库");
+                }
+
+                var warejoinNum = db.Warehouse_Join.Where(c => (isInside == false ? c.OuterBoxBarcode == outsidebarcode : c.BarCodeNum == outsidebarcode) && c.IsOut == false).Select(c => c.WarehouseNum).FirstOrDefault();
+                message.Add("warehouseNum", warejoinNum);
+                message.Add("barcode", outsidebarcode);
+                return com.GetModuleFromJarray(null, true, "ok");
+            }
+            else
+            {
+                return com.GetModuleFromJarray(null, false, isInside == false ? "没有找到此外箱条码" : "没有找到此内箱条码");
+            }
+        }
+        #endregion
+
+        #region ---出库记录
+        /// <summary>
+        /// 出库信息记录  
+        /// </summary>
+        /// 循环条码列表,判断入库信息里是否有改条码信息,如果没有,则跳过,有则将订单号记录到ordernumList中,并查找出库信息里有没有改条码信息,如果没有则出库次数定义为1,有则在原有的出库次数中+1,数据库修改信息,如果isDelete为true,需要删除打印信息和内箱确认信息
+        /// 循环ordernumList,如果出库数量==打印数量,并且isDelete为true,则删除服务器的json文件,
+        /// 返回订单号,条码号,已出库数量,剩下未出库数量,未包装数量给前端
+        /// <param name="barcode">条码号列表</param>
+        /// <param name="warehousordernum">出库的订单号,如果是出库则是自身的订单号,如果是挪用出库则是挪用的订单号</param>
+        /// <param name="isDelete">isDelet为ture表示是挪用出库,需要删除打印信息和内箱确认信息</param>
+        /// <param name="Transportation">物流方式</param>
+        /// <param name="WarehouseOutDocuments">出库单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject WarehouseOut([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            List<string> barcode = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(datavalue.barcode));
+            string warehousordernum = datavalue.warehousordernum;
+            string Transportation = datavalue.Transportation;
+            string WarehouseOutDocuments = datavalue.WarehouseOutDocuments;
+            string Department = datavalue.Department;
+            string UserName = datavalue.UserName;
+            string Group = datavalue.Group;
+            bool embezzle = datavalue.embezzle;
+            int screenNum = datavalue.screenNum == null ? 1 : datavalue.screenNum;
+            int batchNum = datavalue.batchNum == null ? 1 : datavalue.batchNum;
+            bool isInside = datavalue.isInside == null ? false : datavalue.isInside;
+            bool isLogo = datavalue.isLogo == null ? true : datavalue.isLogo;
+
+            JObject result = new JObject();
+            JArray array = new JArray();
+            //挪用后新生成的外箱条码号
+            var newoutherbarcode = "";
+            //根据条码拿到入库信息
+            List<Warehouse_Join> info = new List<Warehouse_Join>();
+
+
+            #region 模块出库
+            if (barcode[0].Substring(barcode[0].Length - 5, 2) == "MK")
+            {
+                if (isInside)//内箱出库
+                {
+                    return com.GetModuleFromJobjet(null, false, "模块不能选择内箱出库,请重新选择");
+                }
+                //外箱出库
+                //挪用出库
+                if (embezzle)
+                {
+                    //传过来的外箱条码的装箱类型集合
+                    var typelist = db.ModuleOutsideTheBox.Where(c => barcode.Contains(c.OutsideBarcode)).Select(c => c.Type).Distinct().ToList();
+                    //挪用订单定义的装箱类型集合
+                    var ruletypelist = db.ModulePackageRule.Where(c => c.OrderNum == warehousordernum && c.Statue == "外箱" && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.Type).Distinct().ToList();
+                    //挪用订单已经打印数量(箱数)
+                    var printcount = db.ModuleOutsideTheBox.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OutsideBarcode).Distinct().Count();
+                    //挪用订单已经打印的外箱条码清单
+                    var printbarcodelist = db.ModuleOutsideTheBox.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OutsideBarcode).Distinct().ToList();
+                    //定义的挪用订单箱数
+                    var value = db.ModulePackageRule.Where(c => c.OrderNum == warehousordernum && c.Statue == "外箱" && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.Quantity).ToList();
+                    var rulepackcount = value.Count == 0 ? 0 : value.Sum();
+                    //外箱条码前缀
+                    string[] str = warehousordernum.Split('-');//将订单号分割
+                    string start = str[0].Substring(2);//取出 如2017-test-1 的17
+                    string OuterBoxBarCodeNum = start + str[1] + "-" + str[2] + "-" + screenNum.ToString().PadLeft(2, '0') + "-" + batchNum.ToString().PadLeft(2, '0') + "-MK";//外箱条码组成 
+
+                    var jobject = WarehouseOutItem(typelist, ruletypelist, printcount, printbarcodelist, rulepackcount, OuterBoxBarCodeNum);
+                    if (jobject["pass"].ToString() == "False")
+                    {
+                        return com.GetModuleFromJarray(null, false, jobject["message"].ToString());
+                    }
+                    if (jobject["pass"].ToString() == "True")
+                    {
+                        var updatelist = db.ModuleOutsideTheBox.Where(c => barcode.Contains(c.OutsideBarcode)).ToList();
+                        newoutherbarcode = jobject["message"].ToString();
+                        var SNTN = int.Parse(jobject["SN"].ToString());
+                        updatelist.ForEach(c => { c.OutsideBarcode = newoutherbarcode; c.EmbezzleOrdeNum = warehousordernum; c.ScreenNum = screenNum; c.SN = SNTN; c.IsLogo = isLogo; c.Batch = batchNum; c.OrderNum = warehousordernum; });//修改标签信息
+                    }
+                }
+                info = db.Warehouse_Join.Where(c => barcode.Contains(c.OuterBoxBarcode) && c.IsOut == false && c.State == "模块").ToList();//已入库未出库列表
+            }
+            #endregion
+
+            #region 模组出库
+            //是否内箱出库
+            if (isInside)
+            {
+                if (embezzle)//是否是挪用,挪用要先判断挪用的定义数量有没有大于出库数量,而后再修改打印信息
+                {
+                    //传过来的内箱数量
+                    List<string> typelist = new List<string>();
+                    typelist.Add("1装" + barcode.Count());
+                    //挪用订单定义的装箱类型集合
+                    var ruletypelist = db.Packing_BasicInfo.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.Type).Distinct().ToList();
+                    //挪用订单已经打印数量(箱数)
+                    var printcount = db.Packing_BarCodePrinting.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    //挪用订单已经打印的外箱条码清单
+                    var printbarcodelist = db.Packing_BarCodePrinting.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OuterBoxBarcode).Distinct().ToList();
+                    //定义的挪用订单箱数
+                    var value = db.Packing_BasicInfo.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.Quantity).ToList();
+                    var rulepackcount = value.Count == 0 ? 0 : value.Sum();
+                    //外箱条码前缀
+                    string[] str = warehousordernum.Split('-');//将订单号分割
+                    string start = str[0].Substring(2);//取出 如2017-test-1 的17
+                    var OuterBoxBarCodeNum = start + str[1] + "-" + str[2] + "-" + screenNum.ToString().PadLeft(2, '0') + "-" + batchNum.ToString().PadLeft(2, '0') + "-";//外箱条码组成 
+
+                    var jobject = WarehouseOutItem(typelist, ruletypelist, printcount, printbarcodelist, rulepackcount, OuterBoxBarCodeNum);
+                    if (jobject["pass"].ToString() == "False")
+                    {
+                        return com.GetModuleFromJarray(null, false, jobject["message"].ToString());
+                    }
+                    if (jobject["pass"].ToString() == "True")
+                    {
+                        var updatelist = db.Packing_BarCodePrinting.Where(c => barcode.Contains(c.BarCodeNum)).ToList();
+                        newoutherbarcode = jobject["message"].ToString();
+                        var SNTN = jobject["SN"].ToString();
+                        updatelist.ForEach(c => { c.OuterBoxBarcode = newoutherbarcode; c.EmbezzleOrderNum = warehousordernum; c.ScreenNum = screenNum; c.SNTN = SNTN; c.IsLogo = isLogo; c.Batch = batchNum; c.OrderNum = warehousordernum; });//修改标签信息
+                    }
+                }
+                info = db.Warehouse_Join.Where(c => barcode.Contains(c.BarCodeNum) && c.IsOut == false && c.State == "模组").ToList();//已入库未出库列表
+            }
+            //外箱模组出库
+            else
+            {
+                if (embezzle)//是否是挪用,挪用要先判断挪用的定义数量有没有大于出库数量,而后再修改打印信息
+                {
+                    //传过来的外箱条码的装箱类型集合
+                    var typelist = db.Packing_BarCodePrinting.Where(c => barcode.Contains(c.OuterBoxBarcode)).Select(c => c.Type).Distinct().ToList();
+                    //挪用订单定义的装箱类型集合
+                    var ruletypelist = db.Packing_BasicInfo.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.Type).Distinct().ToList();
+                    //挪用订单已经打印数量(箱数)
+                    var printcount = db.Packing_BarCodePrinting.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    //挪用订单已经打印的外箱条码清单
+                    var printbarcodelist = db.Packing_BarCodePrinting.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.OuterBoxBarcode).Distinct().ToList();
+                    //定义的挪用订单箱数
+                    var value = db.Packing_BasicInfo.Where(c => c.OrderNum == warehousordernum && c.ScreenNum == screenNum && c.Batch == batchNum).Select(c => c.Quantity).ToList();
+                    var rulepackcount = value.Count == 0 ? 0 : value.Sum();
+                    //外箱条码前缀
+                    string[] str = warehousordernum.Split('-');//将订单号分割
+                    string start = str[0].Substring(2);//取出 如2017-test-1 的17
+                    var OuterBoxBarCodeNum = start + str[1] + "-" + str[2] + "-" + screenNum.ToString().PadLeft(2, '0') + "-" + batchNum.ToString().PadLeft(2, '0') + "-";//外箱条码组成 
+
+                    var jobject = WarehouseOutItem(typelist, ruletypelist, printcount, printbarcodelist, rulepackcount, OuterBoxBarCodeNum);
+                    if (jobject["pass"].ToString() == "False")
+                    {
+                        return com.GetModuleFromJarray(null, false, jobject["message"].ToString());
+                    }
+                    if (jobject["pass"].ToString() == "True")
+                    {
+                        var updatelist = db.Packing_BarCodePrinting.Where(c => barcode.Contains(c.OuterBoxBarcode)).ToList();
+                        newoutherbarcode = jobject["message"].ToString();
+                        var SNTN = jobject["SN"].ToString();
+                        updatelist.ForEach(c => { c.OuterBoxBarcode = newoutherbarcode; c.EmbezzleOrderNum = warehousordernum; c.ScreenNum = screenNum; c.SNTN = SNTN; c.IsLogo = isLogo; c.Batch = batchNum; c.OrderNum = warehousordernum; });//修改标签信息
+                    }
+                }
+                info = db.Warehouse_Join.Where(c => barcode.Contains(c.OuterBoxBarcode) && c.IsOut == false && c.State == "模组").ToList();//已入库未出库列表
+            }
+            #endregion
+
+            #region 出库记录修改
+            var ordernum = info.Select(c => c.CartonOrderNum).ToList();//查找订单
+            //添加出库信息
+            foreach (var warehouse_Join in info)
+            {
+                warehouse_Join.OuterBoxBarcode = embezzle ? newoutherbarcode : warehouse_Join.OuterBoxBarcode;
+                warehouse_Join.IsOut = true;//true为出库
+                warehouse_Join.WarehouseOutDate = DateTime.Now;//现在时间
+                warehouse_Join.WarehouseOutOperator = UserName;//登录人
+                warehouse_Join.WarehouseOutNum = 1;//出库次数
+                warehouse_Join.NewBarcode = warehousordernum;//出库订单,出库则是自身的订单号,挪用出库则是挪用的订单号
+                warehouse_Join.Transportation = Transportation;//运输方式
+                warehouse_Join.WarehouseOutDepartment = Department;
+                warehouse_Join.WarehouseOutGroup = Group;
+                warehouse_Join.WarehouseOutDocuments = WarehouseOutDocuments;//出库单号
+                db.Entry(warehouse_Join).State = EntityState.Modified;
+                db.SaveChanges();
+            }
+            #endregion
+
+            #region 订单出库显示信息
+            foreach (var item in ordernum)
+            {
+                JObject orderjobject = new JObject();
+                orderjobject.Add("orderNum", item);//订单号
+
+                //出库数量
+                var warhhousrout = db.Warehouse_Join.Where(c => (c.OrderNum == item || c.NewBarcode == item) && c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                //入库数量
+                var warhhousr = db.Warehouse_Join.Where(c => (c.OrderNum == item || c.NewBarcode == item) && c.IsOut == false).Select(c => c.OuterBoxBarcode).Distinct().Count();
+
+                //已出库
+                orderjobject.Add("warehousOutCount", warhhousrout);
+                //剩下未出库数量
+                orderjobject.Add("warehousCount", warhhousr);
+
+                array.Add(orderjobject);
+            }
+            result.Add("value", array);
+            result.Add("newOutherBarocode", newoutherbarcode);//挪用后新生成的外箱条码
+            return com.GetModuleFromJobjet(result, true, "成功");
+            #endregion
+        }
+
+        public JObject WarehouseOutItem(List<string> typelist, List<string> ruleruletypelist, int printcount, List<string> printbarcodelist, int rulepackcount, string OuterBoxBarCodeNum)
+        {
+            JObject result = new JObject();
+            if (ruleruletypelist.Count() == 0)
+            {
+                result.Add("pass", false);
+                result.Add("message", "出库订单没有定义装箱规则");
+                return result;
+            }
+            var exceptcount = typelist.Except(ruleruletypelist).ToList();
+            if (exceptcount.Count != 0)
+            {
+                result.Add("pass", false);
+                result.Add("message", "出库订单没有定义" + string.Join(",", exceptcount));
+                return result;
+            }
+            if (printcount >= rulepackcount)
+            {
+                result.Add("pass", false);
+                result.Add("message", "出库订单已经打印了" + printcount + "箱,定义的箱数是" + rulepackcount);
+                return result;
+            }
+            #region 外箱条码生成
+            for (int i = 1; i <= rulepackcount; i++)//从1开始循环,最大数为定义的打印数,用来确定标签的序列号
+            {
+                var sequence = (OuterBoxBarCodeNum + i.ToString().PadLeft(3, '0'));//生成含有序列数的标签号
+                if (!printbarcodelist.Contains(sequence))//判断打印表里是否有相同的标签号,没有则将此标签号存入数据中,有则继续循环
+                {
+                    //newOutherBarcode.Add(sequence);
+                    result.Add("pass", true);
+                    result.Add("message", sequence);
+                    result.Add("SN", i);
+                    return result;
+                }
+            }
+            #endregion
+            result.Add("pass", false);
+            result.Add("message", "出库订单找不到能生成的外箱列表");
+            return result;
+        }
+
+        /// <summary>
+        /// 根据订单号找到屏序列表和批号列表
+        /// </summary>
+        /// 判断订单号有没有建立包装规则,没有发挥错误,有则在查看是否有分屏,有分屏则返回分屏列表,没有则返回没有分屏信息和批号信息
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject EmbezzleOrderNumBatch([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            JObject result = new JObject();
+            var orders = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();//订单是否有挪用信息
+            if (orders.Count == 0)//没有建立规则
+            {
+                result.Add("haveBatch", false);
+                result.Add("BatchList", null);
+                return com.GetModuleFromJobjet(result, false, "挪用订单没有建立规则,请联系相关人员");
+            }
+            else
+            {
+                if (orders.FirstOrDefault().IsBatch == false)//没有批号
+                {
+                    result.Add("haveBatch", false);
+                    result.Add("BatchList", null);
+                    return com.GetModuleFromJobjet(result, false, "没有分批");
+
+                }
+                else//有分屏
+                {
+                    JArray obj = new JArray();
+                    var batch = orders.Select(c => c.Batch).Distinct();//查找批号列表
+                    foreach (var item in batch)//循环拿到批号jarray 数据
+                    {
+                        JObject List = new JObject();
+                        List.Add("value", item);
+
+                        obj.Add(List);
+                    }
+                    result.Add("haveBatch", true);
+                    result.Add("BatchList", obj);
+                    return com.GetModuleFromJobjet(result, true, "成功");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 根据订单号找到屏序列表和批号列表
+        /// </summary>
+        /// 判断订单号有没有建立包装规则,没有发挥错误,有则在查看是否有分屏,有分屏则返回分屏列表,没有则返回没有分屏信息和批号信息
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject EmbezzleOrderNumScreen([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            int batchnum = int.Parse(data["batchnum"].ToString());
+            JObject result = new JObject();
+            var orders = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.Batch == batchnum).ToList();//订单是否有挪用信息
+            if (orders.Count == 0)//没有建立规则
+            {
+                result.Add("haveScreen", false);
+                result.Add("ScreenList", null);
+                return com.GetModuleFromJobjet(result, false, "挪用订单没有建立规则,请联系相关人员");
+            }
+            else
+            {
+                if (orders.FirstOrDefault().IsSeparate == false)//没有分屏
+                {
+                    result.Add("haveScreen", false);
+                    result.Add("ScreenList", null);
+                    return com.GetModuleFromJobjet(result, false, "没有分屏");
+
+                }
+                else//有分屏
+                {
+                    JArray obj = new JArray();
+                    var screen = orders.Select(c => c.ScreenNum).Distinct();//查找分屏列表
+                    foreach (var item in screen)//循环拿到分屏jarray 数据
+                    {
+                        JObject List = new JObject();
+                        List.Add("value", item);
+
+                        obj.Add(List);
+                    }
+                    result.Add("haveScreen", true);
+                    result.Add("ScreenList", obj);
+                    return com.GetModuleFromJobjet(result, true, "成功");
+                }
+            }
+        }
+
+        #endregion
+
+        #region ---产值操作
+
+        /// <summary>
+        /// 创建产值
+        /// </summary>
+        /// 判断已有的产值表中是否有相同的数据,有则提示错误,无则添加
+        /// <param name="value">产值数据组</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Procudtion_valueCrete([System.Web.Http.FromBody]JObject data)
+        {
+            Production_Value value = JsonConvert.DeserializeObject<Production_Value>(JsonConvert.SerializeObject(data));
+            if (ModelState.IsValid)
+            {
+
+                var exit = db.Production_Value.Where(c => c.OrderNum == value.OrderNum).Select(c => c.OrderNum).FirstOrDefault();//查找产值表是否有相同的订单信息
+                if (!string.IsNullOrEmpty(exit))//如果有,提示错误
+                {
+                    return com.GetModuleFromJarray(null, false, exit + "订单已有产值记录，请确认订单");
+                }
+                value.CreateDate = DateTime.Now;
+                db.Production_Value.Add(value);//否则添加数据
+                db.SaveChanges();
+                return com.GetModuleFromJarray(null, true, "成功");
+            }
+            return com.GetModuleFromJarray(null, false, "数据格式不对");
+        }
+
+        /// <summary>
+        /// 历史查询
+        /// </summary>
+        /// <param name="day1">起始时间</param>
+        /// <param name="day2">结束时间</param>
+        /// <param name="year">年</param>
+        /// <param name="mouth">月</param>
+        /// <param name="Ordernums">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CheckDateProduction_value([System.Web.Http.FromBody]JObject data)
+        {
+            //DateTime? day1, DateTime? day2, int? year, int? mouth, List< string > Ordernums
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            DateTime? day1 = datavalue.day1;
+            DateTime? day2 = datavalue.day2;
+            int? year = datavalue.day1;
+            int? mouth = datavalue.mouth;
+            List<string> Ordernums = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(datavalue.Ordernums));
+
+            JObject value = new JObject();
+            JObject total = new JObject();
+            var yesterday = DateTime.Now.AddDays(-1);//昨天的时间
+            var odernumlist = new List<string>();
+            if (Ordernums.Count != 0)//如果订单号不为空,则直接用传过来的订单号查询
+            {
+                odernumlist.AddRange(Ordernums);
+            }
+            else
+            {
+                var productionOrder = db.Warehouse_Join.ToList();
+                if (day1 != null && day2 != null)//如果起始时间和结束时间都不为null
+                {
+                    if (day1 < day2)//如果day1 < day2,说明day1是比较前的时间 day2是比较后的时间
+                        productionOrder = productionOrder.Where(c => c.Date > day1 && c.Date < day2).ToList();//查找时间段里面的出入库数据
+                    else
+                        productionOrder = productionOrder.Where(c => c.Date > day2 && c.Date < day1).ToList();//查找时间段里面的出入库数据
+
+                }
+                if (year != null)//如果年不为空,根据年来查找数据
+                {
+                    productionOrder = productionOrder.Where(c => c.Date != null && c.Date.Value.Year == year).ToList();
+                }
+                if (mouth != null)//如果月不为空,根据月来查找数据
+                {
+                    productionOrder = productionOrder.Where(c => c.Date != null && c.Date.Value.Month == mouth).ToList();
+                }
+                odernumlist = productionOrder.Select(c => c.OrderNum).Distinct().ToList();//最后筛选完的数据,把订单号提取出来
+            }
+
+            int i = 0;
+            foreach (var item in odernumlist)//循环订单号
+            {
+                var mokuaiordernum = db.ModulePackageRule.Count(c => c.OrderNum == item && c.Statue == "外箱");
+                #region 有模块包装信息
+                if (mokuaiordernum != 0)
+                {
+                    var productionvalue = db.Production_Value.Where(c => c.OrderNum == item).Select(c => new { c.Id, c.Worth, c.Remark }).FirstOrDefault();
+
+                    //订单号
+                    value.Add("OrderNum", item);
+                    var moduleCount = db.OrderMgm.Where(c => c.OrderNum == item).Select(c => c.Models).FirstOrDefault();
+                    value.Add("moduleCount", moduleCount);
+                    //已包装数量
+                    var baseinfo = db.ModulePackageRule.Where(c => c.OrderNum == item && c.Statue == "外箱").Sum(c => c.Quantity);
+                    var outhercount = db.ModuleOutsideTheBox.Where(c => c.OrderNum == item).Select(c => c.OutsideBarcode).Distinct().Count();
+                    value.Add("packingCount", outhercount + "(" + outhercount + "/" + baseinfo.ToString() + ")");
+
+                    //已入库数量
+                    var warehousJoincount = db.Warehouse_Join.Where(c => c.CartonOrderNum == item && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    value.Add("warehousJoinCount", warehousJoincount + "(" + warehousJoincount + "/" + baseinfo.ToString() + ")");
+                    //已出库数量
+                    var warehousOutcount = db.Warehouse_Join.Where(c => c.IsOut == true && (c.CartonOrderNum == item || c.NewBarcode == item) && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    value.Add("warehousOutCount", warehousOutcount + "(" + warehousOutcount + "/" + baseinfo.ToString() + ")");
+                    //库存
+                    var stockCount = (warehousJoincount - warehousOutcount).ToString() + "箱";
+                    value.Add("stockCount", stockCount);
+
+                    //挪用信息
+                    JArray nuoInfo = new JArray();
+                    var NewBarcode = db.Warehouse_Join.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode != null && c.NewBarcode != " " && c.NewBarcode != item && c.State == "模块").Select(c => c.NewBarcode).Distinct().ToList();
+                    foreach (var Barcode in NewBarcode)
+                    {
+                        var ordernum = db.Warehouse_Join.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode == Barcode && c.State == "模块").Select(c => new { c.NewBarcode, c.OuterBoxBarcode }).ToList();
+                        nuoInfo.Add("出库到" + ordernum.FirstOrDefault().NewBarcode + "订单" + ordernum.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱");
+                    }
+                    var NewBarcode2 = db.Warehouse_Join.Where(c => c.NewBarcode == item && c.OrderNum != c.NewBarcode && c.IsOut == true && c.State == "模块").Select(c => c.OrderNum).Distinct().ToList();
+                    foreach (var Barcode in NewBarcode2)
+                    {
+                        var ordernum = db.Warehouse_Join.Where(c => c.OrderNum == Barcode && c.IsOut == true && c.NewBarcode == item && c.State == "模块").Select(c => new { c.OrderNum, c.OuterBoxBarcode }).ToList();
+                        nuoInfo.Add("从" + ordernum.FirstOrDefault().OrderNum + "订单挪了" + ordernum.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱");
+                    }
+
+
+                    value.Add("nuoInfo", nuoInfo);
+                    //入库完成率
+                    var warehousJoinComplete = (baseinfo == 0 ? 0 : (decimal)(warehousJoincount * 100) / baseinfo).ToString("F2") + "%";
+                    value.Add("warehousJoinComplete", warehousJoinComplete);
+                    //出库完成率
+                    var warehousOutComplete = (baseinfo == 0 ? 0 : (decimal)(warehousOutcount * 100) / baseinfo).ToString("F2") + "%";
+                    value.Add("warehousOutComplete", warehousOutComplete);
+
+                    if (productionvalue == null)
+                    {
+                        value.Add("id", 0);
+                        //总产值
+                        value.Add("Worth", "- -");
+                        //目前入库产值
+                        value.Add("warehouseJoinValue", "- -");
+                        //未完成产值
+                        value.Add("uncompleteValue", "- -");
+                        //备注
+                        value.Add("remark", "");
+                    }
+                    else
+                    {
+                        value.Add("id", productionvalue.Id);
+                        //总产值
+                        value.Add("Worth", productionvalue.Worth);
+                        //目前入库产值
+                        var warehouseJoinValue = warehousJoincount * (moduleCount == 0 ? 0 : productionvalue.Worth / moduleCount);
+                        value.Add("warehouseJoinValue", warehouseJoinValue.ToString("F1"));
+                        //未完成产值
+                        var uncompleteValue = productionvalue.Worth - warehouseJoinValue;
+                        value.Add("uncompleteValue", uncompleteValue.ToString("F1"));
+                        //备注
+                        value.Add("remark", productionvalue.Remark);
+                    }
+                    total.Add(i.ToString(), value);
+                    i++;
+                    value = new JObject();
+                }
+                #endregion
+
+                #region 有模组包装信息
+                var mozuordernum = db.Packing_BasicInfo.Count(c => c.OrderNum == item);
+                if (mozuordernum != 0)
+                {
+                    var productionvalue = db.Production_Value.Where(c => c.OrderNum == item).FirstOrDefault();
+
+                    //订单号
+                    value.Add("OrderNum", item);
+
+                    //模组数量
+                    var moduleCount = db.OrderMgm.Where(c => c.OrderNum == item).Select(c => c.Boxes).FirstOrDefault();
+                    value.Add("moduleCount", moduleCount);
+                    //包装件数
+                    var quantitycount = db.Packing_BasicInfo.Where(c => c.OrderNum == item).ToList();
+                    var quantity = 0;
+                    if (quantitycount.Count != 0)
+                    {
+                        quantity = quantitycount.Sum(c => c.Quantity);
+                    }
+                    //已包装数量
+                    var modulecount = db.Packing_BarCodePrinting.Count(c => c.CartonOrderNum == item && c.QC_Operator == null);//已打印的件数
+                    var outhercount = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == item && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().Count();//已打印的箱数
+                    value.Add("packingCount", modulecount + "(" + outhercount + "/" + quantity.ToString() + ")");
+
+
+                    var warehousJoincount = db.Warehouse_Join.Where(c => c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.BarCodeNum).Distinct().Count();//已入库和已出库的件数
+                    var bigJoincount = db.Warehouse_Join.Where(c => c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.OuterBoxBarcode).Distinct().Count();//已入库和已出库的箱数
+                    var warehousOutcount = db.Warehouse_Join.Where(c => c.IsOut == true && c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.BarCodeNum).Distinct().Count();//已出库的件数
+                    var bigOutcount = db.Warehouse_Join.Where(c => c.IsOut == true && c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.OuterBoxBarcode).Distinct().Count();//已出库的箱数
+
+                    //已入库数量
+                    value.Add("warehousJoinCount", warehousJoincount + "(" + bigJoincount + "/" + quantity.ToString() + ")");
+                    //已出库数量
+                    value.Add("warehousOutCount", warehousOutcount + "(" + bigOutcount + "/" + quantity.ToString() + ")");
+
+                    //库存数量
+                    var stockCount = (warehousJoincount - warehousOutcount).ToString() + "(" + (bigJoincount - bigOutcount) + ")";
+                    value.Add("stockCount", stockCount);
+
+                    //挪用信息
+                    JArray nuoInfo = new JArray();
+                    var NewBarcode = db.Warehouse_Join.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode != null && c.NewBarcode != " " && c.NewBarcode != item && c.State == "模组").Select(c => c.NewBarcode).Distinct().ToList();
+                    foreach (var Barcode in NewBarcode)
+                    {
+                        var ordernum1 = db.Warehouse_Join.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode == Barcode && c.State == "模组").Select(c => new { c.NewBarcode, c.OuterBoxBarcode }).ToList();
+                        nuoInfo.Add("出库到" + ordernum1.FirstOrDefault().NewBarcode + "订单" + ordernum1.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum1.Count + "件);");
+                    }
+                    var NewBarcode2 = db.Warehouse_Join.Where(c => c.NewBarcode == item && c.OrderNum != c.NewBarcode && c.IsOut == true && c.State == "模组").Select(c => c.OrderNum).Distinct().ToList();
+                    foreach (var Barcode in NewBarcode2)
+                    {
+                        var ordernum1 = db.Warehouse_Join.Where(c => c.OrderNum == Barcode && c.IsOut == true && c.NewBarcode == item && c.State == "模组").Select(c => new { c.OrderNum, c.OuterBoxBarcode }).ToList();
+                        nuoInfo.Add("从" + ordernum1.FirstOrDefault().OrderNum + "订单挪了" + ordernum1.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum1.Count + "件);");
+                    }
+
+                    value.Add("nuoInfo", nuoInfo);
+                    //入库完成率
+                    var warehousJoinComplete = (moduleCount == 0 ? 0 : (decimal)(warehousJoincount * 100) / moduleCount).ToString("F2") + "%";
+                    value.Add("warehousJoinComplete", warehousJoinComplete);
+                    //出库完成率
+                    var warehousOutComplete = (moduleCount == 0 ? 0 : (decimal)(warehousOutcount * 100) / moduleCount).ToString("F2") + "%";
+                    value.Add("warehousOutComplete", warehousOutComplete);
+                    if (productionvalue == null)
+                    {
+                        value.Add("id", 0);
+                        //总产值
+                        value.Add("Worth", "- -");
+                        //目前入库产值
+                        value.Add("warehouseJoinValue", "- -");
+                        //未完成产值
+                        value.Add("uncompleteValue", "- -");
+                        //备注
+                        value.Add("remark", "");
+                    }
+                    else
+                    {
+                        value.Add("id", productionvalue.Id);
+                        //总产值
+                        value.Add("Worth", productionvalue.Worth);
+                        //目前入库产值
+                        var warehouseJoinValue = warehousJoincount * (moduleCount == 0 ? 0 : productionvalue.Worth / moduleCount);
+                        value.Add("warehouseJoinValue", warehouseJoinValue.ToString("F2"));
+                        //未完成产值
+                        var uncompleteValue = productionvalue.Worth - warehouseJoinValue;
+                        value.Add("uncompleteValue", uncompleteValue.ToString("F2"));
+                        //备注
+                        value.Add("remark", productionvalue.Remark);
+                    }
+
+                    total.Add(i.ToString(), value);
+                    i++;
+                    value = new JObject();
+                }
+                #endregion
+            }
+            return com.GetModuleFromJobjet(total);
+        }
+
+        /// <summary>
+        /// 修改产值记录
+        /// </summary>
+        /// 修改值
+        /// <param name="value">产值数据集合</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject UpdateProductionValue([System.Web.Http.FromBody]JObject data)
+        {
+            Production_Value value = JsonConvert.DeserializeObject<Production_Value>(JsonConvert.SerializeObject(data));
+            if (ModelState.IsValid)//判断数据格式是否正确
+            {
+                db.Entry(value).State = EntityState.Modified;
+                db.SaveChanges();//修改保存
+                return com.GetModuleFromJarray(null, true, "修改成功");
+            }
+
+            else return com.GetModuleFromJarray(null, false, "数据格式不对");
+        }
+
+        #region 产值看板订单详细信息
+
+        /// <summary>
+        /// 显示出入库信息
+        /// </summary>
+        /// 先查出本周期的出入库清单warehous_join.提取出外箱条码标签,循环,将出入库状态,时间,库位号,和条码+模组号(如果是混装的,则是混装订单号+条码+模组号),将信息传给前端
+        /// <param name="ordernum">订单号</param>
+        /// <param name="desc">是否降序</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DisplayWarehouse([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = datavalue.ordernum;
+            bool desc = datavalue.desc;
+
+            JObject joinjobject = new JObject();
+            JObject total = new JObject();
+            var warehous_join = db.Warehouse_Join.Where(c => c.NewBarcode == ordernum || c.CartonOrderNum == ordernum).Select(c => new { c.OuterBoxBarcode, c.IsOut, c.Date, c.WarehouseOutDate, c.WarehouseNum, c.OrderNum, c.CartonOrderNum, c.BarCodeNum, c.ModuleGroupNum }).ToList();
+            var barcode_join = warehous_join.Select(c => c.OuterBoxBarcode).Distinct().ToList();//查找外箱条码号列表
+            int i = 0;
+            if (desc == false)//是否是正序
+            {
+                barcode_join = barcode_join.OrderBy(c => c).ToList();
+            }
+            else//是否是倒序
+            {
+                barcode_join = barcode_join.OrderByDescending(c => c).ToList();
+            }
+            foreach (var join in barcode_join)//循环外箱条码列表
+            {
+                joinjobject.Add("otherBarcode", join);//外箱条码号
+
+                var status = warehous_join.Where(c => c.OuterBoxBarcode == join).Select(c => c.IsOut).First();//查找对应的外箱的出入库情况
+                joinjobject.Add("status", status == true ? "出库" : "入库");
+                var jointime = warehous_join.Where(c => c.OuterBoxBarcode == join).Select(c => c.Date).FirstOrDefault();//入库时间
+                var outtime = warehous_join.Where(c => c.OuterBoxBarcode == join).Select(c => c.WarehouseOutDate).FirstOrDefault();//出库时间
+                joinjobject.Add("time", status == true ? outtime : jointime);//如果是出库状态则显示出库时间.如果是入库状态则显示入库时间
+                var modulebarcode = warehous_join.Where(c => c.OuterBoxBarcode == join);
+                var warehousenum = warehous_join.Where(c => c.OuterBoxBarcode == join).Select(c => c.WarehouseNum).FirstOrDefault();//库位号
+                joinjobject.Add("warehousenum", warehousenum);
+                JArray barcode = new JArray();
+                foreach (var item in modulebarcode)//根据外箱条码,找到里面的条码的出入库信息
+                {
+                    if (item.CartonOrderNum != item.OrderNum)//符合条件表示混装
+                    {
+                        barcode.Add(item.OrderNum + "--" + item.BarCodeNum + ":" + item.ModuleGroupNum);//添加订单号
+                    }
+                    else
+                    {
+                        barcode.Add(item.BarCodeNum + ":" + item.ModuleGroupNum);//否则正常装,不加订单号
+                    }
+                }
+                joinjobject.Add("codeList", barcode);
+                total.Add(i.ToString(), joinjobject);
+                joinjobject = new JObject();
+                i++;
+            }
+            return com.GetModuleFromJobjet(total);
+        }
+
+        /// <summary>
+        /// 点击订单号显示具体信息的头
+        /// </summary>
+        /// 根据订单号从OrderMgm查模组数量,Packing_BasicInfo查找包装件数,Packing_BarCodePrinting查找已包装数量,查找本次周期出入库情况,根据本次周期出入库情况查找已入库数量,已出库数量,入库完成率,出库完成率,如果Production_Value表中有找到对应信心,则如实显示产值信息,否则显示"--"
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DisplayTop([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            JObject value = new JObject();
+            var productionvalue = db.Production_Value.Where(c => c.OrderNum == ordernum).FirstOrDefault();
+
+            //订单号
+            value.Add("OrderNum", ordernum);
+
+
+            var MK = db.ModulePackageRule.Count(c => c.OrderNum == ordernum && c.Statue == "外箱");
+            var MZ = db.Packing_BasicInfo.Count(c => c.OrderNum == ordernum);
+            #region 有模块没模组
+            if (MK != 0 && MZ == 0)
+            {
+                var MKcount = db.OrderMgm.Where(c => c.OrderNum == ordernum).Select(c => c.Models).FirstOrDefault();
+                value.Add("moduleCount", MKcount);
+                //入库数量
+                var warehousJoincount = db.Warehouse_Join.Where(c => c.CartonOrderNum == ordernum && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                //var bigJoincount = temresult.Where(c => c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                var warehousOutcount = db.Warehouse_Join.Where(c => c.IsOut == true && (c.CartonOrderNum == ordernum || c.NewBarcode == ordernum) && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                var baseinfo = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").Sum(c => c.Quantity);
+
+                var outhercount = db.ModuleOutsideTheBox.Where(c => c.OrderNum == ordernum).Select(c => c.OutsideBarcode).Distinct().Count();
+                value.Add("packingCount", outhercount + "(" + outhercount + "/" + baseinfo.ToString() + ")");
+
+
+                //已入库数量.Count(c => c.OrderNum == item)
+                value.Add("warehousJoinCount", warehousJoincount + "(" + warehousJoincount + "/" + baseinfo.ToString() + ")");
+                //已出库数量
+                //warehousOutcount = temresult.Where(c => ).Select(c => c.BarCodeNum).Distinct().Count();
+                value.Add("warehousOutCount", warehousOutcount + "(" + warehousOutcount + "/" + baseinfo.ToString() + ")");
+
+                //库存数量
+                //var outheCount = temresult.Where(c => c.OrderNum == item && c.Date != null).Select(c => c.OuterBoxBarcode).Distinct().Count() - temresult.Where(c => c.OrderNum == item && c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                var stockCount = (warehousJoincount - warehousOutcount).ToString() + "箱";
+                value.Add("stockCount", stockCount);
+
+                //挪用信息
+                JArray nuoInfo = new JArray();
+                var NewBarcode = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.IsOut == true && c.NewBarcode != null && c.NewBarcode != " " && c.NewBarcode != ordernum && c.State == "模块").Select(c => c.NewBarcode).Distinct().ToList();
+                foreach (var Barcode in NewBarcode)
+                {
+                    var nordernum = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.IsOut == true && c.NewBarcode == Barcode && c.State == "模块").Select(c => new { c.NewBarcode, c.OuterBoxBarcode }).ToList();
+                    nuoInfo.Add("出库到" + nordernum.FirstOrDefault().NewBarcode + "订单" + nordernum.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱");
+                }
+                var NewBarcode2 = db.Warehouse_Join.Where(c => c.NewBarcode == ordernum && c.OrderNum != c.NewBarcode && c.IsOut == true && c.State == "模块").Select(c => c.OrderNum).Distinct().ToList();
+                foreach (var Barcode in NewBarcode2)
+                {
+                    var nordernum = db.Warehouse_Join.Where(c => c.OrderNum == Barcode && c.IsOut == true && c.NewBarcode == ordernum && c.State == "模块").Select(c => new { c.OrderNum, c.OuterBoxBarcode }).ToList();
+                    nuoInfo.Add("从" + nordernum.FirstOrDefault().OrderNum + "订单挪了" + nordernum.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱");
+                }
+
+
+                value.Add("nuoInfo", nuoInfo);
+                //入库完成率
+                var warehousJoinComplete = (baseinfo == 0 ? 0 : (decimal)(warehousJoincount * 100) / baseinfo).ToString("F2") + "%";
+                value.Add("warehousJoinComplete", warehousJoinComplete);
+                //出库完成率
+                var warehousOutComplete = (baseinfo == 0 ? 0 : (decimal)(warehousOutcount * 100) / baseinfo).ToString("F2") + "%";
+                value.Add("warehousOutComplete", warehousOutComplete);
+
+                if (productionvalue == null)
+                {
+                    value.Add("id", 0);
+                    //总产值
+                    value.Add("Worth", "- -");
+                    //目前入库产值
+                    value.Add("warehouseJoinValue", "- -");
+                    //未完成产值
+                    value.Add("uncompleteValue", "- -");
+                    //备注
+                    value.Add("remark", "");
+                }
+                else
+                {
+                    value.Add("id", productionvalue.Id);
+                    //总产值
+                    value.Add("Worth", productionvalue.Worth);
+                    //目前入库产值
+                    var warehouseJoinValue = warehousJoincount * (MKcount == 0 ? 0 : productionvalue.Worth / MKcount);
+                    value.Add("warehouseJoinValue", warehouseJoinValue.ToString("F1"));
+                    //未完成产值
+                    var uncompleteValue = productionvalue.Worth - warehouseJoinValue;
+                    value.Add("uncompleteValue", uncompleteValue.ToString("F1"));
+                    //备注
+                    value.Add("remark", productionvalue.Remark);
+
+                }
+            }
+            #endregion
+
+            #region 有模组没模块
+            else if (MK == 0 && MZ != 0)
+            {
+                var moduleCount = db.OrderMgm.Where(c => c.OrderNum == ordernum).Select(c => c.Boxes).FirstOrDefault();
+                value.Add("moduleCount", moduleCount);
+
+                //包装件数
+                var packinglist = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();
+                var quantity = packinglist.Count > 0 ? packinglist.Sum(c => c.Quantity) : 0;
+                //已包装数量
+                var modulecount = db.Packing_BarCodePrinting.Count(c => c.CartonOrderNum == ordernum && c.QC_Operator == null);//已打印件数
+                var outhercount = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().Count();//已打印箱数
+                value.Add("packingCount", modulecount + "(" + outhercount + "/" + quantity.ToString() + ")");
+
+
+                #region 查找当前出入库的情况
+                var temresult = db.Warehouse_Join.Where(c => c.CartonOrderNum == ordernum || c.NewBarcode == ordernum).Select(c => new { c.BarCodeNum, c.IsOut, c.OuterBoxBarcode }).ToList();
+                #endregion
+
+                var warehousJoincount = temresult.Select(c => c.BarCodeNum).Distinct().Count();//已入库和已出库件数
+                var bigJoincount = temresult.Select(c => c.OuterBoxBarcode).Distinct().Count();//已入库和已出库箱数
+                var warehousOutcount = temresult.Where(c => c.IsOut == true).Select(c => c.BarCodeNum).Distinct().Count();//已出库件数
+                var bigOutcount = temresult.Where(c => c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();//已出库箱数
+
+                //挪用信息
+                JArray nuoInfo = new JArray();
+                var NewBarcode = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.IsOut == true && c.NewBarcode != null && c.NewBarcode != " " && c.NewBarcode != ordernum && c.State == "模组").Select(c => c.NewBarcode).Distinct().ToList();
+                foreach (var Barcode in NewBarcode)
+                {
+                    var ordernum1 = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.IsOut == true && c.NewBarcode == Barcode && c.State == "模组").Select(c => new { c.NewBarcode, c.OuterBoxBarcode }).ToList();
+                    nuoInfo.Add("出库到" + ordernum1.FirstOrDefault().NewBarcode + "订单" + ordernum1.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum1.Count + "件);");
+                }
+                var NewBarcode2 = db.Warehouse_Join.Where(c => c.NewBarcode == ordernum && c.OrderNum != c.NewBarcode && c.IsOut == true && c.State == "模组").Select(c => c.OrderNum).Distinct().ToList();
+                foreach (var Barcode in NewBarcode2)
+                {
+                    var ordernum1 = db.Warehouse_Join.Where(c => c.OrderNum == Barcode && c.IsOut == true && c.NewBarcode == ordernum && c.State == "模组").Select(c => new { c.OrderNum, c.OuterBoxBarcode }).ToList();
+                    nuoInfo.Add("从" + ordernum1.FirstOrDefault().OrderNum + "订单挪了" + ordernum1.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum1.Count + "件);");
+                }
+                value.Add("nuoInfo", nuoInfo);
+
+                //已入库数量.Count(c => c.OrderNum == item)
+                value.Add("warehousJoinCount", warehousJoincount + "(" + bigJoincount + "/" + quantity.ToString() + ")");
+                //已出库数量
+                //warehousOutcount = temresult.Where(c => ).Select(c => c.BarCodeNum).Distinct().Count();
+                value.Add("warehousOutCount", warehousOutcount + "(" + bigOutcount + "/" + quantity.ToString() + ")");
+
+                //入库完成率
+
+                //warehousJoincount = warehousJoincount - current;
+                var warehousJoinComplete = (moduleCount == 0 ? 0 : (decimal)(warehousJoincount * 100) / moduleCount).ToString("F2") + "%";
+                value.Add("warehousJoinComplete", warehousJoinComplete);
+                //出库完成率
+                //warehousOutcount = warehousOutcount - current;
+
+                var warehousOutComplete = (moduleCount == 0 ? 0 : (decimal)(warehousOutcount * 100) / moduleCount).ToString("F2") + "%";
+                value.Add("warehousOutComplete", warehousOutComplete);
+                if (productionvalue == null)
+                {
+                    value.Add("id", 0);
+                    //总产值
+                    value.Add("Worth", "- -");
+                    //目前入库产值
+                    value.Add("warehouseJoinValue", "- -");
+                    //未完成产值
+                    value.Add("uncompleteValue", "- -");
+                    //备注
+                    value.Add("remark", "");
+                }
+                else
+                {
+                    value.Add("id", productionvalue.Id);
+                    //总产值
+                    value.Add("Worth", productionvalue.Worth);
+                    //目前入库产值
+                    var warehouseJoinValue = warehousJoincount * (moduleCount == 0 ? 0 : productionvalue.Worth / moduleCount);
+                    value.Add("warehouseJoinValue", warehouseJoinValue.ToString("F2"));
+                    //未完成产值
+                    var uncompleteValue = productionvalue.Worth - warehouseJoinValue;
+                    value.Add("uncompleteValue", uncompleteValue.ToString("F2"));
+                    //备注
+                    value.Add("remark", productionvalue.Remark);
+                }
+            }
+            #endregion
+            #region 有模组有模块 
+            else
+            {
+                var MKcount = db.OrderMgm.Where(c => c.OrderNum == ordernum).Select(c => c.Models).FirstOrDefault();
+                var moduleCount = db.OrderMgm.Where(c => c.OrderNum == ordernum).Select(c => c.Boxes).FirstOrDefault();
+                value.Add("moduleCount", "MK:" + MKcount + "MZ:" + moduleCount);
+
+                //包装件数
+                var packinglist = db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum).ToList();
+                var quantity = packinglist.Count > 0 ? packinglist.Sum(c => c.Quantity) : 0;
+                //已包装数量
+                var modulecount = db.Packing_BarCodePrinting.Count(c => c.CartonOrderNum == ordernum && c.QC_Operator == null);//已打印件数
+                var outhercount = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().Count();//已打印箱数
+                var baseinfo = db.ModulePackageRule.Where(c => c.OrderNum == ordernum && c.Statue == "外箱").Sum(c => c.Quantity);
+
+                var MKouthercount = db.ModuleOutsideTheBox.Where(c => c.OrderNum == ordernum).Select(c => c.OutsideBarcode).Distinct().Count();
+                value.Add("packingCount", "MK:" + MKouthercount + "(" + MKouthercount + "/" + baseinfo.ToString() + ")MZ:" + modulecount + "(" + outhercount + "/" + quantity.ToString() + ")");
+
+
+                #region 查找当前出入库的情况
+                var temresult = db.Warehouse_Join.Where(c => c.CartonOrderNum == ordernum || c.NewBarcode == ordernum).Select(c => new { c.BarCodeNum, c.IsOut, c.OuterBoxBarcode }).ToList();
+                #endregion
+
+                var warehousJoincount = temresult.Select(c => c.BarCodeNum).Distinct().Count();//已入库和已出库件数
+                var bigJoincount = temresult.Select(c => c.OuterBoxBarcode).Distinct().Count();//已入库和已出库箱数
+                var warehousOutcount = temresult.Where(c => c.IsOut == true).Select(c => c.BarCodeNum).Distinct().Count();//已出库件数
+                var bigOutcount = temresult.Where(c => c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();//已出库箱数
+
+                //挪用信息
+                JArray nuoInfo = new JArray();
+                var NewBarcode = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.IsOut == true && c.NewBarcode != null && c.NewBarcode != " " && c.NewBarcode != ordernum).Select(c => c.NewBarcode).Distinct().ToList();
+                foreach (var Barcode in NewBarcode)
+                {
+                    var ordernum1 = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.IsOut == true && c.NewBarcode == Barcode).Select(c => new { c.NewBarcode, c.OuterBoxBarcode, c.State }).ToList();
+                    nuoInfo.Add(ordernum1.FirstOrDefault().State + "出库到" + ordernum1.FirstOrDefault().NewBarcode + "订单" + ordernum1.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum1.Count + "件);");
+                }
+                var NewBarcode2 = db.Warehouse_Join.Where(c => c.NewBarcode == ordernum && c.OrderNum != c.NewBarcode && c.IsOut == true).Select(c => c.OrderNum).Distinct().ToList();
+                foreach (var Barcode in NewBarcode2)
+                {
+                    var ordernum1 = db.Warehouse_Join.Where(c => c.OrderNum == Barcode && c.IsOut == true && c.NewBarcode == ordernum).Select(c => new { c.OrderNum, c.OuterBoxBarcode, c.State }).ToList();
+                    nuoInfo.Add(ordernum1.FirstOrDefault().State + "从" + ordernum1.FirstOrDefault().OrderNum + "订单挪了" + ordernum1.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum1.Count + "件);");
+                }
+                value.Add("nuoInfo", nuoInfo);
+
+                var MKwarehousJoincount = db.Warehouse_Join.Where(c => c.CartonOrderNum == ordernum && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                //var bigJoincount = temresult.Where(c => c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                var MKwarehousOutcount = db.Warehouse_Join.Where(c => c.IsOut == true && (c.CartonOrderNum == ordernum || c.NewBarcode == ordernum) && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().Count();
+
+                //已入库数量.Count(c => c.OrderNum == item)
+                value.Add("warehousJoinCount", "MK:" + MKwarehousJoincount + "(" + MKwarehousJoincount + "/" + baseinfo.ToString() + ")" + "MZ:" + warehousJoincount + "(" + bigJoincount + "/" + quantity.ToString() + ")");
+                //已出库数量
+                //warehousOutcount = temresult.Where(c => ).Select(c => c.BarCodeNum).Distinct().Count();
+                value.Add("warehousOutCount", "MK:" + MKwarehousOutcount + "(" + MKwarehousOutcount + "/" + baseinfo.ToString() + ")" + "MZ:" + warehousOutcount + "(" + bigOutcount + "/" + quantity.ToString() + ")");
+
+
+
+
+                //入库完成率
+                var warehousJoinComplete = (moduleCount == 0 ? 0 : (decimal)(warehousJoincount * 100) / moduleCount).ToString("F2") + "%";
+                var MKwarehousJoinComplete = (baseinfo == 0 ? 0 : (decimal)(MKwarehousJoincount * 100) / baseinfo).ToString("F2") + "%";
+                value.Add("warehousJoinComplete", "MK:" + MKwarehousJoinComplete + "MZ:" + warehousJoinComplete);
+                //出库完成率
+                //warehousOutcount = warehousOutcount - current;
+                var warehousOutComplete = (moduleCount == 0 ? 0 : (decimal)(warehousOutcount * 100) / moduleCount).ToString("F2") + "%";
+                var MKwarehousOutComplete = (baseinfo == 0 ? 0 : (decimal)(MKwarehousOutcount * 100) / baseinfo).ToString("F2") + "%";
+                value.Add("warehousOutComplete", "MK:" + MKwarehousOutComplete + "MZ:" + warehousOutComplete);
+                if (productionvalue == null)
+                {
+                    value.Add("id", 0);
+                    //总产值
+                    value.Add("Worth", "- -");
+                    //目前入库产值
+                    value.Add("warehouseJoinValue", "- -");
+                    //未完成产值
+                    value.Add("uncompleteValue", "- -");
+                    //备注
+                    value.Add("remark", "");
+                }
+                else
+                {
+                    value.Add("id", productionvalue.Id);
+                    //总产值
+                    value.Add("Worth", productionvalue.Worth);
+                    //目前入库产值
+                    var warehouseJoinValue = warehousJoincount * (moduleCount == 0 ? 0 : productionvalue.Worth / moduleCount);
+                    value.Add("warehouseJoinValue", warehouseJoinValue.ToString("F2"));
+                    //未完成产值
+                    var uncompleteValue = productionvalue.Worth - warehouseJoinValue;
+                    value.Add("uncompleteValue", uncompleteValue.ToString("F2"));
+                    //备注
+                    value.Add("remark", productionvalue.Remark);
+                }
+
+            }
+            #endregion
+            return com.GetModuleFromJobjet(value);
+        }
+
+
+        /// <summary>
+        /// 获取折线数据
+        /// </summary>
+        /// 根据年份找到出入库表的信息,然后循环每个月,从1月开始到12月,查找每个月数据中的订单集合,循环订单,根据订单找到产值表的信息,如果找不到产值表信息,则跳过,否则就找到此月份此订单的出入库数量,在计算数量产值(出入库数量*(总产值/订单定义箱数)),将值赋给sum,得到每个月份的总产值
+        /// <param name="year">年份</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject BrokenlineMessage([System.Web.Http.FromBody]JObject data)
+        {
+            int year = int.Parse(data["year"].ToString());
+            JObject message = new JObject();
+            var num = db.Warehouse_Join.Where(c => c.Date.Value.Year == year && c.State == "模组").ToList();//根据年份找到出入库表的信息
+
+            for (int i = 1; i < 13; i++)//循环每个月,从1月开始到12月
+            {
+                decimal sum = 0;
+                var month = num.Where(c => c.Date.Value.Month == i).Select(c => c.OrderNum).Distinct().ToList();//查找每个月数据中的订单集合
+                foreach (var item in month)//循环订单
+                {
+                    var productionvalue = db.Production_Value.Where(c => c.OrderNum == item).FirstOrDefault();//根据订单找到产值表的信息
+                    if (productionvalue != null)//如果找不到产值表信息,则跳过
+                    {
+                        var warehousJoinCount = db.Warehouse_Join.Count(c => c.OrderNum == item && c.State == "模组");//此月份此订单的出入库数量
+                        var moduleCount = db.OrderMgm.Where(c => c.OrderNum == item).Select(c => c.Boxes).FirstOrDefault();//订单定义总数量
+                        var warehouseJoinValue = warehousJoinCount * (moduleCount == 0 ? 0 : productionvalue.Worth / moduleCount);//计算产值
+                        sum = sum + warehouseJoinValue;
+                    }
+
+                }
+                message.Add(i.ToString(), sum.ToString("F2"));
+            }
+            return com.GetModuleFromJobjet(message);
+        }
+
+
+        /// <summary>
+        /// 显示未包装列表
+        /// </summary>
+        /// 先找未开始包装列表,从BarCodes表中根据订单找到所有条码号,剔除掉已经打印的所有条码号,得到未开始包装列表,列表为0返回null
+        /// 未入库列表,根据订单找到打印的所有外箱条码号,剔除掉出库入库的外箱条码号,得到未入库列表,列表为0返回null
+        /// 未出库列表,找到出入库表中未出库的外箱条码号,列表为0返回null
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DisplayNotPackingList([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+
+            JObject result = new JObject();
+            var barcodeList = new List<string>();
+            var packgeList = new List<string>();
+            var packgeOtutherList = new List<string>();
+            var warehousjoin = new List<string>();
+            var MK = db.ModulePackageRule.Count(c => c.OrderNum == ordernum && c.Statue == "外箱");
+            var MZ = db.Packing_BasicInfo.Count(c => c.OrderNum == ordernum);
+            if (MK != 0 && MZ != 0)
+            {
+                barcodeList = db.BarCodes.Where(c => c.OrderNum == ordernum && (c.BarCodeType == "模组" || c.BarCodeType == "模块")).Select(c => c.BarCodesNum).Distinct().ToList();//从BarCodes表中根据订单找到所有条码号
+                packgeList = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.QC_Operator == null).Select(c => c.BarCodeNum).Distinct().ToList();//根据订单找到打印的所有条码号
+                var nmk = db.ModuleOutsideTheBox.Where(c => c.OrderNum == ordernum).Select(c => c.InnerBarcode).Distinct().ToList();
+                var bmk = db.ModuleInsideTheBox.Where(c => nmk.Contains(c.InnerBarcode)).Select(c => c.ModuleBarcode).Distinct().ToList();
+                packgeList.AddRange(bmk);
+                packgeOtutherList = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().ToList();//根据订单找到打印的所有外箱条码号
+                var mk = db.ModuleOutsideTheBox.Where(c => c.OrderNum == ordernum).Select(c => c.OutsideBarcode).Distinct().ToList();
+                packgeOtutherList.AddRange(mk);
+                warehousjoin = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && (c.State == "模组" || c.State == "模块")).Select(c => c.OuterBoxBarcode).Distinct().ToList();//根据订单找到出入库的外箱条码号
+            }
+            if (MK == 0 && MZ != 0)
+            {
+                barcodeList = db.BarCodes.Where(c => c.OrderNum == ordernum && c.BarCodeType == "模组").Select(c => c.BarCodesNum).Distinct().ToList();//从BarCodes表中根据订单找到所有条码号
+                packgeList = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.QC_Operator == null).Select(c => c.BarCodeNum).Distinct().ToList();//根据订单找到打印的所有条码号
+
+                packgeOtutherList = db.Packing_BarCodePrinting.Where(c => c.OrderNum == ordernum && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().ToList();//根据订单找到打印的所有外箱条码号
+
+                warehousjoin = db.Warehouse_Join.Where(c => (c.OrderNum == ordernum || c.NewBarcode == ordernum) && c.State == "模组").Select(c => c.OuterBoxBarcode).Distinct().ToList();//根据订单找到出入库的外箱条码号
+            }
+            if (MK != 0 && MZ == 0)
+            {
+                barcodeList = db.BarCodes.Where(c => c.OrderNum == ordernum && c.BarCodeType == "模块").Select(c => c.BarCodesNum).Distinct().ToList();//从BarCodes表中根据订单找到所有条码号\
+                var nmk = db.ModuleOutsideTheBox.Where(c => c.OrderNum == ordernum).Select(c => c.InnerBarcode).Distinct().ToList();
+                packgeList = db.ModuleInsideTheBox.Where(c => nmk.Contains(c.InnerBarcode)).Select(c => c.ModuleBarcode).Distinct().ToList();
+
+                packgeOtutherList = db.ModuleOutsideTheBox.Where(c => c.OrderNum == ordernum).Select(c => c.OutsideBarcode).Distinct().ToList();//根据订单找到打印的所有外箱条码号
+
+                warehousjoin = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.State == "模块").Select(c => c.OuterBoxBarcode).Distinct().ToList();//根据订单找到出入库的外箱条码号
+            }
+            var NotWarehousout = db.Warehouse_Join.Where(c => c.OrderNum == ordernum && c.CartonOrderNum == ordernum & c.IsOut == false && c.State == "模组").Select(c => c.OuterBoxBarcode).Distinct().ToList();//根据订单找到入库条码号
+            var NotPacking = barcodeList.Except(packgeList).OrderBy(c => c).ToList();//未开始包装列表
+            var NotWarehousjoin = packgeOtutherList.Except(warehousjoin).OrderBy(c => c).ToList();//未入库列表
+            if (NotPacking.Count > 0)//未开始包装
+            {
+                List<string> temp = new List<string>();
+                NotPacking.ForEach(c =>
+                {
+                    var module = db.BarCodes.Where(a => a.BarCodesNum == c).Select(a => a.ModuleGroupNum).FirstOrDefault();
+                    temp.Add(c + ":" + module);
+                });
+                result.Add("NotPackingarray", JsonConvert.SerializeObject(temp));
+            }
+            else
+            {
+                result.Add("NotPackingarray", null);
+            }
+            if (NotWarehousjoin.Count > 0)//未入库
+            {
+                result.Add("NotWarehousjoinarray", JsonConvert.SerializeObject(NotWarehousjoin));
+            }
+            else
+            {
+                result.Add("NotWarehousjoinarray", null);
+            }
+            if (NotWarehousout.Count > 0)//未出库
+            {
+                result.Add("NotWarehousoutarray", JsonConvert.SerializeObject(NotWarehousout));
+            }
+            else
+            {
+                result.Add("NotWarehousoutarray", null);
+            }
+            return com.GetModuleFromJobjet(result);
+
+        }
+        #endregion
+
+        #endregion
+
+        #region ---列表获取
+
+        // 查找模组号规则中的json文件集合
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject JosnOrderList()
+        {
+            DirectoryInfo directory = new DirectoryInfo(@"D:\MES_Data\TemDate\OrderSequence\");
+            var fullfile = directory.GetFileSystemInfos();
+            JArray result = new JArray();
+            foreach (var item in fullfile)
+            {
+                JObject List = new JObject();
+                string name = System.IO.Path.GetFileNameWithoutExtension(item.FullName);
+                if (name == "delete")
+                { continue; }
+                List.Add("value", name);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+
+
+        #endregion
+
+        #region ---模组规则
+        /// <summary>
+        /// 订单输入规则前判断
+        /// </summary>
+        /// 可以添加(canAdd=true) 可以删除(candelete=true)
+        /// 1.先判断是否有对应订单的json文件,没有则,在判断是否有外观电检记录,有记录提示不能添加,否则再判断是否有校正记录,有校正记录则提示不能添加,以上两个都没有记录,返回能添加
+        /// 判断有对应的json文件,则判断是否含有delete.json,如果没有delete.json,则提示可以删除,不能添加.如果有delete.json文件,判断delete.json文件里有没有对应的订单号,有则显示"此订单需等外观OQC确认删除，如有疑问请联系OQC人员",否则就提示可以删除,不能添加
+        /// <param name="ordenum">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject CheckRule([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            JObject result = new JObject();
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json") == true)//是否有对应的json文件
+            {
+                if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\delete.json") == true)//是否有delete.json文件
+                {
+                    var deletejson = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\delete.json");
+                    var jarray = JsonConvert.DeserializeObject<JArray>(deletejson).ToList();//读取delete.json文件的内容
+                    if (jarray.Contains(ordernum))//查看 内容是否含有订单号
+                    {
+                        result.Add("candelete", false);
+                        result.Add("canAdd", false);
+                        return com.GetModuleFromJobjet(result, null, "此订单需等外观OQC确认删除，如有疑问请联系OQC人员");
+                    }
+                }
+                //var manualjson = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordenum + ".json");
+                //var manualjarray = JsonConvert.DeserializeObject<JObject>(manualjson);
+
+                result.Add("candelete", true);
+                result.Add("canAdd", false);
+                return com.GetModuleFromJobjet(result, null, "此订单已有模组规则，如需重新录入，请先删除规则!");
+
+            }
+            var appearance = db.Appearance.Count(c => c.OrderNum == ordernum && c.OQCCheckFT != null && (c.OldOrderNum == null || c.OldOrderNum == ordernum));//查看是否有电检记录
+            if (appearance > 0)
+            {
+                result.Add("candelete", false);
+                result.Add("canAdd", false);
+                result.Add("mesage", "此订单已有外观电检记录!");
+                return com.GetModuleFromJobjet(result, null, "此订单已有外观电检记录");
+            }
+
+            var cab = db.CalibrationRecord.Where(c => c.OrderNum == ordernum && (c.OldOrderNum == null || c.OldOrderNum == ordernum)).Select(c => c.ModuleGroupNum).ToList();//查看是否有校正记录
+            if (cab.Count(c => c != null) > 0)
+            {
+                result.Add("candelete", false);
+                result.Add("canAdd", false);
+                result.Add("mesage", "此订单已有校正模组号!");
+                return com.GetModuleFromJobjet(result, null, "此订单已有校正模组号");
+            }
+            result.Add("candelete", false);
+            result.Add("canAdd", true);
+            return com.GetModuleFromJobjet(result, null, "成功");
+        }
+
+        /// <summary>
+        /// 规则录入
+        /// </summary>
+        /// //判断路径D:\MES_Data\TemDate\OrderSequence有没有文件夹,没有就创建,循环规则类型数据,根据规则类型数据创建模组号,并存入json文件中
+        /// <param name="sequences">规则类型数据</param>
+        /// <param name="ordenum">订单号</param>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject SetJsonFile([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = datavalue.ordernum;
+            string UserName = datavalue.UserName;
+            List<Sequence> sequences = JsonConvert.DeserializeObject<List<Sequence>>(JsonConvert.SerializeObject(datavalue.sequences));
+            JObject result = new JObject();
+            JArray number = new JArray();
+            JObject normal = new JObject();
+            if (Directory.Exists(@"D:\MES_Data\TemDate\OrderSequence") == false)//如果不存在就创建订单文件夹
+            {
+                Directory.CreateDirectory(@"D:\MES_Data\TemDate\OrderSequence");
+            }
+
+            foreach (var item in sequences)//循环类型数据
+            {
+                for (int i = 0; i < item.Num; i++)//循环规则号定义数量
+                {
+                    var serial = "";
+                    if (item.Rule)//判断是否补零,true为补零
+                    {
+                        var num = item.Num + item.startNum - 1; //找到最大数,如数量为91,起始值为10,10+91-1=100,即最大位数为3位,规则里的序号为010,011,012,013
+                        serial = (item.startNum + i).ToString().PadLeft(num.ToString().Length, '0');
+                    }
+                    else
+                    {
+                        serial = (item.startNum + i).ToString(); //不补零,直接输出,如上面的例子 10,11,12,13
+                    }
+                    string seq = item.Prefix + serial + item.Suffix;
+                    number.Add(seq);
+                }
+            }
+            //判断数量是否正确
+            var barcodenum = db.BarCodes.Count(c => c.OrderNum == ordernum && c.BarCodeType == "模组");
+            if (number.Count != barcodenum)
+            {
+                return com.GetModuleFromJarray(null, false, "订单数量与录入规则的数量不符合,订单数量为" + barcodenum);
+            }
+            normal.Add("Normal", number);
+
+            string output = Newtonsoft.Json.JsonConvert.SerializeObject(normal, Newtonsoft.Json.Formatting.Indented);
+            System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json", output);//将数据存入json文件中
+
+            //填写日志
+            UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "创建订单号" + ordernum + "规则,选择自动录入" };
+            db.UserOperateLog.Add(log);
+            db.SaveChanges();
+
+            return com.GetModuleFromJarray(null, true, "创建成功");
+        }
+
+        /// <summary>
+        /// 选出特殊的模组号
+        /// </summary>
+        /// 判断有没有对应的json文件,没有就返回false,有的话,读取json文件内容,先看其中的Special是否为空,为空则直接把Normal里面选出来的特殊模组号去掉,移到Special里.
+        /// Special不为空,如果传进来的num是空的,则把Special的数据都移到Normal,如果num不为空,将不包含在Special里面的不分模组移到Normal,再将包含在Normal里面的部分模组移到Special里
+        /// <param name="ordenum">订单</param>
+        /// <param name="num">选出来特殊的模组号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public bool SetSpecialNum([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = datavalue.ordernum;
+            List<string> num = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(datavalue.num));
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json") == true)//判断有没有对应的json文件
+            {
+                var jsonstring = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json");
+                var json = JsonConvert.DeserializeObject<JObject>(jsonstring);//读取json内容
+
+
+                if (json.Property("Special") != null)//判断是否有Special
+                {
+                    ////List<JToken> spe = new List<JToken>();
+                    List<JToken> normaladd = new List<JToken>();
+                    List<JToken> normaldelete = new List<JToken>();
+                    var special = (JArray)json["Special"];
+                    var normal = (JArray)json["Normal"];
+
+                    foreach (var item in special)//循环Special
+                    {
+                        if (num == null)//如果num为空.直接把Special的内容移到Normal
+                        {
+                            normaladd.Add(item);
+                        }
+                        else if (!num.Contains(item.ToString()))//将Special和num 的相差部分移给 Normal
+                            normaladd.Add(item);
+                    }
+                    foreach (var item in normal)//循环Normal
+                    {
+                        if (num == null)
+                        {
+                            continue;
+                        }
+                        if (num.Contains(item.ToString())) //将Normal和num的并集部门移给sepcial
+                        {
+                            //spe.Add(item);
+                            normaldelete.Add(item);
+                        }
+                    }
+
+                    normaladd.ForEach(c => c.Remove());
+                    normal.Add(normaladd);
+                    normaldelete.ForEach(c => c.Remove());
+                    special.Add(normaldelete);
+
+                    json["Special"] = special;
+                    json["Normal"] = normal;
+
+                }
+                else
+                {
+                    var jarray = json["Normal"].ToList();
+                    JArray sepcial = new JArray();
+                    List<JToken> delete = new List<JToken>();
+
+                    foreach (var item in jarray)//循环Normal
+                    {
+                        if (num.Contains(item.ToString()))
+                        {
+                            sepcial.Add(item);
+                            delete.Add(item);
+                        }
+                    }
+
+                    delete.ForEach(c => c.Remove());//将num移除Normal,移到Special
+                    json.Add("Special", sepcial);
+
+                }
+                string output = Newtonsoft.Json.JsonConvert.SerializeObject(json, Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json", output);//保存到json文件
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 外观调用json模组号
+        /// </summary>
+        /// 在BarCodes根据条码找到模组号,判断模组号是否为空并且selectModule是否为true,都为真则返回找出来的模组号.
+        /// 否则查找是否有对应的json文件,如果有,在找delete.json文件里有没有含有传过来的订单号,如果有,返回空模组号,没有就跳过.如果不含有delete.json文件,则找ordenum.json文件里是否有isManual,这代表手工,现在没用,有手工,返回空模组号,没有手工,则读取Normal的模组号,如果Normal为空,返回空模组号,如果reverse为true,返回Normal最后面的一个,否则返回Normal最前面的一个.
+        /// 如果没找到对应放json文件,直接返回空模组号.moduleList是能选的模组号列表
+        /// <param name="ordenum">订单号</param>
+        /// <param name="barcode">条码号</param>
+        /// <param name="reverse">是否倒序</param>
+        /// <param name="selectModule">是否选择原模组号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject SelectModule([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = datavalue.ordernum;
+            string barcode = datavalue.barcode;
+            bool reverse = datavalue.reverse == null ? true : datavalue.reverse;
+            bool selectModule = datavalue.selectModule == null ? true : datavalue.selectModule;
+
+            JObject result = new JObject();
+            var module = db.BarCodes.Where(c => c.BarCodesNum == barcode).Select(c => c.ModuleGroupNum).FirstOrDefault();
+            if (!string.IsNullOrEmpty(module) && selectModule)//判断模组号是否为空并且selectModule是否为true,都为真则返回找出来的模组号
+            {
+                result.Add("mudule", module);
+                result.Add("moduleList", null);
+                return com.GetModuleFromJobjet(result);
+            }
+
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json") == true)//判断是否有对应的json文件
+            {
+                if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\delete.json") == true)//判断是否有delete.json文件
+                {
+                    var deletejson = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\delete.json");
+                    var jarray1 = JsonConvert.DeserializeObject<JArray>(deletejson).ToList();
+                    if (jarray1.Contains(ordernum))//判断delete文件是否含有传过来的订单号
+                    {
+                        result.Add("mudule", "");
+                        result.Add("moduleList", null);
+                        return com.GetModuleFromJobjet(result);
+                    }
+                }
+                var jsonstring = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\" + ordernum + ".json");
+                var json = JsonConvert.DeserializeObject<JObject>(jsonstring);//读取数据
+                if (json.Property("isManual") != null)//是否手工
+                {
+                    result.Add("mudule", "");
+                    result.Add("moduleList", null);
+                    return com.GetModuleFromJobjet(result);
+                }
+                var jarray = json["Normal"];//读取Normal数据
+                JToken mudule = null;
+
+                if (jarray.Count() == 0) //Normal数据是否为空
+                {
+                    result.Add("mudule", "");
+                    result.Add("moduleList", null);
+                    return com.GetModuleFromJobjet(result);
+                }
+                if (reverse)//是否倒序
+                {
+                    int index = jarray.Count();
+                    mudule = jarray[index - 1];
+                }
+                else//正序
+                {
+                    mudule = jarray[0];
+                }
+                result.Add("mudule", mudule.ToString());//返回模组号
+
+                JArray modulelist = new JArray();
+                foreach (var i in jarray)
+                {
+                    JObject jobj = new JObject();
+                    jobj.Add("value", i);
+                    modulelist.Add(jobj);
+                }
+                result.Add("moduleList", modulelist);
+                return com.GetModuleFromJobjet(result);
+
+            }
+            result.Add("mudule", "");
+            result.Add("moduleList", null);
+            return com.GetModuleFromJobjet(result);
+        }
+
+        /// <summary>
+        /// 删除规则前提示
+        /// </summary>
+        /// <param name="ordernum">订单号</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Tips([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            string mesage = "";
+            //入库记录
+            var warehouecount = db.Warehouse_Join.Count(c => c.CartonOrderNum == ordernum && c.NewBarcode == ordernum);
+            if (warehouecount > 0)
+            { mesage = mesage + "入库有" + warehouecount + "条记录，"; }
+
+            //外箱标签
+            var pritxount = db.Packing_BarCodePrinting.Count(c => c.CartonOrderNum == ordernum && c.QC_Operator == null);
+            if (pritxount > 0)
+            { mesage = mesage + "外箱标签有" + pritxount + "条记录，"; }
+
+            //内箱记录
+            var innercount = db.Packing_InnerCheck.Count(c => c.OrderNum == ordernum);
+            if (innercount > 0)
+            { mesage = mesage + "内箱确认有" + innercount + "条记录，"; }
+
+            //电检记录
+            var appercount = db.Appearance.Count(c => c.OrderNum == ordernum && c.OQCCheckFT != null && (c.OldOrderNum == null || c.OldOrderNum == ordernum));
+            if (appercount > 0)
+            { mesage = mesage + "电检完成有" + appercount + "条记录，"; }
+
+            if (string.IsNullOrEmpty(mesage))
+            {
+                return com.GetModuleFromJarray(null, true, "此订单没有使用模组号记录");
+            }
+            return com.GetModuleFromJarray(null, false, mesage);
+        }
+
+        /// <summary>
+        /// 删除规则
+        /// </summary>
+        /// 如果存在delete.json,读取delete.json文件内容,并把新删除的订单号加进去,并保存,如果没有delete.json文件,则新建一个并把刚才的内容加进去
+        /// <param name="ordernum">订单号</param>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public void DelMoudueRuleAsync([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence\delete.json") != true)//没有delete.json文件
+            {
+                JArray deletevalue = new JArray();
+                deletevalue.Add(ordernum);//新建对象.吧订单号加进去
+                string deletestringFirst = Newtonsoft.Json.JsonConvert.SerializeObject(deletevalue, Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence\delete.json", deletestringFirst);//保存
+            }
+            else//有delete.json文件
+            {
+                var deletejson = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\delete.json");
+                var jarray = JsonConvert.DeserializeObject<JArray>(deletejson);//读取数据
+                jarray.Add(ordernum);//将内容加进去
+                string deletestring = Newtonsoft.Json.JsonConvert.SerializeObject(jarray, Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence\delete.json", deletestring);//保存
+            }
+
+        }
+
+        /// <summary>
+        /// 查看模组号的使用情况
+        /// </summary>
+        /// 判断传过来的订单号列表是否有值,没有值就把D:\MES_Data\TemDate\OrderSequence\目录里除了delete.json的所有订单json文件的文件名放到namelist,订单号列表有值,就直接把订单列表放到namelist中.循环namelist.从电检表里找到已使用的模组号,再从json文件中找到未使用的模组号,如果json文件中含有isManual,表示手工录入,不含有则把Noraml和Special的模组号传给前面 .找到未使用模组号的条码列表(用条码表找的条码列表剔除电检表已经使用的条码列表),返回前面
+        /// <param name="ordernum">订单号列表</param>
+        /// <returns></returns>
+        /// 
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DiaplayMuduleUserMessage([System.Web.Http.FromBody]JObject data)
+        {
+            List<string> ordernum = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(data));
+            DirectoryInfo directory = new DirectoryInfo(@"D:\MES_Data\TemDate\OrderSequence\");
+            JArray total = new JArray();
+            List<string> namelist = new List<string>();
+            if (ordernum != null && ordernum.Count != 0)//ordernum有值,直接赋给namelist
+            {
+                namelist = ordernum;
+            }
+            else//没值,直接从本地json文件中找到所有json文件名.赋给namelist
+            {
+                foreach (var item in directory.GetFileSystemInfos())
+                {
+                    string name = System.IO.Path.GetFileNameWithoutExtension(item.FullName);
+                    if (name == "delete")//除去delete
+                    { continue; }
+                    namelist.Add(name);
+                }
+            }
+            foreach (var name in namelist)//循环namelist
+            {
+                JObject file = new JObject();
+                file.Add("ordernum", name);//订单号
+
+                //已使用的模组号列表
+                var appearances = db.Appearance.OrderBy(c => c.ModuleGroupNum).Where(c => c.OrderNum == name && c.ModuleGroupNum != null && (c.OldOrderNum == null || c.OldOrderNum == name)).Select(c => new { c.BarCodesNum, c.ModuleGroupNum }).ToList();//从电检表找已使用的模组哈
+                JArray module = new JArray();
+                foreach (var app in appearances)
+                {
+                    JObject item = new JObject();
+                    item.Add("barcode", app.BarCodesNum);//条码号
+                    item.Add("module", app.ModuleGroupNum);//模组号
+                    module.Add(item);
+                }
+
+                file.Add("user", module);
+
+                //未使用
+                var jsonstring = System.IO.File.ReadAllText(@"D:\MES_Data\TemDate\OrderSequence\" + name + ".json");
+                var json = JsonConvert.DeserializeObject<JObject>(jsonstring);//读取json文件数据
+                JObject not = new JObject();
+                JArray notuser = new JArray();
+                if (json.Property("isManual") != null)//手工录入
+                {
+                    notuser.Add("手工录入");
+                }
+                else
+                {
+                    var jarray = json["Normal"].ToList();
+                    notuser.Add(jarray);//将Normal的模组号放入
+                    if (json.Property("Special") != null)
+                    {
+                        var jarray1 = json["Special"].ToList();
+                        notuser.Add(jarray1);//将Special模组号放入
+                    }
+                }
+                var barcodelist = db.BarCodes.OrderBy(c => c.BarCodesNum).Where(c => c.OrderNum == name).Select(c => c.BarCodesNum).ToList();//根据订单找到条码列表
+                var notuserbarcodelist = barcodelist.Except(appearances.Select(c => c.BarCodesNum).ToList()).ToList();//找到未使用模组号的条码列表
+                JArray barcodeArr = new JArray();
+                foreach (var bar in notuserbarcodelist)
+                {
+                    barcodeArr.Add(bar);
+                }
+                not.Add("module", notuser);//已使用模组号条码列表
+                //not.Add("barcode", JsonConvert.SerializeObject(notuserbarcodelist));
+                not.Add("barcode", barcodeArr);//未使用模组号条码列表
+                JArray notArr = new JArray();
+                notArr.Add(not);
+                file.Add("notuser", notArr);
+
+                file.Add("count", barcodelist.Count);//条码总数量
+                total.Add(file);
+            }
+            return com.GetModuleFromJarray(total);
+        }
+        #endregion
+
+        #region ---修改外箱标签LOGO
+        //显示(只有未出库的外箱条码才能修改logo)
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OutsideBoxLableLogoGet([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            JArray result = new JArray();
+            var ordernum_list = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == ordernum && c.QC_Operator == null);
+            var screen_list = ordernum_list.Select(c => c.ScreenNum).Distinct();
+            foreach (var screen in screen_list)
+            {
+                JObject jObject = new JObject();
+                jObject.Add("Screen", screen);
+                var ordernum_list_screen_list = ordernum_list.Where(c => c.ScreenNum == screen);
+                var outsideboxbarcodelist = ordernum_list_screen_list.Select(c => c.OuterBoxBarcode).Distinct().ToList();
+                var warehouout = db.Warehouse_Join.Where(c => c.IsOut == true && (c.CartonOrderNum == ordernum || c.NewBarcode == ordernum)).Select(c => c.OuterBoxBarcode).Distinct().ToList();
+                var excrp = outsideboxbarcodelist.Except(warehouout);
+                JArray record_screen = new JArray();
+                foreach (var item in excrp)
+                {
+                    JObject objitem = new JObject();
+                    var value = ordernum_list_screen_list.Where(c => c.OuterBoxBarcode == item).Select(c => c.IsLogo).FirstOrDefault();
+                    objitem.Add("OuterBoxBarcode", item);
+                    objitem.Add("IsLogo", value);
+                    record_screen.Add(objitem);
+                }
+                jObject.Add("record_screen", record_screen);
+                result.Add(jObject);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //修改LOGO
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OutsideBoxLableLogoChange([System.Web.Http.FromBody]JObject data)
+        {
+            string outerboxbarcode = data["outerboxbarcode"].ToString();
+            string UserName = data["UserName"].ToString();
+            bool logo = bool.Parse(data["logo"].ToString());
+            var recordlist = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outerboxbarcode && c.QC_Operator == null).ToList();
+            try
+            {
+                recordlist.ForEach(c => c.IsLogo = logo);
+                UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "外箱LOGO修改：外箱条码" + outerboxbarcode + "已改为" + (logo == true ? "有" : "无") + "LOGO" };
+                db.UserOperateLog.Add(log);
+                db.SaveChanges();
+                return com.GetModuleFromJarray(null, true, outerboxbarcode + "已改为" + (logo == true ? "有" : "无") + "LOGO.");
+
+            }
+            catch
+            {
+                return com.GetModuleFromJarray(null, false, "修改失败");
+            }
+        }
+        #endregion
+
+        #region---包装打印标签
+        //打印标签
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OutsideBoxLablePrint([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = datavalue.ordernum;
+            string packagingordernum = datavalue.packagingordernum;
+            string outsidebarcode = datavalue.outsidebarcode;
+            string material_discription = datavalue.material_discription;
+            string sntn = datavalue.sntn;
+            string qty = datavalue.qty;
+            string ip = datavalue.ip ?? "";
+            string leng = datavalue.leng ?? "";
+            int screennum = datavalue.screennum ?? 1;
+            int pagecount = datavalue.pagecount ?? 1;
+            int port = datavalue.port ?? 0;
+            int concentration = datavalue.concentration ?? 5;
+            bool logo = datavalue.logo ?? true;
+            double g_Weight = datavalue.g_Weight;
+            double n_Weight = datavalue.n_Weight;
+            string[] mn_list = JsonConvert.DeserializeObject<string[]>(JsonConvert.SerializeObject(datavalue.mn_list));
+            //int screennum = 1, string ordernum = "", string packagingordernum = "", string outsidebarcode = "", string material_discription = "", int pagecount = 1, string sntn = "", string qty = "", bool logo = true, string ip = "", int port = 0, int concentration = 5, string[] mn_list = null, double? g_Weight = null, double? n_Weight = null, string leng = ""
+            if (!String.IsNullOrEmpty(packagingordernum)) ordernum = packagingordernum;//如果有包装新订单号，则使用包装新订单号。
+            var bm = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+            string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";
+            int totalbytes = bm.ToString().Length;
+            int rowbytes = 10;
+            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+            data1 += totalbytes + "," + rowbytes + "," + hex;
+            data1 += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+            string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+            return com.GetModuleFromJarray(null, true, "成功");
+
+        }
+        #endregion
+
+        #region---查看重打印外箱标签
+
+        //根据外箱条码号条码输出标签图片
+        [HttpPost]
+        [ApiAuthorize]
+        public HttpResponseMessage OutsideBoxLablePrintToImg([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string  outsidebarcode = datavalue.outsidebarcode;
+            string leng = datavalue.outsidebarcode ?? "";
+            var outsidebarcode_recordlist = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outsidebarcode && c.QC_Operator == null);
+            var screem = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
+            var batch = outsidebarcode_recordlist.FirstOrDefault().Batch;
+            var ordernum1 = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outsidebarcode && c.QC_Operator == null).Select(c => new { c.CartonOrderNum, c.EmbezzleOrderNum }).FirstOrDefault();//订单和挪用订单
+            string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrderNum) ? ordernum1.CartonOrderNum : ordernum1.EmbezzleOrderNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
+            string type = outsidebarcode_recordlist.FirstOrDefault().Type;
+            string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
+            string sntn = outsidebarcode_recordlist.FirstOrDefault().SNTN + "/" + db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.ScreenNum == screem && c.Batch == batch).Sum(c => c.Quantity);
+            bool logo = outsidebarcode_recordlist.FirstOrDefault().IsLogo;
+            double? g_Weight = outsidebarcode_recordlist.FirstOrDefault().G_Weight;
+            double? n_Weight = outsidebarcode_recordlist.FirstOrDefault().N_Weight;
+            string[] mn_list = outsidebarcode_recordlist.Select(c => c.ModuleGroupNum).ToArray();
+            if (mn_list[0] == null)
+            {
+                mn_list = outsidebarcode_recordlist.Select(c => c.BarCodeNum).ToArray();
+            }
+            string qty = mn_list.Count().ToString();
+            int screennum = screem;   //屏序号
+                                      //如果有包装新订单号，则使用包装新订单号。
+            string packagingordernum = outsidebarcode_recordlist.FirstOrDefault().PackagingOrderNum;
+            ordernum = String.IsNullOrEmpty(packagingordernum) ? ordernum : packagingordernum;
+            var AllBitmap = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+            MemoryStream ms = new MemoryStream();
+            AllBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            AllBitmap.Dispose();
+            HttpResponseMessage result = new HttpResponseMessage();
+            byte[] ss = ms.ToArray();
+            result.Content = new ByteArrayContent(ss);
+            return result;
+        }
+
+        #endregion
+
+        #region ---重复打印
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OutsideBoxLablePrintAgain([System.Web.Http.FromBody]JObject data)
+        {
+            var datavalue = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string outsidebarcode = datavalue.outsidebarcode;
+            string leng = datavalue.leng ?? "";
+            int pagecount = datavalue.pagecount ?? 1;
+            int concentration = datavalue.concentration ?? 5;
+            string ip = datavalue.ip ?? "";
+            int port = datavalue.port ?? 0;
+            //string outsidebarcode, int pagecount = 1, int concentration = 5, string ip = "", int port = 0, string leng = ""
+
+            var outsidebarcode_recordlist = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outsidebarcode && c.QC_Operator == null);
+            var screem = outsidebarcode_recordlist.FirstOrDefault().ScreenNum;
+            var batch = outsidebarcode_recordlist.FirstOrDefault().Batch;
+            var ordernum1 = db.Packing_BarCodePrinting.Where(c => c.OuterBoxBarcode == outsidebarcode && c.QC_Operator == null).Select(c => new { c.CartonOrderNum, c.EmbezzleOrderNum }).FirstOrDefault();//订单和挪用订单
+            string ordernum = string.IsNullOrEmpty(ordernum1.EmbezzleOrderNum) ? ordernum1.CartonOrderNum : ordernum1.EmbezzleOrderNum;//如果挪用订单不为空，则显示挪用订单，否则显示本来订单号
+            string type = outsidebarcode_recordlist.FirstOrDefault().Type;
+            string material_discription = outsidebarcode_recordlist.FirstOrDefault().Materiel;
+            string sntn = outsidebarcode_recordlist.FirstOrDefault().SNTN + "/" + db.Packing_BasicInfo.Where(c => c.OrderNum == ordernum && c.ScreenNum == screem && c.Batch == batch).Sum(c => c.Quantity);
+            bool logo = outsidebarcode_recordlist.FirstOrDefault().IsLogo;
+            double? g_Weight = outsidebarcode_recordlist.FirstOrDefault().G_Weight;
+            double? n_Weight = outsidebarcode_recordlist.FirstOrDefault().N_Weight;
+            string[] mn_list = outsidebarcode_recordlist.Select(c => c.ModuleGroupNum).ToArray();
+            if (mn_list[0] == null)
+            {
+                mn_list = outsidebarcode_recordlist.Select(c => c.BarCodeNum).ToArray();
+            }
+            string qty = mn_list.Count().ToString();
+            int screennum = screem;   //屏序号
+                                      //如果有包装新订单号，则使用包装新订单号。
+            string packagingordernum = outsidebarcode_recordlist.FirstOrDefault().PackagingOrderNum;
+            ordernum = String.IsNullOrEmpty(packagingordernum) ? ordernum : packagingordernum;
+            var bm = CreateOutsideBoxLable(mn_list, ordernum, outsidebarcode, material_discription, sntn, qty, logo, screennum, g_Weight, n_Weight, leng);
+            int totalbytes = bm.ToString().Length;
+            int rowbytes = 10;
+            string data1 = "^XA^MD5~DGR:ZONE.GRF,";
+            string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+            data1 += totalbytes + "," + rowbytes + "," + hex;
+            data1 += "^LH0,0^FO38,0^XGR:ZONE.GRF^FS^XZ";
+            string result = ZebraUnity.IPPrint(data.ToString(), pagecount, ip, port);
+            return com.GetModuleFromJarray(null, true, "成功");
+        }
+        #endregion
+
+        #region---生成标签图片
+        //生成标签
+        public Bitmap CreateOutsideBoxLable(string[] mn_list, string ordernum = "", string outsidebarcode = "", string material_discription = "", string sntn = "", string qty = "", bool logo = true, int screennum = 1, double? g_Weight = null, double? n_Weight = null, string leng = "")
+        {
+            //开始绘制图片
+            int initialWidth = 750, initialHeight = 1000;//高4宽3
+            Bitmap AllBitmap = new Bitmap(initialWidth, initialHeight);
+            Graphics theGraphics = Graphics.FromImage(AllBitmap);
+            Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
+                                                                    //呈现质量
+            theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            //背景色
+            theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+            //double beishuhege = 0.37;
+            Pen pen = new Pen(Color.Black, 3);
+            theGraphics.DrawRectangle(pen, 50, 50, 640, 890);
+            //横线
+            theGraphics.DrawLine(pen, 50, 160, 690, 160);
+            theGraphics.DrawLine(pen, 50, 280, 690, 280);
+            theGraphics.DrawLine(pen, 50, 340, 690, 340);
+            theGraphics.DrawLine(pen, 50, 400, 690, 400);
+            theGraphics.DrawLine(pen, 50, 460, 690, 460);
+            //竖线
+            theGraphics.DrawLine(pen, 250, 280, 250, 460);
+            theGraphics.DrawLine(pen, 400, 280, 400, 460);
+            theGraphics.DrawLine(pen, 570, 280, 570, 460);
+
+            //引入LOGO
+            if (logo)
+            {
+                Bitmap bmp_logo = new Bitmap(@"D:\\MES_Data\\LOGO_black.png");
+                //double beishulogo = 0.95;
+                theGraphics.DrawImage(bmp_logo, 65, 60, (float)(bmp_logo.Width), (float)(bmp_logo.Height));
+                //引入订单号
+                System.Drawing.Font myFont_ordernum;
+                myFont_ordernum = new System.Drawing.Font("Microsoft YaHei UI", 40, FontStyle.Bold);
+                StringFormat geshi = new StringFormat();
+                geshi.Alignment = StringAlignment.Center; //居中
+                                                          //geshi.Alignment = StringAlignment.Far; //右对齐
+                theGraphics.DrawString(ordernum, myFont_ordernum, bush, 230, 90);
+            }
+            //引入订单号
+            else
+            {
+                System.Drawing.Font myFont_ordernum;
+                myFont_ordernum = new System.Drawing.Font("Microsoft YaHei UI", 55, FontStyle.Bold);
+                StringFormat geshi = new StringFormat();
+                geshi.Alignment = StringAlignment.Center; //居中
+                theGraphics.DrawString(ordernum, myFont_ordernum, bush, 100, 60);
+            }
+            //引入条码
+            //if (String.IsNullOrEmpty(outsidebarcode)) return Content("条码号为空！");
+            Bitmap bmp_barcode = BarCodeLablePrint.BarCodeToImg(outsidebarcode, 600, 70);
+            theGraphics.DrawImage(bmp_barcode, 70, 170, (float)bmp_barcode.Width, (float)bmp_barcode.Height);
+
+            //引入条码号
+            System.Drawing.Font myFont_boxbarcode;
+            myFont_boxbarcode = new System.Drawing.Font("Microsoft YaHei UI", 22, FontStyle.Bold);
+            theGraphics.DrawString(outsidebarcode, myFont_boxbarcode, bush, 200, 240);
+
+            #region--未加净重毛重前版本
+            ////引入物料描述
+            //System.Drawing.Font myFont_material_discription;
+            //myFont_material_discription = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 295);
+
+            ////引入物料描述内容
+            //System.Drawing.Font myFont_material_discription_content;
+            //StringFormat geshi1 = new StringFormat();
+            //geshi1.Alignment = StringAlignment.Center; //居中
+            //myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 275, 295);
+
+            ////引入屏序号
+            //System.Drawing.Font myFont_screennum;
+            //myFont_screennum = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString("屏序号(NO.)", myFont_screennum, bush, 410, 295);
+
+            ////引入屏序号值
+            //System.Drawing.Font myFont_screennum_data;
+            //StringFormat geshi2 = new StringFormat();
+            //geshi1.Alignment = StringAlignment.Center; //居中
+            //myFont_screennum_data = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString(screennum.ToString(), myFont_screennum_data, bush, 610, 295);
+
+            ////引入SN/TN
+            //System.Drawing.Font myFont_sntn;
+            //myFont_sntn = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString("件号/数(SN/TN)", myFont_sntn, bush, 55, 355);
+
+            ////引入SN/TN内容
+            //System.Drawing.Font myFont_sntn_content;
+            //myFont_sntn_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString(sntn, myFont_sntn_content, bush, 290, 355);
+
+            ////引入数量QTY
+            //System.Drawing.Font myFont_qty;
+            //myFont_qty = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString("数量(QTY)", myFont_qty, bush, 410, 355);
+
+            ////引入数量QTY内容
+            //System.Drawing.Font myFont_qty_content;
+            //myFont_qty_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //theGraphics.DrawString(qty + " PCS", myFont_qty_content, bush, 585, 355);
+
+            ////引入模组号清单
+            //int mn_E_count = mn_list.Count();
+            ////12位模组号以上，包括条码号
+            //if (mn_E_count > 12 && mn_E_count <= 20)
+            //{
+            //    if (mn_list[0].Length < 7)
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 28, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 70;
+            //        for (int i = 1; i < mn_list.Count() + 1; i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 4) != 0)
+            //            {
+            //                left_x += 155;
+            //            }
+            //            else
+            //            {
+            //                top_y += 100;
+            //                left_x -= 465;
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 22, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 55;
+            //        for (int i = 0; i < mn_list.Count(); i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 2) == 0)
+            //            {
+            //                left_x += 315;
+            //            }
+            //            else
+            //            {
+            //                top_y += 50;
+            //                left_x -= 315;
+            //            }
+            //        }
+            //    }
+            //}
+            ////11-12位模组号
+            //else if (mn_E_count > 10 && mn_E_count <= 12)
+            //{
+            //    if (mn_list[0].Length < 7)
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 50, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 90;
+            //        for (int i = 0; i < mn_list.Count(); i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 2) == 0)
+            //            {
+            //                left_x += 290;
+            //            }
+            //            else
+            //            {
+            //                top_y += 85;
+            //                left_x -= 290;
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 26, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 160;
+            //        for (int i = 0; i < mn_list.Count(); i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            top_y += 42;
+            //        }
+            //    }
+            //}
+            ////9-10位模组号
+            //else if (mn_E_count > 8 && mn_E_count <= 10)
+            //{
+            //    if (mn_list[0].Length < 7)
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 45, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 90;
+            //        for (int i = 0; i < mn_list.Count(); i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 2) == 0)
+            //            {
+            //                left_x += 290;
+            //            }
+            //            else
+            //            {
+            //                top_y += 100;
+            //                left_x -= 290;
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 30, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 150;
+            //        for (int i = 0; i < mn_list.Count(); i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            top_y += 50;
+            //        }
+
+            //    }
+
+            //}
+            ////7-8位模组号
+            //else if (mn_E_count > 6 && mn_E_count <= 8)
+            //{
+            //    if (mn_list[0].Length < 7)
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 50, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 80;
+            //        for (int i = 1; i < mn_list.Count() + 1; i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 2) != 0)
+            //            {
+            //                left_x += 300;
+            //            }
+            //            else
+            //            {
+            //                top_y += 126;
+            //                left_x -= 300;
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 36, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 410;
+            //        int left_x = 110;
+            //        for (int i = 1; i < mn_list.Count() + 1; i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            top_y += 65;
+            //        }
+            //    }
+            //}
+            ////1-6位模组号
+            //else if (mn_E_count <= 6)
+            //{
+            //    if (mn_list[0].Length < 7)
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 50, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 450;
+            //        int left_x = 80;
+            //        for (int i = 1; i < mn_list.Count() + 1; i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 2) != 0)
+            //            {
+            //                left_x += 300;
+            //            }
+            //            else
+            //            {
+            //                top_y += 150;
+            //                left_x -= 300;
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 40, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 80;
+            //        for (int i = 1; i < mn_list.Count() + 1; i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            top_y += 85;
+            //        }
+
+            //    }
+            //}
+            //else
+            //{
+            //    if (mn_list[0].Length < 7)
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 28, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 70;
+            //        for (int i = 1; i < mn_list.Count() + 1; i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 4) != 0)
+            //            {
+            //                left_x += 155;
+            //            }
+            //            else
+            //            {
+            //                top_y += 50;
+            //                left_x -= 465;
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        System.Drawing.Font myFont_modulenum_list;
+            //        myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 16, FontStyle.Bold);
+            //        StringFormat listformat = new StringFormat();
+            //        listformat.Alignment = StringAlignment.Near;
+            //        int top_y = 420;
+            //        int left_x = 90;
+            //        for (int i = 0; i < mn_list.Count(); i++)
+            //        {
+            //            theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+            //            if ((i % 2) == 0)
+            //            {
+            //                left_x += 315;
+            //            }
+            //            else
+            //            {
+            //                top_y += 26;
+            //                left_x -= 315;
+            //            }
+            //        }
+            //    }
+            //}
+            #endregion
+
+            //引入毛重量
+            System.Drawing.Font myFont_g_Weight;
+            myFont_g_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "简")
+            {
+                theGraphics.DrawString("毛重量(kg)", myFont_g_Weight, bush, 55, 295);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("G.W.(kg)", myFont_g_Weight, bush, 55, 295);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("毛重量(kg)", myFont_g_Weight, bush, 55, 295);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("毛重量(G.W.)(kg)", myFont_g_Weight, bush, 55, 295);
+            }
+            else
+            {
+                theGraphics.DrawString("毛重量(G.W.)kg", myFont_g_Weight, bush, 55, 295);
+            }
+
+            //引入毛重量值
+            System.Drawing.Font myFont_g_Weight_content;
+            StringFormat geshi1 = new StringFormat();
+            geshi1.Alignment = StringAlignment.Center; //居中
+            myFont_g_Weight_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+
+            //double G_Weight = g_Weight == null ? 0 : (double)g_Weight;           
+            theGraphics.DrawString(g_Weight.ToString(), myFont_g_Weight_content, bush, 280, 295);
+
+
+            //引入净重
+            System.Drawing.Font myFont_n_Weight;
+            myFont_n_Weight = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "简")
+            {
+                theGraphics.DrawString("净重(kg)", myFont_n_Weight, bush, 410, 295);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("N.W.(kg)", myFont_n_Weight, bush, 410, 295);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("淨重(kg)", myFont_n_Weight, bush, 410, 295);
+            }
+            else if (leng == "繁/英")
+            {
+                System.Drawing.Font myFont_n_Weight2;
+                myFont_n_Weight2 = new System.Drawing.Font("Microsoft YaHei UI", 17, FontStyle.Regular);
+                theGraphics.DrawString("淨重(N.W.)(kg)", myFont_n_Weight2, bush, 405, 295);
+            }
+            else
+            {
+                theGraphics.DrawString("净重(N.W.)kg", myFont_n_Weight, bush, 410, 295);
+            }
+
+            //引入净重值
+            System.Drawing.Font myFont_n_Weight_content;
+            StringFormat geshi2 = new StringFormat();
+            geshi1.Alignment = StringAlignment.Center; //居中
+            myFont_n_Weight_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            //double N_Weight = n_Weight == null ? 0 : (double)n_Weight;
+            theGraphics.DrawString(n_Weight.ToString(), myFont_n_Weight_content, bush, 600, 295);
+
+
+            //引入物料描述
+            System.Drawing.Font myFont_material_discription;
+            myFont_material_discription = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "简")
+            {
+                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("DESC", myFont_material_discription, bush, 55, 355);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("物料描述", myFont_material_discription, bush, 55, 355);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
+            }
+            else
+            {
+                theGraphics.DrawString("物料描述(DESC)", myFont_material_discription, bush, 55, 355);
+            }
+
+            //引入物料描述内容
+            System.Drawing.Font myFont_material_discription_content;
+            myFont_material_discription_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(material_discription, myFont_material_discription_content, bush, 255, 355);
+
+            //引入屏序号
+            System.Drawing.Font myFont_screennum;
+            myFont_screennum = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "中")
+            {
+                theGraphics.DrawString("屏序号", myFont_screennum, bush, 410, 355);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("NO.", myFont_screennum, bush, 410, 355);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("屏序號", myFont_screennum, bush, 410, 355);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("屏序號(NO.)", myFont_screennum, bush, 410, 355);
+            }
+            else
+            {
+                theGraphics.DrawString("屏序号(NO.)", myFont_screennum, bush, 410, 355);
+            }
+
+            //引入屏序号值
+            System.Drawing.Font myFont_screennum_data;
+            StringFormat geshi3 = new StringFormat();
+            geshi1.Alignment = StringAlignment.Center; //居中
+            myFont_screennum_data = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(screennum.ToString(), myFont_screennum_data, bush, 615, 355);
+
+            ////引入SN/TN
+            System.Drawing.Font myFont_sntn;
+            myFont_sntn = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "中")
+            {
+                theGraphics.DrawString("件号/数", myFont_sntn, bush, 55, 415);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("SN/TN", myFont_sntn, bush, 55, 415);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("件號/數", myFont_sntn, bush, 55, 415);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("件號/數(SN/TN)", myFont_sntn, bush, 55, 415);
+            }
+            else
+            {
+                theGraphics.DrawString("件号/数(SN/TN)", myFont_sntn, bush, 55, 415);
+            }
+
+            //引入SN/TN内容
+            System.Drawing.Font myFont_sntn_content;
+            myFont_sntn_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(sntn, myFont_sntn_content, bush, 290, 415);
+
+            //引入数量QTY
+            System.Drawing.Font myFont_qty;
+            myFont_qty = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            if (leng == "中")
+            {
+                theGraphics.DrawString("数量", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "英")
+            {
+                theGraphics.DrawString("QTY", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "繁")
+            {
+                theGraphics.DrawString("數量", myFont_qty, bush, 410, 415);
+            }
+            else if (leng == "繁/英")
+            {
+                theGraphics.DrawString("數量(QTY)", myFont_qty, bush, 410, 415);
+            }
+            else
+            {
+                theGraphics.DrawString("数量(QTY)", myFont_qty, bush, 410, 415);
+            }
+
+            //引入数量QTY内容
+            System.Drawing.Font myFont_qty_content;
+            myFont_qty_content = new System.Drawing.Font("Microsoft YaHei UI", 18, FontStyle.Regular);
+            theGraphics.DrawString(qty + " PCS", myFont_qty_content, bush, 585, 415);
+
+            //引入模组号清单
+            int mn_E_count = mn_list.Count();
+            //12位模组号以上，包括条码号
+            if (mn_E_count > 12 && mn_E_count <= 20)
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 28, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 485;
+                    int left_x = 70;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 4) != 0)
+                        {
+                            left_x += 155;
+                        }
+                        else
+                        {
+                            top_y += 100;
+                            left_x -= 465;
+                        }
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 22, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 470;
+                    int left_x = 70;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) == 0)
+                        {
+                            left_x += 315;
+                        }
+                        else
+                        {
+                            top_y += 45;
+                            left_x -= 315;
+                        }
+                    }
+                }
+            }
+            //11-12位模组号
+            else if (mn_E_count > 10 && mn_E_count <= 12)
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 48, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 460;
+                    int left_x = 90;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) == 0)
+                        {
+                            left_x += 290;
+                        }
+                        else
+                        {
+                            top_y += 80;
+                            left_x -= 290;
+                        }
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 26, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 485;
+                    int left_x = 90;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) == 0)
+                        {
+                            left_x += 315;
+                        }
+                        else
+                        {
+                            top_y += 70;
+                            left_x -= 315;
+                        }
+                    }
+                }
+            }
+            //9-10位模组号
+            else if (mn_E_count > 8 && mn_E_count <= 10)
+            {
+                if (mn_list[0].Length < 8)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 45, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 465;
+                    int left_x = 90;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) == 0)
+                        {
+                            left_x += 290;
+                        }
+                        else
+                        {
+                            top_y += 90;
+                            left_x -= 290;
+                        }
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 30, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 490;
+                    int left_x = 70;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) == 0)
+                        {
+                            left_x += 315;
+                        }
+                        else
+                        {
+                            top_y += 85;
+                            left_x -= 315;
+                        }
+                    }
+                }
+            }
+            //7-8位模组号
+            else if (mn_E_count > 6 && mn_E_count <= 8)
+            {
+                if (mn_list[0].Length < 8)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 40, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 475;
+                    int left_x = 70;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) != 0)
+                        {
+                            left_x += 300;
+                        }
+                        else
+                        {
+                            top_y += 120;
+                            left_x -= 300;
+                        }
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 33, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 485;
+                    int left_x = 360;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        //if ((i % 2) == 0)
+                        //{
+                        //    left_x += 315;
+                        //}
+                        //else
+                        //{
+                        top_y += 55;
+                        //left_x -= 310;
+                        //}
+                    }
+                }
+            }
+            //5-6位模组号
+            else if (mn_E_count > 4 && mn_E_count <= 6)
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 50, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 485;
+                    int left_x = 80;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) != 0)
+                        {
+                            left_x += 300;
+                        }
+                        else
+                        {
+                            top_y += 150;
+                            left_x -= 300;
+                        }
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 40, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 465;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 75;
+                    }
+                }
+            }
+            //4位模组号
+            else if (mn_E_count == 4)
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 70, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 460;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 120;
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 40, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 485;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 100;
+                    }
+                }
+            }
+            //3位模组号
+            else if (mn_E_count == 3)
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 80, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 485;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 140;
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 60, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 485;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 140;
+                    }
+                }
+            }
+            //2位模组号
+            else if (mn_E_count == 2)
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 100, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 550;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 150;
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 40, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 550;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1].ToUpper(), myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 150;
+                    }
+                }
+            }
+            //1位模组号
+            else if (mn_E_count == 1)
+            {
+                if (mn_list[0].Length == 6)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 100, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 485;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 200;
+                    }
+                }
+                else if (mn_list[0].Length == 5)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 120, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 485;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 200;
+                    }
+                }
+                else if (mn_list[0].Length <= 4)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 160, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Center;
+                    int top_y = 500;
+                    int left_x = 365;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        top_y += 200;
+                    }
+                }
+                else
+                {
+                    Rectangle specificationRectangle = new Rectangle(90, 480, 600, 600);
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 60, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    theGraphics.DrawString(mn_list[0], myFont_modulenum_list, bush, specificationRectangle, listformat);
+
+                    //System.Drawing.Font myFont_modulenum_list;
+                    //myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 60, FontStyle.Bold);
+                    //StringFormat listformat = new StringFormat();
+                    //listformat.Alignment = StringAlignment.Center;
+                    //int top_y = 485;
+                    //int left_x = 365;
+                    //for (int i = 1; i < mn_list.Count() + 1; i++)
+                    //{
+                    //    theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                    //    top_y += 200;
+                    //}
+                }
+            }
+            else
+            {
+                if (mn_list[0].Length < 7)
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 20, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 465;
+                    int left_x = 70;
+                    for (int i = 1; i < mn_list.Count() + 1; i++)
+                    {
+                        theGraphics.DrawString(mn_list[i - 1], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 4) != 0)
+                        {
+                            left_x += 155;
+                        }
+                        else
+                        {
+                            top_y += 39;
+                            left_x -= 465;
+                        }
+                    }
+                }
+                else
+                {
+                    System.Drawing.Font myFont_modulenum_list;
+                    myFont_modulenum_list = new System.Drawing.Font("Microsoft YaHei UI", 16, FontStyle.Bold);
+                    StringFormat listformat = new StringFormat();
+                    listformat.Alignment = StringAlignment.Near;
+                    int top_y = 465;
+                    int left_x = 90;
+                    for (int i = 0; i < mn_list.Count(); i++)
+                    {
+                        theGraphics.DrawString(mn_list[i], myFont_modulenum_list, bush, left_x, top_y, listformat);
+                        if ((i % 2) == 0)
+                        {
+                            left_x += 315;
+                        }
+                        else
+                        {
+                            top_y += 26;
+                            left_x -= 315;
+                        }
+                    }
+                }
+            }
+            //组织数据
+            Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(AllBitmap)));//图形转二值
+            return bm;
+        }
+        #endregion
+
+
+    }
 }
 

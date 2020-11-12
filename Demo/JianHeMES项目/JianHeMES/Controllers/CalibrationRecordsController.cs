@@ -1468,7 +1468,7 @@ namespace JianHeMES.Controllers
             string Group = data["Group"].ToString();
             bool sequence = bool.Parse(data["sequence"].ToString());//是否是正序
             JArray result = new JArray();
-
+            int i = 0;
             foreach (var item in BarCodesNumList)
             {
                 JObject resultitem = new JObject();
@@ -1515,13 +1515,14 @@ namespace JianHeMES.Controllers
                             {
                                 if (sequence)
                                 {
-                                    ModuleGroupNum = json[0].ToString();
+                                    ModuleGroupNum = json[i].ToString();
                                 }
                                 else
                                 {
                                     var index = json.Count();
-                                    ModuleGroupNum = json[index - 1].ToString();
+                                    ModuleGroupNum = json[index - (i+1)].ToString();
                                 }
+                                i++;
                             }
                         }
 
@@ -1795,24 +1796,6 @@ namespace JianHeMES.Controllers
                 stationResult = comapi.SectionCehckList(orderNum, AllCalibrationRecord);
             }
             return com.GetModuleFromJobjet(stationResult);
-        }
-        #endregion
-
-        #region --------------------取出整个OrderNum订单号列表
-        [HttpPost]
-        [ApiAuthorize]
-        public JObject OrderList()
-        {
-            var list = db.OrderMgm.OrderByDescending(c => c.ID).Select(c => c.OrderNum).ToList();
-            JArray result = new JArray();
-            foreach (var item in list)
-            {
-                JObject List = new JObject();
-                List.Add("value", item);
-
-                result.Add(List);
-            }
-            return com.GetModuleFromJarray(result);
         }
         #endregion
 

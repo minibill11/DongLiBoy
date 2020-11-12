@@ -171,14 +171,15 @@ export default {
         })
       })
     },
+     // 鼠标右击关闭其它
     contextMenu (item, e) {
-      if (item.name === this.$config.homeName) {
-        return
-      }
-      this.visible = true
-      const offsetLeft = this.$el.getBoundingClientRect().left
-      this.contextMenuLeft = e.clientX - offsetLeft + 10
-      this.contextMenuTop = e.clientY - 64
+      // if (item.name === this.$config.homeName) {
+      //   return
+      // }
+      // this.visible = true
+      // const offsetLeft = this.$el.getBoundingClientRect().left
+      // this.contextMenuLeft = e.clientX - offsetLeft + 10
+      // this.contextMenuTop = e.clientY - 64
     },
     closeMenu () {
       this.visible = false

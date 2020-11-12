@@ -66,6 +66,18 @@
                 </div>
                 <print-component v-model="printInfo"></print-component>
                 <div class="flex-item">
+                    <label>标签版本</label>
+                    <div>
+                        <el-switch class="tagSwitch"
+                                   v-model="tagVersion"
+                                   active-text="厦门"
+                                   active-value="new"
+                                   inactive-text="普通"
+                                   inactive-value="old">
+                        </el-switch>
+                    </div>
+                </div>
+                <div class="flex-item">
                     <label>语言</label>
                     <div>
                         <el-select v-model.trim="leng" placeholder="请选择语言" clearable size="medium">
@@ -130,16 +142,22 @@
                     loading: false,
                     orderList: [],
                     imgNum: 0,
-                    leng: '中/英',
+                    leng: '简/英',
                     lengOptions: [{
-                        value: '中',
-                        label: '中'
+                        value: '简',
+                        label: '简'
+                    }, {
+                        value: '繁',
+                        label: '繁'
                     }, {
                         value: '英',
                         label: '英',
                     }, {
-                        value: '中/英',
-                        label: '中/英'
+                        value: '简/英',
+                        label: '简/英'
+                    }, {
+                        value: '繁/英',
+                        label: '繁/英'
                     }],
                     checkAll: false,
                     selectOrdernum: '',
@@ -149,6 +167,12 @@
                 }
             },
             mixins: [setModuleManagement],
+            mounted() {
+                let localtagversion = localStorage.getItem('tagversion');
+                if (localtagversion != null) {
+                    this.tagVersion = localtagversion;
+                };
+            },
             methods: {
                 //获取图片
                 barGetListData2: function () {
@@ -190,6 +214,7 @@
                         param = {
                             outsidebarcode: barcode,
                             leng: this.leng,
+                            version: this.tagVersion,
                         };
                         if (this.isBPPJ) {
                             param.BPPJNum = this.BPPJNum;
@@ -198,7 +223,9 @@
                         url = '/ModuleManagement/InsideBoxLablePrintToImg';
                         param = {
                             outsidebarcode: barcode,
-                            statue: this.sideStatue
+                            statue: this.sideStatue,
+                            version: this.tagVersion,
+                            leng: this.leng,
                         };
                     };
                     axios.post(url, param, {
@@ -257,6 +284,7 @@
                                     ip: this.printInfo.ip,
                                     port: this.printInfo.port,
                                     BPPJNum: this.isBPPJ ? this.BPPJNum : 0,
+                                    version: this.tagVersion,
                                 }).then(res => {
                                     if (res.data == '打印成功！') {
                                         this.$message({
@@ -351,6 +379,15 @@
                         this.orderList = [];
                         this.checkAll = false;
                         document.getElementById('img').innerHTML = '';
+                    };
+                },
+                //监听新旧版本标签
+                tagVersion(v) {
+                    v != '' && localStorage.setItem('tagversion', v);
+                    if (v === 'new') {
+                        this.leng = '英';
+                    } else {
+                        this.leng = '简/英';
                     };
                 },
             }

@@ -1601,26 +1601,7 @@ namespace JianHeMES.Controllers
         }
         #endregion
 
-
-        #region --------------------新的订单号列表------
-        [HttpPost]
-        [ApiAuthorize]
-        public JObject OrderNumList()
-        {
-            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
-            JArray result = new JArray();
-            foreach (var item in orders)
-            {
-                JObject List = new JObject();
-                List.Add("value", item);
-
-                result.Add(List);
-            }
-            return common.GetModuleFromJarray(result);
-        }
-        #endregion
-
-
+        
         /// <summary>
         /// 用户电检时检查模组号
         /// </summary>

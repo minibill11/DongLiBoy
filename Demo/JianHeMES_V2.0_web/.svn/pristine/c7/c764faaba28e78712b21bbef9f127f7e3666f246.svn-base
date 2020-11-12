@@ -1,0 +1,481 @@
+<!--- 设备保养汇总表 --->
+<template>
+  <div>
+    <div class="eq-header">{{ title }}{{ month }}月保养汇总表</div>
+    <el-main class="main-box">
+      <div class="table-height">
+        <el-table :data="tableData" max-height="600" border v-loading="loading">
+          <el-table-column prop="index" label="序号" width="50">
+            <template slot-scope="scope">
+              <div>
+                {{ scope.$index+1 }}
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="EquipmentNumber" label="设备编号">
+            <template slot-scope="scope">
+              <!-- <a
+                target="_blank"
+                class="url-style"
+                :href="getAddress(scope.row.EquipmentNumber)"
+                >{{ scope.row.EquipmentNumber }}</a
+              > -->
+              <div
+                class="url-style"
+                @click="getAddress(scope.row.EquipmentNumber)"
+              >
+                {{ scope.row.EquipmentNumber }}
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="EquipmentName" label="设备名称">
+          </el-table-column>
+          <el-table-column label="保养日期" min-width="200" align="center">
+            <el-table-column
+              v-for="(i,j) in 31"
+              :key="i + Math.random()"
+              width="45"
+              :label="i.toString()"
+            >
+              <template slot-scope="scope">
+                <div :class="scope.row[`data${j}`] | setIconClass">
+                  <template
+                    v-if="
+                      scope.row.Week_main[0] != '' &&
+                      scope.row.Week_main[0] != undefined
+                    "
+                  >
+                    <div
+                      v-if="
+                        scope.row.Week_main[0].Date1 == i ||
+                        scope.row.Week_main[0].Date2 == i ||
+                        scope.row.Week_main[0].Date3 == i ||
+                        scope.row.Week_main[0].Date4 == i
+                      "
+                      class="triangle-topright week-success"
+                    >
+                      <div class="week-word">√</div>
+                    </div>
+                  </template>
+                  <div class="date">
+                    {{ scope.row[`data${j}`] | setIcon }}
+                  </div>
+                  <!-- <div class="date">{{ getIcon(scope.row, item.field) }}</div> -->
+                  <div
+                    v-if="
+                      scope.row.Month_main[0] != '' &&
+                      scope.row.Month_main[0].Date5 == i
+                    "
+                    class="month-success"
+                  >
+                    √
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table-column>
+        </el-table>
+      </div>
+      <el-row>
+        <el-col :span="8" class="instructions-box">
+          <div>日保养标记符号：</div>
+          <div class="instructions-item">
+            <div>
+              <span class="i-day-success">√</span><span>正常已完成</span>
+            </div>
+            <div>
+              <span class="i-day-error">×</span><span>异常、待处理</span>
+            </div>
+            <div>
+              <span class="i-day-stop">/</span><span>休息及计划停机中</span>
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="8" class="instructions-box">
+          <div>周保养标记符号：</div>
+          <div class="instructions-item">
+            <div class="week-item-box">
+              <div class="i-week-success"><div class="word">√</div></div>
+              <span>已保养</span>
+            </div>
+            <div class="week-item-box">
+              <div class="i-week-error"><div class="word">×</div></div>
+              <span>未保养</span>
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="8" class="instructions-box">
+          <div>月保养标记符号：</div>
+          <div class="instructions-item">
+            <div><span class="i-month-success">√</span><span>已保养</span></div>
+            <div><span class="i-month-error">×</span><span>未保养</span></div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-main>
+  </div>
+</template>
+
+<script>
+import { TallyEquipment_main } from "@/api/equipment";
+export default {
+  name: "Equipment_Maintenance_Summary",
+  props: {},
+  data() {
+    return {
+      loading:true,
+      title: "",
+      month: "",
+      date: "",
+      tableColumn: [],
+      tableData: [],
+      VersionNum: "",
+    };
+  },
+  components: {},
+  computed: {},
+  watch: {},
+  filters: {
+    setIcon(val) {
+      if (val == 0) {
+        return "";
+      } else if (val == 1) {
+        return "√";
+      } else if (val == 2) {
+        return "×";
+      } else if (val == 3) {
+        return "/";
+      }
+    },
+    setIconClass(val) {
+      if (val == 0) {
+        return "data-empty";
+      } else if (val == 1) {
+        return "data-success";
+      } else if (val == 2) {
+        return "data-error";
+      } else if (val == 3) {
+        return "data-stop";
+      }
+    },
+  },
+  methods: {
+    //获取数据
+    onGetData() {
+      let dd = this.date;
+      let param = {
+        year: dd.getFullYear(),
+        month: dd.getMonth() + 1,
+        userDepartment: this.title,
+      };
+      TallyEquipment_main(param).then((res) => {
+        this.VersionNum = res.data.Data.VersionNum;
+        let tableData = res.data.Data.EquipmentList;
+        let len = res.data.Data.EquipmentList[0].Day_main.length;
+        console.log(tableData);
+        //console.log(len, 999);
+        //处理表头
+        let list = [];
+        for (let i = 0; i < len; i++) {
+          list.push({
+            title: i + 1,
+            field: "data" + i,
+          });
+        }
+        //console.log(list, 55555);
+        this.tableColumn = list;
+        //处理数据
+        for (let k = 0; k < tableData.length; k++) {
+          for (let j = 0; j < len; j++) {
+            let key = "data" + j;
+            tableData[k][key] = tableData[k].Day_main[j].Day;
+          }
+          //tableData[k].Week_main = [];
+        }
+        //tableData[2].data4.Day = 2;
+        //tableData[2].data5.Day = 3;
+        this.tableData = tableData;
+        this.loading=false;
+        // console.log(tableData, 222);
+        //console.log(tableData[0].Week_main[0], 333);
+      });
+    },
+    getAddress(val) {
+      let obj = {
+        EquipmentNumber: val,
+        time: this.date,
+      };
+      this.$router.push({
+        name: "Equipment_Check_Record",
+        query: { paramData: JSON.stringify(obj), canchange: "false" },
+      });
+      // let url =
+      //   "/Equipment/Equipment_Check_Record?paramData=" +
+      //   JSON.stringify(obj) +
+      //   "&canchange=false";
+      // return url;
+    },
+  },
+  created() {},
+  mounted() {
+    //获取地址传参
+    let urlSearchParam = this.$route.query;
+    this.title = urlSearchParam.paramData;
+    this.date = new Date(urlSearchParam.date);
+    this.month = new Date(urlSearchParam.date).getMonth() + 1;
+    let list = [];
+    for (let i = 0; i < 31; i++) {
+      list.push({
+        title: i + 1,
+        field: "data" + i,
+      });
+    }
+    //console.log(list, 55555);
+    this.tableColumn = list;
+    this.onGetData();
+  },
+};
+</script>
+
+<style lang='less' scoped>
+@import url("~@/assets/style/color.less");
+@import url("./page-components/equipment.less");
+a:link {
+  color: #409eff;
+}
+/*    表格*/
+.table-height {
+  width: 100%;
+}
+.url-style{
+   color: @primary-color;
+   cursor: pointer;
+}
+/deep/.el-table td .cell,
+.el-table td {
+  padding: 0;
+  text-align: center;
+}
+/deep/.el-table--small td,
+.el-table--small th {
+  padding: 0;
+  text-align: center;
+}
+
+.data-empty {
+  width: 45px;
+  height: 45px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #fff;
+}
+
+.data-success {
+  width: 45px;
+  height: 45px;
+  display: flex;
+  flex-direction: column;
+  background: #e6f8ea;
+}
+
+.data-error {
+  width: 45px;
+  height: 45px;
+  display: flex;
+  flex-direction: column;
+  background: #fef0f0;
+}
+
+.data-stop {
+  width: 45px;
+  height: 45px;
+  display: flex;
+  flex-direction: column;
+  background: #eff2f7;
+}
+
+.triangle-topright {
+  position: absolute;
+  right: 0;
+  width: 0;
+  height: 0;
+}
+
+.week-word {
+  text-align: center;
+  margin: auto;
+  position: absolute;
+  display: inline-block;
+  width: 25px;
+  right: -5px;
+  top: -25px;
+  color: #fff;
+  transform-origin: bottom center;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.week-word-error {
+  text-align: center;
+  margin: auto;
+  position: absolute;
+  display: inline-block;
+  width: 25px;
+  right: -5px;
+  top: -30px;
+  color: #fff;
+  transform-origin: bottom center;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.week-success {
+  border-top: 25px solid #22c49e;
+  border-left: 25px solid transparent;
+}
+
+.week-error {
+  border-top: 25px solid #ff8590;
+  border-left: 25px solid transparent;
+}
+
+.date {
+  margin-top: 10px;
+}
+
+.month-success {
+  margin-left: 5px;
+  margin-top: -5px;
+  margin-bottom: 5px;
+  text-align: center;
+  line-height: 12px;
+  color: #fff;
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c49e;
+}
+
+.month-error {
+  margin-left: 5px;
+  margin-top: -5px;
+  margin-bottom: 5px;
+  text-align: center;
+  line-height: 12px;
+  color: #fff;
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff8590;
+}
+/*说明*/
+.instructions-box {
+  margin-top: 15px;
+  font-size: 12px;
+  color: #677385;
+}
+
+.instructions-item {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.instructions-item span {
+  margin-right: 8px;
+}
+
+.i-day-success {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  background: #e6f8ea;
+  border: 1px solid #8ea0b8;
+}
+
+.i-day-error {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  background: #fef0f0;
+  border: 1px solid #8ea0b8;
+}
+
+.i-day-stop {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  background: #eff2f7;
+  border: 1px solid #8ea0b8;
+}
+
+.i-week-success {
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 20px solid #22c49e;
+  border-left: 20px solid transparent;
+  margin-right: 8px;
+}
+.i-week-error {
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 20px solid #ff8590;
+  border-left: 20px solid transparent;
+  margin-right: 8px;
+}
+.word {
+  text-align: center;
+  margin: auto;
+  position: relative;
+  width: 25px;
+  right: 18px;
+  top: -20px;
+  color: #fff;
+  transform-origin: bottom center;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.week-item-box {
+  display: flex;
+  align-items: center;
+}
+.i-month-success {
+  display: inline-block;
+  text-align: center;
+  line-height: 16px;
+  color: #fff;
+  font-size: 12px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #22c49e;
+}
+
+.i-month-error {
+  display: inline-block;
+  text-align: center;
+  line-height: 16px;
+  color: #fff;
+  font-size: 12px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff8590;
+}
+</style>

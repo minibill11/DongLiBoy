@@ -24,6 +24,10 @@
         .main .el-table input, .main .el-table select, .main .el-table .el-input-number, .main .el-table .el-input {
             width: 100% !important;
         }
+
+        .remark-input, .remark-input .el-input__inner {
+            width: 250px !important;
+        }
     </style>
 }
 <div id="app" v-cloak>
@@ -89,6 +93,33 @@
                                style="margin-left:18px">
                     </el-switch>
                 </el-col>
+                <el-col :span="24" class="ruleQuery" style="margin-top:20px;color:#606266;">
+                    <div>
+                        <span>规格型号：</span><br />
+                        <el-input placeholder="请输入规格型号"
+                                  v-model="ITEMNO"
+                                  size="small"
+                                  clearable>
+                        </el-input>
+                    </div>
+                    <div>
+                        <span>颜色：</span><br />
+                        <el-input placeholder="请输入颜色"
+                                  v-model="COLOURS"
+                                  size="small"
+                                  clearable>
+                        </el-input>
+                    </div>
+                    <div>
+                        <span>Remark：</span><br />
+                        <el-input placeholder="请输入Remark"
+                                  v-model="Remark"
+                                  class="remark-input"
+                                  size="small"
+                                  clearable>
+                        </el-input>
+                    </div>
+                </el-col>
                 <el-col :span="24">
                     <el-row>
                         <el-table :data="dataVal"
@@ -153,7 +184,10 @@
                     dataVal: [],//订单表格数据
                     isSeparate: false,//分屏开关
                     isBatch: false,//分批开关
-                    sideStatue: ''
+                    sideStatue: '',
+                    ITEMNO: null,
+                    COLOURS: null,
+                    Remark: null,
                 }
             },
             mixins: [setModuleManagement],
@@ -168,6 +202,7 @@
                     if (v.value != '') {
                         localStorage.setItem('Order', v.value);
                         this.sideStatue != '' && this.set();
+                        this.InformationFromOrderNum(v.value);
                     };
                 },
                 selectSide(v) {
@@ -176,6 +211,22 @@
                     } else {
                         this.initial();
                     };
+                },
+                //拿到规格型号,颜色,备注
+                InformationFromOrderNum(v) {
+                    axios.post('/ModuleManagement/InformationFromOrderNum', { ordernum: v }).then(res => {
+                        if (res.data == '') {
+                            this.ITEMNO = null;
+                            this.COLOURS = null;
+                            this.Remark = null;
+                        } else {
+                            this.ITEMNO = res.data.ITEMNO;
+                            this.COLOURS = res.data.COLOURS;
+                            this.Remark = res.data.Remark;
+                        };
+                    }).catch(err => {
+                        console.warn(err);
+                    });
                 },
                 //记录填写好的数据方法
                 postSubmit: function () {
@@ -229,7 +280,12 @@
                         };
                     };
                     if (oknum != 0) {
-                        axios.post('/ModuleManagement/GetInnerInfo', modulePackageRule).then(res => {
+                        axios.post('/ModuleManagement/GetInnerInfo', {
+                            modulePackageRule: modulePackageRule,
+                            ITEMNO: this.ITEMNO,
+                            COLOURS: this.COLOURS,
+                            Remark: this.Remark,
+                        }).then(res => {
                             if (res.data == "ok") {
                                 this.$alert('录入成功！', {
                                     closeOnClickModal: true,
@@ -264,7 +320,7 @@
                         let thisrtdata = this.dataVal, l = this.dataVal.length;
                         if (this.Ordernum != "") {
                             axios.post('/ModuleManagement/GetValueFromOrderNum', { ordernum: this.Ordernum, statue: this.sideStatue }).then(res => {
-                                if (Object.keys(res.data).length == 0) {
+                                if (Object.keys(res.data.Data).length == 0) {
                                     for (let i = 0; i < value; i++) {
                                         thisrtdata.push({
                                             itemNum: 0,
@@ -318,8 +374,7 @@
                 set: function () {
                     if (this.Ordernum != "") {
                         axios.post('/ModuleManagement/GetValueFromOrderNum', { ordernum: this.Ordernum, statue: this.sideStatue }).then(res => {
-                            console.log(res.data);
-                            let rtdata = res.data, thisrtdata = [];
+                            let rtdata = res.data.Data, thisrtdata = [];
                             if (Object.keys(rtdata).length > 0) {
                                 this.isSeparate = rtdata[0].isSeparate;
                                 this.isBatch = rtdata[0].isBatch;
@@ -382,6 +437,9 @@
                             batch: i + 1
                         });
                     };
+                    this.ITEMNO = null;
+                    this.COLOURS = null;
+                    this.Remark = null;
                     //this.isSeparate = false;
                     //this.isBatch = false;
                 },

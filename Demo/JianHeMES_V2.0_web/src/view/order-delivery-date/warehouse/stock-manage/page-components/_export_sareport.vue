@@ -5,14 +5,14 @@
       :filename="filename"
       :sheet="sheet"
       :on-error="onError">
-      <el-button plain type="primary" size="small" @click="sendData">导出Excel</el-button>
+      <el-button plain type="success" size="small" @click="sendData">导出Excel</el-button>
     </ExportExcel>
   </div>
 </template>
 <script>
 import ExportExcel from "_c/export-excel";
 export default {
-  name: "export_excel",
+  name: "sa-excel",
   props: ["excelData","time"],
   data() {
     return {
@@ -86,3 +86,10 @@ export default {
   }
 };
 </script>
+<style lang='less' scoped>
+ .el-button--success.is-disabled, .el-button--success.is-disabled:active, .el-button--success.is-disabled:focus, .el-button--success.is-disabled:hover {
+    color: #FFF;
+    background-color: #CCD3DE;
+    border-color: #CCD3DE;
+ }
+</style>

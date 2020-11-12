@@ -8,6 +8,7 @@
             efficiencyChartbody: "",
             qualityChartbody: "",
             poll: 0,
+            //element-ui时间配置项
             pickerOptions: {
                 disabledDate(time) {
                     return time.getTime() > Date.now();
@@ -74,6 +75,7 @@
                 },
             }]
         };
+        //setTimeout保证初始化在折线图配置后生效
         setTimeout(() => {
             //echart初始化
             this.efficiencyChart = echarts.init(document.getElementById('efficiencyBar'));
@@ -92,6 +94,7 @@
         }, 0);
     },
     methods: {
+        //获取表格数据
         getdata: function (address) {
             this.loading = true;
             axios.post("/SMT/" + address, {
@@ -124,11 +127,13 @@
                 this.loading = false;
             });
         },
+        //判断是否启动轮询
         isPoll(v) {
             let now = new Date(), select = new Date(v);
             this.poll && clearInterval(this.poll);
             return now.toLocaleDateString() == select.toLocaleDateString();
         },
+        //浏览器全屏控制
         launchFullscreen() {
             try {
                 //关闭

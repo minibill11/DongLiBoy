@@ -11,6 +11,7 @@
             ModuleBarcode: "",
             printInfo: {},
             showPrint: false,  //打印剩余条码权限
+            tagVersion: 'old',
         }
     },
     created: function () {
@@ -82,6 +83,9 @@
         //监听班组
         Group(v) {
             v != '' && localStorage.setItem('selectgroup', v);
-        }
+        },
+        tagVersion(v) {
+            v != '' && localStorage.setItem('tagversion', v);
+        },
     },
 };

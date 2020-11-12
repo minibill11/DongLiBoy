@@ -197,6 +197,11 @@ export default {
   stadium_displays: '球场屏',
   // end
   metal_plate: '钣金',
+  mp_index:'首页',
+  mp_basicinfo:'录入基本信息',
+  mp_production:'录入生产信息',
+  mp_modify:'修改生产信息',
+
   order_manage: '订单管理',
   spare_parts: '备品配件',
   contract: '合约',
@@ -240,4 +245,12 @@ export default {
   departure_reason_survey: '离职原因调查',
   leave_record: '请假记录',
   system_user: '系统用户',
+  KPI_7S_SummarizingRanking:'部门评比排名',
+  KPI_7S_GradeStandardInput:'扣分标准录入',
+  KPI_7S_RegionInput:'数据区域录入',
+  KPI_7S_RecordInput:'部门班组扣分录入',
+  KPI_7S_Summarizing:'日检记录查询',
+  KPI_7S_Summarizing_Daily:'日/周/巡检汇总表',
+  KPI_7S_DailyRecord:'日检记录查询',
+  KPI_7S_Detail:'7S班组扣分详细表'
 }

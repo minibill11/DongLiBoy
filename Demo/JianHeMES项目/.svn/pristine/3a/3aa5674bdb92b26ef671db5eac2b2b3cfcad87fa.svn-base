@@ -1,0 +1,103 @@
+﻿
+@{
+    ViewBag.Title = "TestSignalR";
+}
+<h2>TestSignalR</h2>
+<div>
+    内容
+    <div id="contents">
+
+    </div>
+    <br />
+    <hr />
+    <br />
+    <button id="send">发送</button>
+    <ul></ul>
+</div>
+<br />
+<hr />
+<br />
+<h2>Chat</h2>
+<div class="container">
+    用户名： <input type="text" id="displayname" /> <br>
+    信息：<input type="text" id="message" /><br>
+    <input type="button" id="sendmessage" value="Send" />
+    @*<input type="hidden" id="displayname" />*@
+    <ul id="discussion"></ul>
+</div>
+
+
+
+@section scripts {
+    @*<script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+        <script src="~/signalr/hubs"></script>
+        <script>
+            $(function () {
+                var mypush = $.connection.Hub1;
+                mypush.client.sendTH1 = function (TH1_json) {
+                    console.log(TH1_json);
+                };
+                $.connection.hub.start();
+            });
+        </script>*@
+
+
+
+    <script src="~/Scripts/jquery.signalR-2.3.0.min.js"></script>
+    @*<script src="~/signalr/hubs"></script>*@
+    @*//这里必须有，开启SignalR连接，切换协议*@
+    <script src="http://172.16.6.145:8080/signalr/hubs"></script>
+
+    <script>
+        //$(function () {
+        //    var mypush = $.connection.Hub1;
+        //    mypush.client.sendTH1 = function (TH1_json) {
+        //        console.log(TH1_json);
+        //    };
+        //    $.connection.hub.start();
+        //});
+
+        //下面方法一切正常
+        $(function () {
+            var chat = $.connection.chatHub;
+            console.log('这里0');
+            $.connection.hub.url = "http://172.16.6.145:8080/chathub";  //按照后台Hub接口名字修改url
+            console.log('这里');
+            chat.client.addNewMessageToPage = function (name, message) {
+                $('#discussion').append('<li><strong>' + htmlEncode(name)
+                    + '</strong>: ' + htmlEncode(message) + '</li>');
+            };
+
+            chat.client.welcome = function (data) {
+                //当后台触发了Hello方法的时候会进行回调当前事件
+                alert(data);
+            }
+
+            $('#displayname').val(prompt('Enter your name:', ''));//赋予displayname输入的名字
+            $('#message').focus();
+            $.connection.hub.start({ jsonp: true }).done(function () {    //start(带JSONP配置参数)
+                //alert("Connected");
+                chat.server.hello(); //连接创建成功后台进行回调
+                $('#sendmessage').click(function () {
+                    chat.server.send($('#displayname').val(), $('#message').val());
+                    $('#message').val('').focus();
+                });
+            }).fail(function () { alert("Connection failed!"); });
+        });
+
+        function htmlEncode(value) {
+            var encodedValue = $('<div />').text(value).html();
+            return encodedValue;
+        }
+
+        $(function () {
+            var mypush = $.connection.Hub1;
+            mypush.client.sendTH1 = function (TH1_json) {
+                console.log(TH1_json);
+            };
+            $.connection.hub.start();
+        });
+
+    </script>
+
+}

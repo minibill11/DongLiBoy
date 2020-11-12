@@ -1,7 +1,25 @@
 <!--- 设备点检保养记录表 --->
 <template>
   <div>
-    <div id="print">
+    <div>
+      <!-- <el-button
+              v-if="!addOpera"
+              size="mini"
+              type="primary"
+              plain
+              @click="onToTurn"
+              >查看对应部门月保养</el-button
+            > -->
+      <el-button
+        v-if="!addOpera"
+        size="mini"
+        type="primary"
+        plain
+        @click="onPrint"
+        >导出pdf</el-button
+      >
+    </div>
+    <div id="record">
       <div class="eq-header">设备点检保养记录表</div>
       <el-main class="main-box">
         <!-- @* 筛选框s *@ -->
@@ -18,35 +36,8 @@
               <span>设备编号：</span>{{ EquipmentNumber }}
             </div>
             <div class="check-box-item">
-              <span>时间：</span>{{ select_date | formatDate }}
-              <!-- <el-date-picker
-                v-model="select_date"
-                disabled
-                size="mini"
-                type="month"
-                style="width: 130px"
-                placeholder="选择年月"
-              >
-              </el-date-picker> -->
+              <span>时间：</span>{{ select_date | formatMonth }}
             </div>
-          </div>
-          <div :class="isPrint ? 'remove-btn' : 'show-btn'">
-            <el-button
-              v-if="!addOpera"
-              size="mini"
-              type="primary"
-              plain
-              @click="onToTurn"
-              >查看对应部门月保养</el-button
-            >
-            <el-button
-              v-if="!addOpera"
-              size="mini"
-              type="primary"
-              plain
-              @click="onPrint"
-              >导出pdf</el-button
-            >
           </div>
         </div>
         <!-- @*表格*@ -->
@@ -444,18 +435,10 @@
         </div>
         <!-- @* 操作按钮 *@ -->
         <div class="btn-box" v-if="addOpera">
-          <el-button
-            style="margin-right: 15px"
-            size="small"
-            type="success"
-            @click="addDailyPlan"
+          <el-button size="small" type="success" @click="addDailyPlan"
             >增加日计划项目</el-button
           >
-          <el-button
-            style="margin-right: 15px"
-            size="small"
-            type="success"
-            @click="addWeekPlan"
+          <el-button size="small" type="success" @click="addWeekPlan"
             >增加周计划项目</el-button
           >
           <el-button
@@ -465,9 +448,25 @@
             @click="addMonthPlan"
             >增加月计划项目</el-button
           >
+          <el-select
+            size="small"
+            v-model="Group"
+            placeholder="请选择班组"
+            style="margin-right: 10px; width: 150px"
+          >
+            <el-option
+              v-for="item in group_options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+          <ImportExcel :on-success="onSuccess">
+            <el-button plain type="success" size="small">选取文件</el-button>
+          </ImportExcel>
           <el-button
             v-show="showSaveInfosBtn"
-            style="margin-right: 15px"
             size="small"
             type="success"
             @click="addSave"
@@ -475,39 +474,12 @@
           >
           <el-button
             v-show="showSaveInfosBtn"
-            style="margin-right: 15px"
             size="small"
+            plain
             type="success"
             @click="resetForm"
             >重置</el-button
           >
-          <group-select style="width: 120px; margin-right: 15px"></group-select>
-
-          <el-upload
-            class="upload-demo"
-            :on-change="selectFiles"
-            ref="upload"
-            action="Create"
-            accept=".xlsx,.xls"
-            :on-remove="handleRemove"
-            :file-list="fileList"
-            :limit="1"
-            :on-exceed="handleExceed"
-            :auto-upload="false"
-            style="float: left"
-          >
-            <el-button slot="trigger" size="small" type="primary"
-              >选取文件</el-button
-            >
-            <el-button
-              v-show="showuploadBtn"
-              class="elbt"
-              size="small"
-              type="success"
-              @click="submitUpload"
-              >上传</el-button
-            >
-          </el-upload>
         </div>
         <!-- @* 添加项目弹框 *@ -->
         <el-dialog
@@ -538,76 +510,30 @@
             <el-button type="primary" @click="addDaily">确 定</el-button>
           </span>
         </el-dialog>
-        <!-- @* 打印设置 *@ -->
-        <el-dialog
-          title="导出pdf设置"
-          :visible.sync="dialogPrint"
-          width="30%"
-          :close-on-click-modal="false"
-          :show-close="false"
-        >
-          <el-form label-width="100px" :model="printMsg">
-            <el-form-item label="导出方向：">
-              <el-select
-                v-model="printMsg.direction"
-                size="mini"
-                placeholder="请选择导出方向"
-                style="width: 150px"
-              >
-                <el-option label="横向" value="l"></el-option>
-                <el-option label="竖向" value="p"></el-option>
-              </el-select>
-            </el-form-item>
-            <el-form-item label="纸张大小：">
-              <!-- <el-select
-                v-model="printMsg.size"
-                size="mini"
-                clearable
-                placeholder="请选择纸张大小"
-                style="width: 150px"
-              >
-                <el-option label="A4" value="a4"></el-option>
-                <el-option label="A3" value="a3"></el-option>
-              </el-select> -->
-              <span>A4纸</span>
-            </el-form-item>
-            <el-form-item label="单位：">
-              <el-select
-                v-model="printMsg.unit"
-                size="mini"
-                placeholder="请选择单位"
-                style="width: 150px"
-              >
-                <el-option label="像素" value="pt"></el-option>
-                <el-option label="厘米" value="cm"></el-option>
-                <el-option label="毫米" value="mm"></el-option>
-                <el-option label="英寸" value="in"></el-option>
-              </el-select>
-            </el-form-item>
-          </el-form>
-          <span slot="footer" class="dialog-footer">
-            <el-button @click="cancelExportPDF">取 消</el-button>
-            <el-button type="primary" @click="addExportPDF">导 出</el-button>
-          </span>
-        </el-dialog>
       </el-main>
     </div>
   </div>
 </template>
 
 <script>
+import ImportExcel from "_c/import-excel";
+import { DisplayGroup } from "@/api/common";
 import {
   Equipment_Query_Tally,
   Equipment_Tally_maintenance_Add,
-  Equipment_Tally_maintenance_Edit, Upload_Equipment_Tally,
+  Equipment_Tally_maintenance_Edit,
+  Upload_Equipment_Tally,
 } from "@/api/equipment";
+import { formatDate } from "@/filters/index";
 export default {
   name: "Equipment_Check_Record",
   inject: ["reload"],
   props: {},
   data() {
     return {
-      userName:this.$userInfo.Name,
+      userName: this.$userInfo.Name,
+      Group: "",
+      group_options: [], //获取班组
       VersionNum: "", //版本号
       select_date: "", //时间
       week: "", //当前周
@@ -643,17 +569,9 @@ export default {
       showSaveInfosBtn: false, //控制底部按钮显示
       dialogVisible: false, //控制添加日周月项目弹框显示
       dialogVisibletitle: "", //添加日周月项目弹框标题
-      //导出pdf
-      isPrint: false, //控制导出显示按钮
-      dialogPrint: false, //控制弹出导出设置
-      printMsg: {
-        direction: "l",
-        unit: "pt",
-        size: "a4",
-      }
     };
   },
-  components: {},
+  components: { ImportExcel },
   computed: {},
   watch: {
     // 监听日保养计划栏
@@ -666,28 +584,62 @@ export default {
     },
   },
   methods: {
-    //查看对应部门月保养
-    onToTurn() {
-      window.open(
-        "/Equipment/Equipment_Maintenance_Summary?paramData=" +
-          this.UserDepartment +
-          "&date=" +
-          this.select_date
-      );
-    },
+    // 查看对应部门月保养
+    // onToTurn() {
+    //   let dd = formatDate(this.select_date);
+    //   this.$router.push({
+    //     name: "Equipment_Maintenance_Summary",
+    //     query: { paramData: this.UserDepartment, date: dd },
+    //   });
+    // window.open(
+    //   "/Equipment/Equipment_Maintenance_Summary?paramData=" +
+    //     this.UserDepartment +
+    //     "&date=" +
+    //     this.select_date
+    // );
+    // },
     //地址参数
     getAddress() {
       let urlSearchParam = this.$route.query;
       this.canchange = urlSearchParam.canchange;
       let param = JSON.parse(urlSearchParam.paramData);
-      //console.log(param);
+      // console.log(param);
+      // console.log(this.$route.query);
       this.EquipmentNumber = param.EquipmentNumber;
       this.select_date = new Date(param.time);
+      // console.log(this.select_date);
       if (this.canchange == "true") {
         this.EquipmentName = param.EquipmentName;
         this.UserDepartment = param.UserDepartment;
         this.LineName = param.LineNum;
+        //获取班组
+        this.getGroupData();
       }
+    },
+    //获取账号班组列表
+    getGroupData() {
+      DisplayGroup()
+        .then((res) => {
+          //未登陆则返回null
+          if (res.data.Data == "") {
+            //this.$message.warning("登陆状态已丢失，请重试打开页面！")
+          } else {
+            this.Group = res.data.Data.Group[0];
+            let arr = [];
+            res.data.Data.Group.forEach((item) => {
+              let obj = {
+                label: item,
+                value: item,
+              };
+              arr.push(obj);
+            });
+            this.group_options = arr;
+            //console.log(this.group_options);
+          }
+        })
+        .catch((err) => {
+          //console.log(err);
+        });
     },
     //判断当前第几周
     judgeWeek() {
@@ -724,10 +676,11 @@ export default {
       if (val == "正常") {
         //console.log(i, index, val);
         if (this.weekContent[`Week${i}_mainten${index}`] == "") {
-          this.weekContent[`Week${i}_mainten${index}`] = this.weekPlan[
-            index - 1
-          ].weekOpera;
+          this.weekContent[`Week${i}_mainten${index}`] = "正常";
+          //this.weekContent[`Week${i}_mainten${index}`] = this.weekPlan[index - 1].weekOpera;
         }
+      } else {
+        this.weekContent[`Week${i}_mainten${index}`] = "";
       }
     },
     //月保养自动填写
@@ -735,8 +688,11 @@ export default {
       if (val == "正常") {
         //console.log(index, val);
         if (this.monthPlan[index].dataStr == "") {
-          this.monthPlan[index].dataStr = this.monthPlan[index].monthOpera;
+          this.monthPlan[index].dataStr = "正常";
+          //this.monthPlan[index].dataStr = this.monthPlan[index].monthOpera;
         }
+      } else {
+        this.monthPlan[index].dataStr = "";
       }
     },
     // 页面加载时获取点检表的数据
@@ -902,42 +858,32 @@ export default {
       // 还原上数据
       let arr = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
       for (let i = 0; i < this.dailyPlan.length; i++) {
-        let keyLeft = `Day_project${i + 1}`;
-        let keyLeftTwo = `Day_opera${i + 1}`;
-        postObj[keyLeft] = this.dailyPlan[i].Dproject;
-        postObj[keyLeftTwo] = this.dailyPlan[i].DOpera;
+        postObj[`Day_project${i + 1}`] = this.dailyPlan[i].Dproject;
+        postObj[`Day_opera${i + 1}`] = this.dailyPlan[i].DOpera;
         for (let j = 1; j <= 31; j++) {
-          let keyRight = `Day_${arr[i]}_${j}`;
-          let kw = `Day${j}`;
-          if (this.dailyPlan[i][kw] == "") {
-            postObj[keyRight] = 0;
-          } else if (this.dailyPlan[i][kw] == "√") {
-            postObj[keyRight] = 1;
-          } else if (this.dailyPlan[i][kw] == "×") {
-            postObj[keyRight] = 2;
-          } else if (this.dailyPlan[i][kw] == "/") {
-            postObj[keyRight] = 3;
+          if (this.dailyPlan[i][`Day${j}`] == "") {
+            postObj[`Day_${arr[i]}_${j}`] = 0;
+          } else if (this.dailyPlan[i][`Day${j}`] == "√") {
+            postObj[`Day_${arr[i]}_${j}`] = 1;
+          } else if (this.dailyPlan[i][`Day${j}`] == "×") {
+            postObj[`Day_${arr[i]}_${j}`] = 2;
+          } else if (this.dailyPlan[i][`Day${j}`] == "/") {
+            postObj[`Day_${arr[i]}_${j}`] = 3;
           }
         }
       }
       for (let i = 1; i <= 31; i++) {
-        let kw = `Day_Mainte_${i}`;
-        let kw2 = `Day_group_${i}`;
-        let byTime = `Day_MainteTime_${i}`;
-        let byComfrimTime = `Day_groupTime_${i}`;
-        postObj[kw] = this.totalOnfos[kw];
-        postObj[kw2] = this.totalOnfos[kw2];
-        postObj[byTime] = this.totalOnfos[byTime]; //  保养人操作时间
-        postObj[byComfrimTime] = this.totalOnfos[byComfrimTime]; // 保养组长确认年时间
+        postObj[`Day_Mainte_${i}`] = this.totalOnfos[`Day_Mainte_${i}`];
+        postObj[`Day_group_${i}`] = this.totalOnfos[`Day_group_${i}`];
+        postObj[`Day_MainteTime_${i}`] = this.totalOnfos[`Day_MainteTime_${i}`]; //  保养人操作时间
+        postObj[`Day_groupTime_${i}`] = this.totalOnfos[`Day_groupTime_${i}`]; // 保养组长确认年时间
         // 可在此处添加操作时间
       }
 
       // 还原中数据
       for (let i = 0; i < this.weekPlan.length; i++) {
-        let keyLeft = `Week_Check${i + 1}`;
-        let keyLeftTwo = `Week_Inspe${i + 1}`;
-        postObj[keyLeft] = this.weekPlan[i].weekObject;
-        postObj[keyLeftTwo] = this.weekPlan[i].weekOpera;
+        postObj[`Week_Check${i + 1}`] = this.weekPlan[i].weekObject;
+        postObj[`Week_Inspe${i + 1}`] = this.weekPlan[i].weekOpera;
       }
       //TD-008-E版本保存保养内容数据
       for (let i = 1; i <= 11; i++) {
@@ -981,12 +927,10 @@ export default {
         postObj.Year = y;
         postObj.Month = m;
         // 创建保存
-        Equipment_Tally_maintenance_Add({
-          equipment_Tally_maintenance: postObj,
-        })
+        Equipment_Tally_maintenance_Add(postObj)
           .then((res) => {
-            if (res.data.Data == true) {
-              this.$message.success("新建成功");
+            if (res.data.Result) {
+              this.$message.success(res.data.Message);
               let param = {
                 EquipmentNumber: this.EquipmentNumber,
                 time: this.select_date,
@@ -999,43 +943,33 @@ export default {
               this.weekPlan = [];
               this.monthPlan = [];
               fileList = [];
-            } else if (res.data.Data == false) {
-              this.$message.warning("新建失败");
-            } else {
-              this.$message.warning(res.data.Data);
-            }
+            } else this.$message.warning(res.data.Message);
           })
           .catch((err) => {
-            this.$message.warning("保存点检记录时连接失败");
             console.log(err);
           });
       } else {
         postObj.Id = this.totalOnfos.Id;
         postObj.Year = this.select_date.getFullYear();
         postObj.Month = this.select_date.getMonth() + 1;
+        console.log(postObj);
         // 保存修改Equipment_Tally_maintenance_Edit
-        Equipment_Tally_maintenance_Edit({
-          equipment_Tally_maintenance: postObj,
-        })
+        Equipment_Tally_maintenance_Edit(postObj)
           .then((res) => {
             //console.log(res.data.Data);
-            if (res.data.Data.tally) {
-              this.$message.success("保存成功");
+            if (res.data.Result) {
+              this.$message.success(res.data.Message);
             } else {
               if (res.data.Data.equipment_Tally_maintenance != null) {
                 this.$message.warning(
                   res.data.Data.equipment_Tally_maintenance
                 );
               } else {
-                this.$message.success("保存失败");
+                this.$message.success(res.data.Message);
               }
-              setTimeout(function () {
-                window.location.reload();
-              }, 2000);
             }
           })
           .catch((err) => {
-            this.$message.success("修改点检记录时连接失败");
             console.log(err);
           });
       }
@@ -1069,15 +1003,14 @@ export default {
           flag = true;
         }
       });
-      let dataindex = `Day_Mainte_${index}`;
       if (flag) {
         if (
-          this.totalOnfos[dataindex] == "" ||
-          this.totalOnfos[dataindex] == null
+          this.totalOnfos[`Day_Mainte_${index}`] == "" ||
+          this.totalOnfos[`Day_Mainte_${index}`] == null
         ) {
           if (this.$limit("日点检保养人确认")) {
             this.$confirm("请确认！").then((_) => {
-              this.totalOnfos[dataindex] = this.userName;
+              this.totalOnfos[`Day_Mainte_${index}`] = this.userName;
               this.totalOnfos[`Day_MainteTime_${index}`] = new Date();
               this.addSave();
             });
@@ -1093,16 +1026,13 @@ export default {
     },
     // 日计划组长确认
     dayGroupComfirm(index) {
-      let repiamanComfirm = `Day_Mainte_${index}`;
-      let groupComfirm = `Day_group_${index}`;
-
       if (
-        this.totalOnfos[groupComfirm] == "" &&
-        this.totalOnfos[repiamanComfirm] != ""
+        this.totalOnfos[`Day_group_${index}`] == "" &&
+        this.totalOnfos[`Day_Mainte_${index}`] != ""
       ) {
         if (this.$limit("日点检组长确认")) {
           this.$confirm("请确认！").then((_) => {
-            this.totalOnfos[groupComfirm] = this.userName;
+            this.totalOnfos[`Day_group_${index}`] = this.userName;
             this.totalOnfos[`Day_groupTime_${index}`] = new Date();
             this.addSave();
           });
@@ -1273,75 +1203,58 @@ export default {
     resetForm() {
       this.reload();
     },
-    // 选取上传表格
-    selectFiles(file, fileList) {
-      //console.log(file);
-      //console.log(fileList);
-      this.fileList = fileList;
-      if (fileList.length > 0) {
+    //导入excel
+    onSuccess(response, file) {
+      if (response.length != 0) {
         this.showuploadBtn = true;
-      } else {
-        this.showuploadBtn = false;
-      }
-    },
-    // 删除所选文件
-    handleRemove() {
-      this.fileList = [];
-    },
-    // 超限提示
-    handleExceed() {
-      this.$message.warning(`当前限制选择1个文件,请删除从选`);
-    },
-    // 上传文件
-    submitUpload() {
-      if (this.fileList != null) {
-        let form = new FormData();
-        //console.log(this.fileList[0].row);
-        form.append("fileup", this.fileList[0].raw);
-        Upload_Equipment_Tally(form)
-          .then((res) => {
-            //console.log(JSON.parse(res.data.Data.equipment_Tally_report))
-            let data = JSON.parse(res.data.Data.equipment_Tally_report);
-            //console.log(res.data.Data.mes)
-            if (res.data.Data.mes) {
-              // 处理上数据
-              this.makeDataCanUes(data, "Day_project");
-              this.changeSelectView(this.dailyPlan);
-              //console.log(this.dailyPlan)
-              // 处理中数据
-              this.makeDataCanUes(data, "Week_Check");
-              // 处理下数据
-              this.makeDataCanUes(data, "Month_Project");
-            } else {
-              this.$message.warning("文件格式不正确！");
-            }
-            this.fileList = [];
-            this.showuploadBtn = false;
-          })
-          .catch((err) => {
-            this.$message.warning(
-              "上传文件时出错！您输入的表格跟点检保养记录模板表格不一致，请使用标准模板表格。"
+        let json = response[0].data;
+        // console.log(json);
+        this.dailyPlan = [];
+        this.weekPlan = [];
+        this.monthPlan = [];
+        json.forEach((item) => {
+          if (item.__rowNum__ >= 5 && item.__rowNum__ <= 15) {
+            let json_obj1 = JSON.parse(
+              JSON.stringify(item).replace(/\ +/g, "")
             );
-          });
+            let obj1 = {
+              Dproject: json_obj1["惠州市健和光电有限公司"],
+              DOpera: json_obj1["__EMPTY_2"],
+            };
+            this.dailyPlan.push(obj1);
+          }
+          if (item.__rowNum__ >= 18 && item.__rowNum__ <= 28) {
+            let json_obj2 = JSON.parse(
+              JSON.stringify(item).replace(/\ +/g, "")
+            );
+            let obj2 = {
+              weekObject: json_obj2["惠州市健和光电有限公司"],
+              weekOpera: json_obj2["__EMPTY_2"],
+            };
+            this.weekPlan.push(obj2);
+          }
+          if (item.__rowNum__ >= 31 && item.__rowNum__ <= 41) {
+            let json_obj3 = JSON.parse(
+              JSON.stringify(item).replace(/\ +/g, "")
+            );
+            let obj3 = {
+              monthObject: json_obj3["惠州市健和光电有限公司"],
+              monthOpera: json_obj3["__EMPTY_2"],
+            };
+            this.monthPlan.push(obj3);
+          }
+        });
       }
     },
     //导出pdf
     onPrint() {
-      this.isPrint = true;
-      this.dialogPrint = true;
-    },
-    cancelExportPDF() {
-      this.isPrint = false;
-      this.dialogPrint = false;
-    },
-    addExportPDF() {
-      this.dialogPrint = false;
-      setTimeout(() => {
-        if (this.isPrint) {
-          this.getPdf("设备保养点检表", "#print", this.printMsg);
-          this.isPrint = false;
-        }
-      }, 3000);
+      //导出pdf
+      let printMsg = {
+        direction: "p",
+        unit: "pt",
+        size: "a4",
+      };
+      this.getPdf("设备保养点检表", "#record", printMsg);
     },
   },
   created() {},
@@ -1498,11 +1411,5 @@ th,
 .changeText {
   text-align: left;
   padding: 0 4px;
-}
-.remove-btn {
-  display: none;
-}
-.show-btn {
-  display: block;
 }
 </style>

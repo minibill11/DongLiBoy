@@ -124,6 +124,9 @@ namespace JianHeMES.Models
 
         [Display(Name = "班组"), StringLength(50)]
         public string Group { get; set; }
+
+        [Display(Name = "出库完成时间")]
+        public DateTime? WarehouseTime { get; set; }
     }
 
     public class Packing_BarCodePrinting

@@ -3502,6 +3502,7 @@ namespace JianHeMES.Controllers
         #endregion
 
         #region---仓库物料
+
         #region---有效期规则
         //有效期规则录入
         [HttpPost]
@@ -3509,9 +3510,7 @@ namespace JianHeMES.Controllers
         public Object PeriodValidity_Input([System.Web.Http.FromBody]JObject data)//List<Warehouse_Material_ValidityPeriod> record
         {
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
-            var jsonStr = JsonConvert.SerializeObject(data);
-            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<Warehouse_Material_ValidityPeriod> record = obj;
+            List<Warehouse_Material_ValidityPeriod> record = (List<Warehouse_Material_ValidityPeriod>)JsonHelper.jsonDes<List<Warehouse_Material_ValidityPeriod>>(data["record"].ToString());
             JObject result = new JObject();
             if (auth.UserName != null)
             {
@@ -3531,25 +3530,16 @@ namespace JianHeMES.Controllers
                 };
                 if (count > 0)
                 {
-                    result.Add("Result", true);
-                    result.Add("Message", "保存成功！");
-                    result.Add("PostResult", comm.ReturnApiPostStatus());
-                    return common.GetModuleFromJobjet(result);
+                    return common.GetModuleFromJobjet(result,true,"保存成功！");
                 }
                 else
                 {
-                    result.Add("Result", false);
-                    result.Add("Message", "保存失败！");
-                    result.Add("PostResult", comm.ReturnApiPostStatus());
-                    return common.GetModuleFromJobjet(result);                   
+                    return common.GetModuleFromJobjet(result, false, "保存失败！");                   
                 }
             }
             else
             {
-                result.Add("Result", false);
-                result.Add("Message", "没有登录！");
-                result.Add("PostResult", comm.ReturnApiPostStatus());
-                return common.GetModuleFromJobjet(result);
+                return common.GetModuleFromJobjet(result, false, "没有登录！");
             }
         }
         //有效期规则查询
@@ -3558,7 +3548,9 @@ namespace JianHeMES.Controllers
         public JObject PeriodValidity_Query([System.Web.Http.FromBody]JObject data)//string materialNum 物料号
         {
             List<Warehouse_Material_ValidityPeriod> record = new List<Warehouse_Material_ValidityPeriod>();
-            string materialNum = data["materialNum"].ToString();
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            string materialNum = obj.materialNum;//物料号
             if (!String.IsNullOrEmpty(materialNum))
             {
                 record = db.Warehouse_Material_ValidityPeriod.Where(c => c.MaterialNumber == materialNum).ToList();
@@ -3571,10 +3563,7 @@ namespace JianHeMES.Controllers
             JArray list = new JArray();
             list.Add(record);
             result.Add("Data", list);
-            result.Add("Result", true);
-            result.Add("Message", "查询成功！");
-            result.Add("PostResult", comm.ReturnApiPostStatus());
-            return common.GetModuleFromJobjet(result);
+            return common.GetModuleFromJobjet(result,true, "查询成功！");
         }
         //有效期规则修改
         [HttpPost]
@@ -3583,9 +3572,7 @@ namespace JianHeMES.Controllers
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
-            var jsonStr = JsonConvert.SerializeObject(data);
-            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            Warehouse_Material_ValidityPeriod record = obj.record;
+            Warehouse_Material_ValidityPeriod record = JsonConvert.DeserializeObject<Warehouse_Material_ValidityPeriod>(JsonConvert.SerializeObject(data["record"]));
             if (record != null)
             {
                 var list = db.Warehouse_Material_ValidityPeriod.Where(c => c.ID == record.ID).FirstOrDefault();
@@ -3596,28 +3583,19 @@ namespace JianHeMES.Controllers
                 int count = db.SaveChanges();
                 if (count > 0)
                 {
-                    result.Add("Result", true);
-                    result.Add("Message", "修改成功！");                  
-                    result.Add("PostResult", comm.ReturnApiPostStatus());
-                    return common.GetModuleFromJobjet(result);
+                    return common.GetModuleFromJobjet(result, true, "修改成功！");
                 }
                 else
                 {
-                    result.Add("Result", false);
-                    result.Add("Message", "修改失败！");
-                    result.Add("PostResult", comm.ReturnApiPostStatus());
-                    return common.GetModuleFromJobjet(result);
+                    return common.GetModuleFromJobjet(result, false,"修改失败！");
                 }
             }
-            result.Add("Result", false);
-            result.Add("Message", "传入数据为空！");
-            result.Add("PostResult", comm.ReturnApiPostStatus());
-            return common.GetModuleFromJobjet(result); ;
+            return common.GetModuleFromJobjet(result, false, "传入数据为空！");
         }
         //有效期规则删除
         [HttpPost]
         [ApiAuthorize]
-        public Object PeriodValidity_Delete([System.Web.Http.FromBody]JObject data)
+        public Object PeriodValidity_Del([System.Web.Http.FromBody]JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -3633,24 +3611,16 @@ namespace JianHeMES.Controllers
                 int count = db.SaveChanges();
                 if (count > 0)
                 {
-                    result.Add("Result", true);
-                    result.Add("Message", "删除成功！");
-                    result.Add("PostResult", comm.ReturnApiPostStatus());
-                    return common.GetModuleFromJobjet(result);
+                    return common.GetModuleFromJobjet(result, true, "删除成功！");
                 }
                 else {
-                    result.Add("Result", false);
-                    result.Add("Message", "删除失败！");
-                    result.Add("PostResult", comm.ReturnApiPostStatus());
-                    return common.GetModuleFromJobjet(result);
+                    return common.GetModuleFromJobjet(result, false, "删除失败！");
                 }
             }
-            result.Add("Result", false);
-            result.Add("Message", "传入参数为空！");
-            result.Add("PostResult", comm.ReturnApiPostStatus());
-            return common.GetModuleFromJobjet(result);
+            return common.GetModuleFromJobjet(result, false, "传入参数为空！");
         }
         #endregion
+
         #endregion
     }
 

@@ -230,7 +230,7 @@ namespace JianHeMES.Controllers
                     //已经有完成记录,自动添加重复记录
                     else
                     {
-                        if (db.CalibrationRecord.Count(c => c.BarCodesNum == barcode && c.Normal == true && c.OldOrderNum == barcode) != 0)
+                        if (db.CalibrationRecord.Count(c => c.BarCodesNum == barcode && c.Normal == true && c.OldBarCodesNum == barcode) != 0)
                         {
                             CalibrationRecord calibration = new CalibrationRecord() { BarCodesNum = barcode, OldBarCodesNum = barcode, OrderNum = ordernum, OldOrderNum = ordernum, ModuleGroupNum = moduleGroupNumber, BeginCalibration = begintime, FinishCalibration = endtime, Normal = normal, AbnormalDescription = failue, CalibrationDate = ctDay, CalibrationTime = timespan, CalibrationTimeSpan = TimeSpantostring, Operator = username, RepetitionCalibration = true, RepetitionCalibrationCause = recalibrationReason == null ? "系统检测已有重复，自动勾选重复" : recalibrationReason, Department1 = department, Group = "调试校正1组" };//添加重复记录
 
@@ -294,7 +294,7 @@ namespace JianHeMES.Controllers
                 catch (Exception E)
                 {
                     result.Add("Calibration_Recorded", false);
-                    result.Add("msg", "校正失败");
+                    result.Add("msg", "校正失败"+ E.Message);
                     //添加日志
                     log.Operator = "校正API";
                     log.OperateDT = DateTime.Now;
@@ -309,6 +309,12 @@ namespace JianHeMES.Controllers
                     var content = (JObject)prepare["GetModuleGroupNumber"];//读取数据
                     var barcode = content["BarcodeNumber"].ToString();//条码 
                     var ordernum = content["Ordernum"].ToString();//订单号
+                    bool sequence = true;
+                    if (content.Property("Sequence") != null)
+                    {
+                         sequence =bool.Parse( content["Sequence"].ToString());//订单号
+                    }
+                    
                     //判断是否有重复的校正
                     var module = db.CalibrationRecord.Where(c => c.BarCodesNum == barcode && c.OrderNum == ordernum).Select(c => c.ModuleGroupNum).FirstOrDefault();
                     if (module != null)
@@ -326,7 +332,15 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            return modeule;
+                            if (sequence)
+                            {
+                                return modeule;
+                            }
+                            else
+                            {
+                                var index = json.Count;
+                                return json[index - 1].ToString();
+                            }
                         }
 
                     }

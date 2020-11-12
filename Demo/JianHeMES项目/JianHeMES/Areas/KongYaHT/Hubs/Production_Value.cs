@@ -13,7 +13,7 @@ namespace JianHeMES.Areas.KongYaHT.Hubs
 { 
     #region ---------------------------------------------------------------------
 
-    [HubName("Production_Value")]
+    [HubName("Production_Value")]//产值看板
     public class Production_Value : Hub
     {
         // Is set via the constructor on each creation
@@ -70,7 +70,7 @@ namespace JianHeMES.Areas.KongYaHT.Hubs
                 ProductionControlIndexBroadcastShape,
                 null,
                 0,
-                20000);
+                10000);
         }
 
         private void ProductionControlIndexBroadcastShape(object state)
@@ -97,15 +97,24 @@ namespace JianHeMES.Areas.KongYaHT.Hubs
             ApplicationDbContext db = new ApplicationDbContext();
             CommonalityController comm = new CommonalityController();
             CommonController common = new CommonController();
-            JObject value =new  JObject();
+            JObject value = new JObject();
             JObject total = new JObject();
             var yesterday = DateTime.Now.AddDays(-1);
 
-            var temp_BasicInfo = from c in db.Packing_BasicInfo select new Temp_BasicInfo { OrderNum = c.OrderNum, Quantity = c.Quantity };
-            var temp2_BasicInfo = db.ModulePackageRule.Where(c=>c.Statue=="外箱").Select(c=> new Temp_BasicInfo { OrderNum = c.OrderNum, Quantity = c.Quantity });
-            var temp_Warehouse = from c in db.Warehouse_Join select new Temp_Warehouse { OrderNum = c.OrderNum, Date = c.Date, OuterBoxBarcode = c.OuterBoxBarcode,IsOut=c.IsOut,WarehouseOutDate=c.WarehouseOutDate,NewBarcode=c.NewBarcode,WarehouseOutNum=c.WarehouseOutNum, BarCodeNum = c.BarCodeNum,Cordernum=c.CartonOrderNum, state = c.State };
+            var temp_BasicInfo = db.Packing_BasicInfo.Where(c => c.WarehouseTime == null || c.WarehouseTime > yesterday).Select(c => new { c.OrderNum, c.Quantity }).ToList();
+            var temp2_BasicInfo = db.ModulePackageRule.Where(c=>c.Statue=="外箱").Select(c=> new Temp_BasicInfo { OrderNum = c.OrderNum, Quantity = c.Quantity }).ToList();
+            var temp_Warehouse = db.Warehouse_Join.Select(c=> new Temp_Warehouse { OrderNum = c.OrderNum, Date = c.Date, OuterBoxBarcode = c.OuterBoxBarcode,IsOut=c.IsOut,WarehouseOutDate=c.WarehouseOutDate,NewBarcode=c.NewBarcode,WarehouseOutNum=c.WarehouseOutNum, BarCodeNum = c.BarCodeNum,Cordernum=c.CartonOrderNum, state = c.State }).ToList() ;
+            var temp_packing = db.Packing_BarCodePrinting.Select(c => new { c.CartonOrderNum,c.OuterBoxBarcode }).ToList();
+            var temp_order = db.OrderMgm.Select(c => new { c.OrderNum, c.Boxes, c.Models }).ToList();
+            var temp_value = db.Production_Value.Select(c => new { c.Id, c.Worth, c.Remark,c.OrderNum }).ToList();
 
-            var productionOrder = temp_BasicInfo.Select(c => c.OrderNum).Distinct().ToList();
+            var warehouseOrder = temp_Warehouse.Select(c => c.OrderNum).Distinct().ToList();
+            var warehousenewbarcode= temp_Warehouse.Select(c => c.NewBarcode).Distinct().ToList();
+            var packingorder= temp_packing.Select(c => c.CartonOrderNum).Distinct().ToList();
+            var basicordernum= temp_BasicInfo.Select(c => c.OrderNum).Distinct().ToList();
+            var SS = warehouseOrder.Union(warehousenewbarcode).ToList();
+            var SFS = packingorder.Union(warehouseOrder.Union(warehousenewbarcode)).ToList();
+            var productionOrder = basicordernum.Intersect(packingorder.Union(warehouseOrder.Union(warehousenewbarcode))).ToList();
             int i = 0;
             List<string> first = new List<string>();
             List<string> second = new List<string>();
@@ -126,16 +135,11 @@ namespace JianHeMES.Areas.KongYaHT.Hubs
             productionOrder.AddRange(second);
             productionOrder.AddRange(three);
             //productionOrder.AddRange(mokuaiordernum);
-           var productionOrder2 = productionOrder.Union(mokuaiordernum).ToList();
+            // var productionOrder2 = productionOrder.Union(mokuaiordernum).ToList();
 
 
-            foreach (var item in productionOrder2)
+            foreach (var item in productionOrder)
             {
-
-                #region 查找当前出入库的情况
-                var temresult = common.GetCurrentwarehousList(item);
-
-                #endregion
                 if (mokuaiordernum.Contains(item))
                 {
                     //入库数量
@@ -153,11 +157,11 @@ namespace JianHeMES.Areas.KongYaHT.Hubs
                             continue;
                         }
                     }
-                    var productionvalue = db.Production_Value.Where(c => c.OrderNum == item).Select(c => new { c.Id, c.Worth, c.Remark }).FirstOrDefault();
+                    var productionvalue = temp_value.Where(c => c.OrderNum == item).Select(c => new { c.Id, c.Worth, c.Remark }).FirstOrDefault();
 
                     //订单号
                     value.Add("OrderNum", item);
-                    var moduleCount = db.OrderMgm.Where(c => c.OrderNum == item).Select(c => c.Models).FirstOrDefault();
+                    var moduleCount = temp_order.Where(c => c.OrderNum == item).Select(c => c.Models).FirstOrDefault();
                     value.Add("moduleCount", moduleCount);
                     //包装件数
                     // var quantity = db.Packing_BasicInfo.Where(c => c.OrderNum == item).Sum(c => c.Quantity);
@@ -235,85 +239,78 @@ namespace JianHeMES.Areas.KongYaHT.Hubs
                     i++;
                     value = new JObject();
                 }
-                if(productionOrder.Contains(item))
+                else
                 {
-                    var warehousJoincount = temresult.Where(c => c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.BarCodeNum).Distinct().Count();
-                    var bigJoincount = temresult.Where(c => c.CartonOrderNum == item || c.NewBarcode == item).Select(c => c.OuterBoxBarcode).Distinct().Count();
-                    var warehousOutcount = temresult.Where(c => c.IsOut == true && (c.CartonOrderNum == item || c.NewBarcode == item)).Select(c => c.BarCodeNum).Distinct().Count();
-                    var bigOutcount = temresult.Where(c => c.IsOut == true && (c.CartonOrderNum == item || c.NewBarcode == item)).Select(c => c.OuterBoxBarcode).Distinct().Count();
-                    
+                    //出库的外箱条码,挪用别人出库,或自己出库的
+                    var bigOutcount = temp_Warehouse.Where(c => c.IsOut == true && (c.Cordernum == item || c.NewBarcode == item) && c.state == "模组").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    //定义订单包装箱数
                     var baseinfo = temp_BasicInfo.Where(c => c.OrderNum == item).Sum(c => c.Quantity);
-                    if (bigOutcount == baseinfo)
-                    {
-                        var lastDate = temp_Warehouse.Where(c => c.IsOut == true && c.OrderNum == item && c.state == "模组").Max(c => c.WarehouseOutDate);
-                        if (lastDate <= yesterday)
-                        {
-                            continue;
-                        }
-                    }
-                    var productionvalue = db.Production_Value.Where(c => c.OrderNum == item).Select(c => new { c.Id, c.Worth, c.Remark }).FirstOrDefault();
-
+                    //全部都出库之后
+                   
+                    var warehousJoincount = temp_Warehouse.Where(c => (c.Cordernum == item || c.NewBarcode == item) && c.state == "模组").Select(c => c.BarCodeNum).Distinct().Count();
+                    var bigJoincount = temp_Warehouse.Where(c => (c.Cordernum == item || c.NewBarcode == item) && c.state == "模组").Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    var warehousOutcount = temp_Warehouse.Where(c => c.IsOut == true && (c.Cordernum == item || c.NewBarcode == item) && c.state == "模组").Select(c => c.BarCodeNum).Distinct().Count();
+                   
                     //订单号
                     value.Add("OrderNum", item);
-                    var moduleCount = db.OrderMgm.Where(c => c.OrderNum == item).Select(c => c.Boxes).FirstOrDefault();
+                    var moduleCount = temp_order.Where(c => c.OrderNum == item).Select(c => c.Boxes).FirstOrDefault();
                     value.Add("moduleCount", moduleCount);
-                    //包装件数
-                    // var quantity = db.Packing_BasicInfo.Where(c => c.OrderNum == item).Sum(c => c.Quantity);
+                    
                     //已包装数量
-                    var modulecount = db.Packing_BarCodePrinting.Count(c => c.CartonOrderNum == item && c.QC_Operator == null);
-                    var outhercount = db.Packing_BarCodePrinting.Where(c => c.CartonOrderNum == item && c.QC_Operator == null).Select(c => c.OuterBoxBarcode).Distinct().Count();
+                    var modulecount = temp_packing.Count(c => c.CartonOrderNum == item );
+                    var outhercount = temp_packing.Where(c => c.CartonOrderNum == item ).Select(c => c.OuterBoxBarcode).Distinct().Count();
                     value.Add("packingCount", modulecount + "(" + outhercount + "/" + baseinfo.ToString() + ")");
 
 
-                    //已入库数量.Count(c => c.OrderNum == item)
+                    //已入库数量
                     value.Add("warehousJoinCount", warehousJoincount + "(" + bigJoincount + "/" + baseinfo.ToString() + ")");
                     //已出库数量
-                    //warehousOutcount = temresult.Where(c => ).Select(c => c.BarCodeNum).Distinct().Count();
                     value.Add("warehousOutCount", warehousOutcount + "(" + bigOutcount + "/" + baseinfo.ToString() + ")");
 
                     //库存数量
-                    //var outheCount = temresult.Where(c => c.OrderNum == item && c.Date != null).Select(c => c.OuterBoxBarcode).Distinct().Count() - temresult.Where(c => c.OrderNum == item && c.IsOut == true).Select(c => c.OuterBoxBarcode).Distinct().Count();
                     var stockCount = (warehousJoincount - warehousOutcount).ToString() + "(" + (bigJoincount - bigOutcount) + ")";
                     value.Add("stockCount", stockCount);
 
                     //挪用信息
                     JArray nuoInfo = new JArray();
-                    var NewBarcode = temp_Warehouse.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode != null && c.NewBarcode != " " && c.NewBarcode != item && c.state == "模组").Select(c => c.NewBarcode).Distinct().ToList();
+                    //挪用给别人的订单列表
+                    var NewBarcode = temp_Warehouse.Where(c => c.OrderNum == item && c.IsOut == true && !string.IsNullOrEmpty(c.NewBarcode)&& c.NewBarcode != item && c.state == "模组").Select(c => c.NewBarcode).Distinct().ToList();
                     foreach (var Barcode in NewBarcode)
                     {
                         var ordernum = temp_Warehouse.Where(c => c.OrderNum == item && c.IsOut == true && c.NewBarcode == Barcode && c.state == "模组").Select(c => new { c.NewBarcode, c.OuterBoxBarcode }).ToList();
                         nuoInfo.Add("出库到" + ordernum.FirstOrDefault().NewBarcode + "订单" + ordernum.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum.Count + "件);");
                     }
+                    //挪用别人的订单列表
                     var NewBarcode2 = temp_Warehouse.Where(c => c.NewBarcode == item && c.OrderNum != c.NewBarcode && c.IsOut == true && c.state == "模组").Select(c => c.OrderNum).Distinct().ToList();
                     foreach (var Barcode in NewBarcode2)
                     {
                         var ordernum = temp_Warehouse.Where(c => c.OrderNum == Barcode && c.IsOut == true && c.NewBarcode == item && c.state == "模组").Select(c => new { c.OrderNum, c.OuterBoxBarcode }).ToList();
                         nuoInfo.Add("从" + ordernum.FirstOrDefault().OrderNum + "订单挪了" + ordernum.Select(c => c.OuterBoxBarcode).Distinct().Count() + "箱(" + ordernum.Count + "件);");
                     }
-
-
                     value.Add("nuoInfo", nuoInfo);
+
                     //入库完成率
-                    var current = temresult.Where(c => c.OrderNum == item || c.NewBarcode == item).Select(c => c.BarCodeNum).Distinct().Count();
+                   // var current = temresult.Where(c => c.OrderNum == item || c.NewBarcode == item).Select(c => c.BarCodeNum).Distinct().Count();
                     //warehousJoincount = warehousJoincount - current;
-                    var warehousJoinComplete = (moduleCount == 0 ? 0 : (decimal)(current * 100) / moduleCount).ToString("F2") + "%";
+                    var warehousJoinComplete = (moduleCount == 0 ? 0 : (decimal)(warehousJoincount * 100) / moduleCount).ToString("F2") + "%";
                     value.Add("warehousJoinComplete", warehousJoinComplete);
                     //出库完成率
                     //warehousOutcount = warehousOutcount - current;
-                    var currentout = temresult.Where(c => c.IsOut == true && (c.OrderNum == item || c.NewBarcode == item)).Select(c => c.BarCodeNum).Distinct().Count();
-                    var warehousOutComplete = (moduleCount == 0 ? 0 : (decimal)(currentout * 100) / moduleCount).ToString("F2") + "%";
+                   // var currentout = temresult.Where(c => c.IsOut == true && (c.OrderNum == item || c.NewBarcode == item)).Select(c => c.BarCodeNum).Distinct().Count();
+                    var warehousOutComplete = (moduleCount == 0 ? 0 : (decimal)(warehousOutcount * 100) / moduleCount).ToString("F2") + "%";
                     value.Add("warehousOutComplete", warehousOutComplete);
 
+                    var productionvalue = temp_value.Where(c => c.OrderNum == item).FirstOrDefault();
                     if (productionvalue == null)
                     {
                         value.Add("id", 0);
-                        //总产值
+                       // 总产值
                         value.Add("Worth", "- -");
-                        //目前入库产值
+                       // 目前入库产值
                         value.Add("warehouseJoinValue", "- -");
                         //未完成产值
                         value.Add("uncompleteValue", "- -");
-                        //备注
+                       // 备注
                         value.Add("remark", "");
                     }
                     else

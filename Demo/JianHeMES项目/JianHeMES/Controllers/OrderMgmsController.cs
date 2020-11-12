@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using static JianHeMES.Controllers.CommonalityController;
 using System.ComponentModel.DataAnnotations;
+using JianHeMES.AuthAttributes;
 
 namespace JianHeMESEntities.Controllers
 {
@@ -60,7 +61,7 @@ namespace JianHeMESEntities.Controllers
         {
             var platformTypeList = new List<SelectListItem>();
             var platformTypelist = db.OrderMgm.Select(c => c.PlatformType).Distinct();
-            foreach(var item in platformTypelist)
+            foreach (var item in platformTypelist)
             {
                 platformTypeList.Add(new SelectListItem
                 {
@@ -189,7 +190,7 @@ namespace JianHeMESEntities.Controllers
 
         //查询结果输出Excel文件
 
-　　　　public class OrdermgmsList
+        public class OrdermgmsList
         {
             [Display(Name = "订单号"), StringLength(50)]
             public string OrderNum { get; set; }
@@ -275,35 +276,35 @@ namespace JianHeMESEntities.Controllers
             }
 
             List<OrdermgmsList> Resultlist = new List<OrdermgmsList>();
-            foreach(var item in ordernums)
+            foreach (var item in ordernums)
             {
                 var record = new OrdermgmsList();
                 record.OrderNum = item.OrderNum;
                 record.CustomerName = item.CustomerName;
-                record.ContractDate = string.Format("{0:d}",item.ContractDate);
-                record.DeliveryDate = string.Format("{0:d}",item.DeliveryDate);
-                record.PlanInputTime = string.Format("{0:d}",item.PlanInputTime);
-                record.PlanCompleteTime = string.Format("{0:d}",item.PlanCompleteTime);
+                record.ContractDate = string.Format("{0:d}", item.ContractDate);
+                record.DeliveryDate = string.Format("{0:d}", item.DeliveryDate);
+                record.PlanInputTime = string.Format("{0:d}", item.PlanInputTime);
+                record.PlanCompleteTime = string.Format("{0:d}", item.PlanCompleteTime);
                 record.PlatformType = item.PlatformType;
                 record.Area = item.Area;
                 record.ProcessingRequire = item.ProcessingRequire;
                 record.StandardRequire = item.StandardRequire;
-                record.CapacityQ = item.CapacityQ == 0 ?"": item.CapacityQ.ToString();
+                record.CapacityQ = item.CapacityQ == 0 ? "" : item.CapacityQ.ToString();
                 record.HandSampleScedule = item.HandSampleScedule;
                 record.Boxes = item.Boxes;
-                record.Models = item.Models == 0 ? "" : item.Models.ToString(); 
+                record.Models = item.Models == 0 ? "" : item.Models.ToString();
                 record.Powers = item.Powers == 0 ? "" : item.Powers.ToString();
                 record.AdapterCard = item.AdapterCard == 0 ? "" : item.AdapterCard.ToString();
                 record.BarCodeCreated = item.BarCodeCreated == 0 ? "否" : "是";
                 record.BarCodeCreateDate = string.Format("{0:G}", item.BarCodeCreateDate);
                 record.BarCodeCreator = item.BarCodeCreator;
-                record.IsRepertory = item.IsRepertory==false? "否" : "是"; 
+                record.IsRepertory = item.IsRepertory == false ? "否" : "是";
                 record.Remark = item.Remark;
                 Resultlist.Add(record);
             }
             if (ordernums.Count() > 0)
             {
-                string[] columns = { "订单号", "客户名称", "下单日期", "出货日期", "计划投入时间", "计划完成时间", "平台型号", "地区", "制程要求", "标准要求", "SMT产能", "小样进度" , "模组数量", "模块数量", "电源数量", "转接卡", "模组条码是否已经生成", "模组条码生成日期", "模组条码生成者", "是否为库存", "备注" };
+                string[] columns = { "订单号", "客户名称", "下单日期", "出货日期", "计划投入时间", "计划完成时间", "平台型号", "地区", "制程要求", "标准要求", "SMT产能", "小样进度", "模组数量", "模块数量", "电源数量", "转接卡", "模组条码是否已经生成", "模组条码生成日期", "模组条码生成者", "是否为库存", "备注" };
                 byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "订单搜索记录表", false, columns);
                 return File(filecontent, ExcelExportHelper.ExcelContentType, "订单搜索记录表.xlsx");
             }
@@ -1192,7 +1193,7 @@ namespace JianHeMESEntities.Controllers
         // 详细信息，请参阅 http://go.microsoft.com/fwlink/?LinkId=317598。
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,ProcessingRequire,StandardRequire,Capacity,CapacityQ,HandSampleScedule,AssembleDepartment,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,OrderCreateDate,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm,string Department1,string Group)
+        public ActionResult Create([Bind(Include = "ID,OrderNum,BarCode_Prefix,CustomerName,ContractDate,DeliveryDate,PlanInputTime,PlanCompleteTime,PlatformType,Area,ProcessingRequire,StandardRequire,Capacity,CapacityQ,HandSampleScedule,AssembleDepartment,Boxes,Models,ModelsMore,Powers,PowersMore,AdapterCard,AdapterCardMore,OrderCreateDate,BarCodeCreated,BarCodeCreateDate,BarCodeCreator,CompletedRate,IsRepertory,Remark")] OrderMgm orderMgm, string Department1, string Group)
         {
             ViewBag.AssembleDepartmentList = AssembleDepartmentList();
             if (Session["User"] == null)
@@ -1226,7 +1227,7 @@ namespace JianHeMESEntities.Controllers
 
                 db.OrderMgm.Add(orderMgm);
                 db.SaveChanges();
-                var id = db.OrderMgm.Where(c => c.OrderNum == orderMgm.OrderNum).Select(c=>c.ID).FirstOrDefault();
+                var id = db.OrderMgm.Where(c => c.OrderNum == orderMgm.OrderNum).Select(c => c.ID).FirstOrDefault();
                 if (orderMgm.Boxes != 0)//模组
                 {
                     BarCodesController.CreateModuleGroupBarCodes(id, ((Users)Session["User"]).UserName);
@@ -1235,7 +1236,7 @@ namespace JianHeMESEntities.Controllers
                 {
                     BarCodesController.CreateModulePieceBarCodes(id, ((Users)Session["User"]).UserName); //CreateModulePieceBarCodes2();
                 }
-                if (orderMgm.Powers!=0)//电源
+                if (orderMgm.Powers != 0)//电源
                 {
                     BarCodesController.CreatePowerBarCodes(id, ((Users)Session["User"]).UserName); //CreateModulePieceBarCodes2();
                 }
@@ -1379,7 +1380,7 @@ namespace JianHeMESEntities.Controllers
                 }
             }
             //1.修改后的订单模组数>原订单模组数且模组条码已经生成，在BarCodes表追加相应的条码号
-            if (orderMgm.Models > orginal_ordermgm_ModulesNum )
+            if (orderMgm.Models > orginal_ordermgm_ModulesNum)
             {
                 int addcount = orderMgm.Models - orginal_ordermgm_ModulesNum;
                 var bc = db.BarCodes.Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模块").OrderByDescending(c => c.BarCodesNum).FirstOrDefault();
@@ -1597,13 +1598,13 @@ namespace JianHeMESEntities.Controllers
                 if (assembleCount == 0 && fqcCount == 0 && burn_inCount == 0 && calibrationCount == 0 && appearancesCount == 0 && smtCount == 0)
                 {
                     //取出订单对应的条码
-                    string sqlstring = "DELETE FROM BarCodes WHERE OrderNum='" + orderNum+"'";
+                    string sqlstring = "DELETE FROM BarCodes WHERE OrderNum='" + orderNum + "'";
                     var sqlresult = com.SQLAloneExecute(sqlstring);
                     if (sqlresult != "true")
                     {
-                        return Content("<script>alert('"+ sqlresult + "！');window.location.href='../OrderMgms/Index';</script>");
+                        return Content("<script>alert('" + sqlresult + "！');window.location.href='../OrderMgms/Index';</script>");
                     }
-                    
+
                     //删除SMT计划信息
                     var smtPlanList = db.SMT_ProductionPlan.Where(c => c.OrderNum == orderNum).ToList();
                     if (smtPlanList != null)
@@ -3556,7 +3557,7 @@ namespace JianHeMESEntities.Controllers
         //批量修改订单模组号,查看
         public ActionResult BitchSelectModulNum(string ordernum)
         {
-            var list = db.BarCodes.OrderBy(c=>c.BarCodesNum).Where(c => c.OrderNum == ordernum);
+            var list = db.BarCodes.OrderBy(c => c.BarCodesNum).Where(c => c.OrderNum == ordernum);
             JObject jobjet = new JObject();
             JArray barcode = new JArray();
             JArray module = new JArray();
@@ -3591,9 +3592,9 @@ namespace JianHeMESEntities.Controllers
                 message = message + "条码" + item.barcode + "模组号为" + barcode.ModuleGroupNum + ",修改为" + item.module;
                 barcode.ModuleGroupNum = item.module;
                 var calibrationRecord = db.CalibrationRecord.Where(c => c.BarCodesNum == item.barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == item.barcode)).ToList();
-                if (calibrationRecord .Count()!=0)
+                if (calibrationRecord.Count() != 0)
                 {
-                    calibrationRecord.ForEach(c=>c.ModuleGroupNum = item.module);
+                    calibrationRecord.ForEach(c => c.ModuleGroupNum = item.module);
                 }
 
                 var apper = db.Appearance.Where(c => c.BarCodesNum == item.barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == item.barcode)).ToList();
@@ -3612,6 +3613,1464 @@ namespace JianHeMESEntities.Controllers
             }
             else
                 return false;
+        }
+
+    }
+
+    public class OrderMgms_ApiController : System.Web.Http.ApiController
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        CommonController com = new CommonController();
+        BarCodesController BarCodesController = new BarCodesController();
+        public class UpdateModule
+        {
+            public string barcode { get; set; }
+            public string module { get; set; }
+        }
+        public class Production
+        {
+            public DateTime? BeginTime { get; set; }
+            public DateTime? EndTime { get; set; }
+            public bool Finish { get; set; }
+            public string BarcodeNum { get; set; }
+        }
+
+        #region --------------------首页
+
+
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Index([System.Web.Http.FromBody]JObject data)
+        {
+            string OrderNum = data["OrderNum"].ToString();
+            string PlatformType = data["PlatformType"].ToString();
+            var ordernums = db.OrderMgm.ToList();
+            if (!String.IsNullOrEmpty(OrderNum))
+            {
+                ordernums = ordernums.Where(m => m.OrderNum == OrderNum).ToList();
+            }
+            if (!String.IsNullOrEmpty(PlatformType))
+            {
+                ordernums = ordernums.Where(m => m.PlatformType.Contains(PlatformType)).ToList();
+            }
+            JArray result = new JArray();
+            foreach (var item in ordernums)
+            {
+                JObject obj = new JObject();
+                obj.Add("ID", item.ID);//订单
+                obj.Add("OrderNum", item.OrderNum);//订单
+                obj.Add("CustomerName", item.CustomerName);//客户名称
+                obj.Add("ContractDate", item.ContractDate);//下单日期
+                obj.Add("DeliveryDate", item.DeliveryDate);//出货日期
+                obj.Add("PlanInputTime", item.PlanInputTime);//计划投入时间
+                obj.Add("PlanCompleteTime", item.PlanCompleteTime);//计划完成时间
+                obj.Add("PlatformType", item.PlatformType);//平台型号
+                obj.Add("Area", item.Area);//地区
+                obj.Add("ProcessingRequire", item.ProcessingRequire);//制程要求
+                obj.Add("StandardRequire", item.StandardRequire);//标准要求
+                obj.Add("CapacityQ", item.CapacityQ);//SMT产能
+                obj.Add("HandSampleScedule", item.HandSampleScedule);//小样进度
+                obj.Add("Boxes", item.Boxes);//模组数量
+                obj.Add("Models", item.Models);//模块数量
+                obj.Add("Powers", item.Powers);//电源数量
+                obj.Add("AdapterCard", item.AdapterCard);//转接卡
+                obj.Add("IsRepertory", item.IsRepertory);//是否为库存
+                obj.Add("Remark", item.Remark);//备注
+                obj.Add("BarCodeCreated", item.BarCodeCreated == 1 ? true : false);//模组条码是否已经生成
+                obj.Add("BarCodeCreateDate", item.BarCodeCreateDate);//模组条码生成日期
+                obj.Add("BarCodeCreator", item.BarCodeCreator);//模组条码生成着
+                result.Add(obj);
+            }
+            return com.GetModuleFromJarray(result);
+
+        }
+        #endregion
+
+        /*
+         //查询结果输出Excel文件
+
+         public class OrdermgmsList
+         {
+             [Display(Name = "订单号"), StringLength(50)]
+             public string OrderNum { get; set; }
+
+             [Display(Name = "客户名称"), StringLength(50)]
+             public string CustomerName { get; set; }
+
+             [Display(Name = "下单日期")]
+             public string ContractDate { get; set; }
+
+             [Display(Name = "出货日期")]
+             public string DeliveryDate { get; set; }
+
+             [Display(Name = "计划投入时间")]
+             public string PlanInputTime { get; set; }
+
+             [Display(Name = "计划完成时间")]
+             public string PlanCompleteTime { get; set; }
+
+             [Display(Name = "平台型号")]
+             public string PlatformType { get; set; }
+
+             [Display(Name = "地区")]
+             public string Area { get; set; }
+
+             [Display(Name = "制程要求")]//有铅，无铅
+             public string ProcessingRequire { get; set; }
+
+             [Display(Name = "标准要求"), StringLength(50)] //商用，军用
+             public string StandardRequire { get; set; }
+
+             [Display(Name = "SMT产能")]
+             public string CapacityQ { get; set; }
+
+             [Display(Name = "小样进度"), StringLength(50)]
+             public string HandSampleScedule { get; set; }
+
+             [Display(Name = "模组数量")]
+             public int Boxes { get; set; }
+
+             [Display(Name = "模块数量")]
+             public string Models { get; set; }
+
+             [Display(Name = "电源数量")]
+             public string Powers { get; set; }
+
+             [Display(Name = "转接卡")]
+             public string AdapterCard { get; set; }
+
+             [Display(Name = "模组条码是否已经生成")]
+             public string BarCodeCreated { get; set; }
+
+             [Display(Name = "模组条码生成日期")]
+             public string BarCodeCreateDate { get; set; }
+
+             [Display(Name = "模组条码生成者"), StringLength(50)]
+             public string BarCodeCreator { get; set; }
+
+             [Display(Name = "是否为库存")]
+             public string IsRepertory { get; set; }
+
+             [Display(Name = "备注"), StringLength(500)]
+             public string Remark { get; set; }
+         }
+
+         [HttpPost]
+         public ActionResult IndexQueryToExcel(string OrderNum, string searchString, string PlatformType, int PageIndex = 0)
+         {
+             var ordernums = db.OrderMgm as IQueryable<OrderMgm>;
+             if (!String.IsNullOrEmpty(OrderNum))
+             {
+                 ordernums = ordernums.Where(m => m.OrderNum == OrderNum);
+             }
+
+             if (!String.IsNullOrEmpty(searchString))
+             {
+                 ordernums = ordernums.Where(m => m.OrderNum.Contains(searchString));
+             }
+
+             if (!String.IsNullOrEmpty(PlatformType))
+             {
+                 ordernums = ordernums.Where(m => m.PlatformType.Contains(PlatformType));
+             }
+
+             List<OrdermgmsList> Resultlist = new List<OrdermgmsList>();
+             foreach (var item in ordernums)
+             {
+                 var record = new OrdermgmsList();
+                 record.OrderNum = item.OrderNum;
+                 record.CustomerName = item.CustomerName;
+                 record.ContractDate = string.Format("{0:d}", item.ContractDate);
+                 record.DeliveryDate = string.Format("{0:d}", item.DeliveryDate);
+                 record.PlanInputTime = string.Format("{0:d}", item.PlanInputTime);
+                 record.PlanCompleteTime = string.Format("{0:d}", item.PlanCompleteTime);
+                 record.PlatformType = item.PlatformType;
+                 record.Area = item.Area;
+                 record.ProcessingRequire = item.ProcessingRequire;
+                 record.StandardRequire = item.StandardRequire;
+                 record.CapacityQ = item.CapacityQ == 0 ? "" : item.CapacityQ.ToString();
+                 record.HandSampleScedule = item.HandSampleScedule;
+                 record.Boxes = item.Boxes;
+                 record.Models = item.Models == 0 ? "" : item.Models.ToString();
+                 record.Powers = item.Powers == 0 ? "" : item.Powers.ToString();
+                 record.AdapterCard = item.AdapterCard == 0 ? "" : item.AdapterCard.ToString();
+                 record.BarCodeCreated = item.BarCodeCreated == 0 ? "否" : "是";
+                 record.BarCodeCreateDate = string.Format("{0:G}", item.BarCodeCreateDate);
+                 record.BarCodeCreator = item.BarCodeCreator;
+                 record.IsRepertory = item.IsRepertory == false ? "否" : "是";
+                 record.Remark = item.Remark;
+                 Resultlist.Add(record);
+             }
+             if (ordernums.Count() > 0)
+             {
+                 string[] columns = { "订单号", "客户名称", "下单日期", "出货日期", "计划投入时间", "计划完成时间", "平台型号", "地区", "制程要求", "标准要求", "SMT产能", "小样进度", "模组数量", "模块数量", "电源数量", "转接卡", "模组条码是否已经生成", "模组条码生成日期", "模组条码生成者", "是否为库存", "备注" };
+                 byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "订单搜索记录表", false, columns);
+                 return File(filecontent, ExcelExportHelper.ExcelContentType, "订单搜索记录表.xlsx");
+             }
+             else
+             {
+                 OrdermgmsList at1 = new OrdermgmsList();
+                 at1.OrderNum = "没有找到相关记录！";
+                 Resultlist.Add(at1);
+                 string[] columns = { "订单号", "客户名称", "下单日期", "出货日期", "计划投入时间", "计划完成时间", "平台型号", "地区", "制程要求", "标准要求", "SMT产能", "小样进度", "模组数量", "模块数量", "电源数量", "转接卡", "模组条码是否已经生成", "模组条码生成日期", "模组条码生成者", "是否为库存", "备注" };
+                 byte[] filecontent = ExcelExportHelper.ExportExcel(Resultlist, "订单搜索记录表", false, columns);
+                 return File(filecontent, ExcelExportHelper.ExcelContentType, "订单搜索记录表.xlsx");
+             }
+         }
+
+
+         [HttpPost]
+         public ActionResult IndexQueryToExcel2(string OrderNum, string searchString, string PlatformType, int PageIndex = 0)
+         {
+             var ordernums = db.OrderMgm as IQueryable<OrderMgm>;
+             if (!String.IsNullOrEmpty(OrderNum))
+             {
+                 ordernums = ordernums.Where(m => m.OrderNum == OrderNum);
+             }
+
+             if (!String.IsNullOrEmpty(searchString))
+             {
+                 ordernums = ordernums.Where(m => m.OrderNum.Contains(searchString));
+             }
+
+             if (!String.IsNullOrEmpty(PlatformType))
+             {
+                 ordernums = ordernums.Where(m => m.PlatformType.Contains(PlatformType));
+             }
+             List<OrdermgmsList> Resultlist = new List<OrdermgmsList>();
+             foreach (var item in ordernums)
+             {
+                 var record = new OrdermgmsList();
+                 record.OrderNum = item.OrderNum;
+                 record.CustomerName = item.CustomerName;
+                 record.ContractDate = string.Format("{0:d}", item.ContractDate);
+                 record.DeliveryDate = string.Format("{0:d}", item.DeliveryDate);
+                 record.PlanInputTime = string.Format("{0:d}", item.PlanInputTime);
+                 record.PlanCompleteTime = string.Format("{0:d}", item.PlanCompleteTime);
+                 record.PlatformType = item.PlatformType;
+                 record.Area = item.Area;
+                 record.ProcessingRequire = item.ProcessingRequire;
+                 record.StandardRequire = item.StandardRequire;
+                 record.CapacityQ = item.CapacityQ == 0 ? "" : item.CapacityQ.ToString();
+                 record.HandSampleScedule = item.HandSampleScedule;
+                 record.Boxes = item.Boxes;
+                 record.Models = item.Models == 0 ? "" : item.Models.ToString();
+                 record.Powers = item.Powers == 0 ? "" : item.Powers.ToString();
+                 record.AdapterCard = item.AdapterCard == 0 ? "" : item.AdapterCard.ToString();
+                 record.BarCodeCreated = item.BarCodeCreated == 0 ? "否" : "是";
+                 record.BarCodeCreateDate = string.Format("{0:G}", item.BarCodeCreateDate);
+                 record.BarCodeCreator = item.BarCodeCreator;
+                 record.IsRepertory = item.IsRepertory == false ? "否" : "是";
+                 record.Remark = item.Remark;
+                 Resultlist.Add(record);
+             }
+             return new ExcelResult<OrdermgmsList>(Resultlist);
+
+         }
+
+         #endregion
+         */
+
+        #region --------------------Details页
+
+        //详细页
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Details([System.Web.Http.FromBody]JObject data)
+        {
+            int id = int.Parse(data["id"].ToString());
+            JObject result = new JObject();
+            OrderMgm orderMgm = db.OrderMgm.Find(id);
+            if (orderMgm == null)
+            {
+                //没有信息
+                return com.GetModuleFromJobjet(null);
+            }
+            #region ----------订单详细信息
+            result.Add("OrderNum", orderMgm.OrderNum);//订单
+            result.Add("CustomerName", orderMgm.CustomerName);//客户名称
+            result.Add("ContractDate", orderMgm.ContractDate);//下单日期
+            result.Add("DeliveryDate", orderMgm.DeliveryDate);//出货日期
+            result.Add("PlanInputTime", orderMgm.PlanInputTime);//计划投入时间
+            result.Add("PlanCompleteTime", orderMgm.PlanCompleteTime);//计划完成时间
+            result.Add("PlatformType", orderMgm.PlatformType);//平台型号
+            result.Add("Area", orderMgm.Area);//地区
+            result.Add("ProcessingRequire", orderMgm.ProcessingRequire);//制程要求
+            result.Add("StandardRequire", orderMgm.StandardRequire);//标准要求
+            result.Add("HandSampleScedule", orderMgm.HandSampleScedule);//小样进度
+            result.Add("IsRepertory", orderMgm.IsRepertory);//是否为库存
+            result.Add("OrderCreateDate", orderMgm.OrderCreateDate);//订单生产日期
+            result.Add("Remark", orderMgm.Remark);//备注
+            result.Add("BarCodeCreated", orderMgm.BarCodeCreated);//生成人员
+            result.Add("BarCodeCreateDate", orderMgm.BarCodeCreateDate);//模组条码生成日期
+            #endregion
+
+            #region ----------订单条码生成情况
+            //模组 
+            result.Add("Boxes", orderMgm.Boxes);//数量
+            result.Add("BarCodeCreated", orderMgm.BarCodeCreated == 1 ? true : false);//是否已经生成
+            //模块
+            result.Add("Models", orderMgm.Models);//数量
+            result.Add("ModulePieceBarCodeCreated", orderMgm.ModulePieceBarCodeCreated == 1 ? true : false);//是否已经生成
+            //电源
+            result.Add("Powers", orderMgm.Powers);//数量
+            result.Add("PowerBarCodeCreated", orderMgm.PowerBarCodeCreated == 1 ? true : false);//是否已经生成
+            //转接卡
+            result.Add("AdapterCard", orderMgm.AdapterCard);//数量
+            result.Add("AdapterCardBarCodeCreated", orderMgm.AdapterCardBarCodeCreated == 1 ? true : false);//是否已经生成
+            #endregion
+
+            #region----------订单首件异常详细信息
+            JArray specialArray = new JArray();
+            JObject FirstAndAbnormal = new JObject();
+            #region SMT首件
+            FirstAndAbnormal.Add("Name", "SMT首件");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsSMTFirstSample);//项目名是否勾选
+            if (orderMgm.IsSMTFirstSample)
+            {
+                FirstAndAbnormal.Add("Reason", "状态:" + orderMgm.SMTFirstSample_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.SMTFirstSampleConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.SMTFirstSampleDate);//转单时间
+                string SMT_directory = "D:\\MES_Data\\SMTSample_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, SMT_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region SMT异常
+            FirstAndAbnormal.Add("Name", "SMT异常");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsSMTAbnormal);//项目名是否勾选
+            if (orderMgm.IsSMTAbnormal)
+            {
+                FirstAndAbnormal.Add("Reason", "原因:" + orderMgm.SMTAbnormal_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.SMTAbnormalConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.SMTAbnormalConvertDate);//转单时间
+                string SMTAbnormalOrder_directory = "D:\\MES_Data\\SMTAbnormalOrder_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, SMTAbnormalOrder_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 特采订单
+            FirstAndAbnormal.Add("Name", "特采订单");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsAOD);//项目名是否勾选
+            if (orderMgm.IsAOD)
+            {
+                FirstAndAbnormal.Add("Reason", "原因:" + orderMgm.AOD_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.AODConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.AODConvertDate);//转单时间
+                string directory = "D:\\MES_Data\\AOD_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 组装首件
+            FirstAndAbnormal.Add("Name", "组装首件");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsAssembleFirstSample);//项目名是否勾选
+            if (orderMgm.IsAssembleFirstSample)
+            {
+                FirstAndAbnormal.Add("Reason", "状态:" + orderMgm.AssembleFirstSample_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.AssembleFirstSampleConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.AssembleFirstSampleDate);//转单时间
+                string Assemble_directory = "D:\\MES_Data\\AssembleSample_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, Assemble_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 组装异常
+            FirstAndAbnormal.Add("Name", "组装异常");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsAssembleAbnormal);//项目名是否勾选
+            if (orderMgm.IsAssembleAbnormal)
+            {
+                FirstAndAbnormal.Add("Reason", "原因:" + orderMgm.AssembleAbnormal_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.AssembleAbnormalConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.AssembleAbnormalConvertDate);//转单时间
+                string AssembleAbnormalOrder_directory = "D:\\MES_Data\\AssembleAbnormalOrder_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, AssembleAbnormalOrder_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 老化首件
+            FirstAndAbnormal.Add("Name", "老化首件");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsBurnInFirstSample);//项目名是否勾选
+            if (orderMgm.IsBurnInFirstSample)
+            {
+                FirstAndAbnormal.Add("Reason", "状态:" + orderMgm.BurnInFirstSample_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.BurnInFirstSampleConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.BurnInFirstSampleDate);//转单时间
+                string BurnIn_directory = "D:\\MES_Data\\BurnInSample_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, BurnIn_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 老化异常
+            FirstAndAbnormal.Add("Name", "老化异常");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsBurninAbnormal);//项目名是否勾选
+            if (orderMgm.IsBurninAbnormal)
+            {
+                FirstAndAbnormal.Add("Reason", "原因:" + orderMgm.BurninAbnormal_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.BurninAbnormalConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.BurninAbnormalConvertDate);//转单时间
+                string BurnInAbnormalOrder_directory = "D:\\MES_Data\\BurnInAbnormalOrder_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, BurnInAbnormalOrder_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 包装首件
+            FirstAndAbnormal.Add("Name", "包装首件");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsAppearanceFirstSample);//项目名是否勾选
+            if (orderMgm.IsAppearanceFirstSample)
+            {
+                FirstAndAbnormal.Add("Reason", "状态:" + orderMgm.AppearanceFirstSample_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.AppearanceFirstSampleConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.AppearanceFirstSampleDate);//转单时间
+                string Appearance_directory = "D:\\MES_Data\\AppearanceSample_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, Appearance_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            #region 包装异常
+            FirstAndAbnormal.Add("Name", "包装异常");//项目名
+            FirstAndAbnormal.Add("Having", orderMgm.IsAppearanceAbnormal);//项目名是否勾选
+            if (orderMgm.IsAppearanceAbnormal)
+            {
+                FirstAndAbnormal.Add("Reason", "原因:" + orderMgm.AppearanceAbnormal_Description);//原因
+                FirstAndAbnormal.Add("Createor", orderMgm.AppearanceAbnormalConverter);//转单人
+                FirstAndAbnormal.Add("CreateTime", orderMgm.AppearanceAbnormalConvertDate);//转单时间
+                string AppearanceAbnormalOrder_directory = "D:\\MES_Data\\AppearanceAbnormalOrder_Files\\" + orderMgm.OrderNum;
+                var info = FirestAndAB(orderMgm.OrderNum, AppearanceAbnormalOrder_directory);
+                FirstAndAbnormal.Add("PDF", info["PDF"]);//是否有PDF,有传pdf文件名,没有传null
+                FirstAndAbnormal.Add("JPG", info["JPG"]);//是否有JPG,有传图片名,数组,没有传null
+            }
+            else
+            {
+                FirstAndAbnormal.Add("Reason", null);//原因
+                FirstAndAbnormal.Add("Createor", null);//转单人
+                FirstAndAbnormal.Add("CreateTime", null);//转单时间
+                FirstAndAbnormal.Add("PDF", null);//是否有PDF
+                FirstAndAbnormal.Add("JPG", null);//是否有JPG
+            }
+            specialArray.Add(FirstAndAbnormal);
+            FirstAndAbnormal = new JObject();
+
+            #endregion
+            result.Add("Special", specialArray);
+            #endregion
+
+            #region----------订单各工段详细信息
+            JArray productionArray = new JArray();
+            JObject productionJson = new JObject();
+            int modelGroupQuantity = db.OrderMgm.Where(c => c.OrderNum == orderMgm.OrderNum).FirstOrDefault().Boxes;//订单模组数量
+
+            #region----------订单在组装的统计数据
+            //订单在组装的全部记录
+            var assembleRecord = db.Assemble.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum) && c.RepetitionPQCCheck == false).Select(c => new Production { BarcodeNum = c.BoxBarCode, BeginTime = c.PQCCheckBT, EndTime = c.PQCCheckFT, Finish = c.PQCCheckFinish }).ToList();
+            var PQC = ProductionItemModule(orderMgm.OrderNum, modelGroupQuantity, assembleRecord);
+            productionJson.Add("BeginTime", PQC["BeginTime"]); //开始时间
+            productionJson.Add("EndTime", PQC["EndTime"]);//最后时间
+            productionJson.Add("FinishTime", PQC["FinishTime"]);//完成时间
+            productionJson.Add("NewTime", PQC["NewTime"]);//时长
+            productionJson.Add("FirstPassYieldCount", PQC["FirstPassYieldCount"]);//直通数
+            productionJson.Add("FirstPassYield_Rate", PQC["FirstPassYield_Rate"]);//直通率
+            productionJson.Add("PassYieldCount", PQC["PassYieldCount"]);//正常数
+            productionJson.Add("FinisthRate", PQC["FinisthRate"]);//完成率
+            productionJson.Add("PassRate", PQC["PassRate"]);//合格率
+            productionArray.Add(productionJson);
+            productionJson = new JObject();
+            #endregion
+
+            #region----------订单在FQC的统计数据
+            var FinalQCRecord = db.FinalQC.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum) && c.RepetitionFQCCheck == false).Select(c => new Production { BarcodeNum = c.BarCodesNum, BeginTime = c.FQCCheckBT, EndTime = c.FQCCheckFT, Finish = c.FQCCheckFinish }).ToList();//订单在组装的全部记录
+            var FQC = ProductionItemModule(orderMgm.OrderNum, modelGroupQuantity, FinalQCRecord);
+            productionJson.Add("BeginTime", FQC["BeginTime"]); //开始时间
+            productionJson.Add("EndTime", FQC["EndTime"]);//最后时间
+            productionJson.Add("FinishTime", FQC["FinishTime"]);//完成时间
+            productionJson.Add("NewTime", FQC["NewTime"]);//时长
+            productionJson.Add("FirstPassYieldCount", FQC["FirstPassYieldCount"]);//直通数
+            productionJson.Add("FirstPassYield_Rate", FQC["FirstPassYield_Rate"]);//直通率
+            productionJson.Add("PassYieldCount", FQC["PassYieldCount"]);//正常数
+            productionJson.Add("FinisthRate", FQC["FinisthRate"]);//完成率
+            productionJson.Add("PassRate", FQC["PassRate"]);//合格率
+            productionArray.Add(productionJson);
+            productionJson = new JObject();
+            #endregion
+
+            #region----------订单在老化的统计数据
+            var burn_inRecord = db.Burn_in.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum)).Select(c => new Production { BarcodeNum = c.BarCodesNum, BeginTime = c.OQCCheckBT, EndTime = c.OQCCheckFT, Finish = c.OQCCheckFinish }).ToList();//订单在老化的全部记录
+            var Burnin = ProductionItemModule(orderMgm.OrderNum, modelGroupQuantity, burn_inRecord);
+            productionJson.Add("BeginTime", Burnin["BeginTime"]); //开始时间
+            productionJson.Add("EndTime", Burnin["EndTime"]);//最后时间
+            productionJson.Add("FinishTime", Burnin["FinishTime"]);//完成时间
+            productionJson.Add("NewTime", Burnin["NewTime"]);//时长
+            productionJson.Add("FirstPassYieldCount", Burnin["FirstPassYieldCount"]);//直通数
+            productionJson.Add("FirstPassYield_Rate", Burnin["FirstPassYield_Rate"]);//直通率
+            productionJson.Add("PassYieldCount", Burnin["PassYieldCount"]);//正常数
+            productionJson.Add("FinisthRate", Burnin["FinisthRate"]);//完成率
+            productionJson.Add("PassRate", Burnin["PassRate"]);//合格率
+            productionArray.Add(productionJson);
+            productionJson = new JObject();
+            #endregion
+
+            #region----------订单在校正的统计数据
+            var calibrationRecord = db.CalibrationRecord.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum) && c.RepetitionCalibration == false).Select(c => new Production { BarcodeNum = c.BarCodesNum, BeginTime = c.BeginCalibration, EndTime = c.FinishCalibration, Finish = c.Normal }).ToList();//订单在校正的全部记录
+            var Calibra = ProductionItemModule(orderMgm.OrderNum, modelGroupQuantity, calibrationRecord);
+            productionJson.Add("BeginTime", Calibra["BeginTime"]); //开始时间
+            productionJson.Add("EndTime", Calibra["EndTime"]);//最后时间
+            productionJson.Add("FinishTime", Calibra["FinishTime"]);//完成时间
+            productionJson.Add("NewTime", Calibra["NewTime"]);//时长
+            productionJson.Add("FirstPassYieldCount", Calibra["FirstPassYieldCount"]);//直通数
+            productionJson.Add("FirstPassYield_Rate", Calibra["FirstPassYield_Rate"]);//直通率
+            productionJson.Add("PassYieldCount", Calibra["PassYieldCount"]);//正常数
+            productionJson.Add("FinisthRate", Calibra["FinisthRate"]);//完成率
+            productionJson.Add("PassRate", Calibra["PassRate"]);//合格率
+            productionArray.Add(productionJson);
+            productionJson = new JObject();
+            #endregion
+
+            #region----------订单在外观包装的统计数据
+            var appearanceRecord = db.Appearance.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum)).Select(c => new Production { BarcodeNum = c.BarCodesNum, BeginTime = c.OQCCheckBT, EndTime = c.OQCCheckFT, Finish = c.OQCCheckFinish }).ToList();//订单在包装的全部记录
+            var Appearance = ProductionItemModule(orderMgm.OrderNum, modelGroupQuantity, appearanceRecord);
+            productionJson.Add("BeginTime", Appearance["BeginTime"]); //开始时间
+            productionJson.Add("EndTime", Appearance["EndTime"]);//最后时间
+            productionJson.Add("FinishTime", Appearance["FinishTime"]);//完成时间
+            productionJson.Add("NewTime", Appearance["NewTime"]);//时长
+            productionJson.Add("FirstPassYieldCount", Appearance["FirstPassYieldCount"]);//直通数
+            productionJson.Add("FirstPassYield_Rate", Appearance["FirstPassYield_Rate"]);//直通率
+            productionJson.Add("PassYieldCount", Appearance["PassYieldCount"]);//正常数
+            productionJson.Add("FinisthRate", Appearance["FinisthRate"]);//完成率
+            productionJson.Add("PassRate", Appearance["PassRate"]);//合格率
+            productionArray.Add(productionJson);
+            productionJson = new JObject();
+            #endregion
+            result.Add("Production", productionArray);
+            #endregion
+
+
+            #region----------组装、FQC工段按线别分类输出条码清单
+            JArray ProductionGroup = new JArray();
+            //拿到pqc完成的线别集合
+            var pqcline = db.Assemble.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum) && c.RepetitionPQCCheck == false && c.PQCCheckFinish == true).Select(c => c.AssembleLineId).Distinct().ToList();
+            foreach (var item in pqcline)
+            {
+                JObject line = new JObject();
+                var barcodeline = db.Assemble.Where(c => c.OrderNum == orderMgm.OrderNum && (c.OldOrderNum == null || c.OldOrderNum == orderMgm.OrderNum) && c.RepetitionPQCCheck == false && c.PQCCheckFinish == true && c.AssembleLineId == item).Select(c => c.BoxBarCode).Distinct().ToList();
+                line.Add("Line", item);
+                line.Add("BarcodeList", JsonConvert.DeserializeObject<JArray>(JsonConvert.SerializeObject(barcodeline)));
+                ProductionGroup.Add(line);
+            }
+            result.Add("ProductionGroup", ProductionGroup);
+            #endregion
+
+            return com.GetModuleFromJobjet(result);
+        }
+        //是否有转异常单,或者小样模型(后台用)
+        private JObject FirestAndAB(string OrderNum, string path)
+        {
+            JObject result = new JObject();
+            if (Directory.Exists(path) == true)
+            {
+                result.Add("Directory", true);//是否有上传文件
+
+                //检查包装首件pdf文件是否存在
+                string SMT_pdfFile = "D:\\MES_Data\\SMTSample_Files\\" + OrderNum + "\\" + OrderNum + "_SMTSample.pdf";
+                if (System.IO.File.Exists(@SMT_pdfFile) == true)
+                {
+                    result.Add("PDf", true);//是否有上传PDF文件,pdf的文件名固定是orderMgm.OrderNum + "_SMTSample.pdf"
+                }
+                List<FileInfo> SMT_filesInfo = new List<FileInfo>();
+                JArray SMT_json = new JArray();
+                SMT_filesInfo = GetAllFilesInDirectory(path);
+                SMT_filesInfo = SMT_filesInfo.Where(c => c.Name.StartsWith(OrderNum + "_SMTSample") && (c.Name.Substring(c.Name.Length - 4, 4) == ".jpg" || c.Name.Substring(c.Name.Length - 5, 5) == ".jpeg")).ToList();
+
+                foreach (var item in SMT_filesInfo)
+                {
+                    SMT_json.Add(item.Name);
+                }
+                result.Add("JPG", SMT_json);//图片名字合集,有可能为空值
+            }
+            else
+            {
+                result.Add("Directory", false);
+                result.Add("PDf", false);
+                result.Add("JPG", null);
+            }
+            return result;
+        }
+        //各工段信息模型(后台用)
+        private JObject ProductionItemModule(string OrderNum, int modelGroupQuantity, List<Production> value)
+        {
+            JObject result = new JObject();
+            //开始时间 
+            var begintime = value.Min(c => c.BeginTime);
+            result.Add("BeginTime", begintime.ToString());//开始时间
+
+            //最后时间
+            var endtime = value.Max(c => c.EndTime);
+            result.Add("EndTime", endtime.ToString());//最后时间
+
+            //完成时间
+            DateTime? finishtime = new DateTime();
+            if (value.Count(c => c.Finish == true) == modelGroupQuantity)
+            {
+                finishtime = endtime;
+            }
+            else
+            {
+                finishtime = null;
+            }
+            result.Add("FinishTime", finishtime.ToString());//完成时间
+
+            //作业时长
+            var newtime = endtime - begintime;//目前时长
+            result.Add("NewTime", newtime.ToString());//目前时长
+
+            //直通个数
+
+            //含有异常记录的条码列表
+            var NotFirstPassYield = value.Where(c => c.Finish == false).Select(c => c.BarcodeNum).Distinct().ToList();
+            //含有异常的正常记录的条码列表
+            var PassYield = value.Select(c => c.BarcodeNum).Distinct().ToList();
+            //将含有异常和正常记录的条码剔除掉含有异常记录的条码,拿到一次正常的条码列表
+            var FirstPassYield = PassYield.Except(NotFirstPassYield).ToList();//直通条码记录
+            var FirstPassYieldCount = FirstPassYield.Count();//直通个数
+            result.Add("FirstPassYieldCount", FirstPassYieldCount);//直通个数
+            if (FirstPassYieldCount == 0)
+            {
+                result.Add("FirstPassYield_Rate", "");//直通率
+            }
+            else
+            {
+                var FirstPassYield_Rate = (Convert.ToDouble(FirstPassYieldCount) / modelGroupQuantity * 100).ToString("F2");//直通率：直通数/模组数
+                result.Add("FirstPassYield_Rate", FirstPassYield_Rate);//直通率
+            }
+
+            //正常个数
+            int PassYieldCount = value.Where(c => c.Finish == true).Select(c => c.BarcodeNum).Distinct().Count();
+            result.Add("PassYieldCount", PassYieldCount.ToString());//正常个数
+            if (PassYieldCount == 0)
+            {
+                result.Add("FinisthRate", "");//完成率
+                result.Add("PassRate", "");//合格率
+            }
+            else
+            {
+                var finisthRate = (Convert.ToDouble(PassYieldCount) / modelGroupQuantity * 100).ToString("F2");//完成率：完成数/订单的模组数
+                result.Add("FinisthRate", finisthRate);//完成率
+                                                       //合格率
+                var passRate = (Convert.ToDouble(PassYieldCount) / PassYield.Count * 100).ToString("F2");//合格率：完成数/记录数
+                result.Add("PassRate", passRate);//合格率
+            }
+            return result;
+        }
+
+        #region --------------------返回指定目录下所有文件信息
+        /// <summary>  
+        /// 返回指定目录下所有文件信息  
+        /// </summary>  
+        /// <param name="strDirectory">目录字符串</param>  
+        /// <returns></returns>  
+        public List<FileInfo> GetAllFilesInDirectory(string strDirectory)
+        {
+            List<FileInfo> listFiles = new List<FileInfo>(); //保存所有的文件信息  
+            DirectoryInfo directory = new DirectoryInfo(strDirectory);
+            DirectoryInfo[] directoryArray = directory.GetDirectories();
+            FileInfo[] fileInfoArray = directory.GetFiles();
+            if (fileInfoArray.Length > 0) listFiles.AddRange(fileInfoArray);
+            foreach (DirectoryInfo _directoryInfo in directoryArray)
+            {
+                DirectoryInfo directoryA = new DirectoryInfo(_directoryInfo.FullName);
+                DirectoryInfo[] directoryArrayA = directoryA.GetDirectories();
+                FileInfo[] fileInfoArrayA = directoryA.GetFiles();
+                if (fileInfoArrayA.Length > 0) listFiles.AddRange(fileInfoArrayA);
+                GetAllFilesInDirectory(_directoryInfo.FullName);//递归遍历  
+            }
+            return listFiles;
+        }
+        #endregion
+        #endregion
+
+
+        #region --------------------Create页
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Create([System.Web.Http.FromBody]JObject data)
+        {
+            OrderMgm orderMgm = JsonConvert.DeserializeObject<OrderMgm>(JsonConvert.SerializeObject(data["orderMgm"]));
+            string UserName = data["UserName"].ToString();
+            if (db.OrderMgm.Count(c => c.OrderNum == orderMgm.OrderNum) > 0)
+            {
+                ModelState.AddModelError("", "此订单号已存在，如订单信息有误，请进入订单详情修改信息！");
+
+            }
+            //设置条码生成状态为0，表示未生成订单条码
+            orderMgm.BarCodeCreated = 0;
+            var small = db.Small_Sample.Where(c => c.OrderNumber.Contains(orderMgm.OrderNum)).FirstOrDefault();
+            if (small != null)
+            {
+                if (small.ApprovedResult == true)
+                    orderMgm.HandSampleScedule = "完成";
+                else
+                    orderMgm.HandSampleScedule = "进行中";
+            }
+            else
+            {
+                orderMgm.HandSampleScedule = "未开始";
+            }
+            orderMgm.OrderCreateDate = DateTime.Now;
+            if (ModelState.IsValid)
+            {
+                db.OrderMgm.Add(orderMgm);
+                db.SaveChanges();
+                var id = db.OrderMgm.Where(c => c.OrderNum == orderMgm.OrderNum).Select(c => c.ID).FirstOrDefault();
+                if (orderMgm.Boxes != 0)//模组
+                {
+                    BarCodesController.CreateModuleGroupBarCodes(id, UserName);
+                }
+                if (orderMgm.Models != 0)//模块
+                {
+                    BarCodesController.CreateModulePieceBarCodes(id, UserName); //CreateModulePieceBarCodes2();
+                }
+                if (orderMgm.Powers != 0)//电源
+                {
+                    BarCodesController.CreatePowerBarCodes(id, UserName); //CreateModulePieceBarCodes2();
+                }
+                if (orderMgm.AdapterCard != 0)//转接卡
+                {
+                    BarCodesController.CreateAdapterCardBarCodes(id, UserName); //CreateModulePieceBarCodes2();
+                }
+                return com.GetModuleFromJarray(null, true, "创建成功");
+            }
+            return com.GetModuleFromJarray(null, false, "创建失败");
+        }
+        #endregion
+
+        #region --------------------Edit页
+
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Edit([System.Web.Http.FromBody]JObject data)
+        {
+            OrderMgm orderMgm = JsonConvert.DeserializeObject<OrderMgm>(JsonConvert.SerializeObject(data["orderMgm"]));
+            string UserName = data["UserName"].ToString();
+            int orginal_ordermgm_BoxsNum = (from m in db.OrderMgm where m.OrderNum == orderMgm.OrderNum select m.Boxes).SingleOrDefault();
+            int orginal_ordermgm_ModulesNum = (from m in db.OrderMgm where m.OrderNum == orderMgm.OrderNum select m.Models).SingleOrDefault();
+
+            //1.修改后的订单模组数>原订单模组数且模组条码已经生成，在BarCodes表追加相应的条码号
+            if (orderMgm.Boxes > orginal_ordermgm_BoxsNum && orderMgm.BarCodeCreated == 1)
+            {
+                int addcount = orderMgm.Boxes - orginal_ordermgm_BoxsNum;
+                var bc = db.BarCodes.Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模组").OrderByDescending(c => c.BarCodesNum).FirstOrDefault();
+                if (bc == null)
+                {
+                    List<BarCodes> barCodes = new List<BarCodes>();
+                    //生成模组条码
+                    for (int i = 1; i <= orderMgm.Boxes; i++)
+                    {
+                        BarCodes aBarCode = new BarCodes();
+                        aBarCode.OrderNum = orderMgm.OrderNum;
+                        aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                        aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                        aBarCode.BarCodeType = "模组";
+                        aBarCode.Creator = UserName;
+                        aBarCode.CreateDate = DateTime.Now;
+                        aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
+                        barCodes.Add(aBarCode);
+                    }
+                    if (com.BulkInsert<BarCodes>("BarCodes", barCodes) == "false")
+                    {
+                        return com.GetModuleFromJobjet(null, false, "模组创建失败，请确保表与模型相符");
+                    }
+                }
+                else
+                {
+                    BarCodes barcode = new BarCodes { OrderNum = bc.OrderNum, ToOrderNum = bc.ToOrderNum, BarCode_Prefix = bc.BarCode_Prefix, BarCodesNum = bc.BarCodesNum, BarCodeType = bc.BarCodeType, CreateDate = DateTime.Now, Creator = bc.Creator, IsRepertory = bc.IsRepertory, Remark = bc.Remark };
+                    for (int i = 1; i <= addcount; i++)
+                    {
+                        string s = barcode.BarCodesNum.Substring(barcode.BarCodesNum.Length - 5, 5);
+                        int addbarcodenum = int.Parse(s) + 1;
+                        barcode.BarCodesNum = barcode.BarCode_Prefix + "A" + addbarcodenum.ToString("00000");
+                        db.BarCodes.Add(barcode);
+                        db.SaveChanges();
+                    }
+                }
+            }
+            ////2.修改后的订单模组数<原订单模组数
+            ////  检查对应缩少的那部分条码号是否有生产记录，如果无生产记录，询问是否修改？如果有生产记录，反馈“有生产记录，不能修改！”
+            ////  如果修改，修改后把BarCodes表中的缩少的那部分条码号删除
+            else if (orderMgm.Boxes < orginal_ordermgm_BoxsNum && orderMgm.BarCodeCreated == 1)
+            {
+                var num = orginal_ordermgm_BoxsNum - orderMgm.Boxes;
+                var barcodeList = db.BarCodes.OrderByDescending(c => c.BarCodesNum).Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模组").Take(num).ToList();
+                var bc = barcodeList.Select(c => c.BarCodesNum).ToList();
+
+                string mesage = string.Empty;
+                var ass = db.Assemble.Where(c => bc.Contains(c.BoxBarCode));
+                if (ass.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", ass.ToList().Select(c => c.BoxBarCode).Distinct().ToList()) + "有组装记录";
+                }
+                var fin = db.FinalQC.Where(c => bc.Contains(c.BarCodesNum));
+                if (fin.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", fin.ToList().Select(c => c.BarCodesNum).Distinct().ToList()) + "有FQC记录";
+                }
+                var burn = db.Burn_in.Where(c => bc.Contains(c.BarCodesNum));
+                if (burn.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", burn.ToList().Select(c => c.BarCodesNum).Distinct().ToList()) + "有老化记录";
+                }
+                var cab = db.CalibrationRecord.Where(c => bc.Contains(c.BarCodesNum));
+                if (cab.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", cab.ToList().Select(c => c.BarCodesNum).Distinct().ToList()) + "有校正记录";
+                }
+                var app = db.Appearance.Where(c => bc.Contains(c.BarCodesNum));
+                if (app.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", app.ToList().Select(c => c.BarCodesNum).Distinct().ToList()) + "有包装记录";
+                }
+
+                if (!string.IsNullOrEmpty(mesage))
+                {
+                    return com.GetModuleFromJobjet(null, false, mesage);
+
+                }
+                else
+                {
+                    int count = orginal_ordermgm_BoxsNum - orderMgm.Boxes;
+                    var delete = barcodeList.OrderByDescending(c => c.BarCodesNum).Take(count);
+                    db.BarCodes.RemoveRange(delete);
+                    db.SaveChanges();
+                }
+            }
+            //1.修改后的订单模组数>原订单模组数且模组条码已经生成，在BarCodes表追加相应的条码号
+            if (orderMgm.Models > orginal_ordermgm_ModulesNum)
+            {
+                int addcount = orderMgm.Models - orginal_ordermgm_ModulesNum;
+                var bc = db.BarCodes.Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模块").OrderByDescending(c => c.BarCodesNum).FirstOrDefault();
+                if (bc == null)
+                {
+                    List<BarCodes> barCodes = new List<BarCodes>();
+                    //生成模组条码
+                    for (int i = 1; i <= orderMgm.Models; i++)
+                    {
+                        BarCodes aBarCode = new BarCodes();
+                        aBarCode.OrderNum = orderMgm.OrderNum;
+                        aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
+                        aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
+                        aBarCode.BarCodeType = "模块";
+                        aBarCode.Creator = UserName;
+                        aBarCode.CreateDate = DateTime.Now;
+                        var order = orderMgm.OrderNum.Split('-');
+                        var temporder = order[2].PadLeft(2, '0');
+                        aBarCode.BarCodesNum = order[0] + order[1] + temporder + "B" + i.ToString("00000");
+                        barCodes.Add(aBarCode);
+                    }
+                    if (com.BulkInsert<BarCodes>("BarCodes", barCodes) == "false")
+                    {
+                        return com.GetModuleFromJobjet(null, false, "模组创建失败，请确保表与模型相符");
+                    }
+                }
+                else
+                {
+                    BarCodes barcode = new BarCodes { OrderNum = bc.OrderNum, ToOrderNum = bc.ToOrderNum, BarCode_Prefix = bc.BarCode_Prefix, BarCodesNum = bc.BarCodesNum, BarCodeType = bc.BarCodeType, CreateDate = DateTime.Now, Creator = bc.Creator, IsRepertory = bc.IsRepertory, Remark = bc.Remark };
+                    for (int i = 1; i <= addcount; i++)
+                    {
+                        string s = barcode.BarCodesNum.Substring(barcode.BarCodesNum.Length - 5, 5);
+                        int addbarcodenum = int.Parse(s) + 1;
+                        var ex = barcode.BarCodesNum.Substring(0, barcode.BarCodesNum.Length - 5);
+                        barcode.BarCodesNum = ex + addbarcodenum.ToString("00000");
+                        db.BarCodes.Add(barcode);
+                        db.SaveChanges();
+                    }
+                }
+            }
+            ////2.修改后的订单模组数<原订单模组数
+            ////  检查对应缩少的那部分条码号是否有生产记录，如果无生产记录，询问是否修改？如果有生产记录，反馈“有生产记录，不能修改！”
+            ////  如果修改，修改后把BarCodes表中的缩少的那部分条码号删除
+            else if (orderMgm.Models < orginal_ordermgm_ModulesNum)
+            {
+                var num = orginal_ordermgm_ModulesNum - orderMgm.Models;
+                var barcodeList = db.BarCodes.OrderByDescending(c => c.BarCodesNum).Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模块").Take(num).ToList();
+                var bc = barcodeList.Select(c => c.BarCodesNum).ToList();
+
+                string mesage = string.Empty;
+                var After = db.AfterWelding.Where(c => bc.Contains(c.ModuleBarcode));
+                if (After.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", After.ToList().Select(c => c.ModuleBarcode).Distinct().ToList()) + "有后焊记录";
+                }
+                var Electric = db.ElectricInspection.Where(c => bc.Contains(c.ModuleBarcode));
+                if (Electric.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", Electric.ToList().Select(c => c.ModuleBarcode).Distinct().ToList()) + "有电检记录";
+                }
+                var burn = db.ModuleBurnIn.Where(c => bc.Contains(c.ModuleBarcode));
+                if (burn.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", burn.ToList().Select(c => c.ModuleBarcode).Distinct().ToList()) + "有老化记录";
+                }
+                var Sampling = db.ModuleSampling.Where(c => bc.Contains(c.ModuleBarcode));
+                if (Sampling.Count() > 0)
+                {
+                    mesage = mesage + string.Join(",", Sampling.ToList().Select(c => c.ModuleBarcode).Distinct().ToList()) + "有抽检记录";
+                }
+                if (!string.IsNullOrEmpty(mesage))
+                {
+                    return com.GetModuleFromJobjet(null, false, mesage);
+                }
+                else
+                {
+                    if (orderMgm.Models == 0)
+                    {
+                        var delete = db.BarCodes.OrderByDescending(c => c.BarCodesNum).Where(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模块").ToList();
+                        db.BarCodes.RemoveRange(delete);
+                        db.SaveChanges();
+                    }
+                    else
+                    {
+                        int count = orginal_ordermgm_ModulesNum - orderMgm.Models;
+                        var delete = barcodeList.OrderByDescending(c => c.BarCodesNum).Take(count);
+                        db.BarCodes.RemoveRange(delete);
+                        db.SaveChanges();
+                    }
+                }
+            }
+            var old = db.OrderMgm.Find(orderMgm.ID);
+            UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "订单信息修改：原数据订单号、条码前缀、客户名称、下单日期、出货日期、计划投入时间、计划完成时间、平台型号、地区、制程要求、标准要求、SMT产能、模组数量、模块数量、额外预留模块数量、电源数量、额外预留电源数量、转接卡、额外预留转接卡、是否库存、备注为" + old.OrderNum + "，" + old.BarCode_Prefix + "，" + old.CustomerName + "," + old.ContractDate + "，" + old.DeliveryDate + "，" + old.PlanInputTime + "," + old.PlanCompleteTime + "，" + old.PlatformType + "，" + old.Area + "," + old.ProcessingRequire + "，" + old.StandardRequire + "，" + old.CapacityQ + "," + old.Boxes + "，" + old.Models + "，" + old.ModelsMore + "," + old.Powers + "，" + old.PowersMore + "，" + old.AdapterCard + "," + old.AdapterCardMore + "，" + old.IsRepertory + "，" + old.Remark + "修改为:" + orderMgm.OrderNum + "，" + orderMgm.BarCode_Prefix + "，" + orderMgm.CustomerName + "," + orderMgm.ContractDate + "，" + orderMgm.DeliveryDate + "，" + orderMgm.PlanInputTime + "," + orderMgm.PlanCompleteTime + "，" + orderMgm.PlatformType + "，" + orderMgm.Area + "," + orderMgm.ProcessingRequire + "，" + orderMgm.StandardRequire + "，" + orderMgm.CapacityQ + "," + orderMgm.Boxes + "，" + orderMgm.Models + "，" + orderMgm.ModelsMore + "," + orderMgm.Powers + "，" + orderMgm.PowersMore + "，" + orderMgm.AdapterCard + "," + orderMgm.AdapterCardMore + "，" + orderMgm.IsRepertory + "，" + orderMgm.Remark };
+            db.UserOperateLog.Add(log);
+            old.OrderNum = orderMgm.OrderNum;
+            old.BarCode_Prefix = orderMgm.BarCode_Prefix;
+            old.CustomerName = orderMgm.CustomerName;
+            old.ContractDate = orderMgm.ContractDate;
+            old.DeliveryDate = orderMgm.DeliveryDate;
+            old.PlanInputTime = orderMgm.PlanInputTime;
+            old.PlanCompleteTime = orderMgm.PlanCompleteTime;
+            old.PlatformType = orderMgm.PlatformType;
+            old.Area = orderMgm.Area;
+            old.ProcessingRequire = orderMgm.ProcessingRequire;
+            old.StandardRequire = orderMgm.StandardRequire;
+            old.CapacityQ = orderMgm.CapacityQ;
+            old.Boxes = orderMgm.Boxes;
+            old.Models = orderMgm.Models;
+            old.ModelsMore = orderMgm.ModelsMore;
+            old.Powers = orderMgm.Powers;
+            old.PowersMore = orderMgm.PowersMore;
+            old.AdapterCard = orderMgm.AdapterCard;
+            old.AdapterCardMore = orderMgm.AdapterCardMore;
+            old.IsRepertory = orderMgm.IsRepertory;
+            old.Remark = orderMgm.Remark;
+            db.SaveChanges();
+            return com.GetModuleFromJobjet(null, true, "修改成功");
+
+        }
+
+        #endregion
+
+        #region --------------------EditForSmallSample修改小样进度页
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject EditForSmallSample([System.Web.Http.FromBody]JObject data)
+        {
+            int id = int.Parse(data["id"].ToString());
+            string HandSampleScedule = data["HandSampleScedule"].ToString();
+            string UserName = data["UserName"].ToString();
+
+            var old = db.OrderMgm.Find(id);
+
+            UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "小样状态修改：原数据订单号、小样状态为" + old.OrderNum + "，" + old.HandSampleScedule + "修改为" + old.OrderNum + "," + HandSampleScedule };
+            db.UserOperateLog.Add(log);
+
+            old.HandSampleScedule = HandSampleScedule;
+            db.SaveChanges();
+            return com.GetModuleFromJobjet(null, true, "修改成功");
+
+        }
+        #endregion
+
+
+        #region --------------------DeleteOrderNum方法
+
+        /// <summary>
+        /// 1.在订单Detail页面增加一个删除按钮，指向删除订单方法
+        /// 2.删除订单方法：检查订单是否有扫码记录，
+        ///   如果没有，可以删除，删除订单的同时，也删除订单对应的条码记录，删除完成后提示“已经删除订单和条码”
+        ///   如果有扫码记录，提示不允许删除
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        // assemble_begintime
+        [HttpPost]
+        public JObject DeleteOrderNum([System.Web.Http.FromBody]JObject data)
+        {
+            string orderNum = data["orderNum"].ToString();
+            string UserName = data["UserName"].ToString();
+            //取出订单
+            var Record = db.OrderMgm.Where(c => c.OrderNum == orderNum).FirstOrDefault();
+            if (Record != null)
+            {
+                //计算订单在组装、FQC、老化、校正、包装的记录条数、SMT生产记录
+                var assembleCount = db.Assemble.Count(c => c.OrderNum == orderNum);
+                var fqcCount = db.FinalQC.Count(c => c.OrderNum == orderNum);
+                var burn_inCount = db.Burn_in.Count(c => c.OrderNum == orderNum);
+                var calibrationCount = db.CalibrationRecord.Count(c => c.OrderNum == orderNum);
+                var appearancesCount = db.Appearance.Count(c => c.OrderNum == orderNum);
+                var smtCount = db.SMT_ProductionData.Count(c => c.OrderNum == orderNum);
+                //如果订单在组装、FQC、老化、校正、包装的记录条数、SMT生产记录都为0，则删除订单信息和条码信息
+                if (assembleCount == 0 && fqcCount == 0 && burn_inCount == 0 && calibrationCount == 0 && appearancesCount == 0 && smtCount == 0)
+                {
+                    //取出订单对应的条码
+                    string sqlstring = "DELETE FROM BarCodes WHERE OrderNum='" + orderNum + "'";
+                    var sqlresult = com.SQLAloneExecute(sqlstring);
+                    if (sqlresult != "true")
+                    {
+                        return com.GetModuleFromJobjet(null, false, "模组创建失败，请确保表与模型相符");
+                    }
+
+                    //删除SMT计划信息
+                    var smtPlanList = db.SMT_ProductionPlan.Where(c => c.OrderNum == orderNum).ToList();
+                    if (smtPlanList != null)
+                    {
+                        //删除SMT计划信息
+                        foreach (var plan in smtPlanList)
+                        {
+                            db.SMT_ProductionPlan.Remove(plan);
+                            db.SaveChanges();
+                        }
+                    }
+                    //删除订单信息
+                    db.OrderMgm.Remove(Record);
+                    db.SaveChanges();
+                    //保存删除信息
+                    OrderMgm_Delete orderMgm_delete = new OrderMgm_Delete();
+                    orderMgm_delete.OrderNum = Record.OrderNum;
+                    orderMgm_delete.DeleteDate = DateTime.Now;
+                    orderMgm_delete.Deleter = UserName;
+                    db.OrderMgm_Delete.Add(orderMgm_delete);
+                    db.SaveChanges();
+                    return com.GetModuleFromJobjet(null, true, "删除成功");
+                }
+                //如果订单在组装、FQC、老化、校正、包装的记录条数、SMT生产记录其中一个不为0，则返回提示信息
+                else
+                {
+                    return com.GetModuleFromJobjet(null, false, "订单号" + orderNum + "有生产记录,不能删除此订单！");
+                }
+            }
+            else
+            {
+                return com.GetModuleFromJobjet(null, false, "订单不存在");
+            }
+        }
+
+        #endregion
+
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                db.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region --------------------上传文件(jpg、pdf)方法
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject UploadAssembleFile()
+        {
+            string statue = HttpContext.Current.Request["statue "];
+            string ordernum = HttpContext.Current.Request["ordernum"];
+            string appNUM = HttpContext.Current.Request["appNUM"];
+            //string statue = "组装异常";
+            //string ordernum = "2020-TEST-4";
+            //string appNUM = "";
+            string uploadFile = "";
+            string diretoryName = "";
+            string ReName = "";
+            switch (statue)
+            {
+                case "组装异常":
+                    uploadFile = "uploadAssembleAbnormalOrder";
+                    diretoryName = "AssembleAbnormalOrder_Files";
+                    ReName = "_AssembleAbnormalOrder";
+                    break;
+                case "老化异常":
+                    uploadFile = "uploadBurnInAbnormalOrder";
+                    diretoryName = "BurnInAbnormalOrder_Files";
+                    ReName = "_BurnInAbnormalOrder";
+                    break;
+                case "包装异常":
+                    uploadFile = "uploadAppearanceAbnormalOrder";
+                    diretoryName = "AppearanceAbnormalOrder_Files";
+                    ReName = "_AppearanceAbnormalOrder";
+                    break;
+                case "SMT异常":
+                    uploadFile = "uploadSMTAbnormalOrder";
+                    diretoryName = "SMTAbnormalOrder_Files";
+                    ReName = "_SMTAbnormalOrder";
+                    break;
+                case "特采订单":
+                    uploadFile = "uploadfile";
+                    diretoryName = "AOD_Files";
+                    ReName = "_AOD";
+                    break;
+                case "组装首件":
+                    uploadFile = "uploadAssembleSamplefile";
+                    diretoryName = "AssembleSample_Files";
+                    ReName = "_AssembleSample";
+                    break;
+                case "老化首件":
+                    uploadFile = "uploadBurnInSamplefile";
+                    diretoryName = "BurnInSample_Files";
+                    ReName = "_BurnInSample";
+                    break;
+                case "包装首件":
+                    uploadFile = "uploadAppearanceSamplefile";
+                    diretoryName = "AppearanceSample_Files";
+                    ReName = "_AppearanceSample";
+                    break;
+                case "小样":
+                    uploadFile = "uploadfile";
+                    diretoryName = "SmallSample_Files";
+                    ReName = "_SmallSample";
+                    break;
+            }
+            HttpContextBase context = (HttpContextBase)Request.Properties[uploadFile];//上传的问题件  这个“MS_HttpContext”参数名不需要改
+            HttpRequestBase Files = context.Request;
+           // HttpFileCollection Files = HttpContext.Current.Request.Files;
+            if (Files.Files.Count > 0)
+            {
+                foreach (HttpPostedFile file in Files.Files)
+                {
+                    var index = file.FileName.LastIndexOf('.');
+                    var fileType = file.FileName.Substring(index, file.FileName.Length - index).ToLower();
+                    var re = String.Equals(fileType, ".jpg") == true || String.Equals(fileType, ".jpeg") || String.Equals(fileType, ".pdf") == true ? false : true;
+                    if (re)
+                    {
+                        return com.GetModuleFromJobjet(null, false, "您选择文件的文件类型不正确，请选择jpg、jpeg或pdf类型文件！");
+                    }
+                    if (Directory.Exists(@"D:\MES_Data\" + diretoryName + "\\" + ordernum + "\\") == false)//如果不存在就创建订单文件夹
+                    {
+                        Directory.CreateDirectory(@"D:\MES_Data\" + diretoryName + "\\" + ordernum + "\\");
+                    }
+                    List<FileInfo> fileInfos = GetAllFilesInDirectory(@"D:\MES_Data\" + diretoryName + "\\" + ordernum + "\\");
+                    //文件为jpg类型
+                    if (fileType == ".jpg" || fileType == ".jpeg")
+                    {
+                        if (string.IsNullOrEmpty(appNUM))
+                        {
+                            int jpg_count = fileInfos.Where(c => c.Name.StartsWith(ordernum + ReName) && c.Name.Substring(c.Name.Length - 4, 4) == fileType).Count();
+                            file.SaveAs(@"D:\MES_Data\" + diretoryName + "\\" + ordernum + "\\" + ordernum + ReName + (jpg_count + 1) + fileType);
+                        }
+                        else
+                            file.SaveAs(@"D:\MES_Data\AssembleAbnormalOrder_Files\" + ordernum + "\\" + ordernum + "_" + appNUM + ReName + fileType);
+                    }
+                    //文件为pdf类型,直接存储或替换原文件
+                    else
+                    {
+                        file.SaveAs(@"D:\MES_Data\" + diretoryName + "\\" + ordernum + "\\" + ordernum + ReName + fileType);
+                    }
+                    return com.GetModuleFromJobjet(null, true, "上传成功!");
+                }
+            }
+            return com.GetModuleFromJobjet(null, false, "找不到文件");
+        }
+        #endregion
+
+        #region --------------------查看图片预览
+        [HttpPost]
+        public JObject GetAssembleImg([System.Web.Http.FromBody]JObject data)
+        {
+            string statue = data["statue"].ToString();
+            string ordernum = data["ordernum"].ToString();
+
+            string diretoryName = "";
+            string ReName = "";
+            switch (statue)
+            {
+                case "组装异常":
+                    diretoryName = "AssembleAbnormalOrder_Files";
+                    ReName = "_AssembleAbnormalOrder";
+                    break;
+                case "老化异常":
+                    diretoryName = "BurnInAbnormalOrder_Files";
+                    ReName = "_BurnInAbnormalOrder";
+                    break;
+                case "包装异常":
+                    diretoryName = "AppearanceAbnormalOrder_Files";
+                    ReName = "_AppearanceAbnormalOrder";
+                    break;
+                case "SMT异常":
+                    diretoryName = "SMTAbnormalOrder_Files";
+                    ReName = "_SMTAbnormalOrder";
+                    break;
+                case "特采订单":
+                    diretoryName = "AOD_Files";
+                    ReName = "_AOD";
+                    break;
+                case "组装首件":
+                    diretoryName = "AssembleSample_Files";
+                    ReName = "_AssembleSample";
+                    break;
+                case "老化首件":
+                    diretoryName = "BurnInSample_Files";
+                    ReName = "_BurnInSample";
+                    break;
+                case "包装首件":
+                    diretoryName = "AppearanceSample_Files";
+                    ReName = "_AppearanceSample";
+                    break;
+                case "小样":
+                    diretoryName = "SmallSample_Files";
+                    ReName = "_SmallSample";
+                    break;
+            }
+            List<FileInfo> filesInfo = GetAllFilesInDirectory(@"D:\\MES_Data\\" + diretoryName + "\\" + ordernum + "\\");
+            filesInfo = filesInfo.Where(c => c.Name.StartsWith(ordernum + ReName) && c.Name.Substring(c.Name.Length - 4, 4) == ".jpg").ToList();
+            JArray result = new JArray();
+            if (filesInfo.Count() > 0)
+            {
+                foreach (var item in filesInfo)
+                {
+                    result.Add(item.Name);
+
+                }
+                return com.GetModuleFromJarray(result, true, "成功");
+            }
+            else
+            {
+                return com.GetModuleFromJarray(null, false, "图片文档未上传或不存在!");
+            }
+        }
+        #endregion
+
+        #region --------------------查看pdf文档页面
+        public JObject preview_Assemble_pdf([System.Web.Http.FromBody]JObject data)
+        {
+            string statue = data["statue"].ToString();
+            string ordernum = data["ordernum"].ToString();
+
+            string diretoryName = "";
+            string ReName = "";
+            switch (statue)
+            {
+                case "组装异常":
+                    diretoryName = "AssembleAbnormalOrder_Files";
+                    ReName = "_AssembleAbnormalOrder";
+                    break;
+                case "老化异常":
+                    diretoryName = "BurnInAbnormalOrder_Files";
+                    ReName = "_BurnInAbnormalOrder";
+                    break;
+                case "包装异常":
+                    diretoryName = "AppearanceAbnormalOrder_Files";
+                    ReName = "_AppearanceAbnormalOrder";
+                    break;
+                case "SMT异常":
+                    diretoryName = "SMTAbnormalOrder_Files";
+                    ReName = "_SMTAbnormalOrder";
+                    break;
+                case "特采订单":
+                    diretoryName = "AOD_Files";
+                    ReName = "_AOD";
+                    break;
+                case "组装首件":
+                    diretoryName = "AssembleSample_Files";
+                    ReName = "_AssembleSample";
+                    break;
+                case "老化首件":
+                    diretoryName = "BurnInSample_Files";
+                    ReName = "_BurnInSample";
+                    break;
+                case "包装首件":
+                    diretoryName = "AppearanceSample_Files";
+                    ReName = "_AppearanceSample";
+                    break;
+                case "小样":
+                    diretoryName = "SmallSample_Files";
+                    ReName = "_SmallSample";
+                    break;
+            }
+            List<FileInfo> filesInfo = new List<FileInfo>();
+            string directory = "D:\\MES_Data\\" + diretoryName + "\\" + ordernum + "\\";
+            if (Directory.Exists(@directory) == false)//如果不存在就创建订单文件夹
+            {
+                return com.GetModuleFromJarray(null, false, "无pdf文件可查看！");
+            }
+            filesInfo = GetAllFilesInDirectory(directory);
+            List<string> pdf_address = new List<string>();
+            string address = "";
+            if (filesInfo.Where(c => c.Name == ordernum + ReName + ".pdf").Count() > 0)
+            {
+                address = "/MES_Data/" + diretoryName + "/" + ordernum + "/" + ordernum + ReName + ".pdf";
+            }
+            else
+            {
+                return com.GetModuleFromJarray(null, false, "无pdf文件可查看！");
+            }
+            return com.GetModuleFromJarray(null,true,address);
+        }
+
+
+        #endregion
+
+        //批量修改订单模组号,查看
+        public JObject BitchSelectModulNum([System.Web.Http.FromBody]JObject data)
+        {
+            string ordernum = data["ordernum"].ToString();
+            var list = db.BarCodes.OrderBy(c => c.BarCodesNum).Where(c => c.OrderNum == ordernum);
+            JObject jobjet = new JObject();
+            JArray barcode = new JArray();
+            JArray module = new JArray();
+            foreach (var item in list)
+            {
+                barcode.Add(item.BarCodesNum);
+                if (item.ModuleGroupNum == null)
+                    module.Add(" ");
+                else
+                    module.Add(item.ModuleGroupNum);
+            }
+            jobjet.Add("barcode", barcode);
+            jobjet.Add("module", module);
+
+            return com.GetModuleFromJobjet(jobjet);
+        }
+
+        //批量修改订单模组号,修改
+        public JObject BitchUpdateModulNumAsync([System.Web.Http.FromBody]JObject data)
+        {
+            string UserName = data["UserName"].ToString();
+            List<UpdateModule> updates = JsonConvert.DeserializeObject<List<UpdateModule>>(JsonConvert.SerializeObject(data["updates"]));
+            int count = 0;
+            string message = "";
+            foreach (var item in updates)
+            {
+                var barcode = db.BarCodes.Where(c => c.BarCodesNum == item.barcode).FirstOrDefault();
+
+                var modulelist = db.BarCodes.Where(c => c.OrderNum == barcode.OrderNum && !string.IsNullOrEmpty(c.ModuleGroupNum)).Select(c => c.ModuleGroupNum).ToList();
+                if (modulelist.Contains(item.module))//判断输入的模组号是否重复
+                {
+                    return com.GetModuleFromJobjet(null, false, "失败");
+                }
+                message = message + "条码" + item.barcode + "模组号为" + barcode.ModuleGroupNum + ",修改为" + item.module;
+                barcode.ModuleGroupNum = item.module;
+                var calibrationRecord = db.CalibrationRecord.Where(c => c.BarCodesNum == item.barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == item.barcode)).ToList();
+                if (calibrationRecord.Count() != 0)
+                {
+                    calibrationRecord.ForEach(c => c.ModuleGroupNum = item.module);
+                }
+
+                var apper = db.Appearance.Where(c => c.BarCodesNum == item.barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == item.barcode)).ToList();
+                if (apper.Count() != 0)
+                {
+                    apper.ForEach(c => c.ModuleGroupNum = item.module);
+                }
+                count += db.SaveChanges();
+            }
+            if (count != 0)
+            {
+                UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "修改模组号：" + message };
+                db.UserOperateLog.Add(log);
+                db.SaveChanges();
+                return com.GetModuleFromJobjet(null,true,"成功");
+            }
+            else
+                return com.GetModuleFromJobjet(null, false, "失败");
         }
 
     }

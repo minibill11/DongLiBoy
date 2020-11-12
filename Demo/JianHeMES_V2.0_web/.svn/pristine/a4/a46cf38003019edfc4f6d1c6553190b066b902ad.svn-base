@@ -1,0 +1,221 @@
+<!---  --->
+<template>
+  <div>
+    <cHeader :active="active" ></cHeader>
+    <div class="se_name">
+      <cSelect :source="'7S评比得分汇总表'" ref="sel"></cSelect>
+      <el-date-picker size="small" v-model="select_month" type="month" placeholder="请选择月份" style="width:150px;" class="btn"> 
+      </el-date-picker>
+      <el-button size="small" type="primary" class="btn" @click="onQueryData">查询</el-button>
+      <cExcel :excelData="tableData"  :time="select_month" class="btn" v-show="tableData.length>0"></cExcel>
+    </div>
+    <!-- 表格 -->
+    <div class="table-height">
+        <vxe-table border
+                   show-overflow
+                   size="mini"
+                   height="600px"
+                   align="center"
+                   :header-cell-class-name="headerCellClassName"
+                   :data="tableData" stripe>
+            <vxe-table-column type="seq" title="序号" width="50"></vxe-table-column>
+            <vxe-table-column title="部门" field="Department" width="110"></vxe-table-column>
+            <vxe-table-column title="班组" field="Group" width="100"></vxe-table-column>
+            <vxe-table-column title="位置" field="Position" width="110"></vxe-table-column>
+            <vxe-table-column title="区域号" field="District" width="100" sortable></vxe-table-column>
+            <vxe-table-column title="日检扣分" field="Grade_daily" sortable>
+                <template v-slot="{ row }">
+                    <div :class="[$limit('查看7S日/周/巡检汇总表')?'col-color-red':'']" v-if="row.Grade_daily!=''" @click="onSelectData(row,'日检')">-{{row.Grade_daily}}</div>
+                </template>
+            </vxe-table-column>
+            <vxe-table-column title="周检扣分">
+                <vxe-table-column title="周检正常扣分" field="Grade_week" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="周检未整改扣分" field="Week_NotCorrected" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="周检重复出现扣分" field="Week_Repetition" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="周检扣分合计" field="Week_Sum" sortable>
+                    <template v-slot="{ row }">
+                        <div :class="[$limit('查看7S日/周/巡检汇总表')?'col-color-red':'']" v-if="row.Week_Sum!=''" @click="onSelectData(row,'周检')">-{{row.Week_Sum}}</div>
+                    </template>
+                </vxe-table-column>
+            </vxe-table-column>
+            <vxe-table-column title="巡检扣分">
+                <vxe-table-column title="巡检正常扣分" field="Grade_random" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="巡检未整改扣分" field="Random_NotCorrected" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="巡检重复出现扣分" field="Random_Repetition" :formatter="formatterPoints"></vxe-table-column>
+                <vxe-table-column title="巡检扣分合计" field="Random_Sum" sortable>
+                    <template v-slot="{ row }">
+                        <div :class="[$limit('查看7S日/周/巡检汇总表')?'col-color-red':'']" v-if="row.Random_Sum!=''" @click="onSelectData(row,'巡检')">-{{row.Random_Sum}}</div>
+                    </template>
+                </vxe-table-column>
+            </vxe-table-column>
+            <vxe-table-column title="月末得分" field="TotalPoints" width="120" sortable></vxe-table-column>
+        </vxe-table>
+    </div>
+    <div class="summy" v-if="choose_department!='全部部门'&&choose_position==''&&choose_district==''">
+        <span style="font-weight:bold;">{{choose_department}}：</span>
+        <span class="sum-dec">日检扣分合计：</span>
+        <span class="sum-count">{{day_count}}</span>
+        <span class="sum-dec">周检扣分合计：</span>
+        <span class="sum-count">{{week_count}}</span>
+        <span class="sum-dec"> 巡检扣分合计：</span>
+        <span class="sum-count">{{some_count}}</span>
+        <span class="sum-dec">部门月末合计得分：</span>
+        <span class="sum-count">{{month_count}}</span>
+    </div>
+    <div class="note">备注：月末得分 = 100 - 日检扣分 - 周检扣分合计 - 巡检扣分合计</div>    
+  </div>
+</template>
+
+<script>
+import cHeader from "./page-components/_kpi_7s_header";
+import cSelect from "./page-components/_select_component";
+import {GetTableList} from "@/api/hr/kpi-7s"
+import cExcel from "./page-components/_export_summarizing";
+export default {
+  name: 'KPI_7S_Summarizing',
+  props: {},
+  data() {
+    return {
+      active:'7S评比得分汇总',
+      select_month:new Date(),
+      tableData:[],
+      //合计得分
+      choose_department: '',
+      choose_position: '',
+      choose_district: '',
+      day_count: 0,
+      week_count: 0,
+      some_count: 0,
+      month_count: 100
+
+    };
+  },
+  components: {
+    cHeader,
+    cSelect,
+    cExcel
+  },
+  computed: {},
+  watch: {},
+  methods: {
+    //格式化
+    formatterPoints({ cellValue }) {
+        if (cellValue != '' || cellValue != 0) {
+            return -cellValue;
+        }
+    },
+    //表头
+    headerCellClassName({ column }) {
+        if (column.property === 'TotalPoints') {
+            return 'col-blue'
+        }
+    },
+    //计算合计
+    onGetCount() {
+        this.day_count = 0;
+        this.week_count = 0;
+        this.some_count = 0;
+        this.month_count = 100;
+        this.tableData.forEach(item => {
+            this.day_count -= item.Grade_daily;
+            this.week_count -= item.Week_Sum;
+            this.some_count -= item.Random_Sum;
+            this.month_count = 100 + this.day_count + this.week_count + this.some_count;
+        })
+    },
+    //查询数据
+    onQueryData() {
+        if (this.onTip()) {
+            let param = {
+                department: this.$refs.sel.select_department,
+                position: this.$refs.sel.select_position,
+                district: this.$refs.sel.select_district,
+                date: this.select_month,
+                group: this.$refs.sel.select_group,
+            }
+            GetTableList(param).then(res => {
+                console.log(res.data)
+                this.tableData = res.data.Data;
+                this.choose_department = this.$refs.sel.select_department;
+                this.choose_position = this.$refs.sel.select_position;
+                this.choose_district = this.$refs.sel.select_district;
+                if (this.select_department != '全部部门') {
+                    this.onGetCount();
+                }
+            })
+        }
+    },
+    //判断筛选
+    onTip() {
+        console.log(this.select_month)
+        if (this.$refs.sel.select_department == '') {
+            this.$message.warning('请选择部门！');
+            return false;
+        }
+        else if (this.select_month == null) {
+            this.$message.warning('请选择月份！');
+            return false;
+        } else {
+            return true;
+        }
+    },
+     //选择分数查询
+    onSelectData(row, val) {
+        if (this.$limit('查看7S日/周/巡检汇总表')) {
+          this.$router.push({
+             name: 'KPI_7S_Summarizing_Daily',
+             params: {
+                check_type: val,
+                department:row.Department,
+                position:row.Position,
+                district:row.District,
+                date:this.select_month
+             },
+          });
+        }
+    },
+  },
+  created() {},
+  mounted() {
+    this.$refs.sel.select_department='全部部门'
+    this.onQueryData()
+  },
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {
+    if(this.$route.params.time!=null){//从部门排名进入
+       this.select_month=this.$route.params.time
+       this.$refs.sel.select_department =this.$route.params.department
+       this.onQueryData()
+    }
+  },
+}
+</script>
+
+<style lang='less' scoped>
+@import url('~@/assets/style/vxe.css');
+@import url('./kpi7s.less');
+.col-blue {
+    background-color: #409eff;
+    color: #fff;
+}
+.col-color-red {
+    color: red;
+}
+.col-color-red:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+.summy {
+        font-size: 14px;
+        margin-top: 8px;
+    }
+        .summy .sum-count {
+            color: red;
+            margin-right: 12px;
+        }
+</style>

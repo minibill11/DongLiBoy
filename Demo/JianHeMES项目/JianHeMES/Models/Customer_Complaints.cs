@@ -220,6 +220,9 @@ namespace JianHeMES.Models
         [Display(Name = "故障分类/产品型号"), StringLength(100)]
         public string Fault_Classification { get; set; }
 
+        [Display(Name = "分类"), StringLength(100)]
+        public string Classification { get; set; }
+
         [Display(Name = "备注"), StringLength(500)]
         public string Remark { get; set; }
 
@@ -262,6 +265,36 @@ namespace JianHeMES.Models
 
         [Display(Name = "责任判定"), StringLength(50)]
         public string Responsibility { get; set; }
+    }
+
+
+    //故障分类管理
+    public class Customer_FaultTypes
+    {
+        [Key]
+        public int Id { get; set; }
+
+        [Display(Name = "大分类（故障类）"), StringLength(100)]
+        public string Classification { get; set; }
+
+        [Display(Name = "小分类（故障类）"), StringLength(100)]
+        public string Fault_Classification { get; set; }
+
+        [Display(Name = "备注"), StringLength(500)]
+        public string Remark { get; set; }
+
+        [Display(Name = "创建人"), StringLength(50)]
+        public string Creator { get; set; }
+
+        [Display(Name = "创建时间"), DataType(DataType.DateTime), DisplayFormat(DataFormatString = "{0:yyyy-MM-dd hh:mm}", ApplyFormatInEditMode = true)]
+        public DateTime? CreateDate { get; set; }
+
+        [Display(Name = "记录修改人"), StringLength(50)]
+        public string Modifier { get; set; }
+
+        [Display(Name = "修改时间"), DataType(DataType.DateTime), DisplayFormat(DataFormatString = "{0:yyyy-MM-dd hh:mm}", ApplyFormatInEditMode = true)]
+        public DateTime? ModifyTime { get; set; }
+
     }
 
 }

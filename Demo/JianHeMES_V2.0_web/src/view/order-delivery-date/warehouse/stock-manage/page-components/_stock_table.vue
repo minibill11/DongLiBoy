@@ -12,101 +12,100 @@
               <el-table-column prop="OneMonth" label="1个月以内" width="140" align="right"> 
                 <template slot-scope="scope">
                         {{scope.row.OneMonth}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].OneMonth:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.OneMonth>lastMonth[scope.$index].OneMonth?'el-icon-top':scope.row.OneMonth==lastMonth[scope.$index].OneMonth?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                          <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].OneMonth:''}}</span>　                          
+                            </div>
+                          	 <span  v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.OneMonth,lastMonth[scope.$index].OneMonth):''"></i></span>
+                          </el-tooltip>
                     </template>                 
               </el-table-column>
               <el-table-column prop="TwoMonths" label="2-3个月" width="140" align="right"> 
                 <template slot-scope="scope">
                         {{scope.row.TwoMonths}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].TwoMonths:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.TwoMonths>lastMonth[scope.$index].TwoMonths?'el-icon-top':scope.row.TwoMonths==lastMonth[scope.$index].TwoMonths?'el-icon-minus':'el-icon-bottom':''"></i></span>                           
-                        </el-popover>                       
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].TwoMonths:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.TwoMonths,lastMonth[scope.$index].TwoMonths):''"></i></span>
+                        </el-tooltip>                                       
                   </template>               
               </el-table-column>
               <el-table-column prop="FourMonths" label="4-6个月" width="140" align="right">
                 <template slot-scope="scope">
                         {{scope.row.FourMonths}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].FourMonths:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.FourMonths>lastMonth[scope.$index].FourMonths?'el-icon-top':scope.row.FourMonths==lastMonth[scope.$index].FourMonths?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>                       
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].FourMonths:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.FourMonths,lastMonth[scope.$index].FourMonths):''"></i></span>
+                        </el-tooltip>                                             
                 </template>
               </el-table-column>
               <el-table-column prop="SevenMonths" label="7-12个月" width="140" align="right">
                 <template slot-scope="scope">
                         {{scope.row.SevenMonths}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].SevenMonths:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.SevenMonths>lastMonth[scope.$index].SevenMonths?'el-icon-top':scope.row.SevenMonths==lastMonth[scope.$index].SevenMonths?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                         <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].SevenMonths:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.SevenMonths,lastMonth[scope.$index].SevenMonths):''"></i></span>
+                         </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="OneYear" label="1-2年" width="140" align="right">
                 <template slot-scope="scope">
                         {{scope.row.OneYear}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].OneYear:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.OneYear>lastMonth[scope.$index].OneYear?'el-icon-top':scope.row.OneYear==lastMonth[scope.$index].OneYear?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].OneYear:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.OneYear,lastMonth[scope.$index].OneYear):''"></i></span>
+                         </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="TwoYears" label="2-3年" width="140" align="right">
                 <template slot-scope="scope">
                         {{scope.row.TwoYears}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].TwoYears:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.TwoYears>lastMonth[scope.$index].TwoYears?'el-icon-top':scope.row.TwoYears==lastMonth[scope.$index].TwoYears?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].TwoYears:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.TwoYears,lastMonth[scope.$index].TwoYears):''"></i></span>
+                         </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="ThreeYears" label="3-5年" width="140" align="right">
                 <template slot-scope="scope">
-                        {{scope.row.ThreeYears}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].ThreeYears:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.ThreeYears>lastMonth[scope.$index].ThreeYears?'el-icon-top':scope.row.ThreeYears==lastMonth[scope.$index].ThreeYears?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                        {{scope.row.ThreeYears}}               
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].ThreeYears:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.ThreeYears,lastMonth[scope.$index].ThreeYears):''"></i></span>
+                         </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="FiveYears" label="5年以上" width="140" align="right">
                 <template slot-scope="scope">
-                        {{scope.row.FiveYears}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].FiveYears:''">
-
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.FiveYears>lastMonth[scope.$index].FiveYears?'el-icon-top':scope.row.FiveYears==lastMonth[scope.$index].FiveYears?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                        {{scope.row.FiveYears}}                       
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].FiveYears:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.FiveYears,lastMonth[scope.$index].FiveYears):''"></i></span>
+                         </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="AmountTotal" label="合计金额" width="140" align="right">
                 <template slot-scope="scope">
                         {{scope.row.AmountTotal}}
-                        <el-popover placement="top-start"
-                                    title="上月对应数据"
-                                    trigger="hover"
-                                    :content="lastMonth.length>0?lastMonth[scope.$index].AmountTotal:''">
-                            <span slot="reference" v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?scope.row.AmountTotal>lastMonth[scope.$index].AmountTotal?'el-icon-top':scope.row.AmountTotal==lastMonth[scope.$index].AmountTotal?'el-icon-minus':'el-icon-bottom':''"></i></span>
-                        </el-popover>
+                        <el-tooltip placement="top-start" effect="dark"	popper-class="atooltip"	>
+                            <div slot="content">
+　                          　<span style="text-align:left">上月数据</span><br/><span>{{lastMonth.length>0?lastMonth[scope.$index].AmountTotal:''}}</span>　                          
+                            </div>
+                          	 <span v-show="(scope.row.Category=='财务科目类'||scope.row.Category_Detail=='在制品类')&&lastMonth.length>0&&tableType=='月度库存金额'"><i :class="lastMonth.length>0?compare(scope.row.AmountTotal,lastMonth[scope.$index].AmountTotal):''"></i></span>
+                         </el-tooltip>
                 </template>
               </el-table-column>
             </el-table-column>
@@ -135,6 +134,22 @@ export default {
   computed: {},
   watch: {},
   methods: {
+    //对比大小
+    compare(month, lastmonth) {
+        if (month != null) {
+            let numOne = month.replace(/,/g, "");
+            let numTwo = lastmonth.replace(/,/g, "")
+            let active = '';
+            if (Number(numOne) == Number(numTwo)) {
+                active = 'el-icon-minus';
+            } else if (Number(numOne) > Number(numTwo)) {
+                active = 'el-icon-top'
+            } else {
+                active = 'el-icon-bottom'
+            }
+            return active;
+        }
+    },
     tableRowClassName({row,rowIndex}) {
       if (row.FiveYears == "全部合计" || row.FiveYears == "汇总结果求和") {
         return "warning-row";
@@ -189,9 +204,8 @@ export default {
 </script>
 
 <style lang='less' scoped>
-  @import '../page-components/table.less';
 .el-table {
-  font-size: 13px;
+  font-size: 12px;
   font-family: "微软雅黑";
   color: black;
 }
@@ -208,20 +222,7 @@ export default {
 .el-icon-minus {
   color: lightgreen;
   font-weight:800;
-}
-.el-popover {
-  background: #606266;      
-  padding: 5px;
-  color: #fff;
-  font-size: 13px;
-}
-.el-popover__title {
-  color: #fff;
-  font-size: 13px;           
-}
-.el-popper[x-placement^="top"] .popper__arrow::after {
-  border-top-color: #606266;
-}     
+}   
 .el-table thead.is-group th {
     background: #E4ECF7;
 }

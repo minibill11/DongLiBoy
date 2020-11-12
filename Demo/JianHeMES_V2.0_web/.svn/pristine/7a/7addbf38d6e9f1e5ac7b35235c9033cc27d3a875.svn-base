@@ -1,0 +1,856 @@
+<!---  --->
+<template>
+  <div>
+    <cHeader :active="active" ></cHeader>
+     <lookImage ></lookImage>
+    <div class="option">
+      <el-form :inline="true" :model="formInfo" label-position="right" label-width="100px">
+        <div>      
+          <el-form-item label="检查类型：">
+              <el-select size="small" v-model="formInfo.Check_Type"
+                         placeholder="请选择..."                   
+                         style="width:150px;">
+                  <el-option label="日检" value="日检" v-if="$limit('录入7S日检数据')"></el-option>
+                  <el-option label="周检" value="周检" v-if="$limit('录入7S周检数据')"></el-option>
+                  <el-option label="巡检" value="巡检" v-if="$limit('录入7S巡检数据')"></el-option>
+              </el-select>
+          </el-form-item>
+          <el-form-item label="检查时间：">
+              <el-date-picker size="small" type="date" value-format='yyyy-MM-dd' placeholder="选择日期" v-model="formInfo.Date" style="width:150px;" :disabled="formInfo.Check_Type=='日检'"></el-date-picker>
+          </el-form-item>
+          <el-form-item label="检查人：">
+              <el-input v-for="item in check_person_list" :key="item.id" size="small" v-model="item.name" placeholder="请输入" style="width:100px; margin-right: 10px;">
+                  <i slot="suffix" class="el-input__icon el-icon-delete" @click="deleteCheckPerson(item.id)"></i>
+              </el-input>
+              <el-button size="small" type="primary" @click="addCheckPerson">添加检查人</el-button>
+          </el-form-item>
+        </div>
+        <div>
+          <el-form-item label="部门：">
+              <el-select size="small" v-model="formInfo.Department" placeholder="请选择部门" style="width:150px;" @change="onChangeDepartment">
+                  <el-option v-for="item in department_options"
+                             :key="item.value"
+                             :label="item.label"
+                             :value="item.value">
+                  </el-option>
+              </el-select>
+          </el-form-item>
+          <el-form-item label="位置：">
+              <el-select size="small" v-model="formInfo.Position" placeholder="请选择位置" style="width:150px;" @change="onChangePosition">
+                  <el-option v-for="item in position_options"
+                             :key="item.value"
+                             :label="item.label"
+                             :value="item.value">
+                  </el-option>
+              </el-select>
+          </el-form-item>
+          <el-form-item label="区域号：">
+              <el-select size="small" clearable v-model="formInfo.District" allow-create filterable placeholder="请选择区域号" style="width:150px;" @change="onChangeDistrict">
+                  <el-option v-for="item in district_options"
+                             :key="item.value"
+                             :label="item.label"
+                             :value="item.value">
+                  </el-option>
+              </el-select>
+          </el-form-item>
+         </div>
+         <!--表格 -->
+          <div class="table-height">
+              <vxe-table border
+                           ref="xTable"
+                           size="small"
+                           height="530px"
+                           align="center"
+                           :data="tableData">
+                    <vxe-table-column type="seq" title="序号" width="50"></vxe-table-column>
+                    <vxe-table-column title="7S扣分类型" field="PointsDeducted_Type" width="140">
+                        <template v-slot="{ row }">
+                            {{row.PointsDeducted_Type}}
+                            <span style="color: #8EA0B8;">（-{{getGarde(row.PointsDeducted_Type)}}分/个）</span>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="请选择扣分参考标准" field="PointsDeducted_Item" min-width="400">
+                        <template v-slot="{ row,rowIndex }">
+                            <el-checkbox-group v-model="row.PointsDeducted_Item" class="option-box" @change="onSelectItem(row,rowIndex)">
+                                <div v-for="(item,index) in row.selectoption" :key="index" class="option-box-item">
+                                    <el-checkbox :label="item.value" :value="item.value" @change="onChangeItem(item.value,row.PointsDeducted_Item,rowIndex)">
+                                        {{item.value}}<span style="margin-left:2px;">{{item.count<2?'':'x'+item.count}}</span>
+                                    </el-checkbox>
+                                    <span v-show="item.count>0" @click.stop="onAddItem(item.value,row,rowIndex)"><i class="el-icon-circle-plus-outline icon-style"></i></span>
+                                </div>
+                            </el-checkbox-group>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="问题描述" field="ProblemDescription" width="200">
+                        <template v-slot="{ row }">
+                            <el-input type="textarea"
+                                      autosize
+                                      placeholder="请输入内容"
+                                      v-model="row.ProblemDescription">
+                            </el-input>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="扣分" field="PointsDeducted" width="80" class-name="row-pointsDeducted" :formatter="formatterPoints">
+                    </vxe-table-column>
+                    <vxe-table-column title="改善前图片" field="BeforeImprovement" width="200">
+                        <template v-slot="{ row,rowIndex  }">
+                            <div class="img-upload">                                
+                                <lookImage :ImageList="row.BeforeImprovement" :row="row" :rowIndex="rowIndex" type="1" @fatherMethod="onDelete"></lookImage>
+                                <el-button size="mini" type="primary" v-on:click="addImg(row,rowIndex,1)">添加照片</el-button>
+                            </div>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="改善后图片" field="AfterImprovement" width="200">
+                         <template v-slot="{ row,rowIndex }">
+                            <div class="img-upload">
+                                <lookImage :ImageList="row.AfterImprovement" :row="row" :rowIndex="rowIndex" type="2" @fatherMethod="onDelete"></lookImage>
+                                <el-button size="mini" type="primary" v-on:click="addImg(row,rowIndex,2)">添加照片</el-button>
+                            </div>
+                        </template>
+                    </vxe-table-column>
+                    <vxe-table-column title="限期整改时间" field="RectificationTime" width="150">
+                    </vxe-table-column>
+              </vxe-table>
+          </div>
+          <!-- 底部 -->
+          <div style="margin-top:10px">
+              <el-button size="small" type="primary" @click="onOpenMessage">提交信息</el-button>
+              <el-button size="small" @click="onReset">取消</el-button>
+          </div>
+      </el-form>
+      <!--上传照片-->
+      <el-dialog v-bind:visible.sync="dialogVisible" width="500px">
+          <uploadImage :actionurl="'/KPI_Api/ImageUpload'" :fileList="fileList" @selectFile="selectFile" @handlePictureCardPreview="handlePictureCardPreview" @handleRemove="handleRemove" @onCancel="onCancel" @uploadFile="uploadFile"></uploadImage>
+      </el-dialog>      
+      <el-dialog :visible.sync="showVisible">
+          <img width="100%" :src="dialogImageUrl" alt="">
+      </el-dialog>
+      <!--确认信息 -->
+      <el-dialog title="确认信息"
+                 :visible.sync="dialogMessage"
+                 width="80%">
+          <div class="comfirm-form">
+              <div class="comfirm-form-item"><span>检查类型：</span>{{this.formInfo.Check_Type}}</div>
+              <div class="comfirm-form-item"><span>检查日期：</span>{{this.formInfo.Date}}</div>
+              <div class="comfirm-form-item"><span>检查人：</span>{{this.formInfo.Check_Person}}</div>
+              <div class="comfirm-form-item"> <span>部门：</span>{{this.formInfo.Department}}</div>
+              <div class="comfirm-form-item"><span>位置：</span>{{this.formInfo.Position}}</div>
+              <div class="comfirm-form-item"><span>区域：</span>{{this.formInfo.District}}</div>
+          </div>
+          <div style="width:100%;height:50vh;">
+              <vxe-table border
+                         height="auto"
+                         auto-resize
+                         size="small"
+                         align="center"
+                         :data="submitData">
+                  <vxe-table-column type="seq" title="序号" width="50"></vxe-table-column>
+                  <vxe-table-column title="7S扣分类型" field="PointsDeducted_Type" width="120">
+                  </vxe-table-column>
+                  <vxe-table-column title="扣分参考标准" field="PointsDeducted_Item">
+                      <template v-slot="{ row }">
+                          <div class="pointsDeducted_item" v-for="(item,index) in row.PointsDeducted_Item" :key="index">
+                              <span>{{index+1}}.{{item}}</span>
+                              <span style="margin-left:2px;">{{getCount(item,row.selectoption)<2?'':'x'+getCount(item,row.selectoption)}}</span>
+                          </div>
+                      </template>
+                  </vxe-table-column>
+                  <vxe-table-column title="问题描述" field="ProblemDescription" width="140">
+                  </vxe-table-column>
+                  <vxe-table-column title="扣分" field="PointsDeducted" width="80" class-name="row-pointsDeducted" :formatter="formatterPoints">
+                  </vxe-table-column>
+                  <vxe-table-column title="改善前图片" field="BeforeImprovement" width="200">
+                      <template v-slot="{ row}">
+                          <div class="img-upload">
+                              <div class="el-upload-list__item-thumbnail" v-for="(url,index) in row.BeforeImprovement"
+                                   :key="index">
+                                  <el-image style="width:70px;height:70px;margin:2px"
+                                            fit="cover"
+                                            :preview-src-list="row.BeforeImprovement"
+                                            :src="url">
+                                  </el-image>
+                              </div>
+                          </div>
+                      </template>
+                  </vxe-table-column>
+                  <vxe-table-column title="改善后图片" field="AfterImprovement" width="200">
+                      <template v-slot="{ row}">
+                          <div class="img-upload">
+                              <div class="el-upload-list__item-thumbnail" v-for="(url,index) in row.AfterImprovement"
+                                   :key="index">
+                                  <el-image style="width:70px;height:70px;margin:2px"
+                                            fit="cover"
+                                            :preview-src-list="row.AfterImprovement"
+                                            :src="url">
+                                  </el-image>
+                              </div>
+                          </div>
+                      </template>
+                  </vxe-table-column>
+                  <vxe-table-column title="限期整改时间" field="RectificationTime" width="120" >
+                    <!--:formatter="formatTime"  -->
+                  </vxe-table-column>
+              </vxe-table>
+          </div>
+          <span slot="footer" class="dialog-footer">
+              <el-button @click="dialogMessage = false">取消</el-button>
+              <el-button type="primary" @click="onSubmit">确认上传</el-button>
+          </span>
+      </el-dialog>
+       <!-- 重复提示 -->
+      <el-dialog :visible.sync="dialogRepeat"
+                 width="40%">
+          <span>{{formInfo.Department}}该区域{{formInfo.District}}，在{{formatDate(formInfo.Date)}}这一日期，已存在<span style="color:red">{{tip}}</span>等记录重复，是否还要继续上传？</span>
+          <span slot="footer" class="dialog-footer">
+              <el-button @click="onCancelConfirm">取 消</el-button>
+              <el-button type="primary" @click="onConfirm">继续上传</el-button>
+          </span>
+      </el-dialog>
+    </div>
+  </div>
+</template>
+
+<script>
+import cHeader from "./page-components/_kpi_7s_header";
+import lookImage from "./page-components/_lookimage";
+import uploadImage from "./page-components/_upload_image"
+import axios from 'axios'
+import reqUrl from '@/libs/prefix.url'
+import {regionGetDep,regionGetDis,regionGetPosi,getVersionT,getAllRegin,getTableSelect,getPsionDep,gainImage,DeleteImage,CheckRepeat,SaveRecord} from "@/api/hr/kpi-7s";
+export default {
+  name: 'KPI_7S_RecordInput',
+  props: {},
+  data() {
+    return {
+      active:'部门班组扣分录入',
+      //检查人动态添加、删除
+      index: 1,
+      check_person_list: [
+          { id: 0, name: '' }
+      ],
+      //下拉选项
+      department_options: [],
+      district_options: [],
+      position_options: [],
+      //上传图片
+      dialogImageUrl: '',
+      showVisible: false,
+      dialogVisible: false, //控制图片上传弹框
+      fileList: [],
+      files: [],           //存储选中的照片
+      filename: [],
+      uploadType: '',     //图片位置（改善前、改善后）
+      uploadRow: '',      //选中图片所在行
+      uploadIndex: '',     //选中行
+      //确认信息
+      dialogMessage: false,
+      submitData: [],
+      //提示重复
+      dialogRepeat: false,
+      tip: '',
+      //提交筛选
+      formInfo: {
+          Check_Type: '',  //检查类型
+          Date: '',   //检查日期
+          Department: '',      //部门
+          Position: '',   // 位置
+          District: '',     //区域
+          Check_Person: '',      //检查人
+      },
+      //7s扣分项表
+      tableData: [],
+      daily_input: false,//日检权限
+      week_input: false,//周检权限
+      inspection_input: false,//巡检权限
+    };
+  },
+  components: {
+    cHeader,
+    lookImage,
+    uploadImage
+  },
+  computed: {},
+  watch: {
+      'formInfo.Date': {
+          handler(val) {
+              if (val != ('' || null)) {
+                  this.GetDistrict();
+                  this.onGetData()
+              } else {
+                  this.formInfo.Department = '';
+                  this.formInfo.Position = '';
+                  this.formInfo.District = '';
+                  this.district_options = '';
+              }
+          },
+          deep: true
+      },
+      'formInfo.Check_Type': {
+          handler(val) {              
+              if (val != '') {
+                  this.onGetData();
+                  if (val == '日检') {
+                      this.$refs.xTable.hideColumn(this.$refs.xTable.getColumnByField('PointsDeducted'));
+                      this.$refs.xTable.hideColumn(this.$refs.xTable.getColumnByField('RectificationTime'));
+                      this.$refs.xTable.showColumn(this.$refs.xTable.getColumnByField('AfterImprovement'));
+                      let time = new Date();
+                      this.formInfo.Date = time.getFullYear() + '-' + (time.getMonth() + 1) + '-' + time.getDate();
+                  }
+                  if (val == '周检' || val == '巡检') {
+                      this.formInfo.Date==''
+                      this.$refs.xTable.hideColumn(this.$refs.xTable.getColumnByField('AfterImprovement'));
+                      this.$refs.xTable.showColumn(this.$refs.xTable.getColumnByField('PointsDeducted'));
+                      this.$refs.xTable.showColumn(this.$refs.xTable.getColumnByField('RectificationTime'));
+                      this.formInfo.Date = '';
+                  }
+              }
+          },
+          deep: true
+      },
+  },
+  methods: {
+    //添加检查人
+    addCheckPerson() {
+        this.check_person_list.push({
+            id: this.index,
+            name: ''
+        });
+        this.index += 1;
+    },
+    //删除检查人
+    deleteCheckPerson(val) {
+        let arr = this.check_person_list;
+        let newArr = [];
+        for (let i = 0; i < arr.length; i++) {
+            let j = arr[i];
+            if (j.id != val) {
+                newArr.push(j);
+            }
+        }
+        this.check_person_list = newArr;
+    },
+    //选择部门，位置，区域
+    onChangeDepartment(val) {
+        if (val != '') {
+            this.formInfo.Position = '';
+            this.formInfo.District = '';
+            this.onGetPosition();
+        }
+    },
+    onChangePosition(val) {
+        if (val != '') {
+            if (this.formInfo.District == '') {
+                this.onGetDistrictData();
+            }
+        }
+    },
+    onChangeDistrict(val) {
+        if (val != '') {
+            //根据区域号找位置、部门
+            getPsionDep({ district: val, date: this.formInfo.Date }).then(res => {
+              console.log(res.data)
+                this.formInfo.Department = res.data.Data.depList[0].value;
+                if (res.data.Data.positionList.length == 1) {
+                    this.formInfo.Position = res.data.Data.positionList[0].value;
+                    this.position_options = res.data.Data.positionList;
+                } else {
+                    if (this.formInfo.Position != '') {
+                        res.data.Data.positionList.forEach(item => {
+                            if (this.formInfo.Position == item.value) {
+                            } else {
+                                this.formInfo.Position = '';
+                            }
+                        })
+                    }
+                    this.position_options = res.data.Data.positionList;
+                }
+            })
+        } else {
+            this.GetDistrict();
+        }
+    },
+    //获取位置
+    onGetPosition() {
+      let obj={ department: this.formInfo.Department }
+        regionGetPosi(obj).then(res => {
+            res.data.Data.shift();
+            this.position_options = res.data.Data;
+        })
+    },
+     //获取部门
+    onGetDepartmentData() {
+        regionGetDep().then(res => {
+            res.data.Data.shift();           
+            this.department_options = res.data.Data;
+        })
+    },
+    //获取区域号
+    onGetDistrictData() {
+        let obj ={ department: this.formInfo.Department , position: this.formInfo.Position }
+        regionGetDis(obj).then(res => {
+            this.district_options = res.data.Data;
+        })
+    },
+     //根据版本时间找出全部区域号
+    GetDistrict() {
+        if (this.formInfo.Date == ('' || null)) {
+            this.$message.warning("请先选择检查时间！");
+            return;
+        } else {
+            console.log(this.formInfo.Date,2222222)
+            getAllRegin(this.formInfo.Date).then(res => {
+                this.district_options = res.data.Data;
+            })
+        }
+    },   
+     //获取表格选项
+    onGetData() {
+        getTableSelect(new Date(this.formInfo.Date)).then(res => {
+            this.tableData = res.data.Data
+        })
+    },     
+    //扣分项
+    onChangeItem(val, row, rowIndex) {
+        let itemArr = [];
+        let selectoption = this.tableData[rowIndex].selectoption;
+        selectoption.map(item => { itemArr.push(item.value) })
+        let itemIndex = itemArr.indexOf(val);
+        if (row.indexOf(val) > -1) {
+            selectoption[itemIndex].count += 1;
+        } else {
+            selectoption[itemIndex].count = 0;
+        }
+    },
+    //同一条扣分项出现得不止一次，次数与单个分数相加
+    onAddItem(val, row, rowIndex) {
+        let itemArr = [];
+        let selectoption = this.tableData[rowIndex].selectoption;
+        selectoption.map(item => { itemArr.push(item.value) })
+        let itemIndex = itemArr.indexOf(val);
+        selectoption[itemIndex].count += 1;
+        if (this.formInfo.Check_Type != '日检' && this.formInfo.Check_Type != '') {
+            let grade_item = this.getGarde(row.PointsDeducted_Type);
+            let count = 0;
+            selectoption.map(item => {
+                count += item.count;
+            })
+            let grade = grade_item * count;
+            if (grade == 0) {
+                this.tableData[rowIndex].PointsDeducted = '';
+            } else {
+                this.tableData[rowIndex].PointsDeducted = grade;
+            }
+        }
+    },
+     //分数
+    getGarde(val) {
+        switch (val) {
+            case '整理':
+                return 0.5;
+                break;
+            case '整顿':
+                return 0.5;
+                break;
+            case '清洁':
+                return 0.5;
+                break;
+            case '清扫':
+                return 0.5;
+                break;
+            case '安全':
+                return 1;
+                break;
+            case '节约':
+                return 1;
+                break;
+            case '素养':
+                return 1;
+                break;
+        }
+    },
+    formatterPoints({ cellValue }) {
+        if (cellValue != '' || cellValue != 0) {
+            return -cellValue;
+        }
+    },
+    //计算打钩项目的分数
+    onSelectItem(row, rowIndex) {
+        let selectoption = this.tableData[rowIndex].selectoption;
+        if (this.formInfo.Check_Type != '日检' && this.formInfo.Check_Type != '') {
+            let grade_item = this.getGarde(row.PointsDeducted_Type);
+            let count = 0;
+            selectoption.map(item => {
+                count += item.count;
+            })
+            let grade = grade_item * count;
+            if (grade == 0) {
+                this.tableData[rowIndex].PointsDeducted = '';
+            } else {
+                this.tableData[rowIndex].PointsDeducted = grade;
+            }
+        }
+    },
+    //添加图片
+    addImg(row, rowIndex, val) {
+        if (this.onTip()) {
+            this.dialogVisible = true;
+            if (val == 1) {
+                this.uploadType = '改善前';
+            }
+            if (val == 2) {
+                this.uploadType = '改善后';
+            }
+            this.files =[]
+            this.fileList = [];
+            this.filename = [];
+            this.uploadRow = row;
+            this.uploadIndex = rowIndex;
+        }
+    },
+    //选取文件方法
+    selectFile(file) {
+        this.files.push(file.raw);
+        this.filename.push(file.name);
+    },
+     //移除临时图片
+    handleRemove(file) {;
+        for (let i in this.files) {
+            if (this.files[i].uid == file.uid) {
+                this.files.splice(i, 1)
+            }
+        }
+        for (let i in this.filename) {
+            if (this.filename[i] == file.name) {
+                this.filename.splice(i, 1)
+            }
+        }
+    },
+    //查看临时图片
+    handlePictureCardPreview(file) {
+        this.dialogImageUrl = file.url;
+        this.showVisible = true;
+    },
+    //取消上传
+    onCancel() {
+        this.fileList = [];
+        this.dialogVisible = false;
+    },
+    //确认上传图片
+    uploadFile() {
+        this.$loading({
+            lock: true,
+            text: '上传ing...',
+            spinner: 'el-icon-loading',
+            background: 'rgba(0, 0, 0, 0.7)'
+        });
+        this.formInfo.Date.toString();
+        let fd = new FormData();
+        fd.append('department', this.formInfo.Department)
+        fd.append('position', this.formInfo.Position)
+        fd.append('check_date', this.formInfo.Date)
+        fd.append('check_Type', this.formInfo.Check_Type)
+        fd.append('district', this.formInfo.District)
+        fd.append('pointsDeducted_Type', this.uploadRow.PointsDeducted_Type)
+        fd.append('uploadType', this.uploadType)
+        let param = {
+            'department': this.formInfo.Department,
+            'position': this.formInfo.Position,
+            'check_date': this.formInfo.Date,
+            'check_Type': this.formInfo.Check_Type,
+            'district': this.formInfo.District,
+            'pointsDeducted_Type': this.uploadRow.PointsDeducted_Type,
+            'uploadType': this.uploadType
+        }
+        this.filename.forEach(file => { fd.append("pictureFile", file); })
+        let j = 0;
+        this.files.forEach(item => { fd.append("MS_HttpContext" + j, item); j++; })
+        axios.post(reqUrl+'KPI_Api/ImageUpload',fd).then(res => {
+           if (res.data == true) {
+               this.$message.success('图片上传成功！');
+               this.dialogVisible = false;
+               this.onGetImg(param);
+               this.files = this.fileList = this.filename = [];
+               this.$loading().close();
+           } else {
+               this.$message.error('图片上传失败');
+               this.dialogVisible = false;
+               this.$loading().close();
+           }
+       })
+    },
+    //获取图片
+    onGetImg(param) {
+        gainImage(param).then(res => {
+            let arr = this.tableData[this.uploadIndex];       
+            if (param.uploadType == '改善前') {             
+                let urlArr =[]
+                res.data.Data.forEach(item=>{
+                  urlArr.push(this.$loadPath+item+"?"+Math.random())//添加随机数，防止删除后出现图片缓存的问题
+                })
+                console.log(urlArr)
+                arr.BeforeImprovement=[]
+                arr.BeforeImprovement = urlArr;
+                this.$forceUpdate()
+            }
+            if (param.uploadType == '改善后') {
+              let urlArr =[]
+              res.data.Data.forEach(item=>{
+                  urlArr.push(this.$loadPath+item+"?"+Math.random())
+                })
+                arr.AfterImprovement = urlArr;
+                this.$forceUpdate()
+            }
+        })
+    },
+    //删除图片
+    onDelete(url,row,rowIndex,type) {
+        if (type == '1') {
+            this.uploadType = '改善前';
+        }
+        if (type == '2') {
+            this.uploadType = '改善后';
+        }
+        let imageUrl =url.split('//')
+        let iUrl=imageUrl[2].split('?')
+        this.$confirm('确认删除该图片？').then(_ => {
+            this.uploadIndex = rowIndex;
+            let param = {
+                'path': iUrl[0],
+                'department': this.formInfo.Department,
+                'position': this.formInfo.Position,
+                'check_date':this.formInfo.Date,
+                'check_Type': this.formInfo.Check_Type,
+                'district': this.formInfo.District,
+                'pointsDeducted_Type': row.PointsDeducted_Type,
+                'uploadType': this.uploadType
+            }
+            this.$loading({
+                lock: true,
+                text: '删除ing...',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            DeleteImage( param).then(res => {
+                if (res.data = "删除成功") {
+                    this.$message.success(res.data);
+                    this.onGetImg(param)
+                    this.$loading().close();
+                }else{
+                    this.$message.warning(res.data)
+                    }
+            })
+        }).catch(_ => {
+            this.$loading().close();
+        });
+    },
+    //提示
+    onTip() {
+        if (this.formInfo.Check_Type == '') {
+            this.$message.warning('请选择检查类型!')
+            return false;
+        } else if (this.formInfo.Date == '') {
+            this.$message.warning('请选择检查日期！');
+            return false;
+        } else if (this.formInfo.Department == '') {
+            this.$message.warning('请选择部门！');
+            return false;
+        }
+        else if (this.formInfo.Position == '') {
+            this.$message.warning('请选择位置!')
+            return false;
+        } else if (this.formInfo.District == '') {
+            this.$message.warning('请选择区域号!')
+            return false;
+        }
+        else {
+            return true;
+        }
+    },
+    //判断是否上传照片
+    onCheckUpload() {
+        let type = this.formInfo.Check_Type;
+        let row = this.tableData;
+        for (let i = 0; i < row.length; i++) {
+            if (row[i].PointsDeducted_Item.length > 0) {
+                if (type == '日检') {
+                    if (row[i].BeforeImprovement == '' || row[i].AfterImprovement == '') {
+                        this.$message.warning('请在对应选项上传图片！')
+                        return false;
+                    }
+                }
+                if (type == '周检' || type == '巡检') {
+                    if (row[i].BeforeImprovement == '') {
+                        this.$message.warning('请在对应选项上传图片！')
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    },
+    //格式化数据
+    formatDate(time) {
+        let date = new Date(time);
+        return date.getFullYear()+'-'+(date.getMonth()+1)+'-'+date.getDate()
+    },
+    //获取扣分条数
+    getCount(val, rowItem) {
+        for (let i in rowItem) {
+            if (rowItem[i].value == val) {
+                return rowItem[i].count
+            }
+        }
+    },
+    //取消当前信息
+    onReset() {
+        this.$confirm('确认清空当前信息？').then(_ => {
+            this.formInfo = {
+                Check_Type: '',  //检查类型
+                Date: '',   //检查日期
+                Department: '',      //部门
+                Position: '',   // 位置
+                District: '',     //区域
+                Check_Person: ''
+            };
+            this.onGetData();
+            this.submitData = [];
+            this.index = 1;
+            this.check_person_list = [
+                { id: 0, name: '' }
+            ];
+        }).catch();
+
+    },
+    onTipCheck() {
+        let arr = [];
+        this.check_person_list.map(item => {
+            if (item.name != '') {
+                arr.push(item.name);
+            }
+        })
+        if (arr.length == 0) {
+            this.$message.warning('请填写至少一个检查人！');
+            return false;
+        } else {
+            this.formInfo.Check_Person = arr.toString();
+            return true;
+        }
+    },
+    //弹出确认信息
+    onOpenMessage() {
+        if (this.onTip() && this.onTipCheck()) {
+            if (this.onCheckUpload()) {
+                let [...submitData] = this.tableData;
+                for (let i = 0; i < submitData.length; i++) {
+                    if (submitData[i].PointsDeducted_Item.length == 0) {
+                        submitData.splice(i, 1);
+                        i--;
+                    }
+                }
+                if (submitData.length == 0) {
+                    this.$message.warning('请在7S参考标准勾选7S扣分选项！');
+                    return;
+                } else {
+                    this.submitData = submitData;
+                    let typeArr=[]
+                    this.submitData.forEach(item=>{
+                        typeArr.push({"PointsDeducted_Type":item.PointsDeducted_Type})
+                    })
+                    let obj ={ record: typeArr, formInfo: this.formInfo }
+                    CheckRepeat(obj).then(res => {
+                        if (res.data.Data.length == 0) {
+                            this.dialogMessage = true;
+                        } else {
+                            this.tip = res.data.Data.toString();
+                            this.dialogRepeat = true;
+                        }
+                    })
+                }
+            }
+        }
+    },
+    //重复记录提示取消上传
+    onCancelConfirm() {
+        this.dialogRepeat = false;
+    },
+    onConfirm() {
+        this.dialogRepeat = false;
+        this.dialogMessage = true;
+    },
+    //提交表单
+    onSubmit() {
+        let submitData = this.submitData;
+        for (let i = 0; i < submitData.length; i++) {
+            let PointsDeducted_Item = submitData[i].PointsDeducted_Item;
+            let selectoption = submitData[i].selectoption;
+            for (let j in PointsDeducted_Item) {
+                let count = this.getCount(PointsDeducted_Item[j], selectoption);
+                if (count > 1) {
+                    PointsDeducted_Item[j] = PointsDeducted_Item[j] + ' x' + count;
+                }
+            }
+            let str = PointsDeducted_Item.join("|");
+            submitData[i].PointsDeducted_Item = str;
+        }
+        let newd = JSON.parse(JSON.stringify(submitData, ['PointsDeducted_Type', 'PointsDeducted_Item', 'ProblemDescription', 'RectificationTime', 'Rectification_Confim', 'PointsDeducted']));
+        this.$loading({
+            lock: true,
+            text: '提交ing...',
+            spinner: 'el-icon-loading',
+            background: 'rgba(0, 0, 0, 0.7)'
+        });
+        console.log(newd,222)
+        let newList=[]
+        newd.forEach(item=>{//处理日检扣分值为空时，变成0，否则后台报错
+            if(item.PointsDeducted==""){
+                newList.push({"PointsDeducted":0,"PointsDeducted_Item":item.PointsDeducted_Item,"PointsDeducted_Type":item.PointsDeducted_Type,"ProblemDescription":item.ProblemDescription,"RectificationTime":item.RectificationTime,"Rectification_Confim":item.Rectification_Confim})
+            }else{
+                newList.push(item)
+            }
+        })
+        let obj ={ record: newList, formInfo: this.formInfo }
+        SaveRecord(obj).then(res => {
+            if (res.data.Result ==true) {
+                this.$message.success(res.data.Message);
+                this.formInfo = {
+                    Check_Type: '',  //检查类型
+                    Date: '',   //检查日期
+                    Department: '',      //部门
+                    Position: '',   // 位置
+                    District: '',     //区域
+                    Check_Person: ''
+                };
+                this.submitData = [];
+                this.index = 1;
+                this.check_person_list = [
+                    { id: 0, name: '' }
+                ];
+                this.onGetData();
+                this.$loading().close();
+                this.dialogMessage = false;
+            } else {
+                this.$loading().close();
+                this.$message.error(res.data.Message);
+            }
+        })
+    }
+  },
+  created() {
+    this.onGetDepartmentData();
+  },
+  mounted() {},
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {},
+}
+</script>
+
+<style lang='less' scoped>
+@import url('./kpi7s.less');
+@import url('~@/assets/style/vxe.css');
+
+</style>

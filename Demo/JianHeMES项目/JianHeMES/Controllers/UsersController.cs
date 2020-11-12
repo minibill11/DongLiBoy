@@ -2697,7 +2697,7 @@ namespace JianHeMES.Controllers
             foreach (var item in users)
             {
                 var roles = db.Users.Where(c => c.UserNum == item).FirstOrDefault();
-                var discr = db.Useroles.Where(c => c.UserID == item && c.RolesName == RolesName).Select(c => c.Roles).FirstOrDefault();
+                var discr = db.Useroles.Where(c => c.UserID == item && c.New_RolesName == RolesName).Select(c => c.New_Roles).FirstOrDefault();
                 table.Add("ID", roles.ID);
                 table.Add("Department", roles.Department);
                 table.Add("Role", roles.Role);
@@ -2732,7 +2732,7 @@ namespace JianHeMES.Controllers
                         rolesList.Add("Discr", false);
                         tableList.Add(rolesList);
                         rolesList = new JObject();
-                    }                 
+                    }
                 }
                 table.Add("Table", tableList);
                 tableList = new JArray();
@@ -2756,11 +2756,10 @@ namespace JianHeMES.Controllers
             }
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            string RolesName = obj.RolesName == null ? null : obj.RolesName;
             string FourModule = obj.FourModule == null ? null : obj.FourModule;//模块         
             string Department = obj.Department == null ? null : obj.Department;//部门             
             string UserName = obj.UserName == null ? null : obj.UserName;//权限组
-            int UserID = int.Parse(obj.UserID) == 0 ? 0 : int.Parse(obj.UserID);//用户工号
+            int UserID = obj.UserID;//用户工号
             string Position = obj.Position == null ? null : obj.Position;//用户职位
             string Delete = obj.Delete == null ? null : obj.Delete;//删除数据
             string Add = obj.Add == null ? null : obj.Add;//添加数据
@@ -2768,7 +2767,7 @@ namespace JianHeMES.Controllers
 
             List<string> roleList = new List<string>();
             //当前用户的rolecode
-            var totalrolecode = db.Useroles.Where(c => c.UserName == UserName && c.UserID == UserID && c.New_RolesName == New_RolesName).Select(c => c.New_Roles).FirstOrDefault();
+            var totalrolecode = db.Useroles.Where(c => c.UserName == UserName && c.UserID == UserID && c.New_RolesName== New_RolesName).Select(c => c.New_Roles).FirstOrDefault();
 
             if (!string.IsNullOrEmpty(totalrolecode))
             {
@@ -2780,7 +2779,7 @@ namespace JianHeMES.Controllers
             foreach (var item in adduserList)
             {
                 string discription = item.ToString();
-                int code = db.UserRolelistTable.Where(c => c.RolesName == New_RolesName && c.Discription == discription).Select(c => c.RolesCode).FirstOrDefault();
+                int code = db.UserNewPermissions.Where(c => c.RolesName == New_RolesName && c.Discription == discription).Select(c => c.RolesCode).FirstOrDefault();
                 roleList.Add(code.ToString());
             }
 
@@ -2789,7 +2788,7 @@ namespace JianHeMES.Controllers
             foreach (var item in deleteuserList)
             {
                 string discription = item.ToString();
-                int code = db.UserRolelistTable.Where(c => c.RolesName == New_RolesName && c.Discription == discription).Select(c => c.RolesCode).FirstOrDefault();
+                int code = db.UserNewPermissions.Where(c => c.RolesName == New_RolesName && c.Discription == discription).Select(c => c.RolesCode).FirstOrDefault();
                 roleList.Remove(code.ToString());
             }
 
@@ -2813,8 +2812,10 @@ namespace JianHeMES.Controllers
             //如果有这个用户信息，修改roles
             else
             {
-                checkUser.First().Roles = rolecode;
-                db.SaveChangesAsync();
+                checkUser.First().New_Roles = rolecode;
+                checkUser.First().FourModule = FourModule;//模块
+                checkUser.First().New_RolesName = New_RolesName;//权限组
+                db.SaveChanges();
             }
             result.Add("Result", true);
             result.Add("Message", "操作成功");
@@ -2942,32 +2943,37 @@ namespace JianHeMES.Controllers
             string fourModule = obj.fourModule == null ? null : obj.fourModule;//模块              
             string discription = obj.discription == null ? null : obj.discription;//权限名
             string rolesName = obj.rolesName == null ? null : obj.rolesName;//权限组
-            var disply = db.UserNewPermissions.Where(c => c.FourModule == fourModule).ToList();
-            if (disply.Count > 0)
+            var disply = db.UserNewPermissions.Where(c => c.FourModule == fourModule).FirstOrDefault();
+            if (disply != null)
             {
-                foreach (var item in disply)
+                UserNewPermissions permissions = new UserNewPermissions();
+                int i = 0;
+                if (db.UserNewPermissions.Count(c => c.FourModule == fourModule && c.RolesName == rolesName) > 0)
                 {
-                    int i = 0;
-                    if (db.UserNewPermissions.Count(c => c.FourModule == fourModule && c.RolesName == rolesName) != 0)
-                    {
-                        i = db.UserNewPermissions.Where(c => c.FourModule == fourModule && c.RolesName == rolesName).Max(c => c.RolesCode);//取已有权限名对应的RolesCode最大值
-                    }
-                    item.FourModule = fourModule;
-                    item.RolesCode = i + 1;
-                    item.RolesName = rolesName;
-                    if (discription != null)
-                    {
-                        item.Discription = discription;
-                    }
-                    else
-                    {
-                        item.Discription = "查看权限";
-                    }
-                    item.Operator = auth.UserName;
-                    item.OperateDT = DateTime.Now;
-                    db.UserNewPermissions.Add(item);
+                    i = db.UserNewPermissions.Where(c => c.FourModule == fourModule && c.RolesName == rolesName).Max(c => c.RolesCode);//取已有权限名对应的RolesCode最大值
+                }
+                if (discription != null)
+                {                   
+                    permissions.FourModule = fourModule;
+                    permissions.RolesCode = i + 1;
+                    permissions.RolesName = rolesName;
+                    permissions.Discription = discription;
+                    permissions.Operator = auth.UserName;
+                    permissions.OperateDT = DateTime.Now;
+                    db.UserNewPermissions.Add(permissions);
                     count = db.SaveChanges();
                 }
+                else
+                {                                        
+                    permissions.FourModule = fourModule;
+                    permissions.RolesCode = i + 1;
+                    permissions.RolesName = rolesName;
+                    permissions.Discription = "查看权限";
+                    permissions.Operator = auth.UserName;
+                    permissions.OperateDT = DateTime.Now;
+                    db.UserNewPermissions.Add(permissions);
+                    count = db.SaveChanges();
+                }              
                 if (count > 0)
                 {
                     result.Add("Result", true);
@@ -2982,7 +2988,7 @@ namespace JianHeMES.Controllers
                 }
             }
             result.Add("Result", false);
-            result.Add("Message", "数据为空！");
+            result.Add("Message", "添加失败！");
             return common.GetModuleFromJobjet(result);
         }
 
@@ -3204,6 +3210,7 @@ namespace JianHeMES.Controllers
 
         #region----查询系统用户方法、输出Excel表
 
+        //人力资源里的系统用户
         [HttpPost]
         [ApiAuthorize]
         public JObject UserqueryList()
@@ -3321,7 +3328,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region---删除已离职用户
+        #region---删除已离职用户（人力资源里的系统用户）
 
         [HttpPost]
         [ApiAuthorize]

@@ -7,10 +7,11 @@
     <style>
         #masterBarcode {
             width: 260px;
-            max-height: 55px;
+            max-height: 50px;
         }
 
         .masterBarDiv {
+            padding: 0 5px;
         }
 
         .inFrame {
@@ -21,10 +22,15 @@
         .inFram_top {
             width: 50%;
             height: 30px;
+            font-size: 14px;
+        }
+
+        .new-tag-table .inFram_top {
+            height: 24px;
         }
 
         .inFram_bar {
-            height: 60px;
+            height: 50px;
         }
 
         .inFram_bottom {
@@ -120,6 +126,15 @@
         .table-have-bar {
             color: #606266;
         }
+
+        .tagSwitch {
+            width: auto !important;
+        }
+
+        .tag-remark {
+            height: 28px;
+            line-height: 28px;
+        }
     </style>
 }
 <div id="app" v-cloak>
@@ -141,6 +156,13 @@
                         <li v-for="item in notDoList" @@click="clickBarcode(item)" :class="item.select?'table-have-bar':''">{{item.barcode}}</li>
                     </ul>
                 </el-card>
+                <el-switch class="tagSwitch"
+                           v-model="tagVersion"
+                           active-text="厦门"
+                           active-value="new"
+                           inactive-text="普通"
+                           inactive-value="old">
+                </el-switch>
                 @RenderPage("_tag.cshtml")
             </el-col>
         </el-main>
@@ -180,22 +202,83 @@
                     shuliang: "",
                     completeInfo: [],
                     printShow: false,
-                    leng: '中/英',
+                    leng: '简/英',
                     lengOptions: [{
-                        value: '中',
-                        label: '中'
+                        value: '简',
+                        label: '简'
+                    }, {
+                        value: '繁',
+                        label: '繁'
                     }, {
                         value: '英',
                         label: '英',
                     }, {
-                        value: '中/英',
-                        label: '中/英'
+                        value: '简/英',
+                        label: '简/英'
+                    }, {
+                        value: '繁/英',
+                        label: '繁/英'
                     }],
+                    lengTags: {
+                        dd: {
+                            '简': '订单号',
+                            '繁': '訂單號',
+                            '英': 'Order No',
+                            '简/英': '订单号(Order No)',
+                            '繁/英': '訂單號(Order No)',
+                        },
+                        jh: {
+                            '简': '件号/数',
+                            '繁': '件號/數',
+                            '英': 'SN/TN',
+                            '简/英': '件号/数(SN/TN)',
+                            '繁/英': '件號/數(SN/TN)',
+                        },
+                        dd_new: {
+                            '简': '订单号',
+                            '繁': '訂單號',
+                            '英': 'PO#',
+                            '简/英': '订单号(PO#)',
+                            '繁/英': '訂單號(PO#)',
+                        },
+                        ggxh: {
+                            '简': '规格型号',
+                            '繁': '規格型號',
+                            '英': 'ITEM NO',
+                            '简/英': '规格型号(ITEM NO)',
+                            '繁/英': '規格型號(ITEM NO)',
+                        },
+                        ys: {
+                            '简': '颜色',
+                            '繁': '顏色 ',
+                            '英': 'COLOURS',
+                            '简/英': '颜色(COLOURS)',
+                            '繁/英': '顏色 (COLOURS)',
+                        },
+                        sl_new: {
+                            '简': '数量',
+                            '繁': '數量',
+                            '英': 'QTY(PCS)',
+                            '简/英': '数量QTY(PCS)',
+                            '繁/英': '數量QTY(PCS)',
+                        },
+                        jh_new: {
+                            '简': '件号',
+                            '繁': '件號',
+                            '英': 'PACKAGE#',
+                            '简/英': '件号(PACKAGE#)',
+                            '繁/英': '件號(PACKAGE#)',
+                        },
+                    },
                     customize: false,//是否自定义
                     isOutside: false,//是否是外箱
                     statueType: "",
                     statueTypeOptions: [],
                     notDoList: [],
+                    ITEMNO: null,
+                    COLOURS: null,
+                    Remark: null,
+                    CTNS_PSC: null,
                 }
             },
             mixins: [setModuleManagement],
@@ -208,7 +291,10 @@
                         this.imgShow = false;
                     };
                 };
-
+                let localtagversion = localStorage.getItem('tagversion');
+                if (localtagversion != null) {
+                    this.tagVersion = localtagversion;
+                };
                 let localOrder = localStorage.getItem('Order');
                 if (localOrder != null) {
                     this.selectVal = localOrder;
@@ -238,6 +324,9 @@
                     for (let i of this.mozutable) {
                         mzList.push(i.barcode.substr(-6));
                     };
+                    ////----旧版只有简体英文
+                    //if (this.tagVersion === 'old') { this.leng = '简/英' };
+                    ////----
                     axios.post('/ModuleManagement/ModuleInsideBoxLablePrint', {
                         orderNumber: this.selectVal,
                         packagingordernum: this.selectVal2 == '' ? null : this.selectVal2,
@@ -255,6 +344,7 @@
                         concentration: this.printInfo.concentration,
                         ip: this.printInfo.ip,//ip地址
                         port: 9101,//端口
+                        version: this.tagVersion,
                     }).then(res => {
                         if (res.data == '打印成功！') {
                             this.clear();
@@ -474,6 +564,10 @@
                     this.masterVal = '';
                     this.shuliang = '';
                     this.sntn = '';
+                    this.ITEMNO = null;
+                    this.COLOURS = null;
+                    this.Remark = null;
+                    this.CTNS_PSC = null;
                     this.getInfo();
                     //this.$message('重置完毕');
                     this.$refs.inputRef.focus();
@@ -604,6 +698,10 @@
                             this.completeInfo = res.data.Complete;
                             this.masterVal = res.data.InnerBarcode;
                             this.sntn = res.data['SN/TN'];
+                            this.ITEMNO = res.data.ITEMNO;
+                            this.COLOURS = res.data.COLOURS;
+                            this.Remark = res.data.Remark;
+                            this.CTNS_PSC = res.data.CTNS_PSC;
                         } else {
                             this.$message.error(res.data.mes);
                         };
@@ -623,6 +721,7 @@
                         this.setmasterBarDiv(v);
                     } else {
                         document.getElementsByClassName('masterBarDiv')[0].innerHTML = '<svg id="masterBarcode"></svg>';
+                        document.getElementsByClassName('masterBarDiv')[1].innerHTML = '<svg id="masterBarcode"></svg>';
                     };
                 },
                 //监听尾箱
@@ -645,6 +744,10 @@
                         this.shuliang = '';
                         this.sntn = '';
                     };
+                    this.ITEMNO = null;
+                    this.COLOURS = null;
+                    this.Remark = null;
+                    this.CTNS_PSC = null;
                 },
                 //监听款式
                 statueType(v) {
@@ -706,7 +809,7 @@
                 //监听语言
                 leng(v) {
                     if (v === '英') {
-                        this.wuliao = 'LED MG';
+                        this.wuliao = 'LED Modules';
                     } else {
                         this.wuliao = 'LED模块';
                     };
@@ -718,12 +821,21 @@
                         this.wuliao = '';
                     } else {
                         if (this.leng === '英') {
-                            this.wuliao = 'LED MG';
+                            this.wuliao = 'LED Modules';
                         } else {
                             this.wuliao = 'LED模块';
                         };
                     };
-                }
+                },
+                //监听新旧版本标签
+                tagVersion(v) {
+                    v != '' && localStorage.setItem('tagversion', v);
+                    if (v === 'new') {
+                        this.leng = '英';
+                    } else {
+                        this.leng = '简/英';
+                    };
+                },
             },
         };
     </script>

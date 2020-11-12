@@ -1,0 +1,1074 @@
+@{
+    ViewBag.Title = "设备履历";
+    Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+    <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+    <style>
+        .el-date-editor.el-input, .el-date-editor.el-input__inner {
+            width: 100%;
+        }
+
+        .btn-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .tabletop {
+            width: 100%;
+            font-size: 14px;
+            border: 1px solid #c9d3dd;
+            border-bottom: none;
+        }
+
+            .tabletop th, .tabletop td {
+                border: 1px solid #c9d3dd;
+            }
+
+            .tabletop th {
+                width: 10%;
+            }
+
+            .tabletop td {
+                padding: 8px;
+                width: 12%;
+            }
+
+            .tabletop .table-title {
+                font-size: 16px;
+                padding: 8px;
+                background-color: #e4ecf7;
+            }
+
+            .tabletop .th-bottom {
+                border-bottom: none;
+            }
+
+        .table-center-box {
+            padding: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .table-center-left {
+            flex: 1;
+            text-align: left;
+        }
+
+        .table-center-center {
+            flex: 1;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .table-center-right {
+            flex: 1;
+            text-align: right;
+        }
+
+        .time-list {
+            font-weight: normal;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .time-list-item {
+            padding: 8px 16px;
+        }
+
+            .time-list-item span {
+                color: #ff8590;
+            }
+
+        .textRed {
+            color: red;
+        }
+    </style>
+}
+<el-container id="app" v-cloak>
+    <el-header class="text-center">
+        @*标题*@
+        <div class="eq-title">设备履历</div>
+    </el-header>
+    <el-main class="main-box">
+        <div class="btn-box">
+            <span>
+                <el-button type="primary" size="mini" plain v-on:click="onToTurn(0)">关键原器件清单</el-button>
+                <el-button type="primary" size="mini" plain v-on:click="onToTurn(1)">安全库存清单</el-button>
+            </span>
+            <el-button type="primary" size="mini" v-on:click="onEdit">{{isEdit?'保存':'编辑'}}</el-button>
+        </div>
+        <table class="tabletop" border="1">
+            <thead>
+                <tr>
+                    <th colspan="7">
+                        <div class="table-title"> '{{tableTopData.UserDepartment}}' 设备保养、维修履历资料汇总表</div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th>设备名称：</th>
+                    <td colspan="3">
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.EquipmentName">
+                        </el-input>
+                        <span v-else>{{tableTopData.EquipmentName}}</span>
+                    </td>
+                    <th>设备状态：</th>
+                    <td>
+                        <el-select v-if="isEdit" size="mini" v-model="tableTopData.Status" placeholder="请选择...">
+                            <el-option v-for="item in status_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <span v-else>{{tableTopData.Status}}</span>
+                    </td>
+                    <td rowspan="5" style="width:600px;">
+                        <el-carousel height="160px" trigger="click" :interval="5000">
+                            <el-carousel-item v-for="(item,index) in imgArr" key="item">
+                                <img style="width:100%;height:100%;" v-on:click="showBigImg(index)" :src="item.FullPath" />
+                            </el-carousel-item>
+                        </el-carousel>
+                    </td>
+                </tr>
+                <tr>
+                    <th>资产编号：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.AssetNumber">
+                        </el-input>
+                        <span v-else>{{tableTopData.AssetNumber}}</span>
+                    </td>
+                    <th>使用部门：</th>
+                    <td>
+                        <el-select v-if="isEdit" size="mini" v-model="tableTopData.UserDepartment" placeholder="请选择...">
+                            <el-option v-for="item in department_options"
+                                       :key="item.value"
+                                       :label="item.label"
+                                       :value="item.value">
+                            </el-option>
+                        </el-select>
+                        <span v-else>{{tableTopData.UserDepartment}}</span>
+                    </td>
+                    <th>设备编号：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  disabled
+                                  v-model="tableTopData.EquipmentNumber">
+                        </el-input>
+                        <span v-else>{{tableTopData.EquipmentNumber}}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th>型号规格：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.ModelSpecification">
+                        </el-input>
+                        <span v-else>{{tableTopData.ModelSpecification}}</span>
+                    </td>
+                    <th>出厂编号：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.ManufacturingNumber">
+                        </el-input>
+                        <span v-else>{{tableTopData.ManufacturingNumber}}</span>
+                    </td>
+                    <th>生产厂家：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.Brand">
+                        </el-input>
+                        <span v-else>{{tableTopData.Brand}}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th>供应商：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.Supplier">
+                        </el-input>
+                        <span v-else>{{tableTopData.Supplier}}</span>
+                    </td>
+                    <th>购入日期：</th>
+                    <td>
+                        <el-date-picker v-if="isEdit" size="mini" v-model="tableTopData.PurchaseDate"
+                                        type="date"
+                                        placeholder="选择日期...">
+                        </el-date-picker>
+                        <span v-else>{{tableTopData.PurchaseDate}}</span>
+                    </td>
+                    <th>启用日期：</th>
+                    <td>
+                        <el-date-picker v-if="isEdit" size="mini" v-model="tableTopData.ActionDate"
+                                        type="date"
+                                        placeholder="选择日期...">
+                        </el-date-picker>
+                        <span v-else>{{tableTopData.ActionDate}}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th>存放地点：</th>
+                    <td>
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.StoragePlace">
+                        </el-input>
+                        <span v-else>{{tableTopData.StoragePlace}}</span>
+                    </td>
+                    <th>备注：</th>
+                    <td colspan="3">
+                        <el-input v-if="isEdit" size="mini"
+                                  placeholder="请输入..."
+                                  v-model="tableTopData.Remark">
+                        </el-input>
+                        <span v-else>{{tableTopData.Remark}}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th colspan="7">
+                        <div class="table-center-box">
+                            <div class="table-center-left">
+                                <template v-if="!isMoreAdd">
+                                    <el-button type="primary" size="mini" plain v-on:click="onToMaintain('0')">添加维修记录</el-button>
+                                    <el-button type="primary" size="mini" plain v-on:click="onShowMaintainMore">批量添加记录</el-button>
+                                </template>
+                                <template v-if="isMoreAdd">
+                                    <el-input size="mini"
+                                              type="textarea"
+                                              :rows="1"
+                                              placeholder="请粘贴数据..."
+                                              v-model="inputInfo"
+                                              style="width:150px;">
+                                    </el-input>
+                                    <el-button type="primary" size="mini" plain v-on:click="onMaintainMore">确认上传</el-button>
+                                    <el-button type="info" size="mini" plain v-on:click="onCancelMaintainMore">取消</el-button>
+                                </template>
+                            </div>
+                            <div class="table-center-center">设备维修记录</div>
+                            <div class="table-center-right">
+                                <el-date-picker size="mini" v-model="select_date"
+                                                style="width:130px;"
+                                                type="month"
+                                                placeholder="请选择日期...">
+                                </el-date-picker>
+                                <el-button type="primary" size="mini" v-on:click="onShowAddImg">上传图片</el-button>
+                            </div>
+                        </div>
+
+                    </th>
+                </tr>
+                <tr>
+                    <th colspan="7" class="th-bottom">
+                        <div class="time-list">
+                            <div class="time-list-item" v-for="(item,index) in timeList" :key="index">
+                                {{item.name}}：<span>{{item.value}}</span>
+                            </div>
+                        </div>
+
+                    </th>
+                </tr>
+            </tbody>
+        </table>
+        <el-table v-bind:data="tableData"
+                  size="small"
+                  style="width: 100%" border stripe>
+            <el-table-column label="序号" width="50">
+                <template scope="scope">
+                    <span v-if="scope.row.color==undefined">{{scope.$index + 1}} </span>
+                    <span v-if="scope.row.color!=undefined" :class="scope.row.color==1?'textRed':''">{{scope.$index + 1}} </span>
+                </template>
+            </el-table-column>
+            <el-table-column width="100"
+                             label="报修人">
+                <template slot-scope="scope">
+                    <div v-if="scope.row.ReportRepairMan!='null'">{{scope.row.ReportRepairMan}}</div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="FailureDescription"
+                             label="故障现象描述"
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="Reason"
+                             label="原因分析"
+                             width="180">
+            </el-table-column>
+            <el-table-column prop="RepairOrTestContent"
+                             label="维修或检测内容">
+            </el-table-column>
+
+            <el-table-column prop="GetJobTime"
+                             width="130"
+                             :formatter="dateFormat"
+                             sortable
+                             label="接单时间">
+            </el-table-column>
+            <el-table-column prop="PlanFinishTime"
+                             width="130"
+                             :formatter="dateFormat"
+                             sortable
+                             label="计划完成时间">
+            </el-table-column>
+            <el-table-column prop="ActualFinishTime"
+                             width="130"
+                             :formatter="dateFormat"
+                             sortable
+                             label="实际完成时间">
+            </el-table-column>
+            <el-table-column prop="RepairMan"
+                             width="100"
+                             label="维修人">
+            </el-table-column>
+            <el-table-column label="备注"
+                             width="130">
+                <template slot-scope="scope">
+                    <div v-if="scope.row.Remark!='null'">{{scope.row.Remark}}</div>
+                </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100">
+                <template slot-scope="scope">
+                    <el-button v-if="!isMoreAdd" type="text" size="mini" v-on:click="onToMaintain('1',scope.row)" style="text-decoration:underline;">修改</el-button>
+                    <el-button v-if="isMoreAdd" type="text" size="mini" v-on:click="onDeleteMaintain(scope.$index)" style="text-decoration:underline;">删除</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+        <!--上传照片-->
+        <el-dialog title="上传图片" v-bind:visible.sync="dialogVisibleImg" width="40%">
+            <el-upload action="/Equipment/UploadEquipmentPicture"
+                       list-type="picture-card"
+                       multiple
+                       :file-list="fileList"
+                       :auto-upload="false"
+                       :on-change="selectFile"
+                       :on-preview="handlePictureCardPreview"
+                       :on-remove="handleRemove">
+                <i class="el-icon-plus"></i>
+            </el-upload>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" v-on:click="onCancelImg">取 消</el-button>
+                <el-button size="small" type="primary" v-on:click="uploadFile">确定上传</el-button>
+            </span>
+        </el-dialog>
+        <el-dialog title="预览大图" v-bind:visible.sync="showVisible" width="60%">
+            <img style="width:100%;" :src="dialogImageUrl" alt="">
+        </el-dialog>
+        @* 新增/修改维修记录弹框 *@
+        <el-dialog :title="isAdd?'新增维修记录':'修改维修记录'"
+                   v-bind:visible.sync="dialogVisible"
+                   width="66%"
+                   style="text-align:center;">
+            <el-form :model="formInfo" label-width="130px">
+                <el-row>
+                    <el-col :span="6">
+                        <el-form-item label="订单号：">
+                            <el-input placeholder="请输入..."
+                                      size="mini"
+                                      v-model="formInfo.OrderNum"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="设备编号：">
+                            <el-input placeholder="请输入..."
+                                      size="mini"
+                                      v-bind:disabled="true"
+                                      v-model="formInfo.EquipmentNumber"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="资产编号：">
+                            <el-input placeholder="请输入..."
+                                      size="mini"
+                                      disabled
+                                      v-model="formInfo.AssetNumber"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="设备名称：">
+                            <el-input placeholder="请输入..."
+                                      size="mini"
+                                      disabled
+                                      v-model="formInfo.EquipmentName"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="6">
+                        <el-form-item label="设备状态：">
+                            <el-select size="mini" v-model="formInfo.Status" placeholder="请选择..." clearable>
+                                <el-option v-for="item in status_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="状态开始时间：">
+                            <el-date-picker size="mini" v-model="formInfo.StatusStarTime"
+                                            type="date"
+                                            placeholder="请选择日期..."
+                                            clearable>
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="状态结束时间：">
+                            <el-date-picker size="mini" v-model="formInfo.StatusEndTime"
+                                            type="date"
+                                            placeholder="请选择日期..."
+                                            clearable>
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="报修人：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.ReportRepairMan"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="故障现象描述：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.FailureDescription"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="原因分析：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.Reason"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="维修/检测内容：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.RepairOrTestContent"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="6">
+                        <el-form-item label="维修接单时间：">
+                            <el-date-picker size="mini" v-model="formInfo.GetJobTime"
+                                            type="date"
+                                            placeholder="请选择日期..."
+                                            clearable>
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="计划完成时间：">
+                            <el-date-picker size="mini" v-model="formInfo.PlanFinishTime"
+                                            type="date"
+                                            placeholder="请选择日期..."
+                                            clearable>
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="实际完成时间：">
+                            <el-date-picker size="mini" v-model="formInfo.ActualFinishTime"
+                                            type="date"
+                                            placeholder="请选择日期..."
+                                            clearable>
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="维修人：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.RepairMan"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="6">
+                        <el-form-item label="配件信息：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.SparePartsInfo"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="使用部门：">
+                            <el-select size="mini" v-model="formInfo.UserDepartment" placeholder="请选择..." clearable>
+                                <el-option v-for="item in department_options"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="车间：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.WorkShop"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="产线号：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.LineNum"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="6">
+                        <el-form-item label="工段：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.Section"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item label="记录修改人：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-bind:disabled="true"
+                                      v-model="formInfo.Modifier"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="备注：">
+                            <el-input placeholder="请输入内容"
+                                      size="mini"
+                                      v-model="formInfo.Remark"
+                                      clearable>
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="mini" v-on:click="onCancel">取 消</el-button>
+                <el-button size="mini" type="primary" v-on:click="RepiaInfo">保存</el-button>
+            </span>
+        </el-dialog>
+    </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+    <script>
+        const app = {
+            data: {
+                isEdit: false,  //是否编辑
+                isAdd: false,  //是否新增
+                isMoreAdd: false,  //是否批量添加
+                tableTopData: {},   //设备基本信息
+                imgArr: [],
+                //下拉框
+                status_options: [
+                    {
+                        laber: '正常',
+                        value: '正常'
+                    }, {
+                        laber: '闲置',
+                        value: '闲置'
+                    }, {
+                        laber: '报废',
+                        value: '报废'
+                    }
+                ],
+                department_options: [],
+                tableData: [],  //维修表数据
+                //选择时间显示运行时间
+                select_date: new Date(),
+                timeList: [],
+                //控制新增修改
+                dialogVisible: false,
+                //打开上传图片
+                dialogVisibleImg: false,
+                dialogImageUrl: '',
+                showVisible: false,  //查看图片
+                fileList: [],
+                files: [],
+                //新增表格
+                formInfo: {
+                    EquipmentNumber: '',  // 设备编号
+                    AssetNumber: '',  // 资产编号
+                    EquipmentName: '',  // 设备名称
+                    OrderNum: '',   // 订单号
+                    Status: '',   // 设备状态
+                    StatusStarTime: '',  // 状态开始时间
+                    StatusEndTime: '',  // 状态结束时间
+                    ReportRepairMan: '',  // 报修人
+                    FailureDescription: '',   // 故障现象描述
+                    Reason: '', // 原因分析
+                    RepairOrTestContent: '',  // 维修或检测内容
+                    GetJobTime: '',   // 维修接单时间
+                    PlanFinishTime: '',   // 计划完成时间
+                    ActualFinishTime: '',  // 实际完成时间
+                    RepairMan: '',   // 维修人
+                    SparePartsInfo: '',   // 配件信息
+                    UserDepartment: '',  // 使用部门
+                    WorkShop: '',   // 车间
+                    LineNum: '',  // 产线号
+                    Section: '',  // 工段
+                    Modifier: '',   // 记录修改人
+                    Remark: ''  //备注
+                },
+                inputInfo: ''//批量粘贴
+            },
+            mounted() {
+                this.getInitData();
+                this.getDefaultInfos();
+            },
+            watch: {
+                select_date(val) {
+                    this.getTimeList(val);
+                },
+                //粘贴表格
+                inputInfo(val) {
+                    if (val != '') {
+                        let valOfPaste = val.split("\n");
+                        valOfPaste.pop();
+                        let initDatas = [];
+                        valOfPaste.forEach((item, i) => {
+                            var items = item.split("\t");
+                            initDatas.push(items)
+                        });
+                        let arr = [];
+                        initDatas.forEach(item => {
+                            let obj = {
+                                WorkShop: this.tableTopData.WorkShop,
+                                LineNum: this.tableTopData.LineNum,
+                                Section: this.tableTopData.Section,
+                                Modifier: this.tableTopData.Modifier,
+                                ReportRepairMan: item[0],
+                                FailureDescription: item[1],
+                                Reason: item[2],
+                                RepairOrTestContent: item[3],
+                                GetJobTime: item[4],
+                                PlanFinishTime: item[5],
+                                ActualFinishTime: item[6],
+                                RepairMan: item[7],
+                                Remark: item[8],
+                                color: 0
+                            };
+                            arr.push(obj);
+                        })
+                        this.tableData = arr;
+                        //console.log(this.tableData)
+                    }
+                }
+
+            },
+            methods: {
+                //跳转页面
+                onToTurn(val) {
+                    if (val == 0) {
+                        window.open("/Equipment/Equipment_Keycomponents?equipmenNum=" + this.tableTopData.EquipmentNumber);
+                    } else if (val == 1) {
+                        window.open("/Equipment/Equipment_Safety_Bill?equipmentName=" + this.tableTopData.EquipmentName);
+                    }
+                },
+                //打开编辑
+                onEdit() {
+                    if (this.islimit("设备信息修改")) {
+                        if (this.isEdit) {
+                            this, this.onSave();
+                            this.isEdit = false;
+                        } else {
+                            this.isEdit = true;
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                //获取时间列表
+                getTimeList(val) {
+                    let dd = new Date(val);
+                    let param = {
+                        equipmentNumber: this.tableTopData.EquipmentNumber,
+                        userDepartment: this.tableTopData.UserDepartment,
+                        year: dd.getFullYear(),
+                        month: dd.getMonth() + 1
+                    }
+                    axios.post("/Equipment/Equipment_Timeusage/", param).then(res => {
+                        //console.log(res.data[0].timeList);
+                        this.timeList = res.data[0].timeList;
+                    }).catch(err => {
+                        console.log(err);
+                    });
+                },
+                //获取下拉数据
+                getInitData() {
+                    //获取部门列表
+                  axios.post("/Equipment/Userdepartment_list").then(res => {
+                        res.data.forEach(item => {
+                            let obj = { value: item, label: item };
+                            this.department_options.push(obj);
+                        })
+                    }).catch(err => {
+                        console.log(err);
+                    });
+                },
+                // 获取初始表格数据
+                getDefaultInfos() {
+                    let equipmentNumber = this.urlSearchParam.num;
+                    axios.post("/Equipment/Details", { equipmentNumber: equipmentNumber }).then(res => {
+                        //console.log(res.data);
+                        this.tableTopData = JSON.parse(res.data.basicinfo);
+                        this.tableData = JSON.parse(res.data.statusrecord);
+                        // 获取图片
+                        if (res.data.picture != '未上传图片。') {
+                            let img = JSON.parse(res.data.picture);
+                            img.forEach(item => {
+                                item.FullPath = item.FullPath.replace(/D:/, '')
+                            })
+                            //console.log(img)
+                            this.imgArr = img
+
+                        }
+                        //console.log(this.tableTopData);
+                        //console.log(this.tableData);
+                        this.getTimeList(this.select_date);
+                    }).catch(err => {
+                        console.log(err);
+                    })
+                },
+                //修改设备状态
+                //onChangeStatus() {
+                //    axios.post("/Equipment/Equipment_state", { equipmentNumber: this.tableTopData.EquipmentNumber, linenum: this.tableTopData.LineNum, status: this.tableTopData.Status, userdepar: this.tableTopData.UserDepartment }).then(res => {
+                //        //console.log(res.data)
+                //        if (res.data.result == true) {
+                //            this.$message.success(res.data.msg);
+                //        } else {
+                //            this.$message.warning(res.data.mag);
+                //        }
+                //    }).catch(err => {
+                //        console.log(err);
+                //    })
+                //},
+                //保存基本信息
+                onSave() {
+                    let param = {
+                        equipmentNumber: this.tableTopData.EquipmentNumber,
+                        assetNumber: this.tableTopData.AssetNumber,
+                        equipmentName: this.tableTopData.EquipmentName,
+                        userdepartment: this.tableTopData.UserDepartment,
+                        status: this.tableTopData.Status,
+                        modelspeci: this.tableTopData.ModelSpecification,
+                        manufacturingNumber: this.tableTopData.ManufacturingNumber,
+                        brand: this.tableTopData.Brand,
+                        supplier: this.tableTopData.Supplier,
+                        purchaseDate: this.tableTopData.PurchaseDate,
+                        actionDate: this.tableTopData.ActionDate,
+                        remark: this.tableTopData.Remark,
+                        storagePlace: this.tableTopData.StoragePlace,
+                    }
+                    //console.log(param);
+                    axios.post("/Equipment/Edit_Equipmentbasic", param).then(res => {
+                        //console.log(res.data);
+                        if (res.data.messlist == "修改失败！") {
+                            this.$message.warning(res.data.messlist);
+                        } else {
+                            this.$message.success(res.data.messlist);
+                        }
+                    })
+                },
+                //打开上传图片
+                onShowAddImg() {
+                    if (this.islimit("上传设备图片")) {
+                        this.dialogVisibleImg = true;
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                //取消上传图片
+                onCancelImg() {
+                    this.dialogVisibleImg = false;
+                    this.fileList = [];
+                    this.files = [];
+                },
+                //选取文件方法
+                selectFile(file) {
+                    //console.log(file);
+                    this.files.push(file.raw);
+                },
+                //移除临时图片
+                handleRemove(file) {
+                    //console.log(file, fileList);
+                    for (let i in this.files) {
+                        if (this.files[i].uid == file.uid) {
+                            this.files.splice(i, 1)
+                        }
+                    }
+                },
+                //查看临时图片
+                handlePictureCardPreview(file) {
+                    this.dialogImageUrl = file.url;
+                    this.showVisible = true;
+                },
+                //预览设备图片偏
+                showBigImg(index) {
+                    this.dialogImageUrl = this.imgArr[index].FullPath;
+                    this.showVisible = true;
+                },
+                //上传图片
+                uploadFile() {
+                    let tt = this.files;
+                    if (tt.length != 0) {
+                        let fd = new FormData();
+                        fd.append("equipmentNumber", this.tableTopData.EquipmentNumber);
+                        //f.append("uploadfile", tt);
+                        //console.log(tt, 55555);
+                        this.files.forEach((item, j) => { fd.append("uploadfile" + j, item); j++; })
+                        axios.post("/Equipment/UploadEquipmentPicture", fd).then(res => {
+                            //console.log(res.data)
+                            if (res.data == '上传成功！') {
+                                this.$message.success(res.data);
+                                this.dialogVisibleImg = false;
+                                this.files = this.fileList = [];
+                                this.getDefaultInfos();
+                            } else {
+                                this.$message.warning(res.data)
+                            };
+                        }).catch(err => {
+                            console.log(err);
+                        })
+
+                    } else {
+                        this.$message.warning("请选择需要上传的图片！")
+                    }
+                },
+                //打开新增/修改维修记录弹框
+                onToMaintain(index, row) {
+                    if (this.islimit("维修保养记录修改")) {
+                        this.dialogVisible = true;
+                        if (index == '0') {
+                            this.isAdd = true;
+                            this.formInfo = {
+                                EquipmentNumber: '',  // 设备编号
+                                AssetNumber: '',  // 资产编号
+                                EquipmentName: '',  // 设备名称
+                                OrderNum: '',   // 订单号
+                                Status: '',   // 设备状态
+                                StatusStarTime: '',  // 状态开始时间
+                                StatusEndTime: '',  // 状态结束时间
+                                ReportRepairMan: '',  // 报修人
+                                FailureDescription: '',   // 故障现象描述
+                                Reason: '', // 原因分析
+                                RepairOrTestContent: '',  // 维修或检测内容
+                                GetJobTime: '',   // 维修接单时间
+                                PlanFinishTime: '',   // 计划完成时间
+                                ActualFinishTime: '',  // 实际完成时间
+                                RepairMan: '',   // 维修人
+                                SparePartsInfo: '',   // 配件信息
+                                UserDepartment: '',  // 使用部门
+                                WorkShop: '',   // 车间
+                                LineNum: '',  // 产线号
+                                Section: '',  // 工段
+                                Modifier: '',   // 记录修改人
+                                Remark: ''  //备注
+                            }
+                            this.formInfo.EquipmentNumber = this.tableTopData.EquipmentNumber;
+                            this.formInfo.AssetNumber = this.tableTopData.AssetNumber;
+                            this.formInfo.EquipmentName = this.tableTopData.EquipmentName;
+                            this.formInfo.Status = this.tableTopData.Status;
+                            this.formInfo.UserDepartment = this.tableTopData.UserDepartment;
+                            this.formInfo.WorkShop = this.tableTopData.WorkShop;
+                            this.formInfo.LineNum = this.tableTopData.LineNum;
+                            this.formInfo.Section = this.tableTopData.Section;
+                            this.formInfo.Modifier = this.tableTopData.Modifier;
+                        } else if (index == '1') {
+                            this.isAdd = false;
+                            this.formInfo = row
+                        }
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                //取消新增/修改维修记录弹框
+                onCancel() {
+                    this.dialogVisible = false;
+                    this.formInfo = {
+                        EquipmentNumber: '',  // 设备编号
+                        AssetNumber: '',  // 资产编号
+                        EquipmentName: '',  // 设备名称
+                        OrderNum: '',   // 订单号
+                        Status: '',   // 设备状态
+                        StatusStarTime: '',  // 状态开始时间
+                        StatusEndTime: '',  // 状态结束时间
+                        ReportRepairMan: '',  // 报修人
+                        FailureDescription: '',   // 故障现象描述
+                        Reason: '', // 原因分析
+                        RepairOrTestContent: '',  // 维修或检测内容
+                        GetJobTime: '',   // 维修接单时间
+                        PlanFinishTime: '',   // 计划完成时间
+                        ActualFinishTime: '',  // 实际完成时间
+                        RepairMan: '',   // 维修人
+                        SparePartsInfo: '',   // 配件信息
+                        UserDepartment: '',  // 使用部门
+                        WorkShop: '',   // 车间
+                        LineNum: '',  // 产线号
+                        Section: '',  // 工段
+                        Modifier: '',   // 记录修改人
+                        Remark: ''  //备注
+                    }
+                },
+                //打开批量上传
+                onShowMaintainMore() {
+                    if (this.islimit("维修保养记录修改")) {
+                    this.tableData = [];
+                        this.isMoreAdd = true;
+                    } else {
+                        this.$message.warning("暂无权限！");
+                    }
+                },
+                //取消批量上传维修记录
+                onCancelMaintainMore() {
+                    this.inputInfo = '';
+                    this.isMoreAdd = false;
+                    this.getDefaultInfos();
+                },
+                //批量上传维修记录
+                onMaintainMore() {
+                    if (this.tableData.length > 0) {
+                        axios.post("/Equipment/BatchAdd_Rrecord", {
+                            records: this.tableData,
+                            equipmentNumber: this.tableTopData.EquipmentNumber,//设备编号tabletop.EquipmentNumber
+                            assetNumber: this.tableTopData.AssetNumber,//资产编号 tabletop.AssetNumber
+                            equipmentName: this.tableTopData.EquipmentName,//设备名称tabletop.EquipmentName
+                            userDepsrtment: this.tableTopData.UserDepartment,//使用部门tabletop.UserDepartment
+                            status: this.tableTopData.Status//设备状态tabletop.Status
+                        }).then(res => {
+                            //console.log(res, 5555555);
+                            if (res.data.mes) {
+                                this.$message.success(res.data.repeat);
+                                this.isMoreAdd = false;
+                                this.inputInfo = '';
+                                this.getDefaultInfos();
+                            } else {
+                                this.$message.error(res.data.repeat);
+                            };
+                        }).catch(err => {
+                            console.warn(err);
+                        });
+                    } else {
+                        this.$message.warning('无数据增加');
+                    };
+                },
+                //删除批量添加行数据
+                onDeleteMaintain(index) {
+                    this.tableData.splice(index, 1);
+                },
+                //保存新增/修改维修
+                RepiaInfo() {
+                    if (this.isAdd) {
+                        axios.post("/Equipment/AddEquipmentStatusRecordAsync", this.formInfo).then(res => {
+                            if (res.data == 'False') {
+                                this.$message.warning("添加失败！")
+
+                            } else {
+                                this.$message.success("添加成功！");
+                                this.dialogVisible = false;   // 关闭弹框
+                                this.getDefaultInfos();
+                            }
+
+                        }).catch(err => {
+                            console.log(err);
+                        })
+                    } else {
+                        axios.post("/Equipment/EditEquipmentStatusRecordAsync", this.formInfo).then(res => {
+                            //console.log(res.data)
+                            if (res.data == true) {
+                                this.$message.success("修改成功！");
+                                this.dialogVisible = false;
+                                this.getDefaultInfos();
+                            } else {
+                                this.$message.warning("修改失败！")
+                            }
+                        }).catch(err => {
+                            console.log(err);
+                        })
+                    }
+                },
+                //格式时间
+                dateFormat(row, column, cellValue, index) {
+                    let daterc = row[column.property];
+                    if (daterc != null) {
+                        let dateMat = new Date(daterc);
+                        let year = dateMat.getFullYear();
+                        let month = dateMat.getMonth() + 1;
+                        if (month < 10) {
+                            month = '0' + month;
+                        }
+                        let day = dateMat.getDate();
+                        if (day < 10) {
+                            day = '0' + day;
+                        }
+                        let hh = dateMat.getHours();
+                        if (hh < 10) {
+                            hh = '0' + hh;
+                        }
+                        let mm = dateMat.getMinutes();
+                        if (mm < 10) {
+                            mm = '0' + mm;
+                        }
+                        let timeFormat = year + "-" + month + "-" + day + " " + hh + ":" + mm;
+                        return timeFormat;
+                    }
+                }
+            }
+
+        }
+    </script>
+
+}

@@ -7,10 +7,10 @@
           <div class="logo"></div>
           <div class="welcome">欢迎登录</div>
           <div class="usernumbox">
-            <input autofocus="autofocus" class="usernum" v-model="usernum" placeholder="请输入员工编号" />
+            <input autofocus="autofocus" type="number" class="usernum" v-model="usernum" placeholder="请输入员工编号" />
           </div>
           <div class="pwdbox">
-            <input type="password" class="pwd" v-model="pwd" placeholder="请输入密码" />
+            <input type="password" class="pwd" v-model="pwd" @keyup.enter="onLogin" placeholder="请输入密码" />
           </div>
 
           <div class="autologinforgetpwd">
@@ -52,17 +52,8 @@ export default {
   components: {},
   methods: {
     ...mapActions(["handleLogin", "getUserInfo"]),
-    // handleSubmit({ userName, password }) {
-    //   this.handleLogin({ userName, password }).then((res) => {
-    //     this.getUserInfo().then((res) => {
-    //       this.$router.push({
-    //         name: this.$config.homeName,
-    //       });
-    //     });
-    //   });
-    // },
     showtips() {
-      alert("请联系技术部智造组！");
+       this.$message.error("请联系技术部智造组！");
     },
     onLogin() {
       if (this.usernum == "" || this.pwd == "") {
@@ -83,6 +74,8 @@ export default {
               });
             });
           }
+        }).catch(err=>{
+          this.$message.error("登录失败，请联系技术部智造组！");
         });
       }
     }

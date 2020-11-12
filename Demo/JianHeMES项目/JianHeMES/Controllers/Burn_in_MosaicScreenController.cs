@@ -1176,46 +1176,6 @@ namespace JianHeMES.Controllers
             }
             return com.GetModuleFromJobjet(checkList);
         }
-
-
-
-        #region --------------------GetMosaiOrderList()取出整个OrderMgms的挪用单号列表
-        [HttpPost]
-        [ApiAuthorize]
-        private JObject GetMosaiOrderList1()
-        {
-            var orders = db.Burn_in_MosaicScreen.OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
-            JArray result = new JArray();
-            foreach (var item in orders)
-            {
-                JObject List = new JObject();
-                List.Add("value", item);
-
-                result.Add(List);
-            }
-            return com.GetModuleFromJarray(result);
-        }
-        //----------------------------------------------------------------------------------------
-        #endregion
-
-        #region --------------------GetmosaiShelfNumList()取出整个OrderMgms的挪用单号列表
-        [HttpPost]
-        [ApiAuthorize]
-        private JObject GetmosaiShelfNumList1()
-        {
-            var orders = db.Burn_in_MosaicScreen.OrderByDescending(m => m.Id).Select(m => m.BurnInShelfNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
-            JArray result = new JArray();
-            foreach (var item in orders)
-            {
-                JObject List = new JObject();
-                List.Add("value", item);
-
-                result.Add(List);
-            }
-            return com.GetModuleFromJarray(result);
-        }
-        //----------------------------------------------------------------------------------------
-        #endregion
-       
+        
     }
 }

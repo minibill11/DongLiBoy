@@ -1148,11 +1148,11 @@ namespace JianHeMES.Controllers
             {
                 return "该订单没有创建条码号";
             }
-            if (barcodeList.Count(c => c.ModuleGroupNum != null) != 0)
+            if (barcodeList.Count(c => !string.IsNullOrEmpty(c.ModuleGroupNum)) != 0)
             {
                 return "该订单条码已有模组号记录";
             }
-            var cabinfo = db.CalibrationRecord.Count(c => c.OrderNum == ordernum && (c.OldOrderNum == null||c.OldOrderNum==ordernum));
+            var cabinfo = db.CalibrationRecord.Count(c => c.OrderNum == ordernum && (c.OldOrderNum == null || c.OldOrderNum == ordernum));
             var appinfo = db.Appearance.Count(c => c.OrderNum == ordernum && (c.OldOrderNum == null || c.OldOrderNum == ordernum));
             if (cabinfo != 0 || appinfo != 0)
             {
@@ -1216,8 +1216,9 @@ namespace JianHeMES.Controllers
                 for (int i = 0; i < number.Count; i++)
                 {
                     barcodeList[i].ModuleGroupNum = number[i];
-                    db.SaveChangesAsync();
+
                 }
+                db.SaveChangesAsync();
                 UserOperateLog log = new UserOperateLog() { Operator = ((Users)Session["User"]).UserName, OperateDT = DateTime.Now, OperateRecord = "校正前创建订单号" + ordernum + "规则,自动分配录入条码模组" };
                 db.UserOperateLog.Add(log);
                 db.SaveChanges();
@@ -1297,7 +1298,7 @@ namespace JianHeMES.Controllers
                 return Content(JsonConvert.SerializeObject(result));
 
             }
-            var barcodemodule = db.BarCodes.Count(c => c.OrderNum == ordenum && c.ModuleGroupNum != null && c.BarCodeType == "模组");
+            var barcodemodule = db.BarCodes.Count(c => c.OrderNum == ordenum && !string.IsNullOrEmpty(c.ModuleGroupNum) && c.BarCodeType == "模组");
             if (barcodemodule != 0)
             {
                 result.Add("candelete", true);
@@ -1773,214 +1774,44 @@ namespace JianHeMES.Controllers
 
         }
 
-        #region --------------------检索订单号
-
-        [HttpPost]
-        [ApiAuthorize]
-        public string GetOrderNumList1()
-        {
-            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
-            JArray result = new JArray();
-            foreach (var item in orders)
-            {
-                JObject List = new JObject();
-                List.Add("value", item);
-
-                result.Add(List);
-            }
-            return JsonConvert.SerializeObject(result);
-        }
-        [HttpPost]
-        [ApiAuthorize]
-        private string GetnuoOrderNumList1()
-        {
-            var newordernum = db.BarCodeRelation.Select(m => m.NewOrderNum).Distinct();
-            var oldodernum = db.BarCodeRelation.Select(m => m.OldOrderNum).Distinct();
-            var ordernum = newordernum.Union(oldodernum).ToList();
-            var ordernumitems = new List<SelectListItem>();
-            JArray result = new JArray();
-            foreach (string major in ordernum)
-            {
-                JObject List = new JObject();
-                List.Add("value", major);
-
-                result.Add(List);
-            }
-            return JsonConvert.SerializeObject(result);
-        }
-        #endregion
-
-        #region --------------------检索类型
-        [HttpPost]
-        [ApiAuthorize]
-        private List<SelectListItem> GetBarCodeTypeList()
-        {
-            var barcodetype = db.BarCodes.OrderBy(m => m.BarCodeType).Select(m => m.BarCodeType).Distinct();
-
-            var typeitems = new List<SelectListItem>();
-            foreach (string major in barcodetype)
-            {
-                typeitems.Add(new SelectListItem
-                {
-                    Text = major,
-                    Value = major
-                });
-            }
-            return typeitems;
-        }
-        #endregion
-
-        #region --------------------分页
-
-        private static readonly int PAGE_SIZE = 20;
-
-        [HttpPost]
-        [ApiAuthorize]
-        private int GetPageCount(int recordCount)
-        {
-            int pageCount = recordCount / PAGE_SIZE;
-            if (recordCount % PAGE_SIZE != 0)
-            {
-                pageCount += 1;
-            }
-            return pageCount;
-        }
-        [HttpPost]
-        [ApiAuthorize]
-        private List<BarCodes> GetPagedDataSource(IQueryable<BarCodes> barcodes,
-        int pageIndex, int recordCount)
-        {
-            var pageCount = GetPageCount(recordCount);
-            if (pageIndex >= pageCount && pageCount >= 1)
-            {
-                pageIndex = pageCount - 1;
-            }
-
-            return barcodes.OrderBy(m => m.OrderNum)
-                           .Skip(pageIndex * PAGE_SIZE)
-                           .Take(PAGE_SIZE).ToList();
-        }
-
-        #endregion
-
         #region --------------------首页
 
         [HttpPost]
         [ApiAuthorize]
-        public string Index(string OrderNum, string BarCodeType, int PageIndex = 0)
+        public JObject Index([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;
+            string BarCodeType = obj.BarCodeType;
             JArray result = new JArray();
-            //var barcodes = db.BarCodes as IQueryable<BarCodes>;
-            if (String.IsNullOrEmpty(OrderNum))
+
+            if (String.IsNullOrEmpty(ordernum))
             {
-                return "无此订单号信息！";
+                return com.GetModuleFromJobjet(null, false, "无此订单号信息");
             }
-            if (db.OrderMgm.Count(c => c.OrderNum == OrderNum) == 0) return "无此订单号信息！";
-            var barcodes = db.BarCodes.Where(c => c.OrderNum == OrderNum).Select(c => new { c.ID, c.BarCodesNum, c.OrderNum, c.ModuleGroupNum, c.BarCodeType }).OrderBy(c => c.BarCodesNum).ToList();
+            if (db.OrderMgm.Count(c => c.OrderNum == ordernum) == 0)
+                return com.GetModuleFromJobjet(null, false, "无此订单号信息");
+            var barcodes = db.BarCodes.Where(c => c.OrderNum == ordernum).Select(c => new { c.ID, c.BarCodesNum, c.OrderNum, c.ModuleGroupNum, c.BarCodeType }).OrderBy(c => c.BarCodesNum).ToList();
 
             if (!String.IsNullOrEmpty(BarCodeType))
             {
                 barcodes = barcodes.Where(m => m.BarCodeType == BarCodeType).ToList();
             }
 
-            return JsonConvert.SerializeObject(barcodes);
+            return com.GetModuleFromJarray(JsonConvert.DeserializeObject<JArray>(JsonConvert.SerializeObject(barcodes)), true, "成功");
         }
 
         #endregion
 
         #region --------------------创建条码
-
-        [HttpPost]
-        [ApiAuthorize]
-        //创建模组、模块、电源、转接卡条码
-        public string CreateBarCodes1(OrderMgm orderMgm)
-        {
-
-            if (orderMgm.BarCodeCreated == 1)
-            {
-                return "<script>alert('此订单已经创建过条码，不能重复创建！');window.location.href='..';</script>";
-            }
-
-            BarCodes aBarCode = new BarCodes();
-            aBarCode.OrderNum = orderMgm.OrderNum;
-            aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
-
-
-            //生成模组条码
-            for (int i = 1; i <= orderMgm.Boxes; i++)
-            {
-                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
-                aBarCode.BarCodeType = "模组";
-                //aBarCode.Creator = ((Users)Session["User"]).UserName;
-                aBarCode.CreateDate = DateTime.Now;
-                db.BarCodes.Add(aBarCode);
-                db.SaveChanges();
-            }
-            //生成模块条码
-            for (int i = 1; i <= orderMgm.Models; i++)
-            {
-                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "B" + i.ToString("00000");
-                aBarCode.BarCodeType = "模块";
-                //aBarCode.Creator = ((Users)Session["User"]).UserName;
-                aBarCode.CreateDate = DateTime.Now;
-                db.BarCodes.Add(aBarCode);
-                db.SaveChanges();
-            }
-            //生成电源条码
-            for (int i = 1; i <= orderMgm.Powers; i++)
-            {
-                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "C" + i.ToString("00000");
-                aBarCode.BarCodeType = "电源";
-                //aBarCode.Creator = ((Users)Session["User"]).UserName;
-                aBarCode.CreateDate = DateTime.Now;
-                db.BarCodes.Add(aBarCode);
-                db.SaveChanges();
-            }
-            //生成转接卡条码
-            for (int i = 1; i <= orderMgm.AdapterCard; i++)
-            {
-                aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
-                aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "D" + i.ToString("00000");
-                aBarCode.BarCodeType = "转接卡";
-                //aBarCode.Creator = ((Users)Session["User"]).UserName;
-                aBarCode.CreateDate = DateTime.Now;
-                db.BarCodes.Add(aBarCode);
-                db.SaveChanges();
-            }
-
-            //修改订单的条码生成状态为1，表示已经生成.修改订单中的条码创建人
-            //OrderMgm aOrder = new OrderMgm();
-            IQueryable<OrderMgm> orderQuery = from m in db.OrderMgm
-                                              where (m.ID == orderMgm.ID)
-                                              select m;
-
-            var aOrder = orderQuery.ToList().FirstOrDefault();
-            aOrder.ID = orderMgm.ID;
-            aOrder.BarCodeCreated = 1;
-            aOrder.BarCodeCreateDate = DateTime.Now;
-            //aOrder.BarCodeCreator = ((Users)Session["User"]).UserName;
-            db.SaveChanges();
-
-            var barcodes = db.BarCodes.Where(m => m.OrderNum == orderMgm.OrderNum).ToList();
-            var recordCount = barcodes.Count();
-            var pageCount = GetPageCount(recordCount);
-            JObject result = new JObject();
-            result.Add("mes", "成功");
-            result.Add("pass", true);
-
-            return JsonConvert.SerializeObject(result);
-
-        }
-
-
         //创建模组条码
         [HttpPost]
         [ApiAuthorize]
-        public string CreateModuleGroupBarCodes(int? id, string username = null)
+        public string CreateModuleGroupBarCodes([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int id = obj.id;
+            string UserName = obj.UserName;
             OrderMgm orderMgm = db.OrderMgm.Find(id);
             var count = db.BarCodes.Count(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模组");
             if (orderMgm == null)
@@ -2000,7 +1831,7 @@ namespace JianHeMES.Controllers
                 aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
                 aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
                 aBarCode.BarCodeType = "模组";
-                // aBarCode.Creator = username == null ? ((Users)Session["User"]).UserName : username;
+                aBarCode.Creator = UserName;
                 aBarCode.CreateDate = DateTime.Now;
                 aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "A" + i.ToString("00000");
                 barCodes.Add(aBarCode);
@@ -2013,7 +1844,7 @@ namespace JianHeMES.Controllers
             //修改订单的模组条码生成状态为1，表示已经生成.修改订单中的条码创建人
             orderMgm.BarCodeCreated = 1;
             orderMgm.BarCodeCreateDate = DateTime.Now;
-            //orderMgm.BarCodeCreator = username == null ? ((Users)Session["User"]).UserName : username;
+            orderMgm.BarCodeCreator = UserName;
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
@@ -2021,15 +1852,16 @@ namespace JianHeMES.Controllers
 
             }
             return "<script>alert('订单的模组条码创建成功！');history.go(-1);</script>";
-            //}
-            //return Content("<script>alert('订单的模组条码创建失败！');history.go(-1);</script>");
         }
 
         //创建模块条码
         [HttpPost]
         [ApiAuthorize]
-        public string CreateModulePieceBarCodes(int? id, string username = null)
+        public string CreateModulePieceBarCodes([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int id = obj.id;
+            string UserName = obj.UserName;
             OrderMgm orderMgm = db.OrderMgm.Find(id);
             var count = db.BarCodes.Count(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "模块");
             if (orderMgm == null)
@@ -2051,7 +1883,7 @@ namespace JianHeMES.Controllers
                 aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
                 aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
                 aBarCode.BarCodeType = "模块";
-                //aBarCode.Creator = username == null ? ((Users)Session["User"]).UserName : username;
+                aBarCode.Creator = UserName;
                 aBarCode.CreateDate = DateTime.Now;
                 var order = orderMgm.OrderNum.Split('-');
                 var temporder = order[2].PadLeft(2, '0');
@@ -2070,7 +1902,7 @@ namespace JianHeMES.Controllers
             //修改订单的模块条码生成状态为1，表示已经生成.修改订单中的条码创建人
             orderMgm.ModulePieceBarCodeCreated = 1;
             orderMgm.ModulePieceBarCodeCreateDate = DateTime.Now;
-            //orderMgm.ModulePieceBarCodeCreator = username == null ? ((Users)Session["User"]).UserName : username;
+            orderMgm.ModulePieceBarCodeCreator = UserName;
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
@@ -2086,9 +1918,11 @@ namespace JianHeMES.Controllers
         //创建电源条码
         [HttpPost]
         [ApiAuthorize]
-        public string CreatePowerBarCodes(int? id, string username = null)
+        public string CreatePowerBarCodes([System.Web.Http.FromBody]JObject data)
         {
-
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int id = obj.id;
+            string UserName = obj.UserName;
             OrderMgm orderMgm = db.OrderMgm.Find(id);
             var count = db.BarCodes.Count(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "电源");
             if (orderMgm == null)
@@ -2109,7 +1943,7 @@ namespace JianHeMES.Controllers
                 aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
                 aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
                 aBarCode.BarCodeType = "电源";
-                //aBarCode.Creator = username == null ? ((Users)Session["User"]).UserName : username;
+                aBarCode.Creator = UserName;
                 aBarCode.CreateDate = DateTime.Now;
                 aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "C" + i.ToString("00000");
                 barCodes.Add(aBarCode);
@@ -2121,7 +1955,7 @@ namespace JianHeMES.Controllers
             //修改订单的电源条码生成状态为1，表示已经生成.修改订单中的条码创建人
             orderMgm.PowerBarCodeCreated = 1;
             orderMgm.PowerBarCodeCreateDate = DateTime.Now;
-            // orderMgm.PowerBarCodeCreator = username == null ? ((Users)Session["User"]).UserName : username;
+            orderMgm.PowerBarCodeCreator = UserName;
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
@@ -2137,8 +1971,11 @@ namespace JianHeMES.Controllers
         //创建转接卡条码
         [HttpPost]
         [ApiAuthorize]
-        public string CreateAdapterCardBarCodes(int? id, string username = null)
+        public string CreateAdapterCardBarCodes([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int id = obj.id;
+            string UserName = obj.UserName;
             OrderMgm orderMgm = db.OrderMgm.Find(id);
             var count = db.BarCodes.Count(c => c.OrderNum == orderMgm.OrderNum && c.BarCodeType == "转接卡");
             if (orderMgm == null)
@@ -2159,7 +1996,7 @@ namespace JianHeMES.Controllers
                 aBarCode.IsRepertory = orderMgm.IsRepertory;//如果订单号为库存批次，条码也为库存
                 aBarCode.BarCode_Prefix = orderMgm.BarCode_Prefix;
                 aBarCode.BarCodeType = "转接卡";
-                //aBarCode.Creator = username == null ? ((Users)Session["User"]).UserName : username;
+                aBarCode.Creator = UserName;
                 aBarCode.CreateDate = DateTime.Now;
                 aBarCode.BarCodesNum = orderMgm.BarCode_Prefix + "D" + i.ToString("00000");
                 db.BarCodes.Add(aBarCode);
@@ -2172,7 +2009,7 @@ namespace JianHeMES.Controllers
             //修改订单的电源条码生成状态为1，表示已经生成.修改订单中的条码创建人
             orderMgm.AdapterCardBarCodeCreated = 1;
             orderMgm.AdapterCardBarCodeCreateDate = DateTime.Now;
-            //orderMgm.AdapterCardBarCodeCreator = username == null ? ((Users)Session["User"]).UserName : username;
+            orderMgm.AdapterCardBarCodeCreator = UserName;
             if (ModelState.IsValid)
             {
                 db.Entry(orderMgm).State = EntityState.Modified;
@@ -2189,21 +2026,19 @@ namespace JianHeMES.Controllers
         #region --------------------Details页
         [HttpPost]
         [ApiAuthorize]
-        public string Details(int? id)
+        public JObject Details([System.Web.Http.FromBody]JObject data)
         {
+            var value = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int? id = value.id;
             JObject result = new JObject();
             if (id == null)
             {
-                result.Add("mes", "没有ID信息");
-                result.Add("pass", false);
-                return JsonConvert.SerializeObject(result);
+                return com.GetModuleFromJobjet(null, false, "没有ID信息");
             }
             BarCodes barCodes = db.BarCodes.Find(id);
             if (barCodes == null)
             {
-                result.Add("mes", "没有找到此条码信息");
-                result.Add("pass", false);
-                return JsonConvert.SerializeObject(result);
+                return com.GetModuleFromJobjet(null, false, "没有找到此条码信息");
             }
             result.Add("OrderNum", barCodes.OrderNum);//订单号
             result.Add("BarCodesNum", barCodes.BarCodesNum);//条码号
@@ -2297,7 +2132,7 @@ namespace JianHeMES.Controllers
             }
             result.Add("Appearance", appearanceArrray);
 
-            return JsonConvert.SerializeObject(result);
+            return com.GetModuleFromJobjet(result, true, "成功");
         }
         #endregion
 
@@ -2307,24 +2142,30 @@ namespace JianHeMES.Controllers
         //条码规则创建
         [HttpPost]
         [ApiAuthorize]
-        public string SetJsonFile(List<Sequence> sequences, string ordernum, string UserName, bool isJson = false)
+        public JObject SetJsonFile([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;
+            string UserName = obj.UserName;
+            bool isJson = obj.isJson;
+            List<Sequence> sequences = JsonConvert.DeserializeObject<List<Sequence>>(JsonConvert.SerializeObject( obj.sequences));
+
             List<string> number = new List<string>();
             //JObject normal = new JObject();
             var barcodeList = db.BarCodes.OrderBy(c => c.BarCodesNum).Where(c => c.OrderNum == ordernum && c.BarCodeType == "模组").ToList();
             if (barcodeList.Count == 0)
             {
-                return "该订单没有创建条码号";
+                return com.GetModuleFromJarray(null, false, "该订单没有创建条码号");
             }
-            if (barcodeList.Count(c => c.ModuleGroupNum != null) != 0)
+            if (barcodeList.Count(c => !string.IsNullOrEmpty(c.ModuleGroupNum)) != 0)
             {
-                return "该订单条码已有模组号记录";
+                return com.GetModuleFromJarray(null, false, "该订单条码已有模组号记录");
             }
             var cabinfo = db.CalibrationRecord.Count(c => c.OrderNum == ordernum);
             var appinfo = db.Appearance.Count(c => c.OrderNum == ordernum);
             if (cabinfo != 0 || appinfo != 0)
             {
-                return cabinfo != 0 ? "校正有记录!不能创建规则" : "外观电检有记录!不能创建规则";
+                return com.GetModuleFromJarray(null, false, cabinfo != 0 ? "校正有记录!不能创建规则" : "外观电检有记录!不能创建规则");
             }
             foreach (var item in sequences)
             {
@@ -2354,11 +2195,12 @@ namespace JianHeMES.Controllers
 
             if (number.Count != barcodeList.Count)
             {
-                return "录入的模组数量与条码数量不同，条码数量为" + barcodeList.Count;
+                return com.GetModuleFromJarray(null, false, "录入的模组数量与条码数量不同，条码数量为" + barcodeList.Count);
+
             }
             if (number.GroupBy(c => c).Where(c => c.Count() > 1).ToList().Count != 0)
             {
-                return "录入的有重复模组数,请确认";
+                return com.GetModuleFromJarray(null, false, "录入的有重复模组数,请确认");
             }
             else if (isJson)
             {
@@ -2384,29 +2226,30 @@ namespace JianHeMES.Controllers
                 for (int i = 0; i < number.Count; i++)
                 {
                     barcodeList[i].ModuleGroupNum = number[i];
-                    db.SaveChangesAsync();
                 }
+                db.SaveChangesAsync();
                 UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "校正前创建订单号" + ordernum + "规则,自动分配录入条码模组" };
                 db.UserOperateLog.Add(log);
                 db.SaveChanges();
             }
 
-            return "true";
+            return com.GetModuleFromJarray(null, true, "成功");
         }
 
         [HttpPost]
         [ApiAuthorize]
         //条码规则复位
-        public string ChangeRule(string ordernum, string UserName)
+        public JObject ChangeRule([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;
+            string UserName = obj.UserName;
             JObject result = new JObject();
             var cabinfo = db.CalibrationRecord.Count(c => c.OrderNum == ordernum);
             var appinfo = db.Appearance.Count(c => c.OrderNum == ordernum);
             if (cabinfo != 0 || appinfo != 0)
             {
-                result.Add("mes", cabinfo != 0 ? "校正有记录!不能复位" : "外观电检有记录!不能复位");
-                result.Add("pass", false);
-                return JsonConvert.SerializeObject(result);
+                return com.GetModuleFromJobjet(null, false, cabinfo != 0 ? "校正有记录!不能复位" : "外观电检有记录!不能复位");
             }
             if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence2\" + ordernum + ".json") == true)
             {
@@ -2414,9 +2257,7 @@ namespace JianHeMES.Controllers
                 UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = UserName, OperateRecord = "删除校正前的条码规则,规则的录入是json模式" };
                 db.UserOperateLog.Add(log);
                 db.SaveChanges();
-                result.Add("mes", "删除成功");
-                result.Add("pass", true);
-                return JsonConvert.SerializeObject(result);
+                return com.GetModuleFromJobjet(null, true, "删除成功");
             }
             else
             {
@@ -2427,15 +2268,11 @@ namespace JianHeMES.Controllers
                     UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = UserName, OperateRecord = "删除校正前的条码规则,规则的绑定条码录入" };
                     db.UserOperateLog.Add(log);
                     db.SaveChanges();
-                    result.Add("mes", "删除成功");
-                    result.Add("pass", true);
-                    return JsonConvert.SerializeObject(result);
+                    return com.GetModuleFromJobjet(null, true, "删除成功");
                 }
                 else
                 {
-                    result.Add("mes", "删除失败,失败原因是" + mes);
-                    result.Add("pass", false);
-                    return JsonConvert.SerializeObject(result);
+                    return com.GetModuleFromJobjet(null, true, "删除失败,失败原因是" + mes);
                 }
             }
         }
@@ -2443,8 +2280,11 @@ namespace JianHeMES.Controllers
         [HttpPost]
         [ApiAuthorize]
         //拿到模组号
-        public string GetModuleNum(string ordernum, string statue)
+        public string GetModuleNum([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;
+            string statue = obj.statue;
             var json = new JArray();
             if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence2\" + ordernum + ".json") == true)
             {
@@ -2460,10 +2300,12 @@ namespace JianHeMES.Controllers
         [HttpPost]
         [ApiAuthorize]
         //订单输入规则前判断
-        public string CheckRule(string ordenum)
+        public string CheckRule([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;
             JObject result = new JObject();
-            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence2\" + ordenum + ".json") == true)//是否有对应的json文件
+            if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence2\" + ordernum + ".json") == true)//是否有对应的json文件
             {
                 result.Add("candelete", true);
                 result.Add("canAdd", false);
@@ -2471,7 +2313,7 @@ namespace JianHeMES.Controllers
                 return JsonConvert.SerializeObject(result);
 
             }
-            var barcodemodule = db.BarCodes.Count(c => c.OrderNum == ordenum && c.ModuleGroupNum != null && c.BarCodeType == "模组");
+            var barcodemodule = db.BarCodes.Count(c => c.OrderNum == ordernum && !string.IsNullOrEmpty(c.ModuleGroupNum) && c.BarCodeType == "模组");
             if (barcodemodule != 0)
             {
                 result.Add("candelete", true);
@@ -2491,8 +2333,11 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public string DeleteModuleFromBarcode(string ordernum, string UserName)
+        public JObject DeleteModuleFromBarcode([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            string ordernum = obj.ordernum;
+            string UserName = obj.UserName;
             var barcodelist = db.BarCodes.Where(c => c.OrderNum == ordernum && c.BarCodeType == "模组").Select(c => c.BarCodesNum).ToList();
             var smtdate = db.SMT_ProductionData.Count(c => c.OrderNum == ordernum);//SMT记录信息
             var assmbles = db.Assemble.Count(c => barcodelist.Contains(c.BoxBarCode));//组装记录
@@ -2507,11 +2352,11 @@ namespace JianHeMES.Controllers
                 UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = UserName, OperateRecord = "删除条码表的模组号,订单是" + ordernum };
                 db.UserOperateLog.Add(log);
                 db.SaveChanges();
-                return "成功";
+                return com.GetModuleFromJarray(null, true, "成功");
             }
             else
             {
-                return "SMT有" + smtdate + "记录" + ",组装有" + assmbles + "记录" + ",FQC有" + FQC + "记录" + ",校正有" + calib + "记录" + ",老化有" + burn + "记录" + ",电检有" + appearan + "记录";
+                return com.GetModuleFromJarray(null, false, "SMT有" + smtdate + "记录" + ",组装有" + assmbles + "记录" + ",FQC有" + FQC + "记录" + ",校正有" + calib + "记录" + ",老化有" + burn + "记录" + ",电检有" + appearan + "记录");
             }
         }
         #endregion
@@ -2524,72 +2369,72 @@ namespace JianHeMES.Controllers
         /// <param name="barcode"></param>
         /// <param name="modulenum"></param>
         /// <returns></returns>
-        [HttpPost]
-        [ApiAuthorize]
-        public string InsideBoxLablePrint(int pagecount, string ip = "", int port = 0, int concentration = 5, string ordernum = "")
-        {
-            var barcodeList = db.BarCodes.Where(c => c.OrderNum == ordernum).Select(c => new { c.BarCodesNum, c.ModuleGroupNum }).ToList();
-            string total = "";
-            foreach (var item in barcodeList)
-            {
-                //开始绘制图片
-                int initialWidth = 600, initialHeight = 250;//宽2高1
-                Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
-                Graphics theGraphics = Graphics.FromImage(theBitmap);
-                Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
-                                                                        //呈现质量
-                theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                //背景色
-                theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
+        //[HttpPost]
+        //[ApiAuthorize]
+        //public string InsideBoxLablePrint(int pagecount, string ip = "", int port = 0, int concentration = 5, string ordernum = "")
+        //{
+        //    var barcodeList = db.BarCodes.Where(c => c.OrderNum == ordernum).Select(c => new { c.BarCodesNum, c.ModuleGroupNum }).ToList();
+        //    string total = "";
+        //    foreach (var item in barcodeList)
+        //    {
+        //        //开始绘制图片
+        //        int initialWidth = 600, initialHeight = 250;//宽2高1
+        //        Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
+        //        Graphics theGraphics = Graphics.FromImage(theBitmap);
+        //        Brush bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
+        //                                                                //呈现质量
+        //        theGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        //        //背景色
+        //        theGraphics.Clear(System.Drawing.Color.FromArgb(120, 240, 180));
 
-                //引入模组号
-                System.Drawing.Font myFont_modulenum;
-                myFont_modulenum = new System.Drawing.Font("Microsoft YaHei UI", 80, FontStyle.Bold);//OCR-B//宋体
-                StringFormat geshi = new StringFormat();
-                geshi.Alignment = StringAlignment.Center; //居中
-                theGraphics.DrawString(item.ModuleGroupNum, myFont_modulenum, bush, 260, 10, geshi);
+        //        //引入模组号
+        //        System.Drawing.Font myFont_modulenum;
+        //        myFont_modulenum = new System.Drawing.Font("Microsoft YaHei UI", 80, FontStyle.Bold);//OCR-B//宋体
+        //        StringFormat geshi = new StringFormat();
+        //        geshi.Alignment = StringAlignment.Center; //居中
+        //        theGraphics.DrawString(item.ModuleGroupNum, myFont_modulenum, bush, 260, 10, geshi);
 
-                //引入条码
-                Bitmap bmp_barcode = BarCodeLablePrint.BarCodeToImg(item.BarCodesNum, 380, 30);
-                double beishuhege = 0.99;
-                theGraphics.DrawImage(bmp_barcode, 80, 150, (float)(bmp_barcode.Width * beishuhege), (float)(bmp_barcode.Height * beishuhege));
+        //        //引入条码
+        //        Bitmap bmp_barcode = BarCodeLablePrint.BarCodeToImg(item.BarCodesNum, 380, 30);
+        //        double beishuhege = 0.99;
+        //        theGraphics.DrawImage(bmp_barcode, 80, 150, (float)(bmp_barcode.Width * beishuhege), (float)(bmp_barcode.Height * beishuhege));
 
-                //引入条码号
-                System.Drawing.Font myFont_modulebarcodenum;
-                myFont_modulebarcodenum = new System.Drawing.Font("Malgun Gothic", 13, FontStyle.Regular);
-                StringFormat geshi1 = new StringFormat();
-                geshi1.Alignment = StringAlignment.Center; //居中
-                theGraphics.DrawString(item.BarCodesNum, myFont_modulebarcodenum, bush, 270, 180, geshi);
-                //结束图片绘制以上都是绘制图片的代码
+        //        //引入条码号
+        //        System.Drawing.Font myFont_modulebarcodenum;
+        //        myFont_modulebarcodenum = new System.Drawing.Font("Malgun Gothic", 13, FontStyle.Regular);
+        //        StringFormat geshi1 = new StringFormat();
+        //        geshi1.Alignment = StringAlignment.Center; //居中
+        //        theGraphics.DrawString(item.BarCodesNum, myFont_modulebarcodenum, bush, 270, 180, geshi);
+        //        //结束图片绘制以上都是绘制图片的代码
 
-                string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
-                Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));//图形转二值
-                MemoryStream ms = new MemoryStream();
-                theBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                theBitmap.Dispose();
-                int totalbytes = bm.ToString().Length;
-                int rowbytes = 10;
-                string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-                data += totalbytes + "," + rowbytes + "," + hex;
-                data += "^LH0,0^FO150,0^XGR:ZONE.GRF^FS^XZ";
+        //        string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
+        //        Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));//图形转二值
+        //        MemoryStream ms = new MemoryStream();
+        //        theBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+        //        theBitmap.Dispose();
+        //        int totalbytes = bm.ToString().Length;
+        //        int rowbytes = 10;
+        //        string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
+        //        data += totalbytes + "," + rowbytes + "," + hex;
+        //        data += "^LH0,0^FO150,0^XGR:ZONE.GRF^FS^XZ";
 
-                //string ip = "172.16.99.240";//打印机IP地址
-                //int port = 9101;//打印机端口
-                string result = IPPrinttest(data.ToString(), pagecount, ip, port);
-                if (result != "打印成功！")
-                {
-                    total = total + item.BarCodesNum + "条码打印失败,";
-                }
-            }
-            if (string.IsNullOrEmpty(total))
-            {
-                return "打印成功！";
-            }
-            else
-            {
-                return total + "请检查打印机是否断网或未开机";
-            }
-        }
+        //        //string ip = "172.16.99.240";//打印机IP地址
+        //        //int port = 9101;//打印机端口
+        //        string result = IPPrinttest(data.ToString(), pagecount, ip, port);
+        //        if (result != "打印成功！")
+        //        {
+        //            total = total + item.BarCodesNum + "条码打印失败,";
+        //        }
+        //    }
+        //    if (string.IsNullOrEmpty(total))
+        //    {
+        //        return "打印成功！";
+        //    }
+        //    else
+        //    {
+        //        return total + "请检查打印机是否断网或未开机";
+        //    }
+        //}
 
         #endregion
 
@@ -2606,8 +2451,16 @@ namespace JianHeMES.Controllers
         /// 
         [HttpPost]
         [ApiAuthorize]
-        public string InsideListPrint(int pagecount, List<string> barcode, string ip = "", int port = 0, int concentration = 5, bool testswitch = false, int right = 0, int down = 0)
+        public string InsideListPrint([System.Web.Http.FromBody]JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int pagecount = obj.pagecount;
+            List<string> barcode = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(obj.barcode));
+            string ip = obj.ip;
+            int port = obj.port;
+            int concentration = obj.concentration == null ? 5 : obj.concentration;
+            int right = obj.right;
+            int down = obj.down;
             //开始绘制图片
             int initialWidth = 600, initialHeight = 250;//宽2高1
             Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
@@ -2654,38 +2507,23 @@ namespace JianHeMES.Controllers
                     theGraphics.DrawString(item, myFont_modulebarcodenum, bush, 260, 180, geshi);
                     //结束图片绘制以上都是绘制图片的代码
 
-                    string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
-                    Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));//图形转二值
-                                                                                                                  //图片旋转180度
-                                                                                                                  //bm.RotateFlip(RotateFlipType.Rotate180FlipNone);
-                                                                                                                  //string ip = "172.16.99.240";//打印机IP地址
-                                                                                                                  //int port = 9101;//打印机端口
+                    string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
+                    Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));
 
-                    //if (testswitch == true)
-                    //{
-                    //    MemoryStream ms = new MemoryStream();
-                    //    //图片旋转180度
-                    //    //theBitmap.RotateFlip(RotateFlipType.Rotate180FlipNone);
-                    //    theBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    //    theBitmap.Dispose();
-                    //    return File(ms.ToArray(), "image/Png");
-                    //}
-                    //else
-                    //{
                     int totalbytes = bm.ToString().Length;
                     int rowbytes = 10;
                     string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-                    data += totalbytes + "," + rowbytes + "," + hex;
+                    data1 += totalbytes + "," + rowbytes + "," + hex;
                     int x = 0 + right;
                     int y = 0 + down;
-                    data += "^LH" + x + "," + y + "^FO150,0^XGR:ZONE.GRF^FS^XZ";
+                    data1 += "^LH" + x + "," + y + "^FO150,0^XGR:ZONE.GRF^FS^XZ";
                     IPPrinttest(data.ToString(), 1, ip, port);
                     count++;
                     var print = db.BarCodes.Where(c => c.BarCodesNum == item).FirstOrDefault();
                     print.BarcodePrintCount++;
                     print.ModuleNumPrintCount++;
                     db.SaveChanges();
-                    //}
+                   
                     theBitmap = new Bitmap(initialWidth, initialHeight);
                     theGraphics = Graphics.FromImage(theBitmap);
                     bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
@@ -2701,8 +2539,16 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public string InsideListPrintNotModuleNum(int pagecount, List<string> barcode, string ip = "", int port = 0, int concentration = 5, bool testswitch = false, int right = 0, int down = 0)
+        public string InsideListPrintNotModuleNum([System.Web.Http.FromBody] JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int pagecount = obj.pagecount;
+            List<string> barcode = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(obj.barcode));
+            string ip = obj.ip;
+            int port = obj.port;
+            int concentration = obj.concentration == null ? 5 : obj.concentration;
+            int right = obj.right;
+            int down = obj.down;
             //开始绘制图片
             int initialWidth = 380, initialHeight = 125;//宽2高1
             Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
@@ -2735,37 +2581,22 @@ namespace JianHeMES.Controllers
                     theGraphics.DrawString(item, myFont_modulebarcodenum, bush, 175, 75, geshi);
                     //结束图片绘制以上都是绘制图片的代码
 
-                    string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
+                    string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
                     Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));//图形转二值
-                                                                                                                  //图片旋转180度
-                                                                                                                  //bm.RotateFlip(RotateFlipType.Rotate180FlipNone);
-                                                                                                                  //string ip = "172.16.99.240";//打印机IP地址
-                                                                                                                  //int port = 9101;//打印机端口
-
-                    //if (testswitch == true)
-                    //{
-                    //    MemoryStream ms = new MemoryStream();
-                    //    //图片旋转180度
-                    //    //theBitmap.RotateFlip(RotateFlipType.Rotate180FlipNone);
-                    //    theBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    //    theBitmap.Dispose();
-                    //    return File(ms.ToArray(), "image/Png");
-                    //}
-                    //else
-                    //{
+                                                                                                                  
                     int totalbytes = bm.ToString().Length;
                     int rowbytes = 10;
                     string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-                    data += totalbytes + "," + rowbytes + "," + hex;
+                    data1 += totalbytes + "," + rowbytes + "," + hex;
                     int x = 85 + right;
                     int y = 0 + down;
-                    data += "^LH" + x + "," + y + "^FO150,0^XGR:ZONE.GRF^FS^XZ";
+                    data1 += "^LH" + x + "," + y + "^FO150,0^XGR:ZONE.GRF^FS^XZ";
                     IPPrinttest(data.ToString(), 1, ip, port);
                     count++;
                     var print = db.BarCodes.Where(c => c.BarCodesNum == item).FirstOrDefault();
                     print.BarcodePrintCount++;
                     db.SaveChanges();
-                    //}
+                    
                     theBitmap = new Bitmap(initialWidth, initialHeight);
                     theGraphics = Graphics.FromImage(theBitmap);
                     bush = new SolidBrush(System.Drawing.Color.Black);//填充的颜色
@@ -2781,8 +2612,17 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public string InsideListPrintNotBarcode(int pagecount, List<string> ModuleNum, string Ordernum, string ip = "", int port = 0, int concentration = 5, bool testswitch = false, int right = 0, int down = 0)
+        public string InsideListPrintNotBarcode([System.Web.Http.FromBody] JObject data)
         {
+            var obj = JsonConvert.DeserializeObject<dynamic>(JsonConvert.SerializeObject(data));
+            int pagecount = obj.pagecount;
+            List<string> ModuleNum = JsonConvert.DeserializeObject<List<string>>(JsonConvert.SerializeObject(obj.ModuleNum));
+            string ip = obj.ip;
+            string Ordernum = obj.Ordernum;
+            int port = obj.port;
+            int concentration = obj.concentration == null ? 5 : obj.concentration;
+            int right = obj.right;
+            int down = obj.down;
             //开始绘制图片
             int initialWidth = 380, initialHeight = 125;//宽2高1
             Bitmap theBitmap = new Bitmap(initialWidth, initialHeight);
@@ -2832,31 +2672,16 @@ namespace JianHeMES.Controllers
                     //geshi1.Alignment = StringAlignment.Center; //居中
                     theGraphics.DrawString(item, myFont_modulebarcodenum, bush, 175, 55, geshi);
                     //结束图片绘制以上都是绘制图片的代码
-                    string data = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
+                    string data1 = "^XA^MD" + concentration + "~DGR:ZONE.GRF,";//^MD5浓度
                     Bitmap bm = new Bitmap(BarCodeLablePrint.ConvertTo1Bpp1(BarCodeLablePrint.ToGray(theBitmap)));//图形转二值
-                                                                                                                  //图片旋转180度
-                                                                                                                  //bm.RotateFlip(RotateFlipType.Rotate180FlipNone);
-                                                                                                                  //string ip = "172.16.99.240";//打印机IP地址
-                                                                                                                  //int port = 9101;//打印机端口
-
-                    //if (testswitch == true)
-                    //{
-                    //    MemoryStream ms = new MemoryStream();
-                    //    //图片旋转180度
-                    //    //theBitmap.RotateFlip(RotateFlipType.Rotate180FlipNone);
-                    //    theBitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    //    theBitmap.Dispose();
-                    //    return File(ms.ToArray(), "image/Png");
-                    //}
-                    //else
-                    //{
+                                                                                                               
                     int totalbytes = bm.ToString().Length;
                     int rowbytes = 10;
                     string hex = ZebraUnity.BmpToZpl(bm, out totalbytes, out rowbytes);
-                    data += totalbytes + "," + rowbytes + "," + hex;
+                    data1 += totalbytes + "," + rowbytes + "," + hex;
                     int x = 85 + right;
                     int y = 0 + down;
-                    data += "^LH" + x + "," + y + "^FO150,0^XGR:ZONE.GRF^FS^XZ";
+                    data1 += "^LH" + x + "," + y + "^FO150,0^XGR:ZONE.GRF^FS^XZ";
                     IPPrinttest(data.ToString(), 1, ip, port);
                     count++;
                     var print = db.BarCodes.Where(c => c.OrderNum == Ordernum && c.ModuleGroupNum == item && c.BarCodeType == "模组").FirstOrDefault();

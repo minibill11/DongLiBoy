@@ -2360,6 +2360,9 @@ namespace JianHeMES.Models
         [Display(Name = "批准时间"), DataType(DataType.DateTime), DisplayFormat(DataFormatString = "{0:yyyy/MM/dd}", ApplyFormatInEditMode = true)]
         public DateTime? OpinApprovedDate { get; set; }
 
+        [Display(Name = "费用预算")]
+        public double CostBudget { get; set; }
+
         //维修后确认（维修需要部门）
         [Display(Name = "维修时间")]
         public DateTime? MaintenanceDate { get; set; }
@@ -2394,6 +2397,15 @@ namespace JianHeMES.Models
 
         [Display(Name = "是否需要联建采购意见")]
         public bool Needto { get; set; }
+
+        [Display(Name = "维修时长")]
+        public decimal MaintenanceTime { get; set; }
+
+        [Display(Name = "报修状态"), StringLength(50)]
+        public string RepairStatus { get; set; }
+
+        [Display(Name = "报修等级/成本"), StringLength(50)]
+        public string RepairServiceLevel { get; set; }
 
     }
 

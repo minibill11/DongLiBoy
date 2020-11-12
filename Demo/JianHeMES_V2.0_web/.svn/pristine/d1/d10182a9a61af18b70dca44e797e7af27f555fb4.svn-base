@@ -1,0 +1,993 @@
+<!--- 安全库存清单 --->
+<template>
+  <div>
+    <EqHeader :active="active"></EqHeader>
+    <el-main class="main-box">
+      <!-- @* 筛选框s *@ -->
+      <div class="equipment-index-inputcontainer">
+        <template v-if="addFlag == false">
+          <div class="equipment-index-inputcontainer-item">
+            <div>使用部门：</div>
+            <el-select
+              v-model="select_department"
+              size="mini"
+              clearable
+              filterable
+              placeholder="请选择使用部门"
+              style="width: 140px"
+            >
+              <el-option
+                v-for="item in department_options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+
+          <div class="equipment-index-inputcontainer-item">
+            <div>设备名称：</div>
+            <el-select
+              v-model="select_equipmentName"
+              size="mini"
+              clearable
+              filterable
+              placeholder="请选择设备名称"
+              style="width: 140px"
+            >
+              <el-option
+                v-for="item in equipment_name_options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+
+          <div class="equipment-index-inputcontainer-item">
+            <div>物料料号：</div>
+            <el-select
+              v-model="select_material"
+              size="mini"
+              clearable
+              filterable
+              placeholder="请选择物料料号"
+              style="width: 140px"
+            >
+              <el-option
+                v-for="item in material_options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+          <div class="equipment-index-inputcontainer-item">
+            <div>规格/型号：</div>
+            <el-select
+              v-model="select_specifica"
+              size="mini"
+              clearable
+              filterable
+              placeholder="请选择规格/型号"
+              style="width: 140px"
+            >
+              <el-option
+                v-for="item in specifica_options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+          <div class="equipment-index-inputcontainer-item">
+            <div>品名：</div>
+            <el-select
+              v-model="select_descrip"
+              size="mini"
+              clearable
+              filterable
+              placeholder="请选择品名"
+              style="width: 140px"
+            >
+              <el-option
+                v-for="item in descrip_options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+          <div class="equipment-index-inputcontainer-item">
+            <div>日期：</div>
+            <el-date-picker
+              size="mini"
+              clearable
+              v-model="select_date"
+              type="month"
+              style="width: 140px"
+              placeholder="选择日期"
+              value-format="yyyy-MM-dd HH:mm:ss"
+            >
+            </el-date-picker>
+          </div>
+          <el-button size="mini" type="primary" @click="search">查找</el-button>
+          <el-button
+            type="primary"
+            size="mini"
+            plain
+            @click="onShowAdd"
+            style="margin-right: 10px"
+            >批量添加</el-button
+          >
+          <!-- <ExcelSafety :tableData="tableData"></ExcelSafety> -->
+        </template>
+        <div v-if="addFlag">
+          <el-select
+            v-model="input_department"
+            size="mini"
+            clearable
+            filterable
+            placeholder="请选择部门"
+            style="width: 140px"
+          >
+            <el-option
+              v-for="item in department_options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+          <el-date-picker
+            v-model="input_date"
+            style="width: 140px; margin-left: 10px"
+            type="month"
+            size="mini"
+            placeholder="选择年月"
+            value-format="yyyy-MM-dd HH:mm:ss"
+          >
+          </el-date-picker>
+          <el-input
+            size="mini"
+            type="textarea"
+            rows="1"
+            v-model="inputInfo"
+            class="textinput"
+            placeholder="表格粘贴处..."
+            style="width: 150px; margin-left: 10px"
+          ></el-input>
+          <DownloadTemplate
+            :templateName="templateName"
+            :url="url"
+          ></DownloadTemplate>
+          <ImportExcel :on-success="onSuccess">
+            <el-button plain type="primary" size="mini">导入Excel</el-button>
+          </ImportExcel>
+          <el-button size="mini" type="primary" plain @click="onUpload"
+            >确认上传</el-button
+          >
+          <el-button size="mini" type="info" plain @click="onCancel"
+            >取消</el-button
+          >
+        </div>
+      </div>
+
+      <!-- @* 整体表格 *@ -->
+      <el-table
+        :data="tableData"
+        v-loading="loading"
+        size="small"
+        max-height="460"
+        border
+        highlight-current-row
+        style="width: 100%"
+      >
+        <el-table-column type="index" label="序号" width="50">
+        </el-table-column>
+        <el-table-column prop="EquipmentName" label="设备名称">
+          <template slot-scope="scope">
+            <div :class="scope.row.color == 1 ? 'redss' : ''">
+              {{ scope.row.EquipmentName }}
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="Descrip" label="品名"> </el-table-column>
+        <el-table-column prop="Specifica" label="规格/型号"> </el-table-column>
+        <el-table-column prop="Material" label="料号"> </el-table-column>
+        <el-table-column prop="Servicelife" label="使用寿命"> </el-table-column>
+        <el-table-column prop="Amount" label="月平均用量"> </el-table-column>
+        <el-table-column prop="Safety_stock" label="安全库存量">
+        </el-table-column>
+        <el-table-column prop="Existing_inventory" label="仓库存量">
+          <template slot-scope="scope">
+            <el-popover
+              placement="right"
+              trigger="hover"
+              v-if="scope.row.Existing_inventory_Details != undefined"
+            >
+              <div
+                v-show="scope.row.Existing_inventory == 0"
+                class="inventory-box"
+              >
+                暂无数据
+              </div>
+              <div
+                v-show="scope.row.Existing_inventory != 0"
+                class="inventory-box"
+              >
+                <div><span>品名：</span>{{ scope.row.Descrip }}</div>
+                <div>
+                  <span>编号：</span
+                  >{{ scope.row.Existing_inventory_Details.img01 }}
+                </div>
+                <div><span>规格：</span>{{ scope.row.Specifica }}</div>
+
+                <div>
+                  <span>料号：</span
+                  >{{ scope.row.Existing_inventory_Details.img01 }}
+                </div>
+                <div>
+                  <span>仓库：</span
+                  >{{ scope.row.Existing_inventory_Details.img02 }}
+                </div>
+                <div>
+                  <span>库位：</span
+                  >{{ scope.row.Existing_inventory_Details.img03 }}
+                </div>
+                <div>
+                  <span>批号：</span
+                  >{{ scope.row.Existing_inventory_Details.img04 }}
+                </div>
+                <div
+                  :class="
+                    scope.row.Existing_inventory_Details.img10 > 0
+                      ? 'redss'
+                      : ''
+                  "
+                >
+                  <span>数量：</span
+                  >{{ scope.row.Existing_inventory_Details.img10 }}
+                </div>
+                <div>
+                  <span>有效期：</span
+                  >{{ scope.row.Existing_inventory_Details.img18 }}
+                </div>
+              </div>
+              <div
+                style="text-align: center"
+                slot="reference"
+                :class="scope.row | compare"
+              >
+                {{ scope.row.Existing_inventory }}
+              </div>
+            </el-popover>
+            <span v-if="scope.row.Existing_inventory_Details == undefined">{{
+              scope.row.Existing_inventory
+            }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="Purchasing_cycle" label="采购周期">
+        </el-table-column>
+        <el-table-column prop="Materused" label="用途"> </el-table-column>
+        <el-table-column prop="Remark" label="备注"> </el-table-column>
+        <el-table-column label="操作" width="80">
+          <template slot-scope="scope">
+            <el-button
+              v-if="!addFlag"
+              @click="changedRowInfos(scope.row)"
+              type="text"
+              size="mini"
+              style="text-decoration: underline"
+            >
+              修改
+            </el-button>
+            <el-button
+              v-if="addFlag"
+              @click="removeDetials(scope.row, scope.$index)"
+              type="text"
+              size="mini"
+            >
+              移除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- @* 备注 *@ -->
+      <div v-show="flag" class="footerRemark">
+        <div>
+          <strong>配件安全库存说明：</strong>
+          <p>
+            1）建立配件安全库存目的是为保障公司设备、工具正常运作，提升嫁动率满足生产需求；
+          </p>
+          <p>
+            2）工具、配件、设备保养用品（各种设备保养专用油脂）为日常维修保养用必需用品；
+          </p>
+          <p>
+            3）各种精密设备内部空气过滤器、油雾过滤器的滤芯需每月保养、每年示脏污情况更换处理；
+          </p>
+          <p>
+            4）空压机按每个季度进行保养所产生更换配件技术部定期提前申请，并委托专业人员现场处理；
+          </p>
+          <p>
+            5)
+            各种叉车按每个季度、年度进行保养工作技术部定期提前给到使用部门申请配件，并委托专业人员现场处理；
+          </p>
+        </div>
+      </div>
+
+      <!-- @* 审核审批 *@ -->
+      <div v-show="flag" class="footerOne">
+        <div>
+          <b>资料整理：</b
+          ><span>{{ FinishingName }}/{{ FinishingDate | formatDate }}</span>
+        </div>
+        <div v-popover:popover1>
+          <b>技术部审核：</b
+          ><span>{{ Tec_Assessor }}/{{ Tec_AssessedDate | formatDate }}</span>
+        </div>
+        <div v-popover:popover2>
+          <b>PMC部审核：</b
+          ><span>{{ Assessor }}/{{ AssessedDate | formatDate }}</span>
+        </div>
+        <div v-popover:popover3>
+          <b>工厂厂长批准：</b
+          ><span>{{ Approve }}/{{ ApprovedDate | formatDate }}</span>
+        </div>
+      </div>
+      <!-- @* popover-- 技术审核 *@ -->
+      <el-popover
+        ref="popover1"
+        placement="top-start"
+        title="技术审核"
+        width="200"
+        trigger="click"
+      >
+        <div v-if="$limit('技术部确认安全库存')">
+          <el-select
+            size="mini"
+            v-model="popoverVal"
+            placeholder="请选择"
+            @change="checkOne2(1)"
+          >
+            <el-option
+              v-for="item in options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+        </div>
+        <div v-else>
+          <p>暂无权限或已确认</p>
+        </div>
+      </el-popover>
+      <!-- @* popover-- 审核 *@ -->
+      <el-popover
+        ref="popover2"
+        placement="top-start"
+        title="审核"
+        width="200"
+        trigger="click"
+      >
+        <div v-if="$limit('PMC审核安全库存')">
+          <el-select
+            size="mini"
+            v-model="popoverVal"
+            :disabled="Tec_Assessor == ('' || null) ? true : false"
+            placeholder="请选择"
+            @change="checkOne2(2)"
+          >
+            <el-option
+              v-for="item in options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+        </div>
+        <div v-else>
+          <p>暂无权限或已确认</p>
+        </div>
+      </el-popover>
+      <!-- @* popover-- 批准 *@ -->
+      <el-popover
+        ref="popover3"
+        placement="top-start"
+        title="批准"
+        width="200"
+        trigger="click"
+      >
+        <div v-if="this.$limit('厂长批准安全库存')">
+          <el-select
+            size="mini"
+            v-model="popoverVal"
+            :disabled="Assessor == ('' || null) ? true : false"
+            placeholder="请选择"
+            @change="checkOne2(3)"
+          >
+            <el-option
+              v-for="item in options"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+        </div>
+        <div v-else>
+          <p>暂无权限或已确认</p>
+        </div>
+      </el-popover>
+
+      <!-- @* 修改当行弹出框 *@ -->
+      <el-dialog
+        title="修改设备维修记录"
+        :visible.sync="dialogVisible"
+        width="25%"
+      >
+        <div class="dialogContent">
+          <el-form :model="changeForm" label-width="90px">
+            <el-form-item label="设备名称" prop="EquipmentName">
+              <el-input
+                disabled
+                v-model="changeForm.EquipmentName"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="品名" prop="Descrip">
+              <el-input
+                disabled
+                v-model="changeForm.Descrip"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="规格/型号" prop="Specifica">
+              <el-input
+                disabled
+                v-model="changeForm.Specifica"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="料号" prop="Material">
+              <el-input
+                disabled
+                v-model="changeForm.Material"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="使用部门" prop="Servicelife">
+              <el-select
+                v-model="changeForm.UserDepartment"
+                size="small"
+                placeholder="请选择使用部门"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in department_options"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="使用寿命" prop="Servicelife">
+              <el-input
+                v-model="changeForm.Servicelife"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="月平均用量" prop="Amount">
+              <el-input v-model="changeForm.Amount" size="small"></el-input>
+            </el-form-item>
+            <el-form-item label="安全库存量" prop="Safety_stock">
+              <el-input
+                v-model="changeForm.Safety_stock"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="仓库存量" prop="Existing_inventory">
+              <el-input
+                disabled
+                v-model="changeForm.Existing_inventory"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="采购周期" prop="Purchasing_cycle">
+              <el-input
+                v-model="changeForm.Purchasing_cycle"
+                size="small"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="用途" prop="Materused">
+              <el-input v-model="changeForm.Materused" size="small"></el-input>
+            </el-form-item>
+            <el-form-item label="备注" prop="Remark">
+              <el-input v-model="changeForm.Remark" size="small"></el-input>
+            </el-form-item>
+          </el-form>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button size="mini" @click="dialogVisible = false"
+            >取 消</el-button
+          >
+          <el-button size="mini" type="primary" @click="comfirmChanged()"
+            >确定修改</el-button
+          >
+        </span>
+      </el-dialog>
+    </el-main>
+  </div>
+</template>
+
+<script>
+import DownloadTemplate from "_c/download-template";
+import ImportExcel from "_c/import-excel";
+// import ExcelSafety from "./page-components/_excel_safety";
+import EqHeader from "./page-components/_eq_header";
+import {
+  Safety_department,
+  Safety_specifica,
+  Safety_descrip,
+  Safety_material,
+  Safety_equipmentName,
+  Safetyquery,
+  ADDsafestock,
+  Modifi_safety,
+  Verification,
+} from "@/api/equipment";
+export default {
+  name: "Equipment_Parameter",
+  props: {},
+  data() {
+    return {
+      loading: true,
+      userName: this.$userInfo.Name,
+      inputInfo: "",
+      repeat: "",
+      input_department: "",
+      input_date: "",
+      addFlag: false, //批量添加打开
+      templateName: "安全库存清单上传模板.xlsx",
+      url: "",
+
+      active: "安全库存清单",
+      dialogVisible: false,
+      flag: false,
+      tableData: [],
+      equipment_name_options: [],
+      material_options: [],
+      descrip_options: [],
+      specifica_options: [],
+      department_options: [],
+      select_equipmentName: "", //设备名称
+      select_material: "", //配料料号
+      select_descrip: "", //品名
+      select_specifica: "", //规格/型号
+      select_department: "", // 使用部门,
+      select_date: "",
+      changeForm: {
+        EquipmentName: null, // 设备名称
+        Descrip: null, // 品名
+        Specifica: null, //规格/型号
+        Material: null, //料号
+        Servicelife: null, //使用寿命
+        Amount: null, // 月平均用量
+        Safety_stock: null, // 安全库存量
+        Existing_inventory: null, // 仓库存量
+        Purchasing_cycle: null, //采购周期
+        Materused: null, //用途
+        Remark: null, // 备注,
+      },
+      options: [
+        { label: "通过", value: "通过" },
+        { label: "不通过", value: "不通过" },
+      ],
+      popoverVal: "",
+      FinishingName: "",
+      FinishingDate: "",
+
+      Tec_Assessor: "",
+      Tec_AssessedDate: "",
+      Assessor: "",
+      AssessedDate: "",
+      Approve: "",
+      ApprovedDate: "",
+      Year: "",
+      Month: "",
+      nums: "",
+    };
+  },
+  components: { ImportExcel, DownloadTemplate, EqHeader },
+  computed: {},
+  watch: {
+    //监听批量上传粘贴的数据
+    inputInfo(val) {
+      if (val != null) {
+        let valOfPaste = val.split("\n");
+        valOfPaste.pop();
+        let initDatas = [];
+        valOfPaste.forEach((item, i) => {
+          var items = item.split("\t");
+          initDatas.push(items);
+        });
+        let arr = [];
+        initDatas.forEach((item) => {
+          let obj = {
+            EquipmentName: item[0],
+            Descrip: item[1],
+            Specifica: item[2],
+            Material: item[3],
+            Servicelife: item[4],
+            Amount: item[5],
+            Safety_stock: item[6],
+            Existing_inventory: item[7],
+            Purchasing_cycle: item[8],
+            Materused: item[9],
+            Remark: item[10],
+            color: 0,
+          };
+          arr.push(obj);
+        });
+        this.tableData = arr;
+        //console.log(this.tableData);
+      }
+    },
+  },
+  filters: {
+    // 比较--控制库存背景色
+    compare(v) {
+      let v1 = parseInt(v.Safety_stock),
+        v2 = parseInt(v.Existing_inventory);
+      if (v1 > v2) {
+        return "dangerNums";
+      } else if (v1 < v2) {
+        return "okayNums";
+      } else if (v1 == v2) {
+        return "quiteOkayNums";
+      }
+    },
+  },
+  methods: {
+    // 查找
+    search() {
+      let year = "",
+        month = "";
+      if (this.select_date != null) {
+        let dd = new Date(this.select_date);
+        year = dd.getFullYear();
+        month = dd.getMonth() + 1;
+      }
+      let param = {
+        userdepartment: this.select_department,
+        equipmentName: this.select_equipmentName,
+        descrip: this.select_descrip,
+        specifica: this.select_specifica,
+        material: this.select_material,
+        year: year,
+        month: month,
+      };
+      //console.log(this.select_date);
+      //console.log(param);
+      Safetyquery(param).then((res) => {
+        this.loading = false;
+        //console.log(res.data.Data)
+        if (res.data.Data.length > 0) {
+          this.tableData = res.data.Data[0];
+          this.tableData.forEach((item) => {
+            if (item.Existing_inventory_Details != "[]") {
+              item.Existing_inventory_Details = JSON.parse(
+                item.Existing_inventory_Details
+              )[0];
+            }
+          });
+          // console.log(this.tableData);
+          this.FinishingName = res.data.Data[0][0].FinishingName;
+          this.FinishingDate = res.data.Data[0][0].FinishingDate;
+          this.Year = res.data.Data[0][0].Year;
+          this.Month = res.data.Data[0][0].Month;
+          this.Tec_Assessor = res.data.Data[0][0].Tec_Assessor;
+          this.Tec_AssessedDate = res.data.Data[0][0].Tec_AssessedDate;
+          this.Assessor = res.data.Data[0][0].Assessor;
+          this.AssessedDate = res.data.Data[0][0].AssessedDate;
+          this.Approve = res.data.Data[0][0].Approve;
+          this.ApprovedDate = res.data.Data[0][0].ApprovedDate;
+          this.flag = true;
+          // this.onGetPermissions();
+        } else {
+          this.tableData = [];
+          this.flag = false;
+          this.$message.warning("查找不到相关信息");
+        }
+      });
+    },
+    //打开批量上传
+    onShowAdd() {
+      if (this.$limit("批量上传安全库存")) {
+        this.addFlag = true;
+        this.tableData = [];
+        this.FinishingName = "";
+        this.FinishingDate = "";
+        this.Tec_Assessor = "";
+        this.Tec_AssessedDate = "";
+        this.Assessor = "";
+        this.AssessedDate = "";
+        this.Approve = "";
+        this.ApprovedDate = "";
+      } else {
+        this.$message.warning("暂无权限！");
+      }
+    },
+    //导入Excel
+    onSuccess(response, file) {
+      console.log(response);
+      if (response.length != 0) {
+        let json = response[0].data;
+        let arr = [];
+        json.forEach((item) => {
+          let obj = {
+            EquipmentName: item["设备名称"],
+            Descrip: item["品名"],
+            Specifica: item["规格/型号"],
+            Material: item["料号"],
+            Servicelife: item["使用寿命"],
+            Amount: item["月平均用量"],
+            Safety_stock: item["安全库存量"],
+            Existing_inventory: item["仓库存量"],
+            Purchasing_cycle: item["采购周期"],
+            Materused: item["用途"],
+            Remark: item["备注"],
+            color: 0,
+          };
+          arr.push(obj);
+        });
+        this.tableData = arr;
+        console.log(this.tableData);
+      }
+    },
+    //批量上传
+    onUpload() {
+      if (this.tableData.length > 0) {
+        if (this.input_department != "" && this.input_date != null) {
+          let dd = new Date(this.input_date);
+          let year = dd.getFullYear();
+          let month = dd.getMonth() + 1;
+          ADDsafestock({
+            inputList: this.tableData,
+            year: year,
+            month: month,
+            userdepartment: this.input_department,
+          })
+            .then((res) => {
+              //console.log(res.data.Data)
+              if (res.data.Result) {
+                this.$message.success(res.data.Message);
+                this.addFlag = false;
+                this.inputInfo = "";
+                this.select_department = this.input_department;
+                this.select_date = this.input_date;
+                this.search();
+                this.input_department = "";
+                this.input_date = "";
+              } else {
+                this.$message.warning(res.data.Message);
+                for (let i = 0; i < res.data.Data.length; i++) {
+                  this.tableData.forEach((item) => {
+                    if (res.data.Data[i] == item.EquipmentName) {
+                      item.color = 1;
+                    }
+                  });
+                }
+              }
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        } else {
+          this.$message.warning("请选择年月跟使用部门!");
+        }
+      } else {
+        this.$message.warning("请导入数据再上传!");
+      }
+    },
+    //批量上传取消
+    onCancel() {
+      this.repeat = "";
+      this.inputInfo = "";
+      this.addFlag = false;
+      this.tableData = [];
+      this.search();
+    },
+    //移除行数据
+    removeDetials(row, index) {
+      //console.log(row);
+      this.tableData.splice(index, 1);
+      if (this.tableData.length == 0) {
+        this.repeat = "";
+      }
+    },
+    // 初始化数据
+    initData() {
+      // 页面加载时需要获取选择框的值--有五个选择框所以有五个方法。
+      let list = [
+        {
+          url: Safety_equipmentName(),
+          option: this.equipment_name_options,
+        },
+        {
+          url: Safety_material(),
+          option: this.material_options,
+        },
+        {
+          url: Safety_descrip(),
+          option: this.descrip_options,
+        },
+        {
+          url: Safety_specifica(),
+          option: this.specifica_options,
+        },
+        {
+          url: Safety_department(),
+          option: this.department_options,
+        },
+      ];
+      list.forEach((item) => {
+        this.getSelectOptions(item.url, item.option);
+      });
+    },
+    getSelectOptions(url, options) {
+      url.then((res) => {
+        // console.log(res.data.Data);
+        res.data.Data.forEach((item) => {
+          let obj = { value: item, label: item };
+          options.push(obj);
+        });
+      });
+    },
+    // 修改当行信息---点击显示弹框
+    changedRowInfos(row) {
+      if (this.$limit("修改安全库存信息") && this.Approve == null) {
+        this.changeForm = row;
+        //console.log(this.changeForm);
+        this.dialogVisible = true;
+      } else {
+        this.$message.warning("暂无操作权限或已批准！");
+      }
+    },
+    // 确认修改保存
+    comfirmChanged() {
+      this.changeForm.Existing_inventory_Details = JSON.stringify(
+        this.changeForm.Existing_inventory_Details
+      );
+      Modifi_safety(this.changeForm).then((res) => {
+        //console.log(res.data.Data)
+        if (res.data.Result) {
+          this.dialogVisible = false;
+          this.$message.success(res.data.Message);
+          this.changeForm = {};
+        } else {
+          this.dialogVisible = false;
+          this.search();
+          this.$message.warning(res.data.Message);
+          this.changeForm = {};
+        }
+      });
+    },
+    // 审核--预留方法--暂时不用
+    checkOne2(index) {
+      let postData = {
+        userdepartment: this.select_department,
+        year: this.Year,
+        month: this.Month,
+        tec_asse: "",
+        mcdepsr: "",
+        approve: "",
+      };
+      if (index == 1) {
+        postData.tec_asse = this.userName + "" + this.popoverVal;
+      } else if (index == 2) {
+        postData.mcdepsr = this.userName + "" + this.popoverVal;
+      } else if (index == 3) {
+        postData.approve = this.userName + "" + this.popoverVal;
+      }
+      //console.log(postData,111);
+      Verification(postData).then((res) => {
+        //console.log(res.data.Data,00000)
+        if (res.data.Result) {
+          this.$message.success(res.data.Message);
+          this.search();
+          this.popoverVal = "";
+        } else {
+          this.$message.warning(res.data.Message);
+        }
+      });
+    },
+  },
+  created() {},
+  mounted() {
+    let urlSearchParam = this.$route.query;
+    if (urlSearchParam.equipmentName != undefined) {
+      this.select_equipmentName = urlSearchParam.equipmentName;
+    }
+    if (urlSearchParam.time != undefined) {
+      this.select_date = new Date(urlSearchParam.time);
+    }
+    this.initData();
+    this.search();
+  },
+};
+</script>
+
+<style lang='less' scoped>
+@import url("~@/assets/style/color.less");
+@import url("./page-components/equipment.less");
+//安全库存与仓库比较颜色
+.dangerNums {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  background-color: #fef0f0;
+}
+
+.okayNums {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  background-color: #ecf5ff;
+}
+
+.quiteOkayNums {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  background-color: #e6f8ea;
+}
+//仓库存量弹出
+.inventory-box {
+  color: #8a8a8a;
+  padding-right: 12px;
+}
+.redss {
+  color: red;
+}
+//审核审批
+.footerOne,
+.footerTwo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.footerOne > div,
+.footerTwo > div {
+  width: 33.333%;
+}
+
+.footerOne > div > b,
+.footerTwo > div > b {
+  width: 135px;
+  text-align: right;
+}
+
+.footerOne > div > span,
+.footerTwo > div > span {
+  display: inline-block;
+  width: 190px;
+  text-align: left;
+}
+
+.footerRemark {
+  font-size: 12px;
+  color: #59626f;
+  padding: 14px 0;
+}
+</style>

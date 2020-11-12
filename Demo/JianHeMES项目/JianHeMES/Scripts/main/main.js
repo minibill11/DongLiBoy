@@ -103,8 +103,9 @@
         },
         //获取版本信息
         GetVersion() {
-            if (!sessionStorage.getItem('mesVersion'))
+            if (sessionStorage.getItem('mesVersion')) { this.currentVersion = sessionStorage.getItem('mesVersion') } else {
                 axios.post('/VersionManagement/GetLasrVersion').then(res => { this.currentVersion = res.data; sessionStorage.setItem('mesVersion', res.data); });
+            };
         },
         //菜单hover进入
         enterHoverMenu() {

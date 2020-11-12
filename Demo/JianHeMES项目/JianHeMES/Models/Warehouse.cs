@@ -544,6 +544,12 @@ namespace JianHeMES.Models
         [Display(Name = "追加有效期")]
         public int AddEffectiveDay { get; set; }
 
+        [Display(Name = "合同号"), StringLength(100)]
+        public string ContractNo { get; set; }
+
+        [Display(Name = "序号"), StringLength(50)]
+        public string SerialNumber { get; set; }
+
     }
 
     //物料出库

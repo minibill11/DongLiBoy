@@ -63,8 +63,9 @@
                 <a href="KPI_DeparturesNum" target="_blank" v-show="islimit('查看班组人员流失汇总')"><el-button type="primary" size="small" plain>班组人员流失汇总表</el-button></a>
                 <a href="KPI_7S_Summarizing" target="_blank" v-show="islimit('查看7S总表')"><el-button type="primary" size="small" plain>7S评比得分汇总表</el-button></a>
                 <el-tooltip class="item" effect="dark" content="核准后才可导出" placement="top-end">
-                    <el-button type="success" :disabled="!hzShow" title="" @@click="exportExcel" size="small" plain>导出EXCEL表</el-button>
+                    <el-button type="success" :disabled="!hzShow" title="" @@click="exportExcel" size="small" plain>导出审核结果表</el-button>
                 </el-tooltip>
+                <el-button type="success" :disabled="mParam==null" title="查询结果导出" @@click="exportTemporaryExcel" size="small" plain>导出查询结果表</el-button>
             </div>
         </el-row>
         <el-row class="table-mid">
@@ -85,50 +86,80 @@
                     <el-table-column prop="Efficiency_Target" label="目标值"></el-table-column>
                     <el-table-column prop="Efficiency_Actual" label="实际完成" sortable>
                         <template slot-scope="scope">
-                            <a :href=`KPI_Daily?from=效率指标&d=${scope.row.Department}&g=${scope.row.Group}&m=${mParam}` target="_blank">
+                            <a :href="`KPI_Daily?from=效率指标&d=${scope.row.Department}&g=${scope.row.Group}&m=${mParam}`"
+                               :class="actual_score_color(scope.row.Efficiency_Actual,scope.row.Efficiency_Score)"
+                               target="_blank">
                                 {{scope.row.Efficiency_Actual}}{{scope.row.Efficiency_Target?scope.row.Efficiency_Target.replace(/\d/g,''):''}}
                             </a>
                         </template>
                     </el-table-column>
                     <el-table-column prop="Efficiency_Single" label="单项得分"></el-table-column>
-                    <el-table-column prop="Efficiency_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Efficiency_Score" label="得分小计">
+                        <template slot-scope="scope">
+                            <span :class="actual_score_color(scope.row.Efficiency_Actual,scope.row.Efficiency_Score)">
+                                {{scope.row.Efficiency_Score}}
+                            </span>
+                        </template>
+                    </el-table-column>
                 </el-table-column>
                 <el-table-column label="品质指标">
                     <el-table-column prop="Quality_IndexName" label="考核指标名称" min-width="120"></el-table-column>
                     <el-table-column prop="Quality_Target" label="目标值"></el-table-column>
                     <el-table-column prop="Quality_Actual" label="实际完成" sortable>
                         <template slot-scope="scope">
-                            <a :href=`KPI_Daily?from=品质指标&d=${scope.row.Department}&g=${scope.row.Group}&m=${mParam}` target="_blank">
+                            <a :href="`KPI_Daily?from=品质指标&d=${scope.row.Department}&g=${scope.row.Group}&m=${mParam}`"
+                               :class="actual_score_color(scope.row.Quality_Actual,scope.row.Quality_Score)"
+                               target="_blank">
                                 {{scope.row.Quality_Actual}}{{scope.row.Quality_Target?scope.row.Quality_Target.replace(/\d/g,''):''}}
                             </a>
                         </template>
                     </el-table-column>
                     <el-table-column prop="Quality_Single" label="单项得分"></el-table-column>
-                    <el-table-column prop="Quality_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Quality_Score" label="得分小计">
+                        <template slot-scope="scope">
+                            <span :class="actual_score_color(scope.row.Quality_Actual,scope.row.Quality_Score)">
+                                {{scope.row.Quality_Score}}
+                            </span>
+                        </template>
+                    </el-table-column>
                 </el-table-column>
                 <el-table-column label="月流失率指标">
                     <el-table-column prop="Turnover_IndexName" label="考核指标名称" min-width="120"></el-table-column>
                     <el-table-column prop="Turnover_Target" label="目标值"></el-table-column>
                     <el-table-column prop="Turnover_Actual" label="实际完成" sortable>
                         <template slot-scope="scope">
-                            {{scope.row.Turnover_Actual}}
+                            <span :class="actual_score_color(scope.row.Turnover_Actual,scope.row.Turnover_Score)">{{scope.row.Turnover_Actual}}</span>
                         </template>
                     </el-table-column>
                     <el-table-column prop="Turnover_Single" label="单项得分"></el-table-column>
-                    <el-table-column prop="Turnover_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Turnover_Score" label="得分小计">
+                        <template slot-scope="scope">
+                            <span :class="actual_score_color(scope.row.Turnover_Actual,scope.row.Turnover_Score)">
+                                {{scope.row.Turnover_Score}}
+                            </span>
+                        </template>
+                    </el-table-column>
                 </el-table-column>
                 <el-table-column label="7S评比指标">
                     <el-table-column prop="Comparison_IndexName" label="考核指标名称" min-width="120"></el-table-column>
                     <el-table-column prop="Comparison_Target" label="目标值"></el-table-column>
                     <el-table-column prop="Comparison_Actual" label="实际完成" sortable>
                         <template slot-scope="scope">
-                            <a :href=`KPI_7S_Summarizing?d=${scope.row.Department}&g=${scope.row.Group}&m=${mParam}` target="_blank">
+                            <a :href="`KPI_7S_Summarizing?d=${scope.row.Department}&g=${scope.row.Group}&m=${mParam}`"
+                               :class="actual_score_color(scope.row.Comparison_Actual,scope.row.Comparison_Score)"
+                               target="_blank">
                                 {{scope.row.Comparison_Actual}}
                             </a>
                         </template>
                     </el-table-column>
                     <el-table-column prop="Comparison_Single" label="单项得分"></el-table-column>
-                    <el-table-column prop="Comparison_Score" label="得分小计"></el-table-column>
+                    <el-table-column prop="Comparison_Score" label="得分小计">
+                        <template slot-scope="scope">
+                            <span :class="actual_score_color(scope.row.Comparison_Actual,scope.row.Comparison_Score)">
+                                {{scope.row.Comparison_Score}}
+                            </span>
+                        </template>
+                    </el-table-column>
                 </el-table-column>
                 <el-table-column prop="TotalScore" label="合计总分">
                     @*<template slot-scope="scope">
@@ -147,7 +178,12 @@
                                      :filters="filterObj.Ethnic_Group"
                                      :filter-method="filterHandler"></el-table-column>
                 </el-table-column>
-                <el-table-column prop="Attendance" label="出勤率"></el-table-column>
+                <el-table-column prop="Attendance" label="出勤率">
+                    <template slot-scope="scope">
+                        <span>{{scope.row.Attendance}}</span>
+                        <span v-if="scope.row.Attendance">%</span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="ViolationsMessage" label="行政违纪情况"></el-table-column>
                 <el-table-column prop="Ranking" label="排名">
                     <template slot="header" slot-scope="scope">
@@ -170,6 +206,9 @@
                             </div>
                             <div slot="reference" style="font-size:14px;cursor:pointer;">排名<i class="el-icon-info"></i></div>
                         </el-popover>
+                    </template>
+                    <template slot-scope="scope">
+                        <span v-if="scope.row.Ranking">第{{scope.row.Ranking}}名</span>
                     </template>
                 </el-table-column>
                 <el-table-column prop="integral" label="积分"></el-table-column>
@@ -285,7 +324,7 @@
                     filterObj: {
                         //具体的变量列表
                         Department: [],
-                        Ethnic_Group:[]
+                        Ethnic_Group: []
                     },
                     mParam: null,//记录查询表格时的日期
                 }
@@ -326,7 +365,7 @@
                         let link = document.createElement('a');
                         link.href = URL.createObjectURL(new Blob([res.data]));
                         link.style.display = 'none';
-                        link.download = `KPI班组评优汇总表${y}-${m}.xlsx`;
+                        link.download = `KPI审核结果表${y}-${m}.xlsx`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -418,6 +457,21 @@
                         this.$message.error('后台报错');
                     });
                 },
+                exportTemporaryExcel() {
+                    if (this.checkDateIsNull()) return;
+                    let y = this.monthDate.getFullYear(), m = this.monthDate.getMonth() + 1;
+                    axios.post("/KPI/Export_TemporaryTable", {
+                        year: y, month: m, indicators: this.tableList
+                    }, { responseType: "blob" }).then(res => {
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(new Blob([res.data]));
+                        link.style.display = 'none';
+                        link.download = `KPI查询结果表${y}-${m}.xlsx`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+                },
                 ADDSummaryTable(type, v) {
                     if (this.checkDateIsNull()) return;
                     if (v === '') {
@@ -464,6 +518,13 @@
                         this.$message.error('报错');
                     });
                 },
+                //实际完成和得分小计 颜色
+                actual_score_color(a, s) {
+                    if (a === 0 && s === 0) {
+                        return 'red';
+                    };
+                    return '';
+                }
             },
             watch: {
                 //监听表的数据

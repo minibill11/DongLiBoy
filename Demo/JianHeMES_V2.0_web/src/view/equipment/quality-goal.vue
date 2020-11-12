@@ -1,0 +1,996 @@
+<!--- 指标达成率 --->
+<template>
+  <div>
+    <EqHeader :active="active"></EqHeader>
+    <el-main class="main-box" v-loading="loading">
+      <div class="equipment-index-inputcontainer">
+        <div class="equipment-index-inputcontainer-item">
+          <el-date-picker
+            v-model="select_date"
+            type="month"
+            size="mini"
+            style="width: 130px"
+            placeholder="请选择日期" value-format="yyyy-MM-dd HH:mm:ss"
+          >
+          </el-date-picker>
+          <div style="margin: 0 20px 0 10px">月保养质量目标达成状况统计表</div>
+          <el-button
+            v-show="true"
+            size="mini"
+            @click="onShowAddRecord"
+            type="primary"
+            plain
+            >新增</el-button
+          >
+          <el-button
+            type="primary"
+            size="mini"
+            @click="copyMonthDialogVisible = true"
+            plain
+            >复制月数据</el-button
+          >
+        </div>
+      </div>
+      <div class="tip-box">
+        <span class="tip"
+          >提示：查询结果中部门（因组织架构变更）可能与当前部门不一致。</span
+        >
+      </div>
+      <el-table
+        v-bind:data="tableData"
+        v-loading="loading"
+        border
+        stripe
+        size="small"
+        max-height="500"
+        style="width: 100%"
+      >
+        <el-table-column label="序号" type="index" width="50">
+        </el-table-column>
+        <el-table-column prop="UserDepartment" label="使用部门">
+        </el-table-column>
+        <el-table-column prop="Quality_objec" label="质量目标">
+        </el-table-column>
+        <el-table-column prop="Target_value" label="目标值"> </el-table-column>
+        <el-table-column prop="Formulas" label="计算公式"> </el-table-column>
+        <el-table-column prop="Statistical" label="统计周期"> </el-table-column>
+        <el-table-column prop="Required" label="设备按规定要求保养台数">
+        </el-table-column>
+        <el-table-column label="实际月保养台数">
+          <template slot-scope="scope">
+            <el-button @click="onToTurn(scope.row)" type="text" size="mini">
+              {{ scope.row.Planned }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="efficiency"
+          label="及时率"
+        >
+        <template slot-scope="scope">
+              {{ scope.row.efficiency|formatPercentage}}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="80">
+          <template slot-scope="scope">
+            <el-button
+              @click="changedRowInfos(scope.row)"
+              type="text"
+              size="mini"
+              style="text-decoration: underline"
+            >
+              修改
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <!-- @*备注审核*@ -->
+      <div class="remarkContainer">
+        <el-tooltip content="点击添加/修改备注" placement="top">
+          <p @click="addRemrk">备注：</p>
+        </el-tooltip>
+        <div class="remark">
+          <p
+            v-for="(item, index) in remark"
+            :key="index"
+            @click="changeRamark(item, index)"
+          >
+            {{ item }}
+          </p>
+        </div>
+      </div>
+      <div class="lastContainer">
+        <div class="lastIner">
+          <p>编制:</p>
+          <span
+            >{{ PrepareName }}&nbsp;&nbsp;{{
+              PrepareTime == null ? "" : PrepareTime|formatDate
+            }}</span
+          >
+        </div>
+        <div class="lastIner">
+          <p>审核:</p>
+          <div v-show="Assessor == null || Assessor == ''">
+            <el-select
+              v-model="select_Assesse"
+              size="mini"
+              style="width: 130px"
+              placeholder="请选择"
+            >
+              <el-option label="通过" value="通过"></el-option>
+              <el-option label="不通过" value="不通过"></el-option>
+            </el-select>
+            <el-button
+              size="mini"
+              @click="onAudit"
+              type="success"
+              :disabled="select_Assesse == '' ? true : false"
+              >确认</el-button
+            >
+          </div>
+          <span
+            >{{ Assessor }}&nbsp;&nbsp;{{
+              AssessedDate == null ? "" : AssessedDate|formatDate
+            }}</span
+          >
+        </div>
+        <div class="lastIner">
+          <p>批准:</p>
+          <div v-show="Approve == null || Assessor == ''">
+            <el-select
+              v-model="select_Approve"
+              type="month"
+              size="mini"
+              style="width: 130px"
+              placeholder="请选择"
+              :disabled="Assessor == null ? true : false"
+            >
+              <el-option label="通过" value="通过"></el-option>
+              <el-option label="不通过" value="不通过"></el-option>
+            </el-select>
+            <el-button
+              size="mini"
+              @click="onApprove"
+              type="success"
+              :disabled="select_Approve == '' ? true : false"
+              >确认</el-button
+            >
+          </div>
+          <span
+            >{{ Approve }}&nbsp;&nbsp;{{
+              ApprovedDate == null ? "" : ApprovedDate|formatDate
+            }}</span
+          >
+        </div>
+      </div>
+    </el-main>
+    <!-- @* 新增记录弹框 *@ -->
+    <el-dialog
+      title="新增质量目标"
+      v-bind:visible.sync="showAddRemark"
+      width="50%"
+    >
+      <el-date-picker
+        v-model="selectTime"
+        type="month"
+        size="mini"
+        placeholder="选择日期" value-format="yyyy-MM-dd HH:mm:ss"
+      >
+      </el-date-picker>
+      <div class="addnewrecordcontainer">
+        <div
+          v-for="(item, index) in addRecordData"
+          :key="index"
+          :class="item.color ? 'line-red' : 'line'"
+        >
+          <span class="innerselect">
+            <el-select
+              v-model="item.UserDepartment"
+              size="mini"
+              filterable
+              placeholder="请选择"
+              style="width: 130px"
+            >
+              <el-option
+                v-for="item in deparlist"
+                v-bind:key="item.value"
+                v-bind:label="item.label"
+                v-bind:value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </span>
+          <span style="width: 80px"
+            ><strong>质量目标：</strong>{{ item.Quality_objec }}</span
+          >
+          <span style="width: 50px"
+            ><strong>目标值：</strong>{{ item.Target_value }}</span
+          >
+          <span style="width: 120px"
+            ><strong>计算公式：</strong>{{ item.Formulas }}</span
+          >
+          <span style="width: 50px"
+            ><strong>统计周期：</strong>{{ item.Statistical }}</span
+          >
+          <el-button
+            v-show="item.color == true ? true : false"
+            type="danger"
+            size="mini"
+            @click="removeaddRecordData(item, index)"
+            style="margin-left: 16px"
+            >移除</el-button
+          >
+        </div>
+        <div style="margin-top: 5px">
+          <el-button type="primary" size="mini" @click="addRecord" plain
+            >增加一条</el-button
+          >
+          <el-button type="danger" size="mini" @click="deleteRecord" plain
+            >回退删除</el-button
+          >
+        </div>
+      </div>
+      <div class="addremark">
+        <div v-for="(item, index) in addremarklist" :key="index">
+          备注{{ index + 1 }}：
+          <el-input type="textarea" autosize v-model="item.remark"></el-input>
+        </div>
+        <div style="margin-top: 5px">
+          <el-button type="primary" size="mini" @click="addRemarlline" plain
+            >增加一条</el-button
+          >
+          <el-button type="danger" size="mini" @click="cnacelRemarlline" plain
+            >回退删除</el-button
+          >
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="showAddRemark = false" size="small">取 消</el-button>
+        <el-button
+          v-show="selectTime == '' ? false : true"
+          type="primary"
+          @click="comformAddRemark"
+          size="small"
+          >保存新增</el-button
+        >
+      </span>
+    </el-dialog>
+    <!-- @* 修改质量目标信息 *@ -->
+    <el-dialog
+      title="修改质量目标信息"
+      v-bind:visible.sync="showChangeLineInfos"
+      width="25%"
+    >
+      <el-form v-bind:model="changeData" label-width="180px">
+        <el-form-item label="使用部门">
+          <el-input
+            disabled
+            v-model="changeData.UserDepartment"
+            size="small"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="质量目标">
+          <el-input v-model="changeData.Quality_objec" size="small"></el-input>
+        </el-form-item>
+        <el-form-item label="目标值">
+          <el-input v-model="changeData.Target_value" size="small"></el-input>
+        </el-form-item>
+        <el-form-item label="计算公式">
+          <el-input v-model="changeData.Formulas" size="small"></el-input>
+        </el-form-item>
+        <el-form-item label="统计周期">
+          <el-input v-model="changeData.Statistical" size="small"></el-input>
+        </el-form-item>
+        <el-form-item label="设备按规定要求保养台数">
+          <el-input
+            disabled
+            v-model="changeData.Required"
+            size="small"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="计划保养台数">
+          <el-input
+            disabled
+            v-model="changeData.Planned"
+            size="small"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="及时率">
+          <el-input
+            disabled
+            v-model="changeData.efficiency"
+            size="small"
+          ></el-input>
+        </el-form-item>
+      </el-form>
+
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="showChangeLineInfos = false" size="small"
+          >取 消</el-button
+        >
+        <el-button type="primary" @click="comformChangeLineInfos" size="small"
+          >保存</el-button
+        >
+      </span>
+    </el-dialog>
+
+    <!-- @* 新增/修改备注 *@ -->
+    <el-dialog
+      title="修改备注项"
+      v-bind:visible.sync="showChangeRemark"
+      width="35%"
+    >
+      <el-input type="textarea" autosize v-model="selectRemark"></el-input>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="addRemrk" size="small" plain
+          >新增备注</el-button
+        >
+        <el-button @click="showChangeRemark = false" size="small"
+          >取 消</el-button
+        >
+        <el-button type="primary" @click="comformChangeRemark" size="small"
+          >保存修改</el-button
+        >
+      </span>
+    </el-dialog>
+    <el-dialog
+      width="30%"
+      title="新增备注项目"
+      v-bind:visible.sync="innerAddRemark"
+    >
+      <p>tips:开头不需要加'*'号，需要标明备注序号。</p>
+      <el-input type="textarea" autosize v-model="addRemarkInfos"></el-input>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="innerAddRemark = false" size="small"
+          >取 消</el-button
+        >
+        <el-button type="primary" @click="addRemarkComfirm" size="small"
+          >保存新增</el-button
+        >
+      </span>
+    </el-dialog>
+    <!-- @* 复制月弹框 *@ -->
+    <el-dialog
+      title="复制指标率达成月数据"
+      v-bind:visible.sync="copyMonthDialogVisible"
+      width="35%"
+    >
+      <el-form label-width="80px" :model="copyMonth">
+        <el-form-item label="复制月">
+          <el-date-picker
+            v-model="copyMonth.old"
+            size="mini"
+            type="month"
+            placeholder="选择月" value-format="yyyy-MM-dd HH:mm:ss"
+          >
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item label="目标月">
+          <el-date-picker
+            v-model="copyMonth.new"
+            size="mini"
+            type="month"
+            placeholder="选择月" value-format="yyyy-MM-dd HH:mm:ss"
+          >
+          </el-date-picker>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button size="small" @click="copyMonthDialogVisible = false"
+          >取 消</el-button
+        >
+        <el-button size="small" type="primary" @click="addCopyMonth"
+          >确 定</el-button
+        >
+      </span>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import EqHeader from "./page-components/_eq_header";
+import {formatDate} from "@/filters/index";
+import {
+  Equipment_Quality_statistical,
+  Userdepartment_list,
+  Equipment_QualityADD,
+  Modifi_Equipment_Quality,
+  Editequipment_Quality,
+  ADDequipment_quality,
+  Equipment_Automatically,
+} from "@/api/equipment";
+export default {
+  name: "Equipment_Parameter",
+  inject: ["reload"],
+  props: {},
+  data() {
+    return {
+      active: "指标达成率",
+      loading: true,
+      select_date: new Date(),
+      tableData: [],
+      userName:this.$userInfo.Name,
+      //新增记录
+      showAddRemark: false,
+      selectTime: "",
+      deparlist: [],
+      addRecordData: [
+        {
+          UserDepartment: "",
+          Quality_objec: "设备保养有效率", //质量目标
+          Target_value: "≥98%", //目标值
+          Formulas: "实际保养台数/计划保养总台数 ×100%", //计算公式
+          Statistical: "每月/次", //统计周期
+          Required_maintain: "设备按规定要求保养台数", //按规定要求保养台天次
+          Planned_maintenance: "计划保养总台数", //计划保养总台天次
+          With_efficiency: "有效率", // 有效率,
+          color: false,
+        },
+      ],
+      addremarklist: [
+        {
+          remark: "",
+        },
+      ],
+      //复制月数据
+      copyMonthDialogVisible: false,
+      copyMonth: {
+        old: "",
+        new: "",
+      },
+      //修改质量目标信息
+      showChangeLineInfos: false,
+      changeData: "",
+
+      //备注
+      remark: [],
+      showChangeRemark: false,
+      selectRemark: "",
+      selectRemarkIndex: "",
+      innerAddRemark: false,
+      addRemarkInfos: "",
+      //审核、批准
+      PrepareName: "",
+      PrepareTime: "",
+      Assessor: "",
+      AssessedDate: "",
+      Approve: "",
+      ApprovedDate: "",
+      select_Assesse: "",
+      select_Approve: "",
+      remarkStr: "",
+    };
+  },
+  components: { EqHeader },
+  computed: {},
+  watch: {
+    select_date() {
+      this.getTableData();
+    },
+  },
+  methods: {
+    //跳转到月保养页面
+    onToTurn(row) {
+      //console.log(row);
+      let dd = formatDate(this.select_date);
+      // this.$router.push({
+      //   name: "Equipment_Maintenance_Summary",
+      //   query: {
+      //     paramData: row.UserDepartment,
+      //     date: dd
+      //   },
+      // });
+      window.open(
+        "/Equipment/Equipment_Maintenance_Summary?paramData=" +
+          row.UserDepartment +
+          "&date=" +
+          dd
+      );
+    },
+    //获取所有数据
+    getTableData() {
+      let dd = new Date(this.select_date);
+      let y = dd.getFullYear();
+      let m = dd.getMonth() + 1;
+      //console.log(y, m);
+      Equipment_Quality_statistical({
+        year: y,
+        month: m,
+      }).then((res) => {
+        //console.log(res.data.Data);
+        this.tableData = res.data.Data.quality_list;
+        this.PrepareName = res.data.Data.PrepareName;
+        this.PrepareTime = res.data.Data.PrepareTime;
+        this.Assessor = res.data.Data.Assessor;
+        this.AssessedDate = res.data.Data.AssessedDate;
+        this.Approve = res.data.Data.Approve;
+        this.ApprovedDate = res.data.Data.ApprovedDate;
+        this.remarkStr = res.data.Data.Remark;
+        //console.log(this.remarkStr);
+        if (res.data.Data.Remark !== undefined) {
+          let remark = res.data.Data.Remark.split("*");
+          remark.shift();
+          this.remark = remark;
+          //console.log(this.remark);
+        }
+        this.loading = false;
+      });
+    },
+    // 获取部门信息
+    getDeparList() {
+      Userdepartment_list({ exce: new Date() }).then((res) => {
+        res.data.Data.forEach((item) => {
+          let obj = { label: item, value: item };
+          this.deparlist.push(obj);
+        });
+      });
+    },
+    //打开新增记录
+    onShowAddRecord() {
+      if (
+        this.$limit("新增指标项目") &&
+        (this.Assessor == null || this.Assessor == "")
+      ) {
+        this.showAddRemark = true;
+      } else {
+        this.$message.warning("无操作权限或已批准!");
+      }
+    },
+    //添加待上传记录
+    addRecord() {
+      let obj = {
+        UserDepartment: "",
+        Quality_objec: "设备保养有效率", //质量目标
+        Target_value: "≥98%", //目标值
+        Formulas: "实际保养台数/计划保养总台数 ×100%", //计算公式
+        Statistical: "每月/次", //统计周期
+        Required_maintain: "设备按规定要求保养台数", //按规定要求保养台天次
+        Planned_maintenance: "计划保养总台数", //计划保养总台天次
+        With_efficiency: "有效率", // 有效率,
+        color: false,
+      };
+      this.addRecordData.push(obj);
+    },
+    //删除待上传记录
+    deleteRecord() {
+      if (this.addRecordData.length > 1) {
+        this.addRecordData.pop();
+      } else {
+        this.$message.warning("手动新增项已全部删除!");
+      }
+    },
+    //添加待上传备注
+    addRemarlline() {
+      let obj = { remark: "" };
+      this.addremarklist.push(obj);
+    },
+    //删除待上传备注
+    cnacelRemarlline() {
+      if (this.addremarklist.length > 1) {
+        this.addremarklist.pop();
+      } else {
+        this.$message.warning("手动新增项已全部删除!");
+      }
+    },
+    // 移除重复的新增信息
+    removeaddRecordData(item, index) {
+      this.addRecordData.splice(index, 1);
+      if (this.addRecordData.length == 0) {
+        this.addRecordData = [
+          {
+            UserDepartment: "",
+            Quality_objec: "设备保养有效率", //质量目标
+            Target_value: "≥98%", //目标值
+            Formulas: "实际保养台数/计划保养总台数 ×100%", //计算公式
+            Statistical: "每月/次", //统计周期
+            Required_maintain: "设备按规定要求保养台数", //按规定要求保养台天次
+            Planned_maintenance: "计划保养总台数", //计划保养总台天次
+            With_efficiency: "有效率", // 有效率,
+            color: false,
+          },
+        ];
+      }
+    },
+    //上传新增记录
+    comformAddRemark() {
+      //console.log(this.addRecordData, 222)
+      let flag = true;
+      this.addRecordData.forEach((item) => {
+        if (item.UserDepartment == null || item.UserDepartment == "") {
+          flag = false;
+        }
+      });
+      //console.log(flag)
+      if (flag) {
+        let dd = new Date(this.selectTime);
+        let year = dd.getFullYear();
+        let month = dd.getMonth() + 1;
+        let postremark = "";
+        this.addremarklist.forEach((item, index) => {
+          postremark += "*" + (index + 1) + "." + item.remark;
+        });
+        //console.log(postremark,888)
+        Equipment_QualityADD({
+          inputList: this.addRecordData,
+          remark: postremark,
+          year: year,
+          month: month,
+        }).then((res) => {
+          //console.log(res.data.Data)
+          if (res.data.Result) {
+            this.$message.success(res.data.Message);
+            this.getTableData();
+            this.showAddRemark = false;
+            this.addRecordData = [
+              {
+                UserDepartment: "",
+                Quality_objec: "设备保养有效率", //质量目标
+                Target_value: "≥98%", //目标值
+                Formulas: "实际保养台数/计划保养总台数 ×100%", //计算公式
+                Statistical: "每月/次", //统计周期
+                Required_maintain: "设备按规定要求保养台数", //按规定要求保养台天次
+                Planned_maintenance: "计划保养总台数", //计划保养总台天次
+                With_efficiency: "有效率", // 有效率,
+                color: false,
+              },
+            ];
+            this.addremarklist = [
+              {
+                remark: "",
+              },
+            ];
+            this.selectTime = "";
+          } else {
+            this.$message.warning(res.data.Message);
+            this.addRecordData.forEach((item) => {
+              res.data.Data.Depar.forEach((items) => {
+                if (item.UserDepartment == items.UserDepartment) {
+                  item.color = true;
+                }
+              });
+            });
+            //console.log(this.addRecordData)
+          }
+        });
+      } else {
+        this.$message.warning("请补全数据!");
+      }
+    },
+    //打开修改行数据
+    changedRowInfos(row) {
+      if (
+        this.$limit("修改指标项目") &&
+        (this.Assessor == null || this.Assessor == "")
+      ) {
+        this.showChangeLineInfos = true;
+        this.changeData = row;
+        //console.log(this.changeData);
+      } else {
+        this.$message.warning("无操作权限或已批准!");
+      }
+    },
+    //保存修改行数据
+    comformChangeLineInfos() {
+      //console.log(this.changeData, 555555)
+      let flag = true;
+      if (
+        this.changeData.Quality_objec == null ||
+        this.changeData.Quality_objec == ""
+      ) {
+        flag = false;
+      }
+      if (
+        this.changeData.Target_value == null ||
+        this.changeData.Target_value == ""
+      ) {
+        flag = false;
+      }
+      if (this.changeData.Formulas == null || this.changeData.Formulas == "") {
+        flag = false;
+      }
+      if (
+        this.changeData.Statistical == null ||
+        this.changeData.Statistical == ""
+      ) {
+        flag = false;
+      }
+      if (flag) {
+        let dd = new Date(this.select_date);
+        let yy = dd.getFullYear();
+        let mm = dd.getMonth() + 1;
+        //console.log(yy, mm);
+        let param = {
+          year: yy,
+          month: mm,
+          userdepartment: this.changeData.UserDepartment,
+          quality_objec: this.changeData.Quality_objec,
+          target_value: this.changeData.Target_value,
+          formulas: this.changeData.Formulas,
+          statistical: this.changeData.Statistical,
+          required_maintain: this.changeData.Required_maintain,
+          planned_maintenance: this.changeData.Planned_maintenance,
+          with_efficiency: this.changeData.With_efficiency,
+        };
+        Modifi_Equipment_Quality(param).then((res) => {
+          if (res.data.Result) {
+            this.$message.success(res.data.Message);
+            this.showChangeLineInfos = false;
+            this.getTableData();
+          } else {
+            this.$message.error(res.data.Message);
+          }
+        });
+      } else {
+        this.$message.warning("请补全信息!");
+      }
+    },
+    // 修改备注
+    changeRamark(item, index) {
+      if (
+        this.$limit("修改指标项目") &&
+        (this.Assessor == null || this.Assessor == "")
+      ) {
+        this.showChangeRemark = true;
+        this.selectRemark = item;
+        this.selectRemarkIndex = index;
+      } else {
+        this.$message.warning("无操作权限或已批准!");
+      }
+    },
+    // 确认修改备注--弹框确认
+    comformChangeRemark() {
+      this.remark[this.selectRemarkIndex] = this.selectRemark;
+      let str = "";
+      for (let i = 0; i < this.remark.length; i++) {
+        str += "*" + this.remark[i];
+      }
+      //console.log(str)
+      let dd = new Date(this.select_date);
+      Editequipment_Quality({
+        year: dd.getFullYear(),
+        month: dd.getMonth() + 1,
+        remark: str,
+      })
+        .then((res) => {
+          //console.log(res.data.Data)
+          if (res.data.Result) {
+            this.showChangeRemark = false;
+            this.$message.success(res.data.Message);
+          } else {
+            this.$message.error(res.data.Message);
+          }
+        })
+        .catch((err) => {
+          console.log(err);
+          this.$message.warning("修改备注信息时连接失败!");
+        });
+    },
+    // 新增备注
+    addRemrk() {
+      if (
+        this.$limit("修改指标项目") &&
+        (this.Assessor == null || this.Assessor == "")
+      ) {
+        this.innerAddRemark = true;
+      } else {
+        this.$message.warning("无操作权限或已批准!");
+      }
+    },
+    // 新增备注确认
+    addRemarkComfirm() {
+      this.remark.push(this.addRemarkInfos);
+      let str = "";
+      for (let i = 0; i < this.remark.length; i++) {
+        str += "*" + this.remark[i];
+      }
+      let dd = new Date(this.select_date);
+      Editequipment_Quality({
+        year: dd.getFullYear(),
+        month: dd.getMonth() + 1,
+        remark: str,
+      })
+        .then((res) => {
+          if (res.data.Result) {
+            this.innerAddRemark = false;
+            this.showChangeRemark = false;
+            this.$message.success(res.data.Message);
+          } else {
+            this.$message.error(res.data.Message);
+          }
+        })
+        .catch((err) => {
+          console.log(err);
+          this.$message.warning("修改备注信息时连接失败!");
+        });
+    },
+    //审核/批准
+    onAudit() {
+      if (this.select_Assesse != "" && this.$limit("审核指标达成率")) {
+        let dd = new Date(this.select_date);
+        let target = this.userName + "/" + this.select_Assesse;
+        Editequipment_Quality({
+          year: dd.getFullYear(),
+          month: dd.getMonth() + 1,
+          assessor: target,
+        })
+          .then((res) => {
+            //console.log(res.data.Data)
+            if (res.data.Result) {
+              this.Assessor = res.data.Data.quality;
+              this.AssessedDate = res.data.Data.date;
+              this.$message.success(res.data.Message);
+              this.postMonthData(target);
+            } else {
+              this.Assessor = "";
+              this.$message.error(res.data.Message);
+            }
+          })
+          .catch((err) => {
+            console.log(err);
+            this.$message.warning("连接失败!");
+          });
+      } else {
+        this.$message.warning("暂无操作权限!");
+      }
+    },
+    // 审核成功上传本月所有数据
+    postMonthData(target) {
+      let dd = new Date(this.select_date);
+      let year = dd.getFullYear();
+      let month = dd.getMonth() + 1;
+      let obj = {
+        PrepareName: this.PrepareName,
+        PrepareTime: this.PrepareTime,
+      };
+      let pullData = [];
+      this.tableData.forEach((item) => {
+        let it = Object.assign(item, obj);
+        pullData.push(it);
+      });
+      //console.log(pullData);
+      ADDequipment_quality({
+        Quality_target: pullData,
+        year: year,
+        month: month,
+        remark: this.remarkStr,
+        assessor: target,
+      }).then((res) => {
+        //console.log(res, 999999)
+        if ((res.data.Result)) {
+          this.$message.success("保存审核数据成功!");
+          this.getTableData();
+        }
+      });
+    },
+    onApprove() {
+      if (this.select_Approve != "" && this.$limit("批准指标达成率")) {
+        let dd = new Date(this.select_date);
+        let target = this.userName + "/" + this.select_Approve;
+        //console.log(11)
+        Editequipment_Quality({
+          year: dd.getFullYear(),
+          month: dd.getMonth() + 1,
+          approve: target,
+        })
+          .then((res) => {
+            //console.log(res.data.Data,222)
+            if (res.data.Result) {
+              this.Approve = res.data.Data.quality;
+              this.ApprovedDate = res.data.Data.date;
+              this.$message.success(res.data.Message);
+              this.reload();
+            } else {
+              this.Approve = "";
+              this.$message.error(res.data.Message);
+            }
+          })
+          .catch((err) => {
+            console.log(err);
+            this.$message.warning("连接失败!");
+          });
+      } else {
+        this.$message.warning("暂无操作权限!");
+      }
+    },
+    //复制月数据
+    addCopyMonth() {
+      if (this.copyMonth.old == "" || this.copyMonth.new == "") {
+        this.$message.warning("请补全数据！");
+        return;
+      } else {
+        this.$loading({
+          lock: true,
+          text: "复制数据ing...数据比较大，请不要关闭页面",
+          spinner: "el-icon-loading",
+          background: "rgba(0, 0, 0, 0.7)",
+        });
+        let param = {
+          old_year: this.copyMonth.old.getFullYear(),
+          old_month: this.copyMonth.old.getMonth() + 1,
+          new_year: this.copyMonth.new.getFullYear(),
+          new_month: this.copyMonth.new.getMonth() + 1,
+        };
+        //console.log(param);
+        Equipment_Automatically(param)
+          .then((res) => {
+            this.$loading().close();
+            //console.log(res.data.Data,222222);
+            if (res.data.Result) {
+              this.$message.success(res.data.Message);
+              this.copyMonth = {
+                old: "",
+                new: "",
+              };
+              this.copyMonthDialogVisible = false;
+            } else {
+              this.$message.error(res.data.Message);
+            }
+          })
+          .catch((err) => {
+            this.$loading().close();
+            console.error(err);
+            this.$message.warning("连接失败!");
+          });
+      }
+    },
+  },
+  created() {},
+  mounted() {
+    let urlSearchParam = this.$route.query;
+    if (urlSearchParam.time != undefined) {
+      this.select_date = new Date(urlSearchParam.time);
+    }
+    //数据初始化
+    this.getTableData();
+    this.getDeparList();
+  },
+};
+</script>
+
+<style lang='less' scoped>
+@import url("~@/assets/style/color.less");
+@import url("./page-components/equipment.less");
+.addnewrecordcontainer,
+.addremark {
+  padding: 16px 0;
+}
+
+.line {
+  margin-bottom: 5px;
+}
+
+.line-red {
+  margin-bottom: 5px;
+  color: red;
+}
+
+.remarkContainer {
+  color: #59626f;
+  font-size: 14px;
+  margin: 16px 0;
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.remark {
+  padding-bottom: 5px;
+}
+
+.lastContainer {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lastIner {
+  display: flex;
+  align-items: center;
+}
+
+.lastIner p {
+  font-weight: bold;
+  margin-right: 5px;
+}
+</style>

@@ -66,8 +66,10 @@
             color: #59626F;
             padding: 14px 0;
         }
-
-        .Equipment_safetyContentTop {
+        .redss {
+            color: red;
+        }
+      /*  .Equipment_safetyContentTop {
             display: flex;
             justify-content: center;
         }
@@ -75,14 +77,10 @@
             .Equipment_safetyContentTop .el-input {
                 width: 180px;
             }
-
-        .batvhInputEquipments_safety {
+*/
+        /*.batvhInputEquipments_safety {
             display: none;
-        }
-
-        .redss {
-            color: red;
-        }
+        }*/
     </style>
 }
 <el-container id="app" v-cloak>
@@ -155,6 +153,7 @@
                     </el-date-picker>
                 </div>
                 <el-button size="mini" type="primary" v-on:click="search">查找</el-button>
+                <el-button size="mini" type="primary" plain v-on:click="onExcel">导出Excel</el-button>
             </template>
             <el-button type="primary" size="mini" plain @@click="onShowAdd" style="margin-right:10px;">批量添加</el-button>
             <div v-if="addFlag">
@@ -233,7 +232,7 @@
                                 <div><span style="padding-right:12px;">库位：</span>{{item.img03}}</div>
                                 <div><span style="padding-right:12px;">批号：</span>{{item.img04}}</div>
                                 <div v-bind:class="item.img10>0?'redss':''"><span style="padding-right:12px;">数量：</span>{{item.img10}}</div>
-                                <div><span>有效期：</span>{{item.img18 | yxq}}</div>
+                                <div><span>有效期：</span>{{item.img18}}</div>
                             </div>
                             <span slot="reference" v-if="compare2(scope.row.Safety_stock,scope.row.Existing_inventory)" class="dangerNums">{{scope.row.Existing_inventory}}</span>
                             <span slot="reference" v-if="compare3(scope.row.Existing_inventory,scope.row.Safety_stock)" class="okayNums">{{scope.row.Existing_inventory}}</span>
@@ -596,6 +595,45 @@
                             this.$message.warning("查找不到相关信息");
                         }
 
+                    })
+                },
+                //导出excel
+                onExcel() {
+                    let tableData = this.tableData;
+                    let arr = [];
+                    tableData.forEach(item => {
+                        let detail = JSON.parse(item.Existing_inventory_Details);
+                        //console.log(detail);
+                        let obj = {
+                            Id: item.Id,
+                            EquipmentName: item.EquipmentName,
+                            Descrip: item.Descrip,
+                            Specifica: item.Specifica,
+                            Material: item.Material,
+                            Servicelife: item.Servicelife,
+                            Amount: item.Amount,
+                            Safety_stock: item.Safety_stock,
+                            Existing_inventory: item.Existing_inventory,
+                            img02: detail[0] ? detail[0].img02 : '',
+                            img03: detail[0] ? detail[0].img03 : '',
+                            img04: detail[0] ? detail[0].img04 : '',
+                            img18: detail[0] ? detail[0].img18 : '',
+                            Purchasing_cycle: item.Purchasing_cycle,
+                            Materused: item.Materused,
+                            Remark: item.Remark
+                        }
+                        arr.push(obj);
+                    })
+                    //console.log(arr);
+                    axios.post("/Equipment/Safety_ExportExcel", { tableData: JSON.stringify(arr) }, { responseType: "blob" }).then(res => {
+                        //console.log(res.data)
+                        let link = document.createElement('a');
+                        link.href = URL.createObjectURL(new Blob([res.data]));
+                        link.style.display = 'none';
+                        link.download = `安全库存清单.xlsx`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
                     })
                 },
                 //获取权限

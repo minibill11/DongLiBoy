@@ -1,4 +1,5 @@
-﻿const printIpAddress = [{
+﻿//全局的打印机选项配置
+const printIpAddress = [{
     value: '0',
     label: '选择打印机'
 }, {

@@ -5,24 +5,24 @@
      <div class="select">
        <span style="font-size:small" class="timelength">已生成报告：</span>
        <el-date-picker value-format="yyyy-MM-dd HH:mm:ss" v-model="inputDate" type="month" placeholder="选择录入日期" size="small" style="width:150px"></el-date-picker>
-       <el-button type="primary" size="small" @click="GetData" class="query_btn">查询</el-button>
-       <cExcel :excelData="tableleng" class="query_btn" v-show="tableleng.length>0" :time="inputDate"></cExcel>
+       <el-button type="primary" size="small" @click="GetData" class="query-btn">查询</el-button>
+       <cExcel :excelData="tableleng" class="query-btn" v-show="tableleng.length>0" :time="inputDate"></cExcel>
        <el-button type="danger" size="small" plain @click="deleteData" v-show="$limit('删除库存金额报告')&&tableleng.length>0">删除</el-button>      
     </div>
     <cTable ref="table" class="home" :tableType="'月度库存金额'" :time="inputDate"></cTable>
     <el-row class="table-bottom">
       <div class="table-bottom-left">
-          <el-form class="bt_form_flex" size="small">
-              <el-form-item label="财务核对：">
-                  <el-select v-model="finance_Proofread"
+          <el-form class="bt-form-flex" size="small">
+               <el-form-item label="财务核对：">
+                   <el-select v-model="finance_Proofread"
                              placeholder="请选择" v-show="(finance_Proofread==null||finance_Proofread=='通过'||finance_Proofread=='不通过')&&($limit('财务核对'))" :disabled="tableleng.length==0"> 
                       <el-option v-for="item in Options"
                                  :key="item.value"
                                  :value="item.label">
                       </el-option>
-                  </el-select>
-                  <lable v-show="finance_Proofread!=null&&(finance_Proofread==1||finance_Proofread==2)">{{assess.Finance_Proofreader+" / "}}{{assess.Finance_Proofread_Date|formatTime}}{{" "+assess.Finance_Proofread_Reason}}</lable>
-                  <el-button type="success" class="btn" v-show="(finance_Proofread==null||finance_Proofread=='通过'||finance_Proofread=='不通过')&&($limit('财务核对'))" @click="Confirm(1)" :disabled="tableleng.length==0">确认</el-button>
+                  </el-select> 
+               <label v-show="finance_Proofread!=null&&(finance_Proofread==1||finance_Proofread==2)">{{assess.Finance_Proofreader+" / "}}{{assess.Finance_Proofread_Date|formatTime}}{{" "+assess.Finance_Proofread_Reason}}</label>
+                 <el-button type="success" class="btn" v-show="(finance_Proofread==null||finance_Proofread=='通过'||finance_Proofread=='不通过')&&($limit('财务核对'))" @click="Confirm(1)" :disabled="tableleng.length==0">确认</el-button> 
               </el-form-item>
 
               <el-form-item label="PMC核对：">
@@ -33,7 +33,7 @@
                                  :value="item.label">
                       </el-option>
                   </el-select>
-                  <lable v-show="pmc_Proofread!=null&&(pmc_Proofread==1||pmc_Proofread==2)">{{assess.Finance_Finance_Proofreader+" / "}}{{assess.PMC_Proofread_Date|formatTime}}{{" "+assess.PMC_Proofread_Reason}}</lable>
+                  <label v-show="pmc_Proofread!=null&&(pmc_Proofread==1||pmc_Proofread==2)">{{assess.Finance_Finance_Proofreader+" / "}}{{assess.PMC_Proofread_Date|formatTime}}{{" "+assess.PMC_Proofread_Reason}}</label>
                   <el-button type="success" class="btn" v-show="(pmc_Proofread==null||pmc_Proofread=='通过'||pmc_Proofread=='不通过')&&($limit('PMC核对'))" @click="Confirm(2)" :disabled="tableleng.length==0">确认</el-button>
               </el-form-item>
 
@@ -45,14 +45,14 @@
                                  :value="item.label">
                       </el-option>
                   </el-select>
-                  <lable v-show="finance_Assessed!=null&&(finance_Assessed==1||finance_Assessed==2)">{{assess.Finance_Assessor+" / "}}{{assess.Finance_Assessed_Date|formatTime}}{{" "+assess.Finance_Assessed_Reason}}</lable>
+                  <label v-show="finance_Assessed!=null&&(finance_Assessed==1||finance_Assessed==2)">{{assess.Finance_Assessor+" / "}}{{assess.Finance_Assessed_Date|formatTime}}{{" "+assess.Finance_Assessed_Reason}}</label>
                   <el-button type="success" class="btn" v-show="(finance_Assessed==null||finance_Assessed=='通过'||finance_Assessed=='不通过')&&($limit('财务审核'))" @click="Confirm(3)" v-bind:disabled="finance_Assessed==null">确认</el-button>
-              </el-form-item>
+              </el-form-item> 
           </el-form>
-        </div>
-        <div class="table-bottom-right">
-        </div>
-      </el-row>
+      </div>
+      <div class="table-bottom-right">
+      </div>
+    </el-row>
     <el-dialog title="提示" v-bind:visible.sync="assVisible" width="400px">
       <span slot="title">
           <h3 style="text-align:center;">不通过原因</h3>
@@ -102,12 +102,6 @@ export default {
   },
   computed: {},
   watch: {
-    $route(){
-      this.inputDate = this.$route.query.time
-      if (this.$route.query.time != null) {       
-          this.GetData();
-      }       
-    },
      //控制弹框显示
     finance_Assessed() {
         if (this.finance_Assessed == "不通过") {
@@ -137,9 +131,8 @@ export default {
     GetData() {
       if (this.inputDate != null) {
         this.finance_Assessed = this.pmc_Proofread = this.finance_Proofread = null;
-        getMOnthData(this.inputDate).then((res) => {
+        getMOnthData(this.inputDate).then(res => {
           this.$refs.table.lastMonth=[]
-          console.log(res.data)
           if (JSON.parse(res.data.Data.Data).length > 0) {
             this.$message.success("查询成功！");
             this.$refs.table.tableDate = JSON.parse(res.data.Data.Data);
@@ -151,27 +144,27 @@ export default {
             this.$refs.table.lastMonth= JSON.parse(res.data.Data.lastMonth);                   
           };
           if(JSON.parse(res.data.Data.DataOne).length>0){           
-            this.assess=JSON.parse(res.data.Data.DataOne)[0]            
-          }
-          let record = JSON.parse(res.data.Data.DataOne)[0]
-           //财务审核
-          if (record.Finance_Assessed == true) {
-              this.finance_Assessed = '1'
-          } else if (record.Finance_Assessed == false) {
-              this.finance_Assessed = '2'
-          };
-          //PMC核对
-          if (record.PMC_Proofread == true) {
-              this.pmc_Proofread = '1'
-          } else if (record.PMC_Proofread == false) {
-              this.pmc_Proofread = '2'
-          };
-          //财务核对
-          if (record.Finance_Proofread == true) {
-              this.finance_Proofread = '1'
-          } else if (record.Finance_Proofread == false) {
-              this.finance_Proofread = '2'
-          };
+              this.assess=JSON.parse(res.data.Data.DataOne)[0]    
+              let record = JSON.parse(res.data.Data.DataOne)[0]
+              //财务审核
+              if (record.Finance_Assessed == true) {
+                  this.finance_Assessed = '1'
+              } else if (record.Finance_Assessed == false) {
+                  this.finance_Assessed = '2'
+              };
+              //PMC核对
+              if (record.PMC_Proofread == true) {
+                  this.pmc_Proofread = '1'
+              } else if (record.PMC_Proofread == false) {
+                  this.pmc_Proofread = '2'
+              };
+              //财务核对
+              if (record.Finance_Proofread == true) {
+                  this.finance_Proofread = '1'
+              } else if (record.Finance_Proofread == false) {
+                  this.finance_Proofread = '2'
+              };                 
+          }                       
         });
       } else {
         this.$message.error("请选择查询日期！");
@@ -222,10 +215,13 @@ export default {
         })
     },
   },
-  created() {
-
+  created() {},
+  mounted() {
+      this.inputDate = this.$route.query.time
+      if (this.$route.query.time != null) {       
+          this.GetData();
+      }       
   },
-  mounted() {},
   beforeCreate() {},
   beforeMount() {},
   beforeUpdate() {},
@@ -257,24 +253,24 @@ export default {
   margin: 5px;
 }
 
-.query_btn{
+.query-btn{
   margin-left: 5px;
   margin-right: 5px;
 }
 .el-form-item {
   font-weight: 200
 }
-.bt_form_flex {
+.bt-form-flex {
   display: flex;
   flex-flow: row wrap;
   margin-top: 10px;
 }
 
-.bt_form_flex > .el-form-item {
+.bt-form-flex > .el-form-item {
   width: 380px;
 }
 
-.bt_form_flex .el-input__inner {
+.bt-form-flex .el-input__inner {
   width: 150px;
 }
 

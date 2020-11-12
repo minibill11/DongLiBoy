@@ -65,7 +65,7 @@ export default {
             getRecord(this.inputDate.getFullYear(), type).then((res) => {
               console.log(res.data)
                 this.tableData = res.data.Data.Data;
-                this.$message.success(res.data.Data.Message);
+                this.$message.success(res.data.Message);
             });
         },
         goDisplay(row) {        

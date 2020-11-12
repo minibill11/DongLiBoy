@@ -1,0 +1,178 @@
+﻿
+@{
+  ViewBag.Title = "人事日报表";
+  Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+  <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+  <style>
+    .per-title {
+      font-weight: 400;
+      font-size: 24px;
+    }
+    /*查询行*/
+    .per-inputcontainer {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      flex-wrap: wrap;
+    }
+
+    .per-inputcontainer-item {
+      margin-right: 10px;
+      display: flex;
+      align-items: center;
+    }
+  </style>
+}
+<el-container id="app" v-cloak>
+  <el-header>
+    <h1 class="per-title">人事日报表</h1>
+  </el-header>
+  <el-main class="main-box" v-loading="loading">
+    @* 查询选择框s *@
+    <div class="per-inputcontainer">
+          <div class="per-inputcontainer-item">
+              <div>日期：</div>
+              <el-date-picker v-model="select_date"
+                              type="date"
+                              size="mini"
+                              placeholder="选择日期" style="width:130px;">
+              </el-date-picker>
+          </div>
+          <el-button type="primary" size="mini" v-on:click="onShowCopy" plain>添加日报</el-button>
+          <el-button type="primary" size="mini" v-on:click="onShowDayCheck">部门版本</el-button>
+      </div>
+    @* 点检表 *@
+          @*<el-table v-bind:data="tableData"
+                    border
+                    stripe
+                    size="small"
+                    max-height="580"
+                    style="width: 100%">
+              <el-table-column type="index" width="50">
+              </el-table-column>
+              <el-table-column prop="UserDepartment"
+                               label="部门">
+              </el-table-column>
+              <el-table-column prop="LineName" sortable
+                               label="线别">
+              </el-table-column>
+              <el-table-column prop="EquipmentName"
+                               label="设备名称">
+              </el-table-column>
+              <el-table-column prop="EquipmentNumber" sortable
+                               label="设备编号">
+              </el-table-column>
+              <el-table-column label="状态">
+                  <el-table-column prop="State" label="日检" sortable>
+                      <template slot-scope="scope">
+                          <div :class="scope.row.State?'green-text':'red-text'">{{scope.row.State?'当天已点检':'当天未点检'}}</div>
+                      </template>
+                  </el-table-column>
+                  <el-table-column prop="Week_State" label="周检" sortable>
+                      <template slot-scope="scope">
+                          <div :class="{'red-text':scope.row.Week_State==0,'orange-text':scope.row.Week_State==1,'green-text':scope.row.Week_State==2}">
+                              {{scope.row.Week_State==0?'当周未点检':''}}{{scope.row.Week_State==1?'当周已保养待确认':''}}{{scope.row.Week_State==2?'当周已点检':''}}
+                          </div>
+                      </template>
+                  </el-table-column>
+                  <el-table-column prop="Month_State" label="月检" sortable>
+                      <template slot-scope="scope">
+                          <div :class="{'red-text':scope.row.Month_State==0,'orange-text':scope.row.Month_State==1,'green-text':scope.row.Month_State==2}">
+                              {{scope.row.Month_State==0?'当月未点检':''}}{{scope.row.Month_State==1?'当月已保养待确认':''}}{{scope.row.Month_State==2?'当月已点检':''}}
+                          </div>
+                      </template>
+                  </el-table-column>
+              </el-table-column>
+              <el-table-column label="时间">
+                  <template slot-scope="scope">
+                      <div v-if="!scope.row.State">{{formatTime(scope.row.Time)}}</div>
+                      <div v-if="scope.row.State">{{formatDteailTime(scope.row.Time)}}</div>
+                  </template>
+              </el-table-column>
+
+              <el-table-column prop=""
+                               width="100"
+                               label="操作">
+                  <template slot-scope="scope">
+                      <el-button v-if="isModify" type="text" size="mini" @@click="ModifyDetials(scope.row)" style="text-decoration:underline;">修改</el-button>
+                      <el-button type="text" size="mini" @@click="goDetials(scope.row)" style="text-decoration:underline;">详细</el-button>
+                  </template>
+              </el-table-column>
+          </el-table>*@
+
+    @* 修改使用部门弹框 *@
+    @*<el-dialog title="修改设备信息"
+                 v-bind:visible.sync="showMsg"
+                 width="25%">
+          <el-form label-width="100px" :model="eqMsg">
+              <el-form-item label="设备编号：">
+                  <el-input placeholder="请输入设备编号"
+                            v-model="eqMsg.EquipmentNumber"
+                            size="mini"
+                            disabled style="width:150px;">
+                  </el-input>
+              </el-form-item>
+              <el-form-item label="设备名称：">
+                  <el-input placeholder="请输入设备名称"
+                            size="mini"
+                            v-model="eqMsg.EquipmentName"
+                            clearable style="width:150px;">
+                  </el-input>
+              </el-form-item>
+              <el-form-item label="部门：">
+                  <el-select v-model="eqMsg.UserDepartment" size="mini" filterable placeholder="请选择使用部门" style="width:150px;" @@change="onChangeUserDepartment">
+                      <el-option v-for="item in deparlist"
+                                 v-bind:key="item.value"
+                                 v-bind:label="item.label"
+                                 v-bind:value="item.value">
+                      </el-option>
+                  </el-select>
+              </el-form-item>
+              <el-form-item label="线别：">
+                  <el-select v-model="eqMsg.LineName" size="mini" allow-create filterable clearable placeholder="请输入线别" style="width:150px;">
+                      <el-option v-for="item in linelist"
+                                 v-bind:key="item.value"
+                                 v-bind:label="item.label"
+                                 v-bind:value="item.value">
+                      </el-option>
+                  </el-select>
+              </el-form-item>
+          </el-form>
+          <span slot="footer" class="dialog-footer">
+              <el-button size="small" v-on:click="showMsg = false">取 消</el-button>
+              <el-button size="small" type="primary" v-on:click="onModifyEquipment">确 定</el-button>
+          </span>
+      </el-dialog>*@
+  </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+}
+@* js放置处 *@
+@section jsScript {
+  <script src="~/Scripts/xe-utils.js"></script>
+  <script>
+    const app = {
+      data: {
+        loading: false,
+        select_date:"",
+      },
+      mounted() {
+        this.select_date = new Date();
+      },
+      watch: {
+
+      },
+      methods: {
+        onShowCopy() { },
+        onShowDayCheck() { },
+      }
+    }
+
+  </script>
+}

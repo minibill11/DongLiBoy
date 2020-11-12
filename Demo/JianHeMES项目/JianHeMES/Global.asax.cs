@@ -40,6 +40,8 @@ namespace JianHeMES
 
         protected void Application_EndRequest()
         {
+            //移除跨域请求时产生的Access-Control-Allow-Origin：http://localhost/
+            Request.RequestContext.HttpContext.Response.Headers.Remove("Access-Control-Allow-Origin");
             MiniProfiler.Stop();
         }
     }

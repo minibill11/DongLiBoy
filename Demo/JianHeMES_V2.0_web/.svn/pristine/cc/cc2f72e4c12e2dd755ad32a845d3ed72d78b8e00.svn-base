@@ -1,0 +1,280 @@
+<!---  --->
+<template>
+   <div>
+     <cHeader :active="active" ></cHeader>
+     <!-- 操作栏 -->
+    <div class="action-box">
+        <div class="action-box-left" v-if="$limit('查看7S参考标准')"><!-- v-if="showStandard" -->
+            <el-select size="small" v-model="check" multiple placeholder="请选择检查项目" style="width:400px;margin-right: 10px;">
+                <el-option v-for="item in check_options"
+                           :key="item.value"
+                           :label="item.label"
+                           :value="item.value">
+                </el-option>
+            </el-select>
+        </div>
+        <div class="action-box-right" v-if="!button_falg&&($limit('录入7S参考标准'))">
+            <el-button size="small" type="primary" plain @click="onSingleEntry">单条录入</el-button>
+            <el-button size="small" type="primary" plain @click="onEntry">批量录入</el-button>
+        </div>
+        <div class="action-box-right1" v-if="button_falg">
+            <ImportExcel :on-success="onSuccess">
+             <el-button plain type="primary" size="small">选择导入文件
+           </el-button>
+            </ImportExcel>              
+            <el-button size="small" type="primary" plain @click="onUpload">确认上传</el-button>
+            <el-button size="small" type="info" plain @click="onCancel">取消</el-button>   
+        </div>        
+    </div> 
+    <!-- 表格 -->
+    <div class="table-height"> 
+        <vxe-grid border
+                  header-cell-style="background:#e4ecf7"
+                  keep-source
+                  show-footer
+                  show-overflow
+                  ref="xGrid"
+                  size="small"
+                  height="auto"
+                  align="center"
+                  :edit-config="{trigger: 'manual', mode: 'row', showStatus: true}"
+                  :columns="tableColumn"
+                  :data="tableData">
+            <template v-slot:operation="{ row }">
+                <template v-if="$refs.xGrid.isActiveByRow(row)">
+                    <vxe-button status="primary" title="保存" @click="saveRowEvent(row)">保存</vxe-button>
+                </template>
+                <template v-else>
+                    <vxe-button v-if="$limit('修改7S参考标准')" title="编辑" @click="editRowEvent(row)">编辑</vxe-button>
+                </template>
+                <vxe-button v-if="$limit('删除7S参考标准')" title="删除" @click="removeRowEvent(row)">删除</vxe-button>
+            </template>
+        </vxe-grid>
+    </div>
+    <!-- 单条数据录入 -->
+    <el-dialog title="单条录入"
+               :visible.sync="dialogVisible"
+               width="25%">
+    <el-form label-width="80px" model="formInfo">
+            <el-form-item label="检查项目">
+                <el-select clearable filterable v-model="formInfo.PointsType" size="small" placeholder="请选择" style="width:100%;">
+                    <el-option v-for="item in check_options"
+                               v-bind:key="item.value"
+                               v-bind:label="item.value"
+                               v-bind:value="item.value">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="参考标准">
+                <el-input size="small" type="textarea" v-model="formInfo.ReferenceStandard"></el-input>
+            </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+        <el-button size="small" @click="dialogVisible = false">取 消</el-button>
+        <el-button size="small" type="primary" @click="onSave">确 定</el-button>
+    </span>
+    </el-dialog>    
+    </div>
+</template>
+
+<script>
+import cHeader from "./page-components/_kpi_7s_header";
+import ImportExcel from "_c/import-excel";
+import { getCheckItem,uploadData,delData,queryData,modifyData} from "@/api/hr/kpi-7s";
+export default {
+  name: 'KPI_7S_GradeStandardInput',
+  props: {},
+  data() {
+    return {
+      active:'扣分标准录入',
+      check: [],
+      check_options: [],
+      button_falg: false,
+      dialogVisible: false,
+      tableData: [],
+      tableColumn: [
+          { title: '序号', type: 'seq', width: 50 },
+          { title: '检查项目', field: 'PointsType', width: 120, editRender: { name: 'input' } },
+          { title: '检查参考标准', field: 'ReferenceStandard', editRender: { name: 'input' } },
+          {
+              title: '操作', field: 'action', width: 240, slots: {
+                  default: 'operation'
+              }
+          }
+      ],
+      formInfo: {
+          PointsType: '',
+          ReferenceStandard: ''
+      },
+    };
+  },
+  components: {
+    cHeader,
+    ImportExcel
+  },
+  computed: {},
+  watch: {
+    check(val) {
+        if (val.length != 0) {
+            this.button_falg = false;
+            this.onQueryData();
+        } else {
+            this.tableData = [];
+        }
+    }
+  },
+  methods: {
+    //查询数据
+    onQueryData() {
+        if (this.check.length != 0) {
+            queryData(this.check).then(res => {
+              this.tableData =JSON.parse(res.data.Data.Data)
+            })
+        }
+    },
+    //获取文件数据
+    onSuccess (response, file) {
+      console.log(response)
+      let arr =[]
+      response[0].data.forEach(item => {
+        arr.push({
+          PointsType:item.检查项目,
+          ReferenceStandard:item.检查参考标准
+        })       
+      });
+      this.tableData =arr
+    },
+    //获取检查项目 
+    onGetPointsType() {
+        getCheckItem().then(res => {
+            this.check_options = res.data.Data
+        })
+    },
+    //单条录入
+    onSingleEntry() {
+        this.dialogVisible = true;
+    },
+    //批量录入
+    onEntry() {
+        this.check = [];
+        this.button_falg = true;
+        this.tableData = [];
+    },
+    //确认上传
+    onUpload() {
+        if (this.tableData.length != 0) {
+            uploadData(this.tableData).then(res => {
+                if (res.data.Result == true) {
+                    this.$message.success(res.data.Message);
+                    this.onCancel();
+                }
+                else{
+                    this.$message.error(res.data.Message);
+                }
+            })
+        } else {
+            this.$message.error('没有数据可以上传，请选择需要导入的文件哦~');
+        }
+    },
+    //取消批量录入
+    onCancel() {
+        this.button_falg = false;
+        this.tableData = [];
+    },
+    //表格编辑
+    editRowEvent(row) {
+        this.$refs.xGrid.setActiveRow(row);
+    },
+    //单条编辑保存，删除
+    saveRowEvent(row) {
+        this.$refs.xGrid.clearActived().then(() => {
+            if (this.button_falg == true) {
+                this.$message.success('修改成功！');
+            } else {
+              let obj= {id: row.Id, pointsType: row.PointsType, referenceStandard: row.ReferenceStandard}
+                modifyData(obj).then(res => {
+                    if (res.data.Result ==true) {
+                        this.$message.success(res.data.Message);
+                    }else{
+                      this.$message.error(res.data.Data.Message);
+                    }
+                })
+            }
+        })
+    },
+    //单条编辑删除
+    removeRowEvent(row) {
+        this.$XModal.confirm('您确定要删除该数据?').then(type => {
+            if (type === 'confirm') {
+                this.$refs.xGrid.remove(row);
+                if (this.button_falg == true) {
+                    this.$message.success('删除成功！');
+                    this.tableData = this.$refs.xGrid.$refs.xTable.afterFullData;
+                } else {
+                    delData(row.Id).then(res => {
+                        if (res.data.Result==true) {
+                            this.$message.success(res.data.Message);
+                        }else
+                        {
+                          this.$message.warning(res.data.Message);
+                        }
+                    })
+                }
+            }
+        })
+    },
+     //单条添加保存
+    onSave() {
+        if (this.formInfo.PointsType == '' || this.formInfo.ReferenceStandard == '') {
+            this.$message.warning("请补全信息！");
+            return;
+        } else {
+            let arr = [];
+            arr.push(this.formInfo);
+            uploadData(arr).then(res => {
+                if (res.data.Result==true) {
+                    this.$message.success(res.data.Message);
+                    this.dialogVisible = false;
+                    this.formInfo = {
+                        PointsType: '',
+                        ReferenceStandard: ''
+                    };
+                }
+                else {
+                    this.$message.error(res.data.Message);
+                }
+            })
+        }
+    },
+  },
+  created() {},
+  mounted() {
+    this.onGetPointsType();
+  },
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {},
+}
+</script>
+
+<style lang='less' scoped>
+@import url('~@/assets/style/color.less');
+.action-box {
+  width: 100%;
+  padding: 20px 0;
+  display: flex;
+}   
+.action-box .action-box-right1 .excel-import{
+  display: inline-flex;
+  margin-right: 10px;
+}
+.table-height {
+    width: 100%;
+    height: 70vh;
+}
+
+</style>

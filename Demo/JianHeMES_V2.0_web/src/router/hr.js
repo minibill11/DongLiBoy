@@ -137,41 +137,41 @@ export default [
             path: '/KPI_7S_SummarizingRanking',
             name: 'KPI_7S_SummarizingRanking',
             meta: {
-
               title: '部门评比排名'
             },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-SummarizingRanking.vue"], resolve)
           },
           {
             path: '/KPI_7S_GradeStandardInput',
             name: 'KPI_7S_GradeStandardInput',
             meta: {
-
               title: '扣分标准录入'
             },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-GradeStandardInput.vue"], resolve)
           },
           {
             path: '/KPI_7S_RegionInput',
             name: 'KPI_7S_RegionInput',
             meta: {
-
               title: '数据区域录入'
             },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-RegionInput.vue"], resolve)
           },
           {
             path: '/KPI_7S_RecordInput',
             name: 'KPI_7S_RecordInput',
             meta: {
-
               title: '部门班组扣分录入'
             },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-RecordInput.vue"], resolve)
           },
           {
             path: '/KPI_7S_Summarizing',
             name: 'KPI_7S_Summarizing',
             meta: {
-
-              title: '日检记录查询'
+              title: '7S评比得分汇总'
             },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-Summarizing.vue"], resolve)
           },
           {
             path: '/KPI_7S_Summarizing_Daily',
@@ -179,7 +179,25 @@ export default [
             meta: {
 
               title: '日/周/巡检汇总表'
-            }
+            },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-Summarizing-Daily.vue"], resolve)
+          },
+          {
+            path: '/KPI_7S_DailyRecord',
+            name: 'KPI_7S_DailyRecord',
+            meta: {
+
+              title: '日检记录查询'
+            },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI-7S-DailyRecord.vue"], resolve)
+          },
+          {
+            path: '/KPI_7S_Detail',
+            name: 'KPI_7S_Detail',
+            meta: {
+              title: '7S班组扣分详细表'
+            },
+            component: resolve => require(["@/view/human-resource/7s-manage/KPI_7S_Detail.vue"], resolve)
           }
         ]
       },

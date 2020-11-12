@@ -395,6 +395,11 @@ namespace JianHeMES.Models
         //客损质量损失/责任判定
         public DbSet<Customer_Attachment_QualityLoss> Customer_Attachment_QualityLoss { get; set; }
 
+
+        //故障分类管理
+        public DbSet<Customer_FaultTypes> Customer_FaultTypes { get; set; }
+
+
         #endregion
 
         #region ---钣金生产进度管控   

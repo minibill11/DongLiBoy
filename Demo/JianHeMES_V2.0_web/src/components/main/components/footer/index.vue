@@ -2,8 +2,9 @@
 <template>
   <div>
     <div class="bottomFooter">
-      &copy;@DateTime.Now.Year - 健和光电MES
+      &copy;{{date}} - 健和光电MES
       <span v-show="screenSize>992">
+        &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;当前版本：{{vision}}
         &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;指定浏览器：
         <a
           :href="baseUrl+'MES_Data/ChromeCore_1277_3.0.1.6.exe'"
@@ -27,6 +28,8 @@ export default {
   props: {},
   data() {
     return {
+      vision:this.$store.state.app.vision,
+      date:new Date().getFullYear(),
       screenSize: document.body.clientWidth,//屏幕尺寸
       baseUrl:config.baseUrl.pro
     };
@@ -50,7 +53,7 @@ export default {
 <style lang='less' scoped>
 @bg-color-bottom: #eff2f7;
 .bottomFooter {
-      position: fixed;
+    position: fixed;
     bottom: 0;
     width: 100%;
     text-align: center;
@@ -59,5 +62,6 @@ export default {
     line-height: 30px;
     font-size: 12px;
     color: #8f9fb9;
+    z-index: 999;
 }
 </style>

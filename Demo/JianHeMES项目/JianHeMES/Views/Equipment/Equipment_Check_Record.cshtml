@@ -8,8 +8,12 @@
 @section cssStyle {
     <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
     <style>
+        #app {
+            display: block;
+        }
+
         table {
-            border: 1px solid #8ea0b8;
+            border: 1px solid #000;
         }
 
         .testSelect {
@@ -143,260 +147,266 @@
     </style>
 }
 <el-container id="app" v-cloak>
-    <el-header class="text-center">
-        <div class="eq-title">设备点检保养记录表</div>
-    </el-header>
-    <el-main class="main-box">
-        @* 筛选框s *@
-        <div class="check-box">
-            <div class="check-item-box">
-                <div class="check-box-item">
-                    <span>设备名称：</span>{{EquipmentName}}
-                </div>
-                <div class="check-box-item">
-                    <span>部门：</span>{{UserDepartment}}
-                </div>
-                <div class="check-box-item">
-                    <span>线别：</span>{{LineName}}
-                </div>
-                <div class="check-box-item">
-                    <span>设备编号：</span>{{EquipmentNumber}}
-                </div>
-                <div class="check-box-item">
-                    <span>时间：</span>
-                    <el-date-picker v-model="select_date"
-                                    disabled
-                                    size="mini"
-                                    type="month"
-                                    style="width:130px;"
-                                    placeholder="选择年月">
-                    </el-date-picker>
+    @*<div>
+        <el-button v-if="!addOpera" size="mini" type="primary" plain @@click="onPrint">打印</el-button>
+    </div>*@
+    <div id="printpdf">
+        <el-header class="text-center">
+            <div class="eq-title">设备点检保养记录表</div>
+        </el-header>
+        <el-main class="main-box">
+            @* 筛选框s *@
+            <div class="check-box">
+                <div class="check-item-box">
+                    <div class="check-box-item">
+                        <span>设备名称：</span>{{EquipmentName}}
+                    </div>
+                    <div class="check-box-item">
+                        <span>部门：</span>{{UserDepartment}}
+                    </div>
+                    <div class="check-box-item">
+                        <span>线别：</span>{{LineName}}
+                    </div>
+                    <div class="check-box-item">
+                        <span>设备编号：</span>{{EquipmentNumber}}
+                    </div>
+                    <div class="check-box-item">
+                        <span>时间：</span>{{select_date|fomattime}}
+                        @*<el-date-picker v-model="select_date"
+                                            disabled
+                                            size="mini"
+                                            type="month"
+                                            style="width:130px;"
+                                            placeholder="选择年月">
+                            </el-date-picker>*@
+                    </div>
                 </div>
             </div>
-            <el-button v-if="!addOpera" size="mini" type="primary" plain @@click="onToTurn">查看对应部门月保养</el-button>
-        </div>
-        @*表格*@
-        <div class="bottomcontainer">
-            <table style="width:100%" border="1">
-                <thead>
-                    <tr>
-                        <th style="width:22px;padding:8px;" rowspan="2">
-                            周期
-                        </th>
-                        <th style="width:248px" rowspan="2">
-                            项目
-                        </th>
-                        <th style="width:300px" rowspan="2">
-                            操作方法
-                        </th>
-                        <th colspan="31">
-                            日期
-                        </th>
-                    </tr>
-                    <tr>
-                        <th v-on:click="checkAllDay(i)" v-for="i in 31" class="qianlan" style="width:28px">{{i}}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="qianlan td-title" v-bind:rowspan="dailyPlan.length + 3">日保养</td>
-                    </tr>
-                    <tr v-for="(item,index) in dailyPlan">
-                        <td @@click.stop.prevent="editText($event,item,index,'dailyPlan','Dproject')" class="editItemStyle">{{item.Dproject}}</td>
-                        <td @@click.stop.prevent="editText($event,item,index,'dailyPlan','DOpera')" class="editItemStyle">{{item.DOpera}}</td>
-                        <td v-for="i in 31" style="width:45px;height:45px;">
-                            <select v-model="item[`Day${i}`]"
-                                    class="testSelect"
-                                    v-bind:disabled="todayNum==i && (totalOnfos[`Day_Mainte_${i}`]==''||totalOnfos[`Day_Mainte_${i}`]==null)?false:true"
-                                    v-bind:class="todayNum==i && (totalOnfos[`Day_Mainte_${i}`]==''||totalOnfos[`Day_Mainte_${i}`]==null)?'point':'lvse'">
-                                <option>√</option>
-                                <option>×</option>
-                                <option>/</option>
-                                <option> </option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="td-small-title" colspan="2">
-                            保养人
-                        </td>
-                        <td v-for="i in 31" v-on:click="dayCheck(i)" v-text="totalOnfos[`Day_Mainte_${i}`]!=''?totalOnfos[`Day_Mainte_${i}`]:'待审'" v-bind:class="totalOnfos[`Day_Mainte_${i}`]!=''?'':'text-red'">
-                        </td>
-                    </tr>
-                    <tr class="changeSize">
-                        <td class="td-small-title" colspan="2">
-                            组长确认
-                        </td>
-                        <td v-for="i in 31" v-on:click="dayGroupComfirm(i)" v-text="totalOnfos[`Day_group_${i}`]!=''?totalOnfos[`Day_group_${i}`]:'待审'" v-bind:class="totalOnfos[`Day_group_${i}`]!=''?'':'text-red'"></td>
-                    </tr>
+            @*表格*@
+            <div class="bottomcontainer">
+                <table style="width:100%" border="1">
+                    <thead>
+                        <tr>
+                            <th style="width:22px;padding:8px;" rowspan="2">
+                                周期
+                            </th>
+                            <th style="width:248px" rowspan="2">
+                                项目
+                            </th>
+                            <th style="width:360px" rowspan="2">
+                                操作方法
+                            </th>
+                            <th colspan="31">
+                                日期
+                            </th>
+                        </tr>
+                        <tr>
+                            <th v-on:click="checkAllDay(i)" v-for="i in 31" class="qianlan" style="width:28px">{{i}}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="qianlan td-title" v-bind:rowspan="dailyPlan.length + 3">日保养</td>
+                        </tr>
+                        <tr v-for="(item,index) in dailyPlan">
+                            <td @@click.stop.prevent="editText($event,item,index,'dailyPlan','Dproject')" class="editItemStyle">{{item.Dproject}}</td>
+                            <td @@click.stop.prevent="editText($event,item,index,'dailyPlan','DOpera')" class="editItemStyle">{{item.DOpera}}</td>
+                            <td v-for="i in 31" style="width:45px;height:45px;">
+                                <select v-model="item[`Day${i}`]"
+                                        class="testSelect"
+                                        v-bind:disabled="todayNum==i && (totalOnfos[`Day_Mainte_${i}`]==''||totalOnfos[`Day_Mainte_${i}`]==null)?false:true"
+                                        v-bind:class="todayNum==i && (totalOnfos[`Day_Mainte_${i}`]==''||totalOnfos[`Day_Mainte_${i}`]==null)?'point':'lvse'">
+                                    <option>√</option>
+                                    <option>×</option>
+                                    <option>/</option>
+                                    <option> </option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="td-small-title" colspan="2">
+                                保养人
+                            </td>
+                            <td v-for="i in 31" v-on:click="dayCheck(i)" v-text="totalOnfos[`Day_Mainte_${i}`]!=''?totalOnfos[`Day_Mainte_${i}`]:'待审'" v-bind:class="totalOnfos[`Day_Mainte_${i}`]!=''?'':'text-red'">
+                            </td>
+                        </tr>
+                        <tr class="changeSize">
+                            <td class="td-small-title" colspan="2">
+                                组长确认
+                            </td>
+                            <td v-for="i in 31" v-on:click="dayGroupComfirm(i)" v-text="totalOnfos[`Day_group_${i}`]!=''?totalOnfos[`Day_group_${i}`]:'待审'" v-bind:class="totalOnfos[`Day_group_${i}`]!=''?'':'text-red'"></td>
+                        </tr>
 
 
-                    <tr>
-                        <td class="qianlan td-title" v-bind:rowspan="weekPlan.length + 3">周保养</td>
-                    </tr>
-                    <tr v-if="VersionNum=='TD-008-D'" v-for="(item,index) in weekPlan">
-                        <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekObject')" class="editItemStyle">{{item.weekObject}}</td>
-                        <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekOpera')" class="editItemStyle">{{item.weekOpera}}</td>
-                        <td v-for="(i,j) in 4" v-show="index==0?true:false" colspan="8" style="text-align:center;" v-bind:rowspan="weekPlan.length">
-                            <el-input v-if="totalOnfos[`Week_Main_${i}`]==''" v-model="totalOnfos[`Week_${i}`]" placeholder="请输入内容" type="textarea" :rows="weekPlan.length" :disabled="week==i?false:true"></el-input>
-                            <div v-else class="changeText">{{totalOnfos[`Week_${i}`]}}</div>
-                        </td>
-                    </tr>
-                    <tr v-if="VersionNum=='TD-008-E'" v-for="(item,index) in weekPlan">
-                        <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekObject')" class="editItemStyle">{{item.weekObject}}</td>
-                        <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekOpera')" class="editItemStyle">{{item.weekOpera}}</td>
-                        <td v-for="(i,j) in 4" colspan="8" style="text-align:center;">
-                            <div v-if="totalOnfos[`Week${i}_mainten${index+1}`]==''">
-                                <el-radio-group v-if="week==i" v-model="weekCheck[`w${i}_mainten${index+1}`]" @@change="isNormalWeek(i,index+1,weekCheck[`w${i}_mainten${index+1}`])">
-                                    <el-radio label="正常">正常</el-radio>
-                                    <el-radio label="异常">异常</el-radio>
-                                </el-radio-group>
-                                <el-input v-model="weekContent[`Week${i}_mainten${index+1}`]" placeholder="请输入内容" :disabled="week==i?false:true"></el-input>
-                            </div>
-                            <div v-else class="changeText">{{totalOnfos[`Week${i}_mainten${index+1}`]==null?'':totalOnfos[`Week${i}_mainten${index+1}`].substring(3)}}</div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" class="td-small-title">保养人</td>
-                        <td v-for="(i,j) in 4" v-bind:colspan="i==4?7:8">
-                            <el-button size="mini" v-if="totalOnfos[`Week_Main_${i}`]==''"
-                                       @@click="weekComfirms(i)"
-                                       :disabled="week==i?false:true"
-                                       class="success-btn">确认</el-button>
-                            <span v-else style="font-weight:bold">{{totalOnfos[`Week_Main_${i}`]}}</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" class="td-small-title">工程师确认</td>
-                        <td v-for="(i,j) in 4" v-bind:colspan="i==4?7:8">
-                            <el-button size="mini" v-if="totalOnfos[`Week_engineer_${i}`]==''"
-                                       @@click="weekMEComfirm(i)"
-                                       :disabled="totalOnfos[`Week_Main_${i}`]!=''?false:true"
-                                       class="success-btn">确认</el-button>
-                            <span v-else style="font-weight:bold">{{totalOnfos[`Week_engineer_${i}`]}}</span>
-                        </td>
-                    </tr>
+                        <tr>
+                            <td class="qianlan td-title" v-bind:rowspan="weekPlan.length + 3">周保养</td>
+                        </tr>
+                        <tr v-if="VersionNum=='TD-008-D'" v-for="(item,index) in weekPlan">
+                            <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekObject')" class="editItemStyle">{{item.weekObject}}</td>
+                            <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekOpera')" class="editItemStyle">{{item.weekOpera}}</td>
+                            <td v-for="(i,j) in 4" v-show="index==0?true:false" colspan="8" style="text-align:center;" v-bind:rowspan="weekPlan.length">
+                                <el-input v-if="totalOnfos[`Week_Main_${i}`]==''" v-model="totalOnfos[`Week_${i}`]" placeholder="请输入内容" type="textarea" :rows="weekPlan.length" :disabled="week==i?false:true"></el-input>
+                                <div v-else class="changeText">{{totalOnfos[`Week_${i}`]}}</div>
+                            </td>
+                        </tr>
+                        <tr v-if="VersionNum=='TD-008-E'" v-for="(item,index) in weekPlan">
+                            <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekObject')" class="editItemStyle">{{item.weekObject}}</td>
+                            <td @@click.stop.prevent="editText($event,item,index,'weekPlan','weekOpera')" class="editItemStyle">{{item.weekOpera}}</td>
+                            <td v-for="(i,j) in 4" colspan="8" style="text-align:center;">
+                                <div v-if="totalOnfos[`Week${i}_mainten${index+1}`]==''">
+                                    <el-radio-group v-if="week==i" v-model="weekCheck[`w${i}_mainten${index+1}`]" @@change="isNormalWeek(i,index+1,weekCheck[`w${i}_mainten${index+1}`])">
+                                        <el-radio label="正常">正常</el-radio>
+                                        <el-radio label="异常">异常</el-radio>
+                                    </el-radio-group>
+                                    <el-input v-model="weekContent[`Week${i}_mainten${index+1}`]" placeholder="请输入内容" :disabled="week==i?false:true"></el-input>
+                                </div>
+                                <div v-else class="changeText">{{totalOnfos[`Week${i}_mainten${index+1}`]==null?'':totalOnfos[`Week${i}_mainten${index+1}`].substring(3)}}</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="td-small-title">保养人</td>
+                            <td v-for="(i,j) in 4" v-bind:colspan="i==4?7:8">
+                                <el-button size="mini" v-if="totalOnfos[`Week_Main_${i}`]==''"
+                                           @@click="weekComfirms(i)"
+                                           :disabled="week==i?false:true"
+                                           class="success-btn">确认</el-button>
+                                <span v-else style="font-weight:bold">{{totalOnfos[`Week_Main_${i}`]}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="td-small-title">工程师确认</td>
+                            <td v-for="(i,j) in 4" v-bind:colspan="i==4?7:8">
+                                <el-button size="mini" v-if="totalOnfos[`Week_engineer_${i}`]==''"
+                                           @@click="weekMEComfirm(i)"
+                                           :disabled="totalOnfos[`Week_Main_${i}`]!=''?false:true"
+                                           class="success-btn">确认</el-button>
+                                <span v-else style="font-weight:bold">{{totalOnfos[`Week_engineer_${i}`]}}</span>
+                            </td>
+                        </tr>
 
-                    <tr>
-                        <td v-if="VersionNum!='TD-008-E'" class="qianlan td-title" v-bind:rowspan="monthPlan.length + 4">月保养</td>
-                        <td v-if="VersionNum=='TD-008-E'" class="qianlan td-title" v-bind:rowspan="monthPlan.length + 3">月保养</td>
-                    </tr>
-                    <tr v-for="(item,index) in monthPlan">
-                        <td @@click.stop.prevent="editText($event,item,index,'monthPlan','monthObject')" class="editItemStyle">{{item.monthObject}}</td>
-                        <td @@click.stop.prevent="editText($event,item,index,'monthPlan','monthOpera')" class="editItemStyle">{{item.monthOpera}}</td>
-                        <td colspan="31">
-                            <div v-if="totalOnfos.Month_main_1==''" style="display:flex;align-items:center;">
-                                <el-radio-group v-model="monthCheck[`m_mainten${index+1}`]" @@change="isNormalMonth(index,monthCheck[`m_mainten${index+1}`])" style="width:200px;">
-                                    <el-radio label="正常">正常</el-radio>
-                                    <el-radio label="异常">异常</el-radio>
-                                </el-radio-group>
-                                <el-input v-model="item.dataStr" placeholder="请输入内容" type="textarea" autosize></el-input>
-                            </div>
-                            <div v-else class="changeText">{{item.dataStr==null?'':item.dataStr.substring(3)}}</div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" class="td-small-title">保养人</td>
-                        <td colspan="31">
-                            <el-button size="mini" v-if="totalOnfos.Month_main_1==''"
-                                       @@click="monthWorkerConfirm()"
-                                       class="success-btn">确认</el-button>
-                            <span v-else style="font-weight:bold">{{totalOnfos.Month_main_1}}</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" class="td-small-title">{{VersionNum=='TD-008-E'?'确认人':'生产确认'}}</td>
-                        <td colspan="31">
-                            <el-button size="mini" v-if="totalOnfos.Month_productin_2==''"
-                                       @@click="monthGroupConfirm()"
-                                       :disabled="totalOnfos.Month_main_1!=''?false:true"
-                                       class="success-btn">确认</el-button>
-                            <span v-else style="font-weight:bold">{{totalOnfos.Month_productin_2}}</span>
-                        </td>
-                    </tr>
-                    <tr v-if="VersionNum!='TD-008-E'">
-                        <td colspan="2" class="td-small-title">部长确认</td>
-                        <td colspan="31">
-                            <el-button size="mini" v-if="totalOnfos.Month_minister_3==''"
-                                       @@click="monthDeparConfirm()"
-                                       :disabled="totalOnfos.Month_productin_2!=''?false:true"
-                                       class="success-btn">确认</el-button>
-                            <span v-else style="font-weight:bold">{{totalOnfos.Month_minister_3}}</span>
-                        </td>
-                    </tr>
+                        <tr>
+                            <td v-if="VersionNum!='TD-008-E'" class="qianlan td-title" v-bind:rowspan="monthPlan.length + 4">月保养</td>
+                            <td v-if="VersionNum=='TD-008-E'" class="qianlan td-title" v-bind:rowspan="monthPlan.length + 3">月保养</td>
+                        </tr>
+                        <tr v-for="(item,index) in monthPlan">
+                            <td @@click.stop.prevent="editText($event,item,index,'monthPlan','monthObject')" class="editItemStyle">{{item.monthObject}}</td>
+                            <td @@click.stop.prevent="editText($event,item,index,'monthPlan','monthOpera')" class="editItemStyle">{{item.monthOpera}}</td>
+                            <td colspan="31">
+                                <div v-if="totalOnfos.Month_main_1==''" style="display:flex;align-items:center;">
+                                    <el-radio-group v-model="monthCheck[`m_mainten${index+1}`]" @@change="isNormalMonth(index,monthCheck[`m_mainten${index+1}`])" style="width:200px;">
+                                        <el-radio label="正常">正常</el-radio>
+                                        <el-radio label="异常">异常</el-radio>
+                                    </el-radio-group>
+                                    <el-input v-model="item.dataStr" placeholder="请输入内容" type="textarea" autosize></el-input>
+                                </div>
+                                <div v-else class="changeText">{{item.dataStr==null?'':item.dataStr.substring(3)}}</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="td-small-title">保养人</td>
+                            <td colspan="31">
+                                <el-button size="mini" v-if="totalOnfos.Month_main_1==''"
+                                           @@click="monthWorkerConfirm()"
+                                           class="success-btn">确认</el-button>
+                                <span v-else style="font-weight:bold">{{totalOnfos.Month_main_1}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="td-small-title">{{VersionNum=='TD-008-E'?'确认人':'生产确认'}}</td>
+                            <td colspan="31">
+                                <el-button size="mini" v-if="totalOnfos.Month_productin_2==''"
+                                           @@click="monthGroupConfirm()"
+                                           :disabled="totalOnfos.Month_main_1!=''?false:true"
+                                           class="success-btn">确认</el-button>
+                                <span v-else style="font-weight:bold">{{totalOnfos.Month_productin_2}}</span>
+                            </td>
+                        </tr>
+                        <tr v-if="VersionNum!='TD-008-E'">
+                            <td colspan="2" class="td-small-title">部长确认</td>
+                            <td colspan="31">
+                                <el-button size="mini" v-if="totalOnfos.Month_minister_3==''"
+                                           @@click="monthDeparConfirm()"
+                                           :disabled="totalOnfos.Month_productin_2!=''?false:true"
+                                           class="success-btn">确认</el-button>
+                                <span v-else style="font-weight:bold">{{totalOnfos.Month_minister_3}}</span>
+                            </td>
+                        </tr>
 
 
-                    <tr>
-                        <td class="qianlan td-title" rowspan="4">说明</td>
-                        <td style="text-align:left;padding: 5px;" colspan="33">1.完成情况标记符号：“√”正常已完成  “×”异常、待处理  “/”休息及计划停机中.以上保养项目必须切实执行并如实记录.</td>
-                    </tr>
-                    <tr>
-                        <td style="text-align:left;padding: 5px;" colspan="33">2.其中日保养由生产操作员执行,生产组长监督执行结果.周保养项目由设备技术员执行,设备工程师监督执行结果.月保养由设备工程师主导，设备技术员配合完成.</td>
-                    </tr>
-                    <tr>
-                        <td style="text-align:left;padding: 5px;" colspan="33">3.每天早上9点之前完成日保养，周六、日做周保养，月保养根据月保养计划表执行.</td>
-                    </tr>
-                    <tr>
-                        <td style="text-align:left;padding: 5px;" colspan="33">4.如有更换配件请注明配件名称和配件编号</td>
-                    </tr>
-                </tbody>
-            </table>
-            <div class="note">
-                <span style="color: #7A899F;">备注：根据体系表格文件样式规定，每月分成固定四个周(不按标准自然周划分)对设备进行周保养。</span>
-                <span style="color: #000000;">表单编号：{{VersionNum}}</span>
+                        <tr>
+                            <td class="qianlan td-title" rowspan="4">说明</td>
+                            <td style="text-align:left;padding: 5px;" colspan="33">1.完成情况标记符号：“√”正常已完成  “×”异常、待处理  “/”休息及计划停机中.以上保养项目必须切实执行并如实记录.</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:left;padding: 5px;" colspan="33">2.其中日保养由生产操作员执行,生产组长监督执行结果.周保养项目由设备技术员执行,设备工程师监督执行结果.月保养由设备工程师主导，设备技术员配合完成.</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:left;padding: 5px;" colspan="33">3.每天早上9点之前完成日保养，周六、日做周保养，月保养根据月保养计划表执行.</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:left;padding: 5px;" colspan="33">4.如有更换配件请注明配件名称和配件编号</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="note">
+                    <span style="color: #7A899F;">备注：根据体系表格文件样式规定，每月分成固定四个周(不按标准自然周划分)对设备进行周保养。</span>
+                    <span style="color: #000000;">表单编号：{{VersionNum}}</span>
+                </div>
             </div>
-        </div>
-        @* 操作按钮 *@
-        <div class="btn-box" v-if="addOpera">
-            <el-button style="margin-right:15px;" size="small" type="success" v-on:click="addDailyPlan">增加日计划项目</el-button>
-            <el-button style=" margin-right: 15px;" size="small" type="success" v-on:click="addWeekPlan">增加周计划项目</el-button>
-            <el-button style="margin-right:15px;" size="small" type="success" v-on:click="addMonthPlan">增加月计划项目</el-button>
-            <el-button v-show="showSaveInfosBtn" style="margin-right:15px;" size="small" type="success" v-on:click="addSave">保存</el-button>
-            <el-button v-show="showSaveInfosBtn" style="margin-right:15px;" size="small" type="success" v-on:click="resetForm">重置</el-button>
-            <group-select style="width:120px;margin-right:15px;"></group-select>
+            @* 操作按钮 *@
+            <div class="btn-box" v-if="addOpera">
+                <el-button style="margin-right:15px;" size="small" type="success" v-on:click="addDailyPlan">增加日计划项目</el-button>
+                <el-button style=" margin-right: 15px;" size="small" type="success" v-on:click="addWeekPlan">增加周计划项目</el-button>
+                <el-button style="margin-right:15px;" size="small" type="success" v-on:click="addMonthPlan">增加月计划项目</el-button>
+                <el-button v-show="showSaveInfosBtn" style="margin-right:15px;" size="small" type="success" v-on:click="addSave">保存</el-button>
+                <el-button v-show="showSaveInfosBtn" style="margin-right:15px;" size="small" type="success" v-on:click="resetForm">重置</el-button>
+                <group-select style="width:120px;margin-right:15px;"></group-select>
 
-            <el-upload class="upload-demo"
-                       v-bind:on-change="selectFiles"
-                       ref="upload"
-                       action="Create"
-                       accept=".xlsx,.xls"
-                       v-bind:on-remove="handleRemove"
-                       v-bind:file-list="fileList"
-                       v-bind:limit="1"
-                       v-bind:on-exceed="handleExceed"
-                       v-bind:auto-upload="false" style="float:left">
-                <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
-                <el-button v-show="showuploadBtn" class="elbt" size="small" type="success" v-on:click="submitUpload">上传</el-button>
-            </el-upload>
-        </div>
-        @* 添加项目弹框 *@
-        <el-dialog v-bind:title="dialogVisibletitle"
-                   v-bind:visible.sync="dialogVisible"
-                   width="30%">
-            <div class="item-box">
-                <el-input size="small" placeholder="请输入内容" v-model="addDailyProject">
-                    <template slot="prepend">
-                        &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;项目:
-                    </template>
-                </el-input>
-                <el-input size="small" placeholder="请输入内容" v-model="addDailyOpera">
-                    <template slot="prepend">
-                        操作方法:
-                    </template>
-                </el-input>
+                <el-upload class="upload-demo"
+                           v-bind:on-change="selectFiles"
+                           ref="upload"
+                           action="Create"
+                           accept=".xlsx,.xls"
+                           v-bind:on-remove="handleRemove"
+                           v-bind:file-list="fileList"
+                           v-bind:limit="1"
+                           v-bind:on-exceed="handleExceed"
+                           v-bind:auto-upload="false" style="float:left">
+                    <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+                    <el-button v-show="showuploadBtn" class="elbt" size="small" type="success" v-on:click="submitUpload">上传</el-button>
+                </el-upload>
             </div>
-            <span slot="footer" class="dialog-footer">
-                <el-button v-on:click="dialogVisible = false">取 消</el-button>
-                <el-button type="primary" v-on:click="addDaily">确 定</el-button>
-            </span>
-        </el-dialog>
-    </el-main>
+            @* 添加项目弹框 *@
+            <el-dialog v-bind:title="dialogVisibletitle"
+                       v-bind:visible.sync="dialogVisible"
+                       width="30%">
+                <div class="item-box">
+                    <el-input size="small" placeholder="请输入内容" v-model="addDailyProject">
+                        <template slot="prepend">
+                            &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;项目:
+                        </template>
+                    </el-input>
+                    <el-input size="small" placeholder="请输入内容" v-model="addDailyOpera">
+                        <template slot="prepend">
+                            操作方法:
+                        </template>
+                    </el-input>
+                </div>
+                <span slot="footer" class="dialog-footer">
+                    <el-button v-on:click="dialogVisible = false">取 消</el-button>
+                    <el-button type="primary" v-on:click="addDaily">确 定</el-button>
+                </span>
+            </el-dialog>
+        </el-main>
+    </div>
 </el-container>
 @* 分部页放置处 *@
 @section renderPage {
 }
 @* js放置处 *@
 @section jsScript {
+    <script src="~/Scripts/printJS/html2canvas.min.js"></script>
+    <script src="~/Scripts/printJS/jspdf.js"></script>
     <script>
         const app = {
             data: {
@@ -465,10 +475,46 @@
                     }
                 }
             },
+            filters: {
+                //时间格式
+                fomattime(val) {
+                    let date = new Date(val);
+                    let month = (date.getMonth() + 1).toString().padStart(2, 0);
+                    return date.getFullYear() + "-" + month + "-" + date.getDate().toString().padStart(2, 0);
+                }
+            },
             methods: {
                 //查看对应部门月保养
-                onToTurn() {
-                    window.open("/Equipment/Equipment_Maintenance_Summary?paramData=" + this.UserDepartment + "&date=" + this.select_date);
+                //onToTurn() {
+                //    window.open("/Equipment/Equipment_Maintenance_Summary?paramData=" + this.UserDepartment + "&date=" + this.select_date);
+                //},
+                //打印
+                onPrint() {
+                    let element = document.querySelector("#printpdf");//需要截图的包裹的DOM 元素
+                    html2canvas(element).then(function (canvas) {
+                        var contentWidth = canvas.width;
+                        var contentHeight = canvas.height;
+                        var pageHeight = (contentWidth / 592.28) * 841.89;
+                        var leftHeight = contentHeight;
+                        var position = 0;
+                        var imgWidth = 595.28;
+                        var imgHeight = (592.28 / contentWidth) * contentHeight;
+                        var pageData = canvas.toDataURL("image/jpg", 1.0);
+                        var pdf = new jsPDF("p", "pt", "a4");
+                        if (leftHeight < pageHeight) {
+                            pdf.addImage(pageData, "jpg", 10, 10, imgWidth - 20, imgHeight - 20);
+                        } else {
+                            while (leftHeight > 0) {
+                                pdf.addImage(pageData, "jpg", 10, position, imgWidth, imgHeight);
+                                leftHeight -= pageHeight;
+                                position -= 841.89;
+                                if (leftHeight > 0) {
+                                    pdf.addPage();
+                                }
+                            }
+                        }
+                        pdf.save("设备保养汇总表.pdf");
+                    });
                 },
                 //地址参数
                 getAddress() {
@@ -518,8 +564,11 @@
                     if (val == '正常') {
                         //console.log(i, index, val);
                         if (this.weekContent[`Week${i}_mainten${index}`] == '') {
-                            this.weekContent[`Week${i}_mainten${index}`] = this.weekPlan[index - 1].weekOpera;
+                            this.weekContent[`Week${i}_mainten${index}`] = '正常';
+                            //this.weekContent[`Week${i}_mainten${index}`] = this.weekPlan[index - 1].weekOpera;
                         }
+                    } else {
+                        this.weekContent[`Week${i}_mainten${index}`] = '';
                     }
                 },
                 //月保养自动填写
@@ -527,8 +576,11 @@
                     if (val == '正常') {
                         //console.log(index, val);
                         if (this.monthPlan[index].dataStr == '') {
-                            this.monthPlan[index].dataStr = this.monthPlan[index].monthOpera;
+                            this.monthPlan[index].dataStr = '正常';
+                            //this.monthPlan[index].dataStr = this.monthPlan[index].monthOpera;
                         }
+                    } else {
+                        this.monthPlan[index].dataStr = '';
                     }
                 },
                 // 页面加载时获取点检表的数据
@@ -735,7 +787,7 @@
                         // 周保养人
                         postObj[`Week_Main_${i}`] = this.totalOnfos[`Week_Main_${i}`];
                         // 周保养人操作时间
-                        postObj[`Week_MainTime_${i}`] = this.totalOnfos[`Week_MainTime_${1}`];
+                        postObj[`Week_MainTime_${i}`] = this.totalOnfos[`Week_MainTime_${i}`];
                         // 周保养工程师
                         postObj[`Week_engineer_${i}`] = this.totalOnfos[`Week_engineer_${i}`]
                         // 周保养工程师操作时间

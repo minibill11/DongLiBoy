@@ -25,12 +25,12 @@ const loadPath = function(){
   // console.log('浏览器host地址：',host);
   // console.log(host.indexOf("172")!=-1,'true:跳内网api；false：跳外网api');
   if (process.env.NODE_ENV === 'development') {
-    url = config.loadPath.dev;
+    url = config.baseUrl.dev.replace("/api/", "/");
   } else {
     if(host.indexOf("172")!=-1){
-      url = config.loadPath.pro;
+      url = config.baseUrl.pro.replace("/api/", "/");
     } else{
-      url = config.loadPath.proTwo;
+      url = config.baseUrl.proTwo.replace("/api/", "/");
     }
   }
   return url;

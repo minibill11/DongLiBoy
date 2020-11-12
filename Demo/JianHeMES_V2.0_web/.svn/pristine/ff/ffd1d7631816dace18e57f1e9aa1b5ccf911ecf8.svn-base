@@ -1,0 +1,243 @@
+<!---  --->
+<template>
+  <div>
+    <cHeader :active="active" ></cHeader>
+    <div class="se_name">
+      <el-select size="small" v-model="select_version" placeholder="请选择时间版本" style="width:150px;">
+          <el-option v-for="item in version_options"
+                     :key="item.value"
+                     :label="item.label"
+                     :value="item.value">
+          </el-option>
+      </el-select>
+       <cSelect :source="'区域数据'" ref="sel"></cSelect>
+       <el-button size="small" type="primary" v-on:click="onQueryData" class="btn">查询</el-button>
+       <div v-if="!button_falg">
+        <el-button v-if="$limit('录入7S区域数据')" size="small" type="primary" plain v-on:click="onEntry" class="btn">批量录入</el-button>
+      </div>
+      <div class="action-box-right" v-if="button_falg">
+           <ImportExcel :on-success="onSuccess">
+             <el-button plain type="primary" size="small">选择导入文件
+           </el-button>
+            </ImportExcel>
+          <el-date-picker size="small" type="date" value-format='yyyy-MM-dd' placeholder="执行时间" v-model="select_date" style="width: 130px;margin-right: 10px;" @change="onChangeDate"></el-date-picker>
+          <el-button size="small" type="primary" plain v-on:click="onUpload">确认上传</el-button>
+          <el-button size="small" type="info" plain v-on:click="onCancel">取消</el-button>
+      </div>
+    </div>  
+    
+     <!--表格-->
+    <div class="table-height">
+        <vxe-grid border
+                  show-overflow
+                  keep-source                 
+                  ref="xGrid"
+                  size="small"
+                  height="auto"
+                  align="center"
+                  :edit-config="{trigger: 'manual', mode: 'row', showStatus: true}"
+                  :columns="tableColumn"
+                  :data="tableData">
+            <template v-slot:operation="{ row }">
+                <template v-if="$refs.xGrid.isActiveByRow(row)">
+                    <vxe-button status="primary" title="保存" v-on:click="saveRowEvent(row)">保存</vxe-button>
+                </template>
+                <template v-else>
+                    <vxe-button v-if="$limit('修改7S区域数据')" title="编辑" v-on:click="editRowEvent(row)">编辑</vxe-button>
+                </template>
+                <vxe-button v-if="$limit('删除7S区域数据')" title="删除" v-on:click="removeRowEvent(row)">删除</vxe-button>
+            </template>
+        </vxe-grid>
+    </div>
+  </div>
+</template>
+
+<script>
+import ImportExcel from "_c/import-excel";
+import cHeader from "./page-components/_kpi_7s_header";
+import cSelect from "./page-components/_select_component";
+import {regionGetVTime,regionQuery,saveEditData,delEditData,saveFileData} from "@/api/hr/kpi-7s";
+export default {
+  name: 'KPI_7S_RegionInput',
+  props: {},
+  data() {
+    return {
+      active:'数据区域录入',
+      select_version:'',
+      version_options:[],
+       button_falg: false,
+       select_date: new Date(),
+      tableColumn: [
+          { title: '序号', type: 'seq', width: 50 },
+          { title: '部门', field: 'Department', editRender: { name: 'input' } },
+          { title: '位置', field: 'Position', editRender: { name: 'input' } },
+          { title: '班组', field: 'Group', editRender: { name: 'input' } },
+          { title: '区域', field: 'District', editRender: { name: 'input' } },
+          { title: '目标值', field: 'TargetValue', editRender: { name: 'input' } },
+          {
+              title: '版本时间', field: 'VersionsTime'
+          },
+          {
+              title: '操作', field: 'action', width: 240, slots: {
+                  default: 'operation'
+              }
+          }
+      ],
+      tableData: [],
+    };
+  },
+  components: {
+    cHeader,
+    cSelect,
+    ImportExcel
+  },
+  computed: {},
+  watch: {},
+  methods: {
+    //获取文件数据
+    onSuccess (response, file) {
+      console.log(response)
+      let arr =[]
+      let dd =new Date(this.select_date)
+      let time =dd.getFullYear()+'-'+(dd.getMonth()+1)+'-'+dd.getDate()
+      response[0].data.forEach(item => {
+        arr.push({
+          Department:item.部门, Position: item.位置, Group: item.班组, District: item.区域, TargetValue:item.目标值, VersionsTime:time
+        })       
+      });
+      this.tableData =arr
+    },
+    //获取版本时间
+    onGetVersion() {
+        regionGetVTime().then(res => {
+            this.version_options = res.data.Data;
+        })
+    },
+    //查询数据
+    onQueryData() {
+        if (this.select_version == '') {
+            this.$message.warning('请选择时间版本！');
+        } else if (this.$refs.sel.select_department == null) {
+            this.$message.warning('请选择部门！');
+        } else {
+          let obj={department: this.$refs.sel.select_department,position: this.$refs.sel.select_position, district: this.$refs.sel.select_district,versionsTime: this.select_version}
+            regionQuery(obj).then(res => {
+                console.log(res.data)
+                this.tableData = res.data.Data
+            })
+        }
+    },
+     //表格编辑，保存，删除
+    editRowEvent(row) {
+        this.$refs.xGrid.setActiveRow(row);
+    },
+    saveRowEvent(row) {
+        this.$refs.xGrid.clearActived().then(() => {
+            if (this.button_falg == true) {
+                this.$message.success('修改成功！');
+            } else {
+                let param = {id: row.Id,department: row.Department,group: row.Group,position: row.Position,district: row.District,targetValue: row.TargetValue}
+                saveEditData(param).then(res => {
+                    if (res.data.Result == true) {
+                        this.$message.success(res.data.Message);
+                    }else{
+                      this.$message.warning(res.data.Message);
+                    }
+                })
+            }
+        })
+    },
+    removeRowEvent(row) {
+        this.$XModal.confirm('您确定要删除该数据?').then(type => {
+            if (type === 'confirm') {
+                this.$refs.xGrid.remove(row);
+                if (this.button_falg == true) {
+                    this.$message.success('删除成功！');
+                    this.tableData = this.$refs.xGrid.$refs.xTable.afterFullData;
+                } else {
+                    delEditData( row.Id).then(res => {
+                        if (res.data.Result == true) {                            
+                            this.$message.success(res.data.Message);
+                        }else{
+                           this.$message.warning(res.data.Message);
+                        }
+                    })
+                }
+            }
+        })
+    },
+    //取消批量录入
+    onCancel() {
+        this.button_falg = false;
+        this.tableData = [];
+    },
+    //确认上传
+    onUpload() {
+        if (this.tableData.length != 0) {
+            saveFileData(  this.tableData).then(res => {
+                if (res.data.Result == true) {
+                    this.$message.success(res.data.Message);
+                    this.onCancel();
+                    this.onGetVersion();                    
+                }
+                else{
+                    this.$message.error('上传失败！数据已存在，请不要重复上传！');
+                }
+            })
+        } else {
+            this.$message.error('没有数据可以上传，请在选择需要上传的文件哦~');
+        }
+    },
+     //批量录入
+    onEntry() {
+        this.$refs.sel.select_department = '';
+        this.$refs.sel.select_position = '';
+        this.$refs.sel.select_district = '';
+        this.select_version = '';
+        this.$refs.sel.district_options = [];
+        this.tableData = [];
+        this.button_falg = true;
+    },
+    onChangeDate() {
+
+        let arr = this.tableData;
+        this.tableData=[]
+        let list = [];
+        if (arr.length != 0) {
+           let dd =new Date(this.select_date)
+           let time =dd.getFullYear()+'-'+(dd.getMonth()+1)+'-'+dd.getDate()
+            arr.forEach(item => {
+                let obj = {
+                    Department:item.Department, Position: item.Position, Group: item.Group, District: item.District, TargetValue:item.TargetValue, VersionsTime:time
+                };
+                list.push(obj);
+            })
+      console.log(list,111)
+            this.tableData = list;
+        }
+    }
+  },
+  created() {},
+  mounted() {
+    this.onGetVersion()
+
+  },
+  beforeCreate() {},
+  beforeMount() {},
+  beforeUpdate() {},
+  updated() {},
+  beforeDestroy() {},
+  destroyed() {},
+  activated() {},
+}
+</script>
+
+<style lang='less' scoped>
+@import url('~@/assets/style/color.less');
+@import url('~@/assets/style/vxe.css');
+@import url('./kpi7s.less');
+.table-height {
+    width: 100%;
+    height: 70vh;
+}
+</style>

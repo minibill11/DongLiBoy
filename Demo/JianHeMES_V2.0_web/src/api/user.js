@@ -12,13 +12,14 @@ export const login = (UserNum,PassWord) => {
     method: 'post',
   })
 }
-
+//获取用户信息以及权限
 export const getUserInfo = () => {
   return axios.request({
     url: 'Users_Api/UserInfo',
     method: 'post'
   })
 }
+//检查token是否过期
 export const CheckToken = () => {
   return axios.request({
     url: 'Users_Api/CheckToken',

@@ -81,9 +81,9 @@
             font-weight: 700;
         }
 
-        .el-table__footer, .el-table td.is-center, .el-table th.is-center {
+        /*.el-table__footer, .el-table td.is-center, .el-table th.is-center {
             height: 36px;
-        }
+        }*/
 
         .el-button + .el-button {
             margin-left: 0;
@@ -169,484 +169,508 @@
     </style>
 }
 
-    <div id="app" v-cloak>
-        <el-container>
-            <el-header class="text-center">
-                <h3 class="top-title">客诉损失明细表</h3>
-            </el-header>
-            <el-main v-loading="loading">
-                @*日期选择框 *@
-                <el-row class="text-center table-top">
-                    <el-select v-model="queryCondition"
-                               @@change="selectCondition"
-                               placeholder="请选择查询方式"
-                               size="medium"
-                               style="width:120px;">
-                        <el-option label="按年查询" value="y">
-                        </el-option>
-                        <el-option label="按年月查询" value="m">
-                        </el-option>
-                    </el-select>
+<div id="app" v-cloak>
+    <el-container>
+        <el-header class="text-center">
+            <h3 class="top-title">客诉损失明细表</h3>
+        </el-header>
+        <el-main v-loading="loading">
+            @*日期选择框 *@
+            <el-row class="text-center table-top">
+                <el-select v-model="queryCondition"
+                           @@change="selectCondition"
+                           placeholder="请选择查询方式"
+                           size="medium"
+                           style="width:120px;">
+                    <el-option label="按年查询" value="y">
+                    </el-option>
+                    <el-option label="按年月查询" value="m">
+                    </el-option>
+                </el-select>
 
-                    <el-date-picker v-show="queryCondition=='y'"
-                                    class="m-right"
-                                    v-model="selectTime"
-                                    @@change="selectDate"
-                                    type="year"
-                                    size="medium"
-                                    style="width:150px;"
-                                    placeholder="选择年">
-                    </el-date-picker>
+                <el-date-picker v-show="queryCondition=='y'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="year"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年">
+                </el-date-picker>
 
-                    <el-date-picker v-show="queryCondition=='m'"
-                                    class="m-right"
-                                    v-model="selectTime"
-                                    @@change="selectDate"
-                                    type="month"
-                                    size="medium"
-                                    style="width:150px;"
-                                    placeholder="选择年月">
-                    </el-date-picker>
+                <el-date-picker v-show="queryCondition=='m'"
+                                class="m-right"
+                                v-model="selectTime"
+                                @@change="selectDate"
+                                type="month"
+                                size="medium"
+                                style="width:150px;"
+                                placeholder="选择年月">
+                </el-date-picker>
 
-                    <el-select v-model="PlatformOptions_value"
-                               clearable
-                               allow-create filterable
-                               size="medium"
-                               style="width:150px;"
-                               class="m-right"
-                               placeholder="请选择平台">
-                        <el-option v-for="item in PlatformOptions"
-                                   :key="item.value"
-                                   :value="item.value">
-                        </el-option>
-                    </el-select>
+                <el-select v-model="PlatformOptions_value"
+                           clearable
+                           allow-create filterable
+                           size="medium"
+                           style="width:150px;"
+                           class="m-right"
+                           placeholder="请选择平台">
+                    <el-option v-for="item in PlatformOptions"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
 
-                    <el-select v-model="Fault_Classification_Options_value"
-                               clearable
-                               allow-create filterable
-                               size="medium"
-                               class="m-right"
-                               style="width:150px;"
-                               placeholder="请选择故障类型">
-                        <el-option v-for="item in Fault_Classification_Options"
-                                   :key="item.value"
-                                   :value="item.value">
-                        </el-option>
-                    </el-select>
+                <el-select v-model="Fault_Classification_Options_value"
+                           clearable
+                           allow-create filterable
+                           size="medium"
+                           class="m-right"
+                           style="width:150px;"
+                           placeholder="请选择故障类型">
+                    <el-option v-for="item in Fault_Classification_Options"
+                               :key="item.value"
+                               :value="item.value">
+                    </el-option>
+                </el-select>
 
-                    <el-button type="primary" v-on:click="queryData" size="medium">查询</el-button>
-                    <a href="/Customer_Complaints/BatchAddCustomer" class="addMass"><el-button type="primary" size="medium" plain>批量添加</el-button></a>
-                </el-row>
-                <el-row class="text-center">
-                    <el-table :data="tableData"
-                              min-height="234"
-                              max-height="560"
-                              size="small"
-                              align="center"
-                              cell-class-name="cellParent"
-                              stripe
-                              :summary-method="getSummaries"
-                              show-summary
-                              border>
-                        <el-table-column type="index"
-                                         label="序号"
-                                         align="center">
-                            <template slot-scope="scope">
-                                <span>{{scope.$index+1}}</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="CustomerName"
-                                         label="客户名称"
-                                         align="center"
-                                         min-width="78">
-                        </el-table-column>
+                <el-button type="primary" v-on:click="queryData" size="medium">查询</el-button>
+                <a href="/Customer_Complaints/BatchAddCustomer" class="addMass"><el-button type="primary" size="medium" plain>批量添加</el-button></a>
+                <el-button type="success" plain size="medium" v-show="tableData.length" v-on:click="exportExcel" style="margin-left:5px">导出结果</el-button>
+                <a href="/Customer_Complaints/Customer_Classification" class="addMass"><el-button type="primary" size="medium" plain v-show="islimit('客损故障分类操作')">分类管理</el-button></a>
+            </el-row>
+            <el-row class="text-center">
+                <el-table :data="tableData"
+                          min-height="234"
+                          max-height="660"
+                          size="small"
+                          align="center"
+                          cell-class-name="cellParent"
+                          stripe
+                          :summary-method="getSummaries"
+                          show-summary
+                          border>
+                    <el-table-column type="index"
+                                     label="序号"
+                                     align="center" 
+                                     fixed>
+                        <template scope="scope">
+                            <span>{{scope.$index+1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="CustomerName"
+                                     label="客户名称"
+                                     align="center"
+                                     min-width="78"
+                                     fixed>
+                    </el-table-column>
 
-                        <el-table-column prop="Platform"
-                                         label="平台"
-                                         align="center"
-                                         min-width="78"
-                                         sortable>
-                            <template slot-scope="scope">
-                                <input-edit datatype="string" v-show="scope.row.edit==false"
-                                            v-on:input="scope.row.Platform = $event"
-                                            :nametext="scope.row.Platform"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                                <el-select v-model="scope.row.Platform" placeholder="请选择" v-show="scope.row.edit==true">
-                                    <el-option v-for="item in PlatformOptions"
-                                               v-on:el-option="scope.row.Platform = $event"
-                                               :nametext="scope.row.Platform"
-                                               :key="item.value"
-                                               :label="item.label"
-                                               :value="item.value">
-                                    </el-option>
-                                </el-select>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="ContractNum"
-                                         label="合同号"
-                                         align="center"
-                                         min-width="78">
-                            <template slot-scope="scope">
-                                <input-edit datatype="string"
-                                            v-on:input="scope.row.ContractNum = $event"
-                                            :nametext="scope.row.ContractNum"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="Fault_Classification"
-                                         label="故障分类/产品型号"
-                                         align="center"
-                                         min-width="78"
-                                         sortable>
-                            @*<template slot-scope="scope">
-                                <input-edit datatype="string"
-                                            v-on:input="scope.row.Fault_Classification = $event"
-                                            :nametext="scope.row.Fault_Classification"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>*@
-                            <template slot-scope="scope">
-                                <input-edit datatype="string" v-show="scope.row.edit==false"
-                                            v-on:input="scope.row.Fault_Classification = $event"
-                                            :nametext="scope.row.Fault_Classification"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                                <el-select v-model="scope.row.Fault_Classification" placeholder="请选择" v-show="scope.row.edit==true">
-                                    <el-option v-for="item in Fault_Classification_Options"
-                                               v-on:el-option="scope.row.Fault_Classification = $event"
-                                               :nametext="scope.row.Fault_Classification"
-                                               :key="item.value"
-                                               :value="item.value">
-                                    </el-option>
-                                </el-select>
-                            </template>
+                    <el-table-column prop="Platform"
+                                     label="平台"
+                                     align="center"
+                                     min-width="78"
+                                     sortable
+                                     fixed>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string" v-show="scope.row.edit==false"
+                                        v-on:input="scope.row.Platform = $event"
+                                        :nametext="scope.row.Platform"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                            <el-select v-model="scope.row.Platform" placeholder="请选择" v-show="scope.row.edit==true">
+                                <el-option v-for="item in PlatformOptions"
+                                           v-on:el-option="scope.row.Platform = $event"
+                                           :nametext="scope.row.Platform"
+                                           :key="item.value"
+                                           :label="item.label"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ContractNum"
+                                     label="合同号"
+                                     align="center"
+                                     min-width="78"
+                                     fixed>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.ContractNum = $event"
+                                        :nametext="scope.row.ContractNum"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Classification"
+                                     label="分类"
+                                     align="center"
+                                     min-width="78"
+                                     fixed>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string" v-show="scope.row.edit==false"
+                                        v-on:input="scope.row.Classification = $event"
+                                        :nametext="scope.row.Classification"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                            <el-select v-model="scope.row.Classification" placeholder="请选择" v-show="scope.row.edit==true">
+                                <el-option v-for="item in broadHeadingList"
+                                           v-on:el-option="scope.row.Classification = $event"
+                                           :nametext="scope.row.Classification"
+                                           :key="item.value"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
 
-                        </el-table-column>
-                        <el-table-column prop="BadType"
-                                         label="不良类别"
-                                         align="center"
-                                         min-width="78"
-                                         sortable>
-                            <template slot-scope="scope">
-                                <input-edit datatype="string"
-                                            v-on:input="scope.row.BadType = $event"
-                                            :nametext="scope.row.BadType"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="DeliveryDate"
-                                         sortable
-                                         label="出货日期"
-                                         align="center"
-                                         min-width="85">
-                        </el-table-column>
-                        <el-table-column prop="ComplaintsDate"
-                                         sortable
-                                         label="投诉日期"
-                                         align="center"
-                                         min-width="85">
-                        </el-table-column>
-                        <el-table-column prop="SettlementDate"
-                                         label="结案日期"
-                                         sortable
-                                         align="center"
-                                         min-width="85">
-                        </el-table-column>
-                        <el-table-column prop="ProductModel"
-                                         label="产品型号"
-                                         align="center"
-                                         min-width="100">
-                        </el-table-column>
-                        <el-table-column prop="OrderNum"
-                                         label="订单号"
-                                         align="center"
-                                         min-width="110">
-                        </el-table-column>
-                        <el-table-column prop="Customer_phenomenon"
-                                         label="客诉现象"
-                                         align="center"
-                                         min-width="130">
-                            <template slot-scope="scope">
-                                <input-edit datatype="textarea"
-                                            max-height="150"
-                                            v-on:input="scope.row.Customer_phenomenon = $event"
-                                            :nametext="scope.row.Customer_phenomenon"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="Cause_Analysis"
-                                         label="原因分析"
-                                         align="center"
-                                         min-width="170">
-                            <template slot-scope="scope">
-                                <input-edit datatype="textarea"
-                                            max-height="150"
-                                            v-on:input="scope.row.Cause_Analysis = $event"
-                                            :nametext="scope.row.Cause_Analysis"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="Interim_Disposal"
-                                         label="临时处理措施"
-                                         align="center"
-                                         min-width="180">
-                            <template slot-scope="scope">
-                                <input-edit datatype="textarea"
-                                            max-height="150"
-                                            v-on:input="scope.row.Interim_Disposal = $event"
-                                            :nametext="scope.row.Interim_Disposal"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="Longterm_Treatment"
-                                         label="长期处理措施"
-                                         align="center"
-                                         min-width="160">
-                            <template slot-scope="scope">
-                                <input-edit datatype="textarea"
-                                            max-height="150"
-                                            v-on:input="scope.row.Longterm_Treatment = $event"
-                                            :nametext="scope.row.Longterm_Treatment"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="ClaimIs"
-                                         label="索赔情况"
-                                         align="center"
-                                         min-width="180">
-                            <template slot-scope="scope">
-                                <input-edit datatype="textarea"
-                                            max-height="150"
-                                            v-on:input="scope.row.ClaimIs = $event"
-                                            :nametext="scope.row.ClaimIs"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="claimConfirm"
-                                         label="索赔确认"
-                                         align="center"
-                                         min-width="78">
-                            <template slot-scope="scope">
-                                <input-edit datatype="textarea"
-                                            max-height="150"
-                                            v-on:input="scope.row.claimConfirm = $event"
-                                            :nametext="scope.row.claimConfirm"
-                                            :isedit="scope.row.edit">
-                                </input-edit>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="claimStatement"
-                                         label="索赔单"
-                                         align="center"
-                                         min-height="90"
-                                         min-width="180">
-                            <template slot-scope="scope">
-                                <el-button size="mini" type="primary" @@click="UpLoad(scope.row)" plain>上传附件</el-button>
-                                <div class="img_flex">
-                                    <el-image v-for="(url1,index) in scope.row.Picture_jpg"
-                                              :key="index"
-                                              :preview-src-list="scope.row.Picture_jpg"
-                                              :src="url1"
-                                              style="width:75px;height:75px;margin:2px"
-                                              v-on:contextmenu.prevent="DeleteImg(url1,scope.row)" lazy>
-                                    </el-image>
-                                    <div class="she" v-for="(url2,index) in scope.row.Picture_pdf">
-                                        <a class="pdf_style" v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url2}`" target="_blank" v-on:contextmenu.prevent="DeleteImg(url2,scope.row)">查看PDF_{{index+1}}</a>
-                                    </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Fault_Classification"
+                                     label="故障分类/产品型号"
+                                     align="center"
+                                     min-width="78"
+                                     sortable
+                                     fixed>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string" v-show="scope.row.edit==false"
+                                        v-on:input="scope.row.Fault_Classification = $event"
+                                        :nametext="scope.row.Fault_Classification"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                            <el-select v-model="scope.row.Fault_Classification" placeholder="请选择" v-show="scope.row.edit==true">
+                                <el-option v-for="item in Fault_Classification_Options"
+                                           v-on:el-option="scope.row.Fault_Classification = $event"
+                                           :nametext="scope.row.Fault_Classification"
+                                           :key="item.value"
+                                           :value="item.value">
+                                </el-option>
+                            </el-select>
+                        </template>
+
+                    </el-table-column>
+                    <el-table-column prop="BadType"
+                                     label="不良类别"
+                                     align="center"
+                                     min-width="78"
+                                     sortable
+                                     fixed>
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.BadType = $event"
+                                        :nametext="scope.row.BadType"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="DeliveryDate"
+                                     sortable
+                                     label="出货日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ComplaintsDate"
+                                     sortable
+                                     label="投诉日期"
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="SettlementDate"
+                                     label="结案日期"
+                                     sortable
+                                     align="center"
+                                     min-width="85">
+                    </el-table-column>
+                    <el-table-column prop="ProductModel"
+                                     label="产品型号"
+                                     align="center"
+                                     min-width="100">
+                    </el-table-column>
+                    <el-table-column prop="OrderNum"
+                                     label="订单号"
+                                     align="center"
+                                     min-width="110">
+                    </el-table-column>
+                    <el-table-column prop="Customer_phenomenon"
+                                     label="客诉现象"
+                                     align="center"
+                                     min-width="130">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Customer_phenomenon = $event"
+                                        :nametext="scope.row.Customer_phenomenon"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Cause_Analysis"
+                                     label="原因分析"
+                                     align="center"
+                                     min-width="170">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Cause_Analysis = $event"
+                                        :nametext="scope.row.Cause_Analysis"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Interim_Disposal"
+                                     label="临时处理措施"
+                                     align="center"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Interim_Disposal = $event"
+                                        :nametext="scope.row.Interim_Disposal"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Longterm_Treatment"
+                                     label="长期处理措施"
+                                     align="center"
+                                     min-width="160">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.Longterm_Treatment = $event"
+                                        :nametext="scope.row.Longterm_Treatment"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="ClaimIs"
+                                     label="索赔情况"
+                                     align="center"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.ClaimIs = $event"
+                                        :nametext="scope.row.ClaimIs"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="claimConfirm"
+                                     label="索赔确认"
+                                     align="center"
+                                     min-width="78">
+                        <template slot-scope="scope">
+                            <input-edit datatype="textarea"
+                                        max-height="150"
+                                        v-on:input="scope.row.claimConfirm = $event"
+                                        :nametext="scope.row.claimConfirm"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="claimStatement"
+                                     label="索赔单"
+                                     align="center"
+                                     min-height="90"
+                                     min-width="180">
+                        <template slot-scope="scope">
+                            <el-button size="mini" type="primary" @@click="UpLoad(scope.row)" plain>上传附件</el-button>
+                            <div class="img_flex">
+                                <el-image v-for="(url1,index) in scope.row.Picture_jpg"
+                                          :key="index"
+                                          :preview-src-list="scope.row.Picture_jpg"
+                                          :src="url1"
+                                          style="width:75px;height:75px;margin:2px"
+                                          v-on:contextmenu.prevent="DeleteImg(url1,scope.row)" lazy>
+                                </el-image>
+                                <div class="she" v-for="(url2,index) in scope.row.Picture_pdf">
+                                    <a class="pdf_style" v-bind:href="`../../Scripts/pdf.js/web/viewer.html?file= ${url2}`" target="_blank" v-on:contextmenu.prevent="DeleteImg(url2,scope.row)">查看PDF_{{index+1}}</a>
                                 </div>
-                                <span class="tip_upload" v-if="scope.row.Picture_pdf.length>0||scope.row.Picture_jpg.length>0">(备注：单击图片可放大查看，右击图片可删除图片。)</span>
-                                <span class="tip_upload" v-if="scope.row.Picture_pdf.length==0&&scope.row.Picture_jpg.length==0">上传图片或PDF文件</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="Contract_Amount"
-                                         label="合同额(元)"
+                            </div>
+                            <span class="tip_upload" v-if="scope.row.Picture_pdf.length>0||scope.row.Picture_jpg.length>0">(备注：单击图片可放大查看，右击图片可删除图片。)</span>
+                            <span class="tip_upload" v-if="scope.row.Picture_pdf.length==0&&scope.row.Picture_jpg.length==0">上传图片或PDF文件</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Contract_Amount"
+                                     label="合同额(元)"
+                                     align="center"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Contract_Amount = $event"
+                                        :nametext="scope.row.Contract_Amount"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="Losses_Amount"
+                                     label="损失金额(元)"
+                                     align="center"
+                                     min-width="100">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.Losses_Amount = $event"
+                                        :nametext="scope.row.Losses_Amount"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="LossRate"
+                                     label="损失率(%)"
+                                     align="center"
+                                     min-width="78">
+                        <template slot-scope="scope">
+                            <input-edit datatype="string"
+                                        v-on:input="scope.row.LossRate = $event"
+                                        :nametext="scope.row.LossRate"
+                                        :isedit="scope.row.edit">
+                            </input-edit>
+                            <span>%</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="质量损失-责任判定"
+                                     align="center"
+                                     min-width="78">
+                        <el-table-column prop=""
+                                         label="惠州工厂"
                                          align="center"
-                                         min-width="100">
+                                         min-width="120">
                             <template slot-scope="scope">
                                 <input-edit datatype="string"
-                                            v-on:input="scope.row.Contract_Amount = $event"
-                                            :nametext="scope.row.Contract_Amount"
+                                            v-on:input="scope.row.QualityLoss1 = $event"
+                                            :nametext="scope.row.QualityLoss1=='￥0'?'':scope.row.QualityLoss1"
                                             :isedit="scope.row.edit">
                                 </input-edit>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="Losses_Amount"
-                                         label="损失金额(元)"
+                        <el-table-column prop=""
+                                         label="订单管理部"
                                          align="center"
-                                         min-width="100">
+                                         min-width="120">
                             <template slot-scope="scope">
                                 <input-edit datatype="string"
-                                            v-on:input="scope.row.Losses_Amount = $event"
-                                            :nametext="scope.row.Losses_Amount"
+                                            v-on:input="scope.row.QualityLoss2 = $event"
+                                            :nametext="scope.row.QualityLoss2=='￥0'?'':scope.row.QualityLoss2"
                                             :isedit="scope.row.edit">
                                 </input-edit>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="LossRate"
-                                         label="损失率(%)"
+                        <el-table-column prop="QualityLoss3"
+                                         label="采购部"
                                          align="center"
-                                         min-width="78">
+                                         min-width="120">
                             <template slot-scope="scope">
                                 <input-edit datatype="string"
-                                            v-on:input="scope.row.LossRate = $event"
-                                            :nametext="scope.row.LossRate"
+                                            v-on:input="scope.row.QualityLoss3 = $event"
+                                            :nametext="scope.row.QualityLoss3=='￥0'?'':scope.row.QualityLoss3"
                                             :isedit="scope.row.edit">
                                 </input-edit>
-                                <span>%</span>
                             </template>
                         </el-table-column>
-                        <el-table-column label="质量损失-责任判定"
+                        <el-table-column prop="QualityLoss4"
+                                         label="研发中心"
                                          align="center"
-                                         min-width="78">
-                            <el-table-column prop="QualityLoss1"
-                                             label="惠州工厂"
-                                             align="center"
-                                             min-width="120">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.QualityLoss1 = $event"
-                                                :nametext="scope.row.QualityLoss1"
-                                                :isedit="scope.row.edit">
-                                    </input-edit>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="QualityLoss2"
-                                             label="订单管理部"
-                                             align="center"
-                                             min-width="120">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.QualityLoss2 = $event"
-                                                :nametext="scope.row.QualityLoss2"
-                                                :isedit="scope.row.edit">
-                                    </input-edit>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="QualityLoss3"
-                                             label="采购部"
-                                             align="center"
-                                             min-width="120">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.QualityLoss3 = $event"
-                                                :nametext="scope.row.QualityLoss3"
-                                                :isedit="scope.row.edit">
-                                    </input-edit>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="QualityLoss4"
-                                             label="研发中心"
-                                             align="center"
-                                             min-width="120">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.QualityLoss4 = $event"
-                                                :nametext="scope.row.QualityLoss4"
-                                                :isedit="scope.row.edit">
-                                    </input-edit>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="QualityLoss5"
-                                             label="工程售后部"
-                                             align="center"
-                                             min-width="120">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.QualityLoss5 = $event"
-                                                :nametext="scope.row.QualityLoss5"
-                                                :isedit="scope.row.edit">
-                                    </input-edit>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="QualityLoss6"
-                                             label="风控中心"
-                                             align="center"
-                                             min-width="120">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.QualityLoss6 = $event"
-                                                :nametext="scope.row.QualityLoss6"
-                                                :isedit="scope.row.edit">
-                                    </input-edit>
-                                </template>
-                            </el-table-column>
-                        </el-table-column>
-                        <el-table-column label="客损归属年月"
-                                         align="center"
-                                         min-width="160">
-                            <el-table-column prop="Year"
-                                             label="年"
-                                             align="center"
-                                             min-width="80">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.Year = $event"
-                                                :nametext="scope.row.Year">
-                                    </input-edit>
-                                    <span>年</span>
-                                </template>
-                            </el-table-column>
-                            <el-table-column prop="Month"
-                                             label="月"
-                                             align="center"
-                                             min-width="80">
-                                <template slot-scope="scope">
-                                    <input-edit datatype="string"
-                                                v-on:input="scope.row.Month = $event"
-                                                :nametext="scope.row.Month">
-                                    </input-edit>
-                                    <span>月</span>
-                                </template>
-                            </el-table-column>
-                        </el-table-column>
-                        <el-table-column label="操作" align="center" width="120">
-                            <template slot-scope="scope" class="btnCell">
-                                <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit" class="etitor" type="text">编辑</el-button>
-                                <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
-                                <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss4 = $event"
+                                            :nametext="scope.row.QualityLoss4=='￥0'?'':scope.row.QualityLoss4"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
                             </template>
                         </el-table-column>
-                    </el-table>
-                </el-row>
-            </el-main>
-        </el-container>
-        <!--上传照片-->
-        <el-dialog :visible.sync="openAlert" width="500px">
-            <h3 class="alert_title">只能上传jpg/pdf文件，且文件数量不超过4个！</h3>
-            <el-upload action="/Customer_Complaints/UploadFile_Claims"
-                       multiple
-                       :file-list="fileList"
-                       accept=".jpg,.pdf"
-                       :on-change="selectFile"
-                       :auto-upload="false"
-                       :on-preview="handlePictureCardPreview"
-                       :on-remove="handleRemove"
-                       :on-exceed="handleExceed"
-                       :limit="4">
-                <el-button size="medium" type="primary">添加图片</el-button>
-            </el-upload>
-            <span slot="footer" class="dialog-footer">
-                <el-button @@click="onCancel" size="mini">取 消</el-button>
-                <el-button type="primary" size="mini" @@click="uploadFile">确定上传</el-button>
-            </span>
-        </el-dialog>
-        @* 图片预览的盒子 *@
-        <el-dialog :visible.sync="showVisible">
-            <img width="100%" :src="dialogImageUrl" alt="图片预览">
-        </el-dialog>
-        @*不良类别信息BadTypeCountResult*@
-        <div style="font-size:small;font-family:'Microsoft YaHei UI'">
-            <span style="font-weight:700">不良类别：</span>{{BadTypeCountResult}}
-        </div>
+                        <el-table-column prop="QualityLoss5"
+                                         label="工程售后部"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss5 = $event"
+                                            :nametext="scope.row.QualityLoss5=='￥0'?'':scope.row.QualityLoss5"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="QualityLoss6"
+                                         label="风控中心"
+                                         align="center"
+                                         min-width="120">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.QualityLoss6 = $event"
+                                            :nametext="scope.row.QualityLoss6=='￥0'?'':scope.row.QualityLoss6"
+                                            :isedit="scope.row.edit">
+                                </input-edit>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="客损归属年月"
+                                     align="center"
+                                     min-width="160">
+                        <el-table-column prop="Year"
+                                         label="年"
+                                         align="center"
+                                         min-width="80">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.Year = $event"
+                                            :nametext="scope.row.Year">
+                                </input-edit>
+                                <span>年</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="Month"
+                                         label="月"
+                                         align="center"
+                                         min-width="80">
+                            <template slot-scope="scope">
+                                <input-edit datatype="string"
+                                            v-on:input="scope.row.Month = $event"
+                                            :nametext="scope.row.Month">
+                                </input-edit>
+                                <span>月</span>
+                            </template>
+                        </el-table-column>
+                    </el-table-column>
+                    <el-table-column label="操作" align="center" width="120">
+                        <template slot-scope="scope" class="btnCell">
+                            <el-button @@click="editClick(scope.row)" v-show="!scope.row.edit&&islimit('客损明细表操作')" class="etitor" type="text">编辑</el-button>
+                            <el-button @@click="delClick(scope.row.Id)" v-show="!scope.row.edit&&islimit('删除客损明细记录')" style="color:red" class="etitor" type="text">删除</el-button>
+                            <el-button @@click="cancelClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn">取消</el-button>
+                            <el-button @@click="saveClick(scope.row)" v-show="scope.row.edit" size="mini" class="miniBtn" type="primary" plain>保存</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-row>
+        </el-main>
+    </el-container>
+    <!--上传照片-->
+    <el-dialog :visible.sync="openAlert" width="500px">
+        <h3 class="alert_title">只能上传jpg/pdf文件，且文件数量不超过4个！</h3>
+        <el-upload action="/Customer_Complaints/UploadFile_Claims"
+                   multiple
+                   :file-list="fileList"
+                   accept=".jpg,.pdf"
+                   :on-change="selectFile"
+                   :auto-upload="false"
+                   :on-preview="handlePictureCardPreview"
+                   :on-remove="handleRemove"
+                   :on-exceed="handleExceed"
+                   :limit="4">
+            <el-button size="medium" type="primary">添加图片</el-button>
+        </el-upload>
+        <span slot="footer" class="dialog-footer">
+            <el-button @@click="onCancel" size="mini">取 消</el-button>
+            <el-button type="primary" size="mini" @@click="uploadFile">确定上传</el-button>
+        </span>
+    </el-dialog>
+    @* 图片预览的盒子 *@
+    <el-dialog :visible.sync="showVisible">
+        <img width="100%" :src="dialogImageUrl" alt="图片预览">
+    </el-dialog>
+    @*不良类别信息BadTypeCountResult*@
+    <div style="font-size:small;font-family:'Microsoft YaHei UI'">
+        <span style="font-weight:700">不良类别：</span>{{BadTypeCountResult}}
     </div>
+</div>
 @* 分部页放置处 *@
 @section renderPage {
     @RenderPage("~/Views/Warehouse_Material/_wareEdit.cshtml")
@@ -681,80 +705,51 @@
                     isUpload: true,
                     isTip: false,
                     PlatformOptions: [{   //平台选项 VA平台
-                            value: 'VF平台',
-                        }, {
-                            value: 'VA平台',
-                        }, {
-                            value: 'VL平台',
-                        }, {
-                            value: 'VK平台',
-                        }, {
-                            value: 'VH平台',
-                        }, {
-                            value: 'RE平台',
-                        }, {
-                            value: 'VMQ平台',
-                        }, {
-                            value: 'VPQ平台',
-                        }, {
-                            value: 'FM平台',
-                        }, {
-                            value: 'F/FS平台',
-                        }, {
-                            value: 'FI/FL平台',
-                        }, {
-                            value: 'L/LS平台',
-                        }, {
-                            value: '定制屏',
-                        }, {
-                            value: '一体机',
-                        }, {
-                            value: '其他',
-                        }],
+                        value: 'VF平台',
+                    }, {
+                        value: 'VA平台',
+                    }, {
+                        value: 'VL平台',
+                    }, {
+                        value: 'VK平台',
+                    }, {
+                        value: 'VH平台',
+                    }, {
+                        value: 'RE平台',
+                    }, {
+                        value: 'VMQ平台',
+                    }, {
+                        value: 'VPQ平台',
+                    }, {
+                        value: 'FM平台',
+                    }, {
+                        value: 'F/FS平台',
+                    }, {
+                        value: 'FI/FL平台',
+                    }, {
+                        value: 'L/LS平台',
+                    }, {
+                        value: '定制屏',
+                    }, {
+                        value: '一体机',
+                    }, {
+                        value: '其他',
+                    }],
                     PlatformOptions_value: '',
-                    Fault_Classification_Options: [{   //故障分类/产品型号选项
-                            value: '毛毛虫（PCB）',
-                        }, {
-                            value: '毛毛虫（灯管）',
-                        }, {
-                            value: '毛毛虫（使用环境）',
-                        }, {
-                            value: '灯管类',
-                        }, {
-                            value: '电源类',
-                        }, {
-                            value: 'IC类',
-                        }, {
-                            value: '系统卡类',
-                        }, {
-                            value: 'PCB板类',
-                        }, {
-                            value: '接插件类',
-                        }, {
-                            value: '外设类',
-                        }, {
-                            value: '塑胶套件类',
-                        }, {
-                            value: '设计不良',
-                        }, {
-                            value: '作业不良',
-                        }, {
-                            value: '外发加工不良',
-                        }, {
-                            value: '运输不良',
-                        }, {
-                            value: '错发漏发',
-                        }],
+                    Fault_Classification_Options: [],
                     Fault_Classification_Options_value: '',
-                    BadTypeCountResult:"",
+                    BadTypeCountResult: "",
+                    broadHeadingList:[],
                 }
             },
             created: function () {
             },
             mounted: function () {
+                this.getClassificationDate()
+                this.getBroadHeading()
                 this.selectDate();
                 if (this.urlSearchParam && this.urlSearchParam.year) {
-                    console.log(this.urlSearchParam )
+                    console.log(this.urlSearchParam)
                     this.year = this.urlSearchParam.year;
                     this.month = this.urlSearchParam.month != 0 ? this.urlSearchParam.month : 0;
                     this.PlatformOptions_value = this.urlSearchParam.PlatformOptions_value;
@@ -771,17 +766,58 @@
             },
             //函数方法
             methods: {
+                //获取故障分类（大类）
+                getBroadHeading() {
+                    axios.post("/Customer_Complaints/ClassificationList").then(res => {
+                        this.broadHeadingList = res.data
+                    })
+                },
+                //获取故障分类(小类)
+                getClassificationDate() {
+                    axios.post("/Customer_Complaints/FaulClassificationList", { classification:null }).then(res => {
+                        this.Fault_Classification_Options = res.data
+                    })
+                },
+                //导出excel表格
+                exportExcel() {
+                    axios.post("/Customer_Complaints/ExportExcel_AttachmentLoss", { year: this.year, month: this.month, Fault_Classification: this.Fault_Classification_Options_value, Platform: this.PlatformOptions_value }, {
+                        responseType: "blob",
+                    }).then(function (res) {
+                        console.log(res.data)
+                        let fileName = '客诉损失明细表.xlsx'
+                        let url = window.URL.createObjectURL(new Blob([res.data]))
+                        let link = document.createElement('a')
+                        link.style.display = 'none'
+                        link.href = url
+                        link.setAttribute('download', fileName)
+                        document.body.appendChild(link)
+                        link.click()
+                    })
+                },   
+                //删除
+                delClick(row) {
+                    axios.post("/Customer_Complaints/DeleteAttachmentLoss", { id: row}).then(res => {
+                        if (res.data.Result == true) {
+                            this.$message.success(res.data.Message);
+                            this.queryData()
+                        } else {
+                            this.$message.error(res.data.Message);
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求失败！');
+                    })
+                },
                 //总计
                 getSummaries(param) {
                     const { columns, data } = param;
                     const sums = [];
                     let sumData = this.sumList;
                     columns.forEach((column, index) => {
-                        if (index === 20) {
+                        if (index === 21) {
                             sums[index] = '总计：';
                             return;
                         }
-                        if (index === 21) {
+                        if (index === 22) {
                             if (sums[index] != 0) {
                                 sums[index] = '￥' + sumData.Huizhou.toLocaleString('en-US');
                             } else {
@@ -789,7 +825,7 @@
                             }
                             return;
                         }
-                        if (index === 22) {
+                        if (index === 23) {
                             if (sums[index] != 0) {
                                 sums[index] = '￥' + sumData.Management.toLocaleString('en-US');
                             } else {
@@ -797,7 +833,7 @@
                             }
                             return;
                         }
-                        if (index === 23) {
+                        if (index === 24) {
                             if (sums[index] != 0) {
                                 sums[index] = '￥' + sumData.Purchasing.toLocaleString('en-US');
                             } else {
@@ -805,7 +841,7 @@
                             }
                             return;
                         }
-                        if (index === 24) {
+                        if (index === 25) {
                             if (sums[index] != 0) {
                                 sums[index] = '￥' + sumData.Research.toLocaleString('en-US');
                             } else {
@@ -813,7 +849,7 @@
                             }
                             return;
                         }
-                        if (index === 25) {
+                        if (index === 26) {
                             if (sums[index] != 0) {
                                 sums[index] = '￥' + sumData.Engineering.toLocaleString('en-US');
                             } else {
@@ -821,7 +857,7 @@
                             }
                             return;
                         }
-                        if (index === 26) {
+                        if (index === 27) {
                             if (sums[index] != 0) {
                                 sums[index] = '￥' + sumData.Risk.toLocaleString('en-US');
                             } else {
@@ -926,7 +962,7 @@
                         }).catch(err => {
                             console.warn(err);
                             this.$message({
-                                message: this.year + "年"+(this.month > 0 ? (this.month + "月") : "") + "没有客损记录！",//"数据出错！",
+                                message: this.year + "年" + (this.month > 0 ? (this.month + "月") : "") + "没有客损记录！",//"数据出错！",
                                 type: "warning"
                             });
                             this.loading = false;
@@ -943,11 +979,16 @@
                 //修改数据
                 ModifyGuestLoss(row) {
                     let table = [];
-
                     if (row.QualityLoss1 != '') {
                         table.push({
                             OutsideKey: 0,
                             QualityLoss: (row.QualityLoss1.split('￥').join("")).split(',').join(""),
+                            Responsibility: '惠州工厂'
+                        });
+                    } else {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: 0,
                             Responsibility: '惠州工厂'
                         });
                     };
@@ -957,11 +998,23 @@
                             QualityLoss: (row.QualityLoss2.split('￥').join("")).split(',').join(""),
                             Responsibility: '订单管理部'
                         });
+                    } else {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: 0,
+                            Responsibility: '订单管理部'
+                        });
                     };
                     if (row.QualityLoss3 != '') {
                         table.push({
                             OutsideKey: 0,
                             QualityLoss: (row.QualityLoss3.split('￥').join("")).split(',').join(""),
+                            Responsibility: '采购部'
+                        });
+                    } else {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: 0,
                             Responsibility: '采购部'
                         });
                     };
@@ -971,6 +1024,12 @@
                             QualityLoss: (row.QualityLoss4.split('￥').join("")).split(',').join(""),
                             Responsibility: '研发中心'
                         });
+                    } else {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: 0,
+                            Responsibility: '研发中心'
+                        });
                     };
                     if (row.QualityLoss5 != '') {
                         table.push({
@@ -978,11 +1037,23 @@
                             QualityLoss: (row.QualityLoss5.split('￥').join("")).split(',').join(""),
                             Responsibility: '工程售后部'
                         });
+                    } else {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: 0,
+                            Responsibility: '工程售后部'
+                        });
                     };
                     if (row.QualityLoss6 != '') {
                         table.push({
                             OutsideKey: 0,
                             QualityLoss: (row.QualityLoss6.split('￥').join("")).split(',').join(""),
+                            Responsibility: '风控中心'
+                        });
+                    } else {
+                        table.push({
+                            OutsideKey: 0,
+                            QualityLoss: 0,
                             Responsibility: '风控中心'
                         });
                     };
@@ -996,20 +1067,16 @@
                             });
                         });
                     };
-                    //console.log('row:' + JSON.stringify(row));
-                    row.Contract_Amount = row.Contract_Amount.split('￥').join("").split(',').join("");
-                    row.Losses_Amount = row.Losses_Amount.split('￥').join("").split(',').join("");
-                    //console.log('row2:' + JSON.stringify(row));
+                    if (row.Contract_Amount != 0 ) {
+                        row.Contract_Amount = row.Contract_Amount.split('￥').join("").split(',').join("");
+                    };
+                    if (row.Losses_Amount != 0) {
+                        row.Losses_Amount = row.Losses_Amount.split('￥').join("").split(',').join("");
+                    }
                     axios.post("/Customer_Complaints/ModifyGuestLoss", { customer: row, qualityLoss: table }).then(res => {
                         console.log(res.data, 999);
                         if (res.data.meg) {
                             this.$message.success('保存成功');
-                            //let xxx = JSON.parse(res.data.quality);
-                            //console.log(xxx,56)
-                            //xxx.forEach(item => {
-                            //    item.QualityLoss = '￥' + item.QualityLoss.toLocaleString('en-US');
-                            //});
-                            //row.Table = xxx;
                             this.queryData();
                             row.edit = false;
                             this.initialData = {};

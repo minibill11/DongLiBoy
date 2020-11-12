@@ -1299,6 +1299,259 @@ namespace JianHeMES.Controllers
             public double BZ { get; set; }
         }
 
+        public class bma
+        {
+            [Display(Name = "主件物料编号"), StringLength(80)]
+            public string BMA01 { get; set; }
+
+            [Display(Name = "最后工程变异单号"), StringLength(40)]
+            public string BMA02 { get; set; }
+
+            [Display(Name = "最近工程变异日期")]
+            public DataSetDateTime BMA03 { get; set; }
+
+            [Display(Name = "组合模式参考编号"), StringLength(40)]
+            public string  BMA04 { get; set; }
+
+            [Display(Name = "发放日期")]
+            public DataSetDateTime BMA05 { get; set; }
+
+            [Display(Name = "资料所有者"), StringLength(20)]
+            public string BMAUSER { get; set; }
+
+            [Display(Name = "资料所有群"), StringLength(20)]
+            public string BMAGRUP { get; set; }
+
+            [Display(Name = "资料更改者"), StringLength(20)]
+            public string BMAMODU { get; set; }
+
+            [Display(Name = "最近修改日")]
+            public DataSetDateTime BMADATE { get; set; }
+
+            [Display(Name = "资料有效码"), StringLength(2)]
+            public string BMAACTI { get; set; }
+
+            [Display(Name = "特性代码"), StringLength(40)]
+            public string BMA06 { get; set; }
+
+            [Display(Name = "配方否"), StringLength(2)]
+            public string BMA07 { get; set; }
+
+            [Display(Name = "NewCode申请单号"), StringLength(40)]
+            public string BMAAICD01 { get; set; }
+
+            [Display(Name = "资料来源"), StringLength(20)]
+            public string BMA08 { get; set; }
+
+            [Display(Name = "抛转次数")]
+            public double BMA09 { get; set; }
+
+            [Display(Name = "状态码"), StringLength(2)]
+            public string BMA10 { get; set; }
+
+            [Display(Name = "自定栏位-TEXTEDIT"), StringLength(500)]
+            public string BMAUD01 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD02 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD03 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD04 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD05 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD06 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public double BMAUD07 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public double BMAUD08 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public double BMAUD09 { get; set; }
+
+            [Display(Name = "自定栏位-整值")]
+            public int BMAUD10 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public int BMAUD11 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public int BMAUD12 { get; set; }
+
+            [Display(Name = "自定栏位-日期")]
+            public DataSetDateTime BMAUD13 { get; set; }
+
+            [Display(Name = "自定栏位-日期")]
+            public DataSetDateTime BMAUD14 { get; set; }
+
+            [Display(Name = "自定栏位-日期")]
+            public DataSetDateTime BMAUD15 { get; set; }
+
+        }
+
+        public class bmb
+        {
+            [Display(Name = "主件物料编号"), StringLength(80)]
+            public string BMB01 { get; set; }
+
+            [Display(Name = "组合项次")]
+            public int BMB02 { get; set; }
+
+            [Display(Name = "元件料件编号"), StringLength(80)]
+            public string BMB03 { get; set; }
+
+            [Display(Name = "生效日期")]
+            public DataSetDateTime BMB04 { get; set; }
+
+            [Display(Name = "失效日期")]
+            public DataSetDateTime BMB05 { get; set; }
+
+            [Display(Name = "组成用量")]
+            public double BMB06 { get; set; }
+
+            [Display(Name = "底数")]
+            public double BMB07 { get; set; }
+
+            [Display(Name = "损耗率")]
+            public double BMB08 { get; set; }
+
+            [Display(Name = "作业编号"), StringLength(12)]
+            public string BMB09 { get; set; }
+
+            [Display(Name = "发料单位"), StringLength(8)]
+            public string BMB10 { get; set; }
+
+            [Display(Name = "发料对料件库存单位")]
+            public double BMB10_FAC{ get; set; }
+
+            [Display(Name = "发料对料件成本单位")]
+            public double BMB10_FAC2 { get; set; }
+
+            [Display(Name = "工程图号"), StringLength(40)]
+            public string BMB11 { get; set; }
+
+            [Display(Name = "元件插件位置"), StringLength(2000)]
+            public string BMB13 { get; set; }
+
+            [Display(Name = "元件使用特性"), StringLength(2)]
+            public string BMB14 { get; set; }
+
+            [Display(Name = "元件消耗特性"), StringLength(2)]
+            public string BMB15 { get; set; }
+
+            [Display(Name = "取/替代特性"), StringLength(2)]
+            public string BMB16 { get; set; }
+
+            [Display(Name = "特性旗标"), StringLength(2)]
+            public string BMB17 { get; set; }
+
+            [Display(Name = "元件投料时距")]
+            public int  BMB18 { get; set; }
+
+            [Display(Name = "工单开立展开选项"), StringLength(2)]
+            public string BMB19 { get; set; }
+
+            [Display(Name = "NO USE")]
+            public int BMB20 { get; set; }
+
+            [Display(Name = "NO USE"), StringLength(2)]
+            public string BMB21 { get; set; }
+
+            [Display(Name = "NO USE"), StringLength(2)]
+            public string BMB22 { get; set; }
+
+            [Display(Name = "选中率")]
+            public double BMB23 { get; set; }
+
+            [Display(Name = "工程变异单号"), StringLength(40)]
+            public string BMB24 { get; set; }
+
+            [Display(Name = "仓库别"), StringLength(20)]
+            public string BMB25 { get; set; }
+
+            [Display(Name = "存放位置"), StringLength(20)]
+            public string BMB26 { get; set; }
+
+            [Display(Name = "元件是否软体物件"), StringLength(2)]
+            public string BMB27 { get; set; }
+
+            [Display(Name = "发料误差允许率")]
+            public double BMB28 { get; set; }
+
+            [Display(Name = "单身最近一次资料更改者"), StringLength(20)]
+            public string BMBMODU { get; set; }
+
+            [Display(Name = "单身最近一次修改日期")]
+            public DataSetDateTime BMBDATE { get; set; }
+
+            [Display(Name = "修改指令来源"), StringLength(20)]
+            public string BMBCOMM { get; set; }
+
+            [Display(Name = "特性代码"), StringLength(40)]
+            public string BMB29 { get; set; }
+
+            [Display(Name = "计算方式"), StringLength(2)]
+            public string BMB30 { get; set; }
+
+            [Display(Name = "代买料否"), StringLength(2)]
+            public string BMB31 { get; set; }
+
+            [Display(Name = "款式BOM对应项次")]
+            public int BMB33 { get; set; }
+
+            [Display(Name = "自定栏位-TEXTEDIT"), StringLength(2000)]
+            public string BMAUD01 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(2)]
+            public string BMAUD02 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(2000)]
+            public string BMAUD03 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD04 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD05 { get; set; }
+
+            [Display(Name = "自定栏位-文字"), StringLength(80)]
+            public string BMAUD06 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public double BMAUD07 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public double BMAUD08 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public double BMAUD09 { get; set; }
+
+            [Display(Name = "自定栏位-整值")]
+            public int BMAUD10 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public int BMAUD11 { get; set; }
+
+            [Display(Name = "自定栏位-数值")]
+            public int BMAUD12 { get; set; }
+
+            [Display(Name = "自定栏位-日期")]
+            public DataSetDateTime BMAUD13 { get; set; }
+
+            [Display(Name = "自定栏位-日期")]
+            public DataSetDateTime BMAUD14 { get; set; }
+
+            [Display(Name = "自定栏位-日期")]
+            public DataSetDateTime BMAUD15 { get; set; }
+        }
+
         #endregion
 
         #region------ ERP查询方法

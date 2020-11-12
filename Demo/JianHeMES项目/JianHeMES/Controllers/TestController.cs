@@ -23,6 +23,30 @@ namespace JianHeMES.Controllers
         private kongyadbEntities db = new kongyadbEntities();
         private ApplicationDbContext mesdb = new ApplicationDbContext();
 
+        public ActionResult TestSignalR()
+        {
+            return View();
+        }
+
+        //public void testpackage()
+        //{
+        //    var ordernum = mesdb.Packing_BasicInfo.Select(c => c.OrderNum).Distinct().ToList();
+        //    var packinfo = mesdb.Packing_BasicInfo.Select(c => new { c.Quantity, c.OrderNum }).ToList();
+        //    var warehouinfo = mesdb.Warehouse_Join.Select(c => new { c.NewBarcode, c.CartonOrderNum, c.IsOut, c.State, c.OuterBoxBarcode, c.WarehouseOutDate }).ToList();
+        //    foreach (var item in ordernum)
+        //    {
+        //        var packcount = packinfo.Where(c => c.OrderNum == item).Sum(c => c.Quantity);
+        //        var warehoucount = warehouinfo.Where(c => (c.NewBarcode == item || c.CartonOrderNum == item) && c.IsOut == true && c.State == "模组").Select(c => c.OuterBoxBarcode).Distinct().Count();
+        //        if (packcount == warehoucount)
+        //        {
+        //            var maxtime = warehouinfo.Where(c => (c.NewBarcode == item || c.CartonOrderNum == item) && c.IsOut == true && c.State == "模组").Max(c => c.WarehouseOutDate);
+        //            var packtime = mesdb.Packing_BasicInfo.Where(c => c.OrderNum == item).ToList();
+        //            packtime.ForEach(c => c.WarehouseTime = maxtime);
+        //            mesdb.SaveChanges();
+        //        }
+        //    }
+        //    string res = "";
+        //}
 
         public JArray CheckModuleNeverInsideBoxList(string ordernum,string barcodetype="模块")
         {

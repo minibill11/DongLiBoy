@@ -1,29 +1,45 @@
 //<!--------格式化日期--------->
 //2020-05-21T10:54:56.955+08:00 ——> 2020-05-21 18:54:56
 const formatTime = function (v) {
-  let date = new Date(v);
-  let month = (date.getMonth() + 1).toString().padStart(2, 0);
-  return date.getFullYear() + "-" + month + "-" + (date.getDate().toString().padStart(2, 0)) + " " + date.getHours().toString().padStart(2, 0) + ":" + date.getMinutes().toString().padStart(2, 0) + ":" + date.getSeconds().toString().padStart(2, 0);
+  if (v == "" || v == null) {
+    return ""
+  } else {
+    let date = new Date(v);
+    let month = (date.getMonth() + 1).toString().padStart(2, 0);
+    return date.getFullYear() + "-" + month + "-" + (date.getDate().toString().padStart(2, 0)) + " " + date.getHours().toString().padStart(2, 0) + ":" + date.getMinutes().toString().padStart(2, 0) + ":" + date.getSeconds().toString().padStart(2, 0);
+  }
 }
 
 //2020-05-21T10:54:56.955+08:00 ——> 2020-05-21 18:54
 const formatMinutes = function (v) {
-  let date = new Date(v);
-  let month = (date.getMonth() + 1).toString().padStart(2, 0);
-  return date.getFullYear() + "-" + month + "-" + (date.getDate().toString().padStart(2, 0)) + " " + date.getHours().toString().padStart(2, 0) + ":" + date.getMinutes().toString().padStart(2, 0);
+  if (v == "" || v == null) {
+    return ""
+  } else {
+    let date = new Date(v);
+    let month = (date.getMonth() + 1).toString().padStart(2, 0);
+    return date.getFullYear() + "-" + month + "-" + (date.getDate().toString().padStart(2, 0)) + " " + date.getHours().toString().padStart(2, 0) + ":" + date.getMinutes().toString().padStart(2, 0);
+  }
 }
 
 //2020-05-21T10:54:56.955+08:00 ——> 2020-05-21
 const formatDate = function (v) {
-  let date = new Date(v);
-  let month = (date.getMonth() + 1).toString().padStart(2, 0);
-  return date.getFullYear() + "-" + month + "-" + date.getDate().toString().padStart(2, 0);
+  if (v == "" || v == null) {
+    return ""
+  } else {
+    let date = new Date(v);
+    let month = (date.getMonth() + 1).toString().padStart(2, 0);
+    return date.getFullYear() + "-" + month + "-" + date.getDate().toString().padStart(2, 0);
+  }
 }
 //2020-05-21T10:54:56.955+08:00 ——> 2020-05
 const formatMonth = function (v) {
-  let date = new Date(v);
-  let month = (date.getMonth() + 1).toString().padStart(2, 0);
-  return date.getFullYear() + "-" + month;
+  if (v == "" || v == null) {
+    return ""
+  } else {
+    let date = new Date(v);
+    let month = (date.getMonth() + 1).toString().padStart(2, 0);
+    return date.getFullYear() + "-" + month;
+  }
 }
 
 
@@ -52,12 +68,21 @@ const formatMoney = (number, decimals = 0, decPoint = '.', thousandsSep = ',') =
   return s.join(dec)
 }
 
+
+//<!--------格式化百分比--------->
+//98——>98%
+const formatPercentage = (v) => {
+    return v + "%";
+}
+
 export {
   //格式化日期
-  formatTime,//2020-05-21T10:54:56.955+08:00 ——> 2020-05-21 18:54:56
-  formatMinutes,//2020-05-21T10:54:56.955+08:00 ——> 2020-05-21 18:54
-  formatDate,//2020-05-21T10:54:56.955+08:00 ——> 2020-05-21
-  formatMonth,//2020-05-21T10:54:56.955+08:00 ——> 2020-05
+  formatTime, //2020-05-21T10:54:56.955+08:00 ——> 2020-05-21 18:54:56
+  formatMinutes, //2020-05-21T10:54:56.955+08:00 ——> 2020-05-21 18:54
+  formatDate, //2020-05-21T10:54:56.955+08:00 ——> 2020-05-21
+  formatMonth, //2020-05-21T10:54:56.955+08:00 ——> 2020-05
   //格式化金额
-  formatMoney,
+  formatMoney,//15862354695852——>15,862,354,695,852
+  //格式化金额
+  formatPercentage,//98——>98%
 }

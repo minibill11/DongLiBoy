@@ -1,0 +1,473 @@
+<!--- 设备首页-运行状态 --->
+<template>
+  <div>
+    <EqHeader :active="active"></EqHeader>
+    <el-main class="main-box" v-loading="loading">
+      <!-- @*总图*@ -->
+      <el-row :gutter="30">
+        <el-col
+          :xs="24"
+          :sm="12"
+          :md="8"
+          :lg="8"
+          v-for="(item,index) in chartsList"
+          :key="index+'a'"
+        >
+          <el-card class="card-bg">
+            <div @click="onChangeCard(item.title)">
+              <div class="chart-style">
+                <EqCard
+                  :id="`charts${item.id}`"
+                  :chart="item.chart"
+                  size="big"
+                  :text="item.text"
+                  :value="item.value"
+                  :radius="radiusBig"
+                  :color="item.color"
+                ></EqCard>
+              </div>
+              <div
+                :class="
+                  selected == item.title ? 'card-title-select' : 'card-title'
+                "
+              >
+                {{ item.title }}
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+      <div class="item-title-box">
+        <div class="item-title-box-name">各部门{{ selected }}</div>
+      </div>
+      <!-- @*子图*@ -->
+      <el-row :gutter="30">
+        <el-col
+          v-show="selected == '设备稼动率汇总'"
+          :xs="24"
+          :sm="12"
+          :md="6"
+          :lg="6"
+          v-for="(item,index) in currentList"
+          :key="index+'b'"
+          style="margin-bottom: 15px"
+        >
+          <div class="charts-item" @click="onToPage(item.title, 0)">
+            <div class="item-title">{{ item.title }}</div>
+            <div class="chart-style">
+              <EqCard
+                :id="`currentItem${item.id}`"
+                :chart="item.chart"
+                size="small"
+                :radius="radiusSmall"
+                :color="color1"
+              ></EqCard>
+            </div>
+          </div>
+        </el-col>
+        <el-col
+          v-show="selected == '设备状态汇总'"
+          :xs="24"
+          :sm="12"
+          :md="6"
+          :lg="6"
+          v-for="(item,index) in factoryCurrentList"
+          :key="index+'c'"
+          style="margin-bottom: 15px"
+        >
+          <div class="charts-item" @click="onToPage(item.title, 1)">
+            <div class="item-title">{{ item.title }}</div>
+            <div class="chart-style">
+              <EqCard
+                :id="`factoryItem${item.id}`"
+                :chart="item.chart"
+                size="small"
+                :radius="radiusSmall"
+                :color="color1"
+              ></EqCard>
+            </div>
+          </div>
+        </el-col>
+        <el-col
+          v-show="selected == '设备保养汇总'"
+          :xs="24"
+          :sm="12"
+          :md="6"
+          :lg="6"
+          v-for="(item,index) in maintenanceList"
+          :key="index+'d'"
+          style="margin-bottom: 15px"
+        >
+          <div class="charts-item" @click="onToPage(item.title, 2)">
+            <div class="item-title">{{ item.title }}</div>
+            <div class="chart-style">
+              <EqCard
+                :id="`maintenanceItem${item.id}`"
+                :chart="item.chart"
+                size="small"
+                :radius="radiusSmall"
+                :color="color2"
+              ></EqCard>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+      <!-- @*子表*@ -->
+      <EqTable :selectedTitle="selected" :table="tableListData"></EqTable>
+    </el-main>
+  </div>
+</template>
+
+<script>
+import EqHeader from "./page-components/_eq_header";
+import EqTable from "./page-components/_eq_table";
+import EqCard from "./page-components/_eq_card";
+import {
+  Equipment_DeviceTime,
+  Equipment_Thecurrent,
+  Tally_Maintenance
+} from "@/api/equipment";
+export default {
+  name: "Equipment_NewIndex",
+  props: {},
+  data() {
+    return {
+      active: "运行状态",
+      loading: true,
+      radiusBig: ["28%", "55%"],
+      radiusSmall: ["15%", "40%"],
+      color1: ["#22c49e", "#f7c73a", "#ff8590", "#5a74ed"],
+      color2: ["#22c49e", "#5a74ed", "#ff8590"],
+      selected: "设备稼动率汇总",
+      chartsList: [],
+      tableListData: {},
+      //子图
+      currentList: [], //设备稼动率子图
+      factoryCurrentList: [], //设备状态子图
+      maintenanceList: [], //设备保养子图
+    };
+  },
+  components: {
+    EqHeader,
+    EqTable,EqCard
+  },
+  computed: {},
+  watch: {},
+  methods: {
+    //获取设备稼动率汇总
+    onGetRateData() {
+      let dd = new Date();
+      return new Promise((resolve, reject) => {
+        Equipment_DeviceTime({
+            year: dd.getFullYear(),
+            month: dd.getMonth() + 1,
+          })
+          .then((res) => {
+            //console.log(res.status, 11);
+            //console.log(res.data.Data, 222)
+            resolve(res.data.Data);
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      });
+    },
+    //获取设备状态汇总
+    onGetStateData() {
+      return new Promise((resolve, reject) => {
+       Equipment_Thecurrent()
+          .then((res) => {
+            //console.log(res.status, 22);
+            //console.log(res.data.Data, 222)
+            resolve(res.data.Data);
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      });
+    },
+    //获取设备保养汇总
+    onGetMaintainData() {
+      let dd = new Date();
+      return new Promise((resolve, reject) => {
+        Tally_Maintenance({
+            year: dd.getFullYear(),
+            month: dd.getMonth() + 1,
+          })
+          .then((res) => {
+            //console.log(res.status, 33);
+            //console.log(res.data.Data, 222)
+            resolve(res.data.Data);
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      });
+    },
+    //获取数据
+    onGetData() {
+      Promise.all([
+        this.onGetRateData(),
+        this.onGetStateData(),
+        this.onGetMaintainData(),
+      ]).then((res) => {
+        this.loading = false;
+        // console.log(res, 555);
+        //localStorage.setItem("chartData", JSON.stringify(res));
+        this.initSummaryChart(res);
+        let current = res[0].current,
+          Factory_current = res[1].Message,
+          DepartmentList = res[2].DepartmentList;
+        this.tableListData = { current, Factory_current, DepartmentList };
+        this.initItemChart(current, Factory_current, DepartmentList);
+        //console.log(this.tableListData, 999);
+      });
+    },
+    //总图
+    initSummaryChart(res) {
+      //console.log(res, 999);
+      //图数据
+      let obj = {
+        id: 0,
+        title: "设备稼动率汇总",
+        text: "总时长",
+        color: ["#22c49e", "#f7c73a", "#ff8590", "#5a74ed"],
+        value:
+          parseInt(res[0].RuntotalDevice) +
+          parseInt(res[0].StoptotalDevice) +
+          parseInt(res[0].MainttotalDevice) +
+          parseInt(res[0].TallytotalDevice), //总时长
+        chart: [
+          {
+            value: res[0].RuntotalDevice,
+            name: "运行时长",
+            per: res[0].Runpercentage_Device,
+          },
+          {
+            value: res[0].StoptotalDevice,
+            name: "停机时长",
+            per: res[0].Stoppercentage_Device,
+          },
+          {
+            value: res[0].MainttotalDevice,
+            name: "维修时长",
+            per: res[0].Maintpercentage_Device,
+          },
+          {
+            value: res[0].TallytotalDevice,
+            name: "保养时长",
+            per: res[0].Tallypercentage_Device,
+          },
+        ],
+      };
+      let obj1 = {
+        id: 1,
+        title: "设备状态汇总",
+        text: "设备数",
+        color: ["#22c49e", "#f7c73a", "#ff8590"],
+        value:
+          parseInt(res[1].Runtotal) +
+          parseInt(res[1].Stoptotal) +
+          parseInt(res[1].Mainttotal), //设备数
+        chart: [
+          { value: res[1].Runtotal, name: "运行", per: res[1].Runpercentage },
+          { value: res[1].Stoptotal, name: "停机", per: res[1].Stoppercentage },
+          {
+            value: res[1].Mainttotal,
+            name: "维修",
+            per: res[1].Maintpercentage,
+          },
+        ],
+      };
+      let obj2 = {
+        id: 2,
+        title: "设备保养汇总",
+        text: "本月/全厂设备数",
+        color: ["#22c49e", "#5a74ed", "#ff8590"],
+        value: parseInt(res[2].TotalNum) + "/" + parseInt(res[2].FactoryNum), //设备数
+        chart: [
+          {
+            value: res[2].Total_HaveMaintain,
+            name: "已保养",
+            per: res[2].Total_HavePercent,
+          },
+          {
+            value: res[2].Total_ToMaintain,
+            name: "计划保养",
+            per: res[2].Total_ToPercent,
+          },
+        ],
+      };
+      this.chartsList = [];
+      this.chartsList.push(obj, obj1, obj2);
+    },
+    //子图
+    initItemChart(arr1, arr2, arr3) {
+      // console.log(arr1, 111);
+      // console.log(arr2, 222);
+      // console.log(arr3, 333);
+      this.currentList = [];
+      this.factoryCurrentList = [];
+      this.maintenanceList = [];
+      arr1.forEach((item, index) => {
+        let obj1 = {
+          id: index,
+          title: item.UserDepartment,
+          chart: [
+            {
+              value: item.RunnDevice,
+              name: "运行时长",
+              per: item.RunDepar_Device,
+            },
+            {
+              value: item.StopnDevice,
+              name: "停机时长",
+              per: item.StopDepar_Device,
+            },
+            {
+              value: item.MaintDevice,
+              name: "维修时长",
+              per: item.MaintDepar_Device,
+            },
+            {
+              value: item.TallyDevice,
+              name: "保养时长",
+              per: item.TallyDepar_Device,
+            },
+          ],
+        };
+        this.currentList.push(obj1);
+      });
+      arr2.forEach((item, index) => {
+        let obj2 = {
+          id: index,
+          title: item.UserDepartment,
+          chart: [
+            { value: item.Runnumber, name: "运行", per: item.Run_Depar },
+            { value: item.Stopnumber, name: "停机", per: item.Stop_Depar },
+            { value: item.Maintnumber, name: "维修", per: item.Maint_Depar },
+          ],
+        };
+        this.factoryCurrentList.push(obj2);
+      });
+      arr3.forEach((item, index) => {
+        let obj3 = {
+          id: index,
+          title: item.UserDepartment,
+          chart: [
+            {
+              value: item.Depart_HaveMaintain,
+              name: "已保养",
+              per: item.Depart_HavePercent,
+            },
+            {
+              value: item.Depart_ToMaintain,
+              name: "计划保养",
+              per: item.Depart_ToPercent,
+            },
+          ],
+        };
+        this.maintenanceList.push(obj3);
+      });
+      //this.tableListData = { arr1, arr2, arr3};
+      //console.log(this.currentList, 111);
+      //console.log(this.factoryCurrentList, 222);
+      //console.log(this.maintenanceList, 333);
+    },
+    //选择总图
+    onChangeCard(val) {
+      //console.log(val)
+      this.selected = val;
+    },
+    //选择子图跳转
+    onToPage(val, index) {
+      let date = new Date();
+      // console.log(window.location.host)
+      let path = window.location.host;
+      if (index == 0) {
+        window.open(path+"/Equipment/EmployTime?paramData=" + val);
+      }
+      if (index == 1) {
+        window.open(path+"/Equipment/Equipment_Production_line?paramData=" + val);
+      }
+      if (index == 2) {
+        window.open(
+          path+"/Equipment/Equipment_Maintenance_Summary?paramData=" +
+            val +
+            "&date=" +
+            date
+        );
+      }
+    },
+  },
+  created() {},
+  mounted() {
+    this.onGetData();
+  },
+};
+</script>
+
+<style lang='less' scoped>
+@import url("~@/assets/style/color.less");
+@import url("./page-components/equipment.less");
+.el-card__body {
+  padding: 2px 0 0 0;
+}
+
+.chart-style {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-title {
+  text-align: center;
+  padding: 10px;
+  background: #e4ecf7;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.card-title-select {
+  text-align: center;
+  padding: 10px;
+  color: #fff;
+  background: @primary-color;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.card-bg {
+  background: #fff;
+  cursor: pointer;
+}
+
+.card-bg:hover {
+  background: #f2f8ff;
+}
+.charts-item:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.item-title-box {
+  width: 100%;
+  text-align: center;
+  padding: 30px 0 20px 0;
+}
+
+.item-title-box-name {
+  font-weight: bold;
+  font-size: 16px;
+  color: #303133;
+}
+
+.item-title {
+  text-align: center;
+  background: #e4ecf7;
+  padding: 4px;
+  font-size: 14px;
+  font-weight: bold;
+}
+</style>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Entity;
@@ -21,6 +21,7 @@ using System.Threading;
 using System.Drawing;
 using JianHeMES.AuthAttributes;
 using System.Net.Http;
+using static JianHeMES.Controllers.CommonalityController;
 
 namespace JianHeMES.Controllers
 {
@@ -307,7 +308,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-        #region------同时修改三个表的设备状态（Status）
+        #region------同时修改两个表的设备状态（Status）
         [HttpPost]
         ///<summary>
         /// 1.方法的作用：修改设备状态（同时修改三个相关联的数据表）。
@@ -332,14 +333,14 @@ namespace JianHeMES.Controllers
                         station.Modifier = ((Users)Session["user"]).UserName;
                         db.SaveChanges();
                     }
-                    var infoe = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item).FirstOrDefault();//根据设备编号查询数据
-                    if (infoe != null)//判断查询出来的数据（infoe）是否为空
-                    {
-                        infoe.Status = status;
-                        infoe.ModifyTime = DateTime.Now;
-                        infoe.Modifier = ((Users)Session["user"]).UserName;
-                        db.SaveChanges();
-                    }
+                    //var infoe = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item).FirstOrDefault();//根据设备编号查询数据
+                    //if (infoe != null)//判断查询出来的数据（infoe）是否为空
+                    //{
+                    //    infoe.Status = status;
+                    //    infoe.ModifyTime = DateTime.Now;
+                    //    infoe.Modifier = ((Users)Session["user"]).UserName;
+                    //    db.SaveChanges();
+                    //}
                     var record = db.EquipmentStateTime.OrderByDescending(c => c.StatusStarTime).Where(c => c.EquipmentNumber == item).FirstOrDefault();//按照设备状态的开始时间并根据设备编号查询数据
                     if (record != null && record.Status != status)//判断查询出来的数据（record）是否为空，查找出来的数据里的设备状态不能等于前端传送过来的设备状态
                     {
@@ -354,10 +355,10 @@ namespace JianHeMES.Controllers
                         db.EquipmentStateTime.Add(add);//把数据保存到对应的表
                         db.SaveChanges();
                     }
-                    else if (record == null && infoe != null)//判断record等于null，infoe不能等于null
+                    else if (record == null && station != null)//判断record等于null，station不能等于null
                     {
                         //在EquipmentStateTime表里添加数据（数据有：设备编号，资产编号，设备名称，设备状态，状态的开始时间等）
-                        var rede = new EquipmentStateTime() { EquipmentNumber = infoe.EquipmentNumber, AssetNumber = infoe.AssetNumber, EquipmentName = infoe.EquipmentName, Status = status, StatusStarTime = DateTime.Now, StatusEndTime = null, UserDepartment = userdepar, LineNum = linenum, Creator = ((Users)Session["user"]).UserName, CreateTime = DateTime.Now };
+                        var rede = new EquipmentStateTime() { EquipmentNumber = station.EquipmentNumber, AssetNumber = station.AssetNumber, EquipmentName = station.EquipmentName, Status = status, StatusStarTime = DateTime.Now, StatusEndTime = null, UserDepartment = userdepar, LineNum = linenum, Creator = ((Users)Session["user"]).UserName, CreateTime = DateTime.Now };
                         db.EquipmentStateTime.Add(rede);
                         db.SaveChanges();
                     }
@@ -452,7 +453,7 @@ namespace JianHeMES.Controllers
             result.Add("statusrecord", JsonConvert.SerializeObject(statusrecord));
             return Content(JsonConvert.SerializeObject(result));
         }
-        #endregion、
+        #endregion
 
         #region-----修改设备信息EquipmentBasicInfo表-----
         [HttpPost]
@@ -463,7 +464,7 @@ namespace JianHeMES.Controllers
         /// （3）.子判断不为空时就进入下一步，修改数据（修改资产编号、使用部门、设备名称等）和添加修改人修改时间。
         /// 4.方法（可能）有结果：判断条件为空就修改失败（数据有误），判断条件不为空就修改成功。
         /// </summary> 
-        public ActionResult Edit_Equipmentbasic(string equipmentNumber, string assetNumber, string equipmentName, string userdepartment, string modelspeci, string manufacturingNumber, string brand, string supplier, DateTime? purchaseDate, DateTime? actionDate, string remark, string storagePlace)
+        public ActionResult Edit_Equipmentbasic(string equipmentNumber, string assetNumber, string equipmentName, string userdepartment, string status, string modelspeci, string manufacturingNumber, string brand, string supplier, DateTime? purchaseDate, DateTime? actionDate, string remark, string storagePlace)
         {
             JObject messlist = new JObject();
             var recordlist = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号到EquipmentBasicInfo表里查询相对应的数据
@@ -474,20 +475,86 @@ namespace JianHeMES.Controllers
                 {
                     recordlist.AssetNumber = assetNumber;//修改保存资产编号数据
                     count++;
+                    var se = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();
+                    if (se != null)
+                    {
+                        se.AssetNumber = assetNumber;
+                        se.Modifier = ((Users)Session["User"]).UserName;
+                        se.ModifyTime = DateTime.Now;//添加修改时间
+                    }
                 }
                 if (recordlist.EquipmentName != equipmentName)//判断前端传送过来的设备名称是否为空（如果前一个判断为空，就会运行下一个判断）
                 {
                     recordlist.EquipmentName = equipmentName;//修改保存设备名称数据
                     count++;
+                    var se = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();
+                    if (se != null)
+                    {
+                        se.EquipmentName = equipmentName;
+                        se.Modifier = ((Users)Session["User"]).UserName;
+                        se.ModifyTime = DateTime.Now;//添加修改时间
+                    }
                 }
                 if (recordlist.UserDepartment != userdepartment)//判断前端传送过来的使用部门是否为空（如果前一个判断为空，就会运行下一个判断）
                 {
                     recordlist.UserDepartment = userdepartment;//修改保存使用部门数据
                     count++;
                     var se = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();
-                    se.UserDepartment = userdepartment;
-                    se.Modifier = ((Users)Session["User"]).UserName;
-                    se.ModifyTime = DateTime.Now;//添加修改时间
+                    if (se != null)
+                    {
+                        se.UserDepartment = userdepartment;
+                        se.Modifier = ((Users)Session["User"]).UserName;
+                        se.ModifyTime = DateTime.Now;//添加修改时间
+                    }
+                }
+                if (recordlist.Status != status)//判断前端传送过来的设备状态是否为空（如果前一个判断为空，就会运行下一个判断）
+                {
+                    recordlist.Status = status;//修改保存设备状态                    
+                    if (status == "闲置")
+                    {
+                        var eq = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号查询该设备的数据
+                        if (eq != null)
+                        {
+                            //根据使用部门、线别号和位置号查询数据
+                            var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == eq.UserDepartment && c.LineNum == eq.LineNum && c.StationNum >= eq.StationNum).ToList();
+                            foreach (var item in eqlist)//循环
+                            {
+                                item.StationNum = item.StationNum - 1;//位置号减一
+                                db.SaveChanges();//保存
+                            }
+                            db.EquipmentSetStation.Remove(eq);//删除对应的数据
+                            db.SaveChanges();//保存
+                        }
+                        var ste = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber).ToList();
+                        if (ste.Count > 0)
+                        {
+                            db.EquipmentStateTime.RemoveRange(ste);
+                            db.SaveChanges();//保存
+                        }
+                    }
+                    else if (status == "报废")
+                    {
+                        var eq = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号查询该设备的数据
+                        if (eq != null)
+                        {
+                            //根据使用部门、线别号和位置号查询数据
+                            var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == eq.UserDepartment && c.LineNum == eq.LineNum && c.StationNum >= eq.StationNum).ToList();
+                            foreach (var item in eqlist)//循环
+                            {
+                                item.StationNum = item.StationNum - 1;//位置号减一
+                                db.SaveChanges();//保存
+                            }
+                            db.EquipmentSetStation.Remove(eq);//删除对应的数据
+                            db.SaveChanges();//保存
+                        }
+                        var ste = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber).ToList();
+                        if (ste.Count > 0)
+                        {
+                            db.EquipmentStateTime.RemoveRange(ste);
+                            db.SaveChanges();//保存
+                        }
+                    }
+                    count++;
                 }
                 if (recordlist.ModelSpecification != modelspeci)//判断前端传送过来的型号/规格是否为空（如果前一个判断为空，就会运行下一个判断）
                 {
@@ -587,7 +654,7 @@ namespace JianHeMES.Controllers
             }
             return Content("上传失败！");
         }
-        #endregion  
+        #endregion
 
         #region------获取所有设备编号的方法
         [HttpPost]
@@ -1021,7 +1088,7 @@ namespace JianHeMES.Controllers
         /// </summary> 
         public ActionResult EquipmentNumberList()
         {
-            var equi_list = db.EquipmentBasicInfo.OrderByDescending(m => m.Id).Select(c => c.EquipmentNumber).Distinct();
+            var equi_list = db.EquipmentBasicInfo.Where(c => c.Status == "正常").OrderByDescending(m => m.Id).Select(c => c.EquipmentNumber).Distinct();
             return Content(JsonConvert.SerializeObject(equi_list));
         }
         #endregion
@@ -1059,32 +1126,40 @@ namespace JianHeMES.Controllers
             //判断设备编号，使用部门，线别号是否为空
             if (!String.IsNullOrEmpty(EquipmentSetStation.EquipmentNumber) && !String.IsNullOrEmpty(EquipmentSetStation.UserDepartment) && !String.IsNullOrEmpty(EquipmentSetStation.LineNum))
             {
-                //根据使用部门、线别号、位置号查找数据
-                var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == EquipmentSetStation.UserDepartment && c.LineNum == EquipmentSetStation.LineNum && c.StationNum >= EquipmentSetStation.StationNum).ToList();
-                foreach (var item in eqlist)//循环查询出来的数据
+                var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == EquipmentSetStation.EquipmentNumber).Select(c => c.Status).FirstOrDefault();
+                if (status == "正常")
                 {
-                    item.StationNum = item.StationNum + 1;//位置号加一
-                    db.SaveChanges();//保存到数据库
+                    //根据使用部门、线别号、位置号查找数据
+                    var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == EquipmentSetStation.UserDepartment && c.LineNum == EquipmentSetStation.LineNum && c.StationNum >= EquipmentSetStation.StationNum).ToList();
+                    foreach (var item in eqlist)//循环查询出来的数据
+                    {
+                        item.StationNum = item.StationNum + 1;//位置号加一
+                        db.SaveChanges();//保存到数据库
+                    }
+                    EquipmentSetStation.CreateTime = DateTime.Now;//添加创建时间
+                    EquipmentSetStation.Creator = ((Users)Session["user"]).UserName;//添加创建人
+                    db.EquipmentSetStation.Add(EquipmentSetStation);//把数据保存到对应的表
+                    var savecount = db.SaveChanges();//保存到数据库
+                    if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
+                    {
+                        mess.Add("messlist", "添加设备成功！");
+                        mess.Add("equipmentSetStation", JsonConvert.SerializeObject(EquipmentSetStation));
+                        return Content(JsonConvert.SerializeObject(mess));
+                    }
+                    else //savecount等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        mess.Add("messlist", "添加设备失败！");
+                        mess.Add("equipmentSetStation", null);
+                        return Content(JsonConvert.SerializeObject(mess));
+                    }
                 }
-                EquipmentSetStation.CreateTime = DateTime.Now;//添加创建时间
-                EquipmentSetStation.Creator = ((Users)Session["user"]).UserName;//添加创建人
-                db.EquipmentSetStation.Add(EquipmentSetStation);//把数据保存到对应的表
-                var savecount = db.SaveChanges();//保存到数据库
-                if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
+                else
                 {
-                    mess.Add("messlist", "添加设备成功！");
-                    mess.Add("equipmentSetStation", JsonConvert.SerializeObject(EquipmentSetStation));
-                    return Content(JsonConvert.SerializeObject(mess));
-                }
-                else //savecount等于0（没有把数据保存到数据库或者保存出错）
-                {
-                    mess.Add("messlist", "添加设备失败！");
-                    mess.Add("equipmentSetStation", null);
-                    return Content(JsonConvert.SerializeObject(mess));
+                    mess.Add("messlist", false);
+                    mess.Add("equipmentSetStation", "该设备状态为闲置/报废，不可添加");
                 }
             }
-
-            return Content("添加设备数据有误！");
+            return Content("添加设备失败！");
         }
         #endregion
 
@@ -1102,7 +1177,7 @@ namespace JianHeMES.Controllers
             if (!String.IsNullOrEmpty(equipmentNumber))//判断设备编号是否为空
             {
                 var eq = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号查询该设备的数据
-                //根据使用部门、线别号和位置号查询数据
+                                                                                                                  //根据使用部门、线别号和位置号查询数据
                 var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == eq.UserDepartment && c.LineNum == eq.LineNum && c.StationNum >= eq.StationNum).ToList();
                 foreach (var item in eqlist)//循环
                 {
@@ -1129,6 +1204,9 @@ namespace JianHeMES.Controllers
 
         public ActionResult ADDLineNum(string usedepartment, string lineNum, string equipmentNumberlist)
         {
+            JArray ret = new JArray();
+            JObject result = new JObject();
+            string repat = "";
             List<equipment_station> eqnumlist = (List<equipment_station>)JsonHelper.jsonDes<List<equipment_station>>(equipmentNumberlist);
             List<equipment_station> eqnumlist1 = (List<equipment_station>)JsonHelper.jsonDes<List<equipment_station>>(equipmentNumberlist);
             if (!String.IsNullOrEmpty(usedepartment) && !String.IsNullOrEmpty(lineNum) && eqnumlist.Count > 0)
@@ -1136,20 +1214,36 @@ namespace JianHeMES.Controllers
                 List<EquipmentSetStation> eqlist = new List<EquipmentSetStation>();
                 foreach (var item in eqnumlist)
                 {
-                    EquipmentSetStation eq = new EquipmentSetStation();
-                    var eqdata = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item.Value).FirstOrDefault();
-                    eq.EquipmentNumber = item.Value; //设备编号
-                    eq.AssetNumber = eqdata.AssetNumber;//资产编号
-                    eq.EquipmentName = eqdata.EquipmentName;//设备名称
-                    eq.Status = "停机";//默认设备状态为停机
-                    eq.UserDepartment = usedepartment;//使用部门
-                    eq.WorkShop = eqdata.WorkShop;//车间
-                    eq.LineNum = lineNum;//产线号（名）                
-                    eq.Section = eqdata.Section;//工段
-                    eq.StationNum = item.Key;//位置序号
-                    eq.Creator = ((Users)Session["user"]).UserName;//创建记录人
-                    eq.CreateTime = DateTime.Now;//创建时间
-                    eqlist.Add(eq);
+                    var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item.Value).Select(c => c.Status).FirstOrDefault();
+                    if (status == "正常")
+                    {
+                        EquipmentSetStation eq = new EquipmentSetStation();
+                        var eqdata = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item.Value).FirstOrDefault();
+                        eq.EquipmentNumber = item.Value; //设备编号
+                        eq.AssetNumber = eqdata.AssetNumber;//资产编号
+                        eq.EquipmentName = eqdata.EquipmentName;//设备名称
+                        eq.Status = "停机";//默认设备状态为停机
+                        eq.UserDepartment = usedepartment;//使用部门
+                        eq.WorkShop = eqdata.WorkShop;//车间
+                        eq.LineNum = lineNum;//产线号（名）                
+                        eq.Section = eqdata.Section;//工段
+                        eq.StationNum = item.Key;//位置序号
+                        eq.Creator = ((Users)Session["user"]).UserName;//创建记录人
+                        eq.CreateTime = DateTime.Now;//创建时间
+                        eqlist.Add(eq);
+                    }
+                    else
+                    {
+                        repat = item.Value;
+                        repat = status;
+                        ret.Add(repat);
+                    }
+                }
+                if (ret.Count > 0)
+                {
+                    result.Add("Reh", false);
+                    result.Add("Meg", ret);
+                    return Content(JsonConvert.SerializeObject(result));
                 }
                 db.EquipmentSetStation.AddRange(eqlist);
                 db.SaveChanges();
@@ -1631,12 +1725,16 @@ namespace JianHeMES.Controllers
                 {
                     return Content("记录已经存在");
                 }
-                db.Equipment_Tally_maintenance.Add(equipment_Tally_maintenance);//把数据保存到对应的表
-                int result = db.SaveChanges();
-                if (result > 0) //判断result是否大于0（有没有把数据保存到数据库）
-                    return Content("true");
-                else   //result等于0（没有把数据保存到数据库或者保存出错）
-                    return Content("false");
+                var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == equipment_Tally_maintenance.EquipmentNumber).Select(c => c.Status).FirstOrDefault();
+                if (status != null && status == "正常")
+                {
+                    db.Equipment_Tally_maintenance.Add(equipment_Tally_maintenance);//把数据保存到对应的表
+                    int result = db.SaveChanges();
+                    if (result > 0) //判断result是否大于0（有没有把数据保存到数据库）
+                        return Content("true");
+                    else   //result等于0（没有把数据保存到数据库或者保存出错）
+                        return Content("false");
+                }
             }
             return Content("false");
         }
@@ -1861,9 +1959,10 @@ namespace JianHeMES.Controllers
                     var equipmentList = SheetCopy.Where(c => c.Year == old_year && c.Month == old_month && c.UserDepartment == item).Select(c => c.EquipmentNumber).Distinct().ToList();
                     foreach (var ite in equipmentList)
                     {
+                        var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == ite).Select(c => c.Status).FirstOrDefault();
                         var tally = SheetCopy.Where(c => c.EquipmentNumber == ite && c.Year == old_year && c.Month == old_month && c.UserDepartment == item).FirstOrDefault();
                         var tally1 = db.Equipment_Tally_maintenance.Where(c => c.EquipmentNumber == ite && c.Year == new_year && c.Month == new_month && c.UserDepartment == item).FirstOrDefault();
-                        if (tally != null && tally1 == null)
+                        if (tally != null && tally1 == null && status == "正常")
                         {
                             Equipment_Tally_maintenance equipment_Tally = new Equipment_Tally_maintenance()
                             {
@@ -3566,6 +3665,9 @@ namespace JianHeMES.Controllers
             JObject Have_table = new JObject();
             JArray Have_retul = new JArray();
             JObject numberOf = new JObject();
+            JObject numberOf1 = new JObject();
+            JObject numberOf2 = new JObject();
+            JArray equipmnt = new JArray();
             List<Equipment_Tally_maintenance> department = db.Equipment_Tally_maintenance.Where(c => c.Year == time.Year && c.Month == time.Month).ToList();
             if (!String.IsNullOrEmpty(userdepartment))//判断使用部门里是否为空
             {
@@ -3592,6 +3694,8 @@ namespace JianHeMES.Controllers
             numberOf.Add("Date", dayTime);
 
             #region ---未点检
+
+            #region---日检
 
             #region ---查找数据
             var mainte1 = department.Where(c => c.Year == time.Year && c.Month == time.Month && c.Day_A_1 == 0 && c.Day_Mainte_1 == null).ToList();
@@ -3641,6 +3745,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3660,6 +3801,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3679,6 +3857,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3698,6 +3914,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3717,6 +3970,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3736,6 +4027,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3755,6 +4084,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3774,6 +4141,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3793,6 +4198,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3812,6 +4254,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3831,6 +4310,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3850,6 +4365,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3869,6 +4421,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3888,6 +4477,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3907,6 +4533,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3926,6 +4589,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3945,6 +4644,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3964,6 +4700,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -3983,6 +4756,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4002,6 +4812,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4021,6 +4868,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4040,6 +4924,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4059,6 +4980,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4078,6 +5036,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4097,6 +5092,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4116,6 +5148,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4135,6 +5204,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4154,6 +5260,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4173,6 +5316,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4192,6 +5371,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -4211,12 +5426,159 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
                 }
                 numberOf.Add("Retul", retul);
             }
+            #endregion
+
+            #endregion
+
+            #region---周检
+
+            //var Week1 = department.Where(c => c.Week_Main_1 == null).ToList();
+            //var Week2 = department.Where(c => c.Week_Main_2 == null).ToList();
+            //var Week3 = department.Where(c => c.Week_Main_3 == null).ToList();
+            //var Week4 = department.Where(c => c.Week_Main_4 == null).ToList();
+            //if (Week1 != null && date >= 1 && date <= 8)
+            //{
+            //    numberOf1.Add("Week_Number", Week1.Count);//当天未点检数
+            //    var equipmentList = Week1.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week1.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        table.Add("Week_State", 0);//周保养人未确认
+            //        table.Add("Time", time);
+            //        retul.Add(table);
+            //        table = new JObject();
+            //    }
+            //    numberOf1.Add("Week_Retul", retul);
+            //}
+            //else if (Week2 != null && date >= 9 && date <= 16)
+            //{
+            //    numberOf1.Add("Week_Number", Week2.Count);//当天未点检数
+            //    var equipmentList = Week2.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week2.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        table.Add("Week_State", 0);//周保养人未确认
+            //        table.Add("Time", time);
+            //        retul.Add(table);
+            //        table = new JObject();
+            //    }
+            //    numberOf1.Add("Week_Retul", retul);
+            //}
+            //else if (Week3 != null && date >= 17 && date <= 24)
+            //{
+            //    numberOf1.Add("Week_Number", Week3.Count);//当天未点检数
+            //    var equipmentList = Week3.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week3.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        table.Add("Week_State", 0);//周保养人未确认
+            //        table.Add("Time", time);
+            //        retul.Add(table);
+            //        table = new JObject();
+            //    }
+            //    numberOf1.Add("Week_Retul", retul);
+            //}
+            //else if (Week4 != null && date >= 25 && date <= 31)
+            //{
+            //    numberOf1.Add("Week_Number", Week4.Count);//当天未点检数
+            //    var equipmentList = Week4.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week4.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        table.Add("Week_State", 0);//周保养人未确认
+            //        table.Add("Time", time);
+            //        retul.Add(table);
+            //        table = new JObject();
+            //    }
+            //    numberOf1.Add("Week_Retul", retul);
+            //}
+
+            #endregion
+
+            #region---月检
+            //var Month1 = department.Where(c => c.Month_main_1 == null).ToList();
+            //if (Month1 != null)
+            //{
+            //    numberOf2.Add("Month_Number", Month1.Count);//当天未点检数
+            //    var equipmentList = Month1.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Month1.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        table.Add("Month_State", 0);//月保养人未确认
+            //        table.Add("Time", time);
+            //        retul.Add(table);
+            //        table = new JObject();
+            //    }
+            //    numberOf2.Add("Month_Retul", retul);
+            //}
             #endregion
 
             #endregion
@@ -4271,6 +5633,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_1 == null ? null : NotTally.Day_MainteTime_1);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4290,6 +5690,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_2 == null ? null : NotTally.Day_MainteTime_2);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4309,6 +5746,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_3 == null ? null : NotTally.Day_MainteTime_3);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4328,6 +5803,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_4 == null ? null : NotTally.Day_MainteTime_4);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4347,6 +5860,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_5 == null ? null : NotTally.Day_MainteTime_5);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4366,6 +5917,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_6 == null ? null : NotTally.Day_MainteTime_6);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4385,6 +5974,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_7 == null ? null : NotTally.Day_MainteTime_7);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4404,6 +6031,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_8 == null ? null : NotTally.Day_MainteTime_8);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4423,6 +6087,42 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_9 == null ? null : NotTally.Day_MainteTime_9);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4442,6 +6142,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_10 == null ? null : NotTally.Day_MainteTime_10);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4461,6 +6198,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_11 == null ? null : NotTally.Day_MainteTime_11);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4480,6 +6254,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_12 == null ? null : NotTally.Day_MainteTime_12);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4499,6 +6310,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_13 == null ? null : NotTally.Day_MainteTime_13);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4518,6 +6366,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_14 == null ? null : NotTally.Day_MainteTime_14);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4537,6 +6422,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_15 == null ? null : NotTally.Day_MainteTime_15);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4556,6 +6478,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_16 == null ? null : NotTally.Day_MainteTime_16);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4575,6 +6534,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_17 == null ? null : NotTally.Day_MainteTime_17);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4594,6 +6590,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_18 == null ? null : NotTally.Day_MainteTime_18);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4613,6 +6646,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_19 == null ? null : NotTally.Day_MainteTime_19);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4632,6 +6702,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_20 == null ? null : NotTally.Day_MainteTime_20);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4651,6 +6758,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_21 == null ? null : NotTally.Day_MainteTime_21);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4670,6 +6814,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_22 == null ? null : NotTally.Day_MainteTime_22);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4689,6 +6870,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_23 == null ? null : NotTally.Day_MainteTime_23);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4708,6 +6926,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_24 == null ? null : NotTally.Day_MainteTime_24);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4727,6 +6982,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_25 == null ? null : NotTally.Day_MainteTime_25);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4746,6 +7038,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_26 == null ? null : NotTally.Day_MainteTime_26);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4765,6 +7094,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_27 == null ? null : NotTally.Day_MainteTime_27);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4784,6 +7150,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_28 == null ? null : NotTally.Day_MainteTime_28);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4803,6 +7206,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_29 == null ? null : NotTally.Day_MainteTime_29);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4822,6 +7262,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_30 == null ? null : NotTally.Day_MainteTime_30);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -4841,12 +7318,250 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_31 == null ? null : NotTally.Day_MainteTime_31);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
                 }
                 numberOf.Add("Have_retul", Have_retul);
             }
+            #endregion
+
+            #region---周检
+
+            #region---周保养人确认，工程师未确认
+            //var Week_Have1 = department.Where(c => c.Week_Main_1 != null).ToList();
+            //var Week_Have2 = department.Where(c => c.Week_Main_1 != null).ToList();
+            //var Week_Have3 = department.Where(c => c.Week_Main_1 != null).ToList();
+            //var Week_Have4 = department.Where(c => c.Week_Main_1 != null).ToList();
+            //if (Week_Have1 != null && date >= 1 && date <= 8)
+            //{
+            //    numberOf1.Add("Week_Have", Week_Have1.Count);//当天未点检数
+            //    var equipmentList = Week_Have1.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have1.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf1.Add("Retul_Week", Have_retul);
+            //}
+            //else if (Week_Have2 != null && date >= 9 && date <= 16)
+            //{
+            //    numberOf.Add("Week_Have", Week_Have2.Count);//当天未点检数
+            //    var equipmentList = Week_Have2.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have2.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf.Add("Retul_Week", Have_retul);
+            //}
+            //else if (Week_Have3 != null && date >= 17 && date <= 24)
+            //{
+            //    numberOf1.Add("Week_Have", Week_Have3.Count);//当天未点检数
+            //    var equipmentList = Week_Have3.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have3.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf1.Add("Retul_Week", Have_retul);
+            //}
+            //else if (Week_Have4 != null && date >= 25 && date <= 31)
+            //{
+            //    numberOf1.Add("Week_Have", Week_Have4.Count);//当天未点检数
+            //    var equipmentList = Week_Have4.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have4.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf1.Add("Retul_Week", Have_retul);
+            //}
+            #endregion
+
+            #region---周保养人已确认，工程师已确认
+            //var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null).ToList();
+            //var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null).ToList();
+            //var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null).ToList();
+            //var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null).ToList();
+            //if (Week_Have5 != null && date >= 1 && date <= 8)
+            //{
+            //    numberOf.Add("Week_Have1", Week_Have5.Count);//当天点检数
+            //    var equipmentList = Week_Have5.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have5.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 2);//周保养已完成
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf.Add("Retul_Week1", Have_retul);
+            //}
+            //else if (Week_Have6 != null && date >= 9 && date <= 16)
+            //{
+            //    numberOf.Add("Week_Have1", Week_Have6.Count);//当天点检数
+            //    var equipmentList = Week_Have6.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have6.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 2);//周保养已完成
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf.Add("Retul_Week1", Have_retul);
+            //}
+            //else if (Week_Have7 != null && date >= 17 && date <= 24)
+            //{
+            //    numberOf.Add("Week_Have1", Week_Have7.Count);//当天点检数
+            //    var equipmentList = Week_Have7.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have7.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 2);//周保养已完成
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf.Add("Retul_Week1", Have_retul);
+            //}
+            //else if (Week_Have8 != null && date >= 25 && date <= 31)
+            //{
+            //    numberOf.Add("Week_Have1", Week_Have8.Count);//当天点检数
+            //    var equipmentList = Week_Have8.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Week_Have8.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Week_State", 2);//周保养已完成
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf.Add("Retul_Week1", Have_retul);
+            //}
+            #endregion
+
+            #endregion
+
+            #region---月检
+            //var Month_Have = department.Where(c => c.Month_main_1 != null).ToList();
+            //if (Month_Have != null)
+            //{
+            //    numberOf2.Add("Month_Have", Month_Have.Count);//当天未点检数
+            //    var equipmentList = Month_Have.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Month_Have.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf2.Add("MonthHave", Have_retul);
+            //}
+            //var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null).ToList();
+            //if (Month_Have1 != null)
+            //{
+            //    numberOf2.Add("Month_Have1", Month_Have1.Count);//当天未点检数
+            //    var equipmentList = Month_Have1.Select(c => c.EquipmentNumber).Distinct();
+            //    foreach (var item in equipmentList)
+            //    {
+            //        var NotTally = Month_Have1.Where(c => c.EquipmentNumber == item).FirstOrDefault();
+            //        Have_table.Add("Id", NotTally.Id == 0 ? 0 : NotTally.Id);
+            //        Have_table.Add("UserDepartment", NotTally.UserDepartment == null ? null : NotTally.UserDepartment);
+            //        Have_table.Add("LineName", NotTally.LineName == null ? null : NotTally.LineName);
+            //        Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
+            //        Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
+            //        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+            //        Have_table.Add("Time", time);
+            //        Have_retul.Add(Have_table);
+            //        Have_table = new JObject();
+            //    }
+            //    numberOf2.Add("MonthHave1", Have_retul);
+            //}
             #endregion
 
             #endregion
@@ -5005,143 +7720,9 @@ namespace JianHeMES.Controllers
                     table.Add("FaultTime", faultTime);//设备故障时间
                     table.Add("Emergency", item.Emergency == null ? null : item.Emergency);//紧急状态
                     table.Add("FauDescription", item.FauDescription == null ? null : item.FauDescription);//报修内容（故障简述）         
-                    table.Add("RequirementsTime", item.RequirementsTime == null ? null : item.RequirementsTime);//要求完成时间
-                    if (item.RepairProblem == 1)
-                    {
-                        table.Add("StateRepair", "维修已完成");//维修状态
-                    }
-                    if (item.RepairProblem == 0)
-                    {
-                        table.Add("StateRepair", "维修中");//维修状态
-                    }
-                    if (item.RepairProblem == 2)
-                    {
-                        table.Add("StateRepair", "维修失败");//维修状态
-                    }
-
-                    if (item.Emergency == "非常紧急")
-                    {
-                        if (item.DeparAssessor == null && item.RepairName != null)
-                        {
-                            table.Add("State", "故障描述，待审核");
-                        }
-                        if (item.CenterApprove == null && item.DeparAssessor != null)
-                        {
-                            table.Add("State", "故障描述，中心总监待批准");
-                        }
-                        if (item.TecDepar_opinion == null && item.DeparAssessor != null)
-                        {
-                            table.Add("State1", "技术部意见待填写");
-                        }
-                        if (item.TecDeparAssessor == null && item.TecDepar_opinion != null)
-                        {
-                            table.Add("State1", "技术部意见，待审核");
-                        }
-                        if (item.CeApprove == null && item.TecDeparAssessor != null)
-                        {
-                            table.Add("State1", "技术部意见，中心总监待批准");
-                        }
-                        if (item.CeApprove != null && item.Needto == true)
-                        {
-                            if (item.Purchasing_opinion == null)
-                            {
-                                table.Add("State1", "联建采购意见待填写");
-                            }
-                            if (item.OpinAssessor == null && item.Purchasing_opinion != null)
-                            {
-                                table.Add("State1", "联建采购意见，待审核");
-                            }
-                            if (item.OpinApprove == null && item.OpinAssessor != null)
-                            {
-                                table.Add("State1", "联建采购意见，待批准");
-                            }
-                            if (item.MainName == null && item.OpinApprove != null)
-                            {
-                                table.Add("State1", "维修人/厂家,待审");
-                            }
-                            if (item.TcConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State1", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State2", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                        if (item.CeApprove != null && item.Needto == false)
-                        {
-                            if (item.TcConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State1", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State2", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (item.DeparAssessor == null && item.RepairName != null)
-                        {
-                            table.Add("State", "故障描述，待审核");
-                        }
-                        else if (item.CenterApprove == null && item.DeparAssessor != null)
-                        {
-                            table.Add("State", "故障描述，中心总监待批准");
-                        }
-                        else if (item.TecDepar_opinion == null && item.CenterApprove != null)
-                        {
-                            table.Add("State", "技术部意见待填写");
-                        }
-                        else if (item.TecDeparAssessor == null && item.TecDepar_opinion != null)
-                        {
-                            table.Add("State", "技术部意见，待审核");
-                        }
-                        else if (item.CeApprove == null && item.TecDeparAssessor != null)
-                        {
-                            table.Add("State", "技术部意见，中心总监待批准");
-                        }
-                        else if (item.CeApprove != null && item.Needto == true)
-                        {
-                            if (item.Purchasing_opinion == null)
-                            {
-                                table.Add("State", "联建采购意见待填写");
-                            }
-                            else if (item.OpinAssessor == null && item.Purchasing_opinion != null)
-                            {
-                                table.Add("State", "联建采购意见，待审核");
-                            }
-                            else if (item.OpinApprove == null && item.OpinAssessor != null)
-                            {
-                                table.Add("State", "联建采购意见，待批准");
-                            }
-                            else if (item.MainName == null && item.OpinApprove != null)
-                            {
-                                table.Add("State", "维修人/厂家,待审");
-                            }
-                            if (item.TcConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State1", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                        else if (item.CeApprove != null && item.Needto == false)
-                        {
-                            if (item.TcConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State1", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                    }
-
+                    table.Add("DeparAssessedDate", item.DeparAssessedDate == null ? null : item.DeparAssessedDate);//报修时间（故障审核时间）MaintenanceTime
+                    table.Add("MaintenanceTime", item.MaintenanceTime == 0 ? 0 : item.MaintenanceTime);//维修时长
+                    table.Add("RepairStatus", item.RepairStatus == null ? null : item.RepairStatus);//维修状态
 
                     retult.Add(table);
                     table = new JObject();
@@ -5217,6 +7798,21 @@ namespace JianHeMES.Controllers
             JObject repairbill = new JObject();
             if (equipmentRepairbill != null)//判断equipmentRepairbill是否为空
             {
+                if (equipmentRepairbill.TcConfirmName != null && equipmentRepairbill.ConfirmName != null)
+                {
+                    equipmentRepairbill.RepairStatus = "已结案";
+                    db.SaveChanges();//保存
+                }
+                else if (equipmentRepairbill.TcConfirmName != null && equipmentRepairbill.ConfirmName == null)
+                {
+                    equipmentRepairbill.RepairStatus = "验收中";
+                    db.SaveChanges();//保存
+                }
+                else if (equipmentRepairbill.TcConfirmName == null && equipmentRepairbill.ConfirmName != null)
+                {
+                    equipmentRepairbill.RepairStatus = "验收中";
+                    db.SaveChanges();//保存
+                }
                 db.Entry(equipmentRepairbill).State = EntityState.Modified;//修改数据
                 var savecount = db.SaveChanges();//保存数据库
                 if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
@@ -5474,7 +8070,7 @@ namespace JianHeMES.Controllers
 
             return Content(JsonConvert.SerializeObject(query_plan1));
         }
-        #endregion        
+        #endregion
 
         #region-----检索时间计划表部门（有数据）
         [HttpPost]
@@ -5492,7 +8088,7 @@ namespace JianHeMES.Controllers
             return Content(JsonConvert.SerializeObject(code));
         }
 
-        #endregion  
+        #endregion
 
         #region----创建保存页
         ///<summary>
@@ -5645,7 +8241,7 @@ namespace JianHeMES.Controllers
                     + equipment_MonthlyMaintenance.EquipmentName + "," + "计划保养时间" + equipment_MonthlyMaintenance.Mainten_equipment + "," + "已完成保养" + "," + "实际保养时间:" + equipment_MonthlyMaintenance.MaintenanceDate + "(外网)</a></br>";
 
                     content = content + content_list + "</br>";//内容
-                    //add发送人，收件人，Email内容，主题，抄送人，地址
+                                                               //add发送人，收件人，Email内容，主题，抄送人，地址
                     meg.SendEmail("gaohj@lcjh.local", recipient_list.Select(c => c.EmailAddress).ToList(), content, theme, ccList_list.Select(c => c.EmailAddress).ToList(), address);
                     Equipment_Maintenmail eq = new Equipment_Maintenmail();
                     //下面的都是把数据保存到对应的表里（发送Email内容和收件人、抄送人、年月等数据）
@@ -5793,14 +8389,14 @@ namespace JianHeMES.Controllers
                         var tally = db.Equipment_Tally_maintenance.Where(c => c.UserDepartment == dep.UserDepartment && c.Year == year && c.Month == month && c.Month_main_1 != null && c.Month_mainTime_1 != null).ToList();
                         //项目：计划保养总台次实际值
                         table.Add("Required", required.Count == 0 ? 0 : required.Count);//add查询出来的数据required
-                        //项目：实际保养台次
+                                                                                        //项目：实际保养台次
                         table.Add("Planned", tally.Count == 0 ? 0 : tally.Count);//add查找出来的数据tally
                         if (tally.Count > 0)//判断tally是否为空
                         {
                             decimal dt1 = tally.Count;//转换成小数点
                             decimal dt2 = required.Count;//转换成小数点
                             var efficiency = ((dt1 / dt2) * 100).ToString("F2");//计算有效率（实际保养台次/计划保养总台次实际值）
-                            //项目：有效率百分比
+                                                                                //项目：有效率百分比
                             table.Add("efficiency", efficiency);//add计算出来的数据
                         }
                         else //tally为空时
@@ -5877,9 +8473,9 @@ namespace JianHeMES.Controllers
             {
                 foreach (var item in Quality_target)
                 {
-                    if (db.Equipment_Quality_target.Count(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month) > 0)
+                    if (db.Equipment_Quality_target.Count(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month && c.Id == item.Id) > 0)
                     {
-                        var deparlist = db.Equipment_Quality_target.Where(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month).FirstOrDefault();
+                        var deparlist = db.Equipment_Quality_target.Where(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month && c.Id == item.Id).FirstOrDefault();
                         deparlist.LiaDepartment = item.LiaDepartment;
                         deparlist.Required = item.Required;
                         deparlist.Planned = item.Planned;
@@ -5976,7 +8572,7 @@ namespace JianHeMES.Controllers
                 {
                     item.PrepareTime = DateTime.Now;//添加编制时间
                     item.PrepareName = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";//添加编制人
-                    //根据使用部门、质量目标和年月查询数据，并判断是否大于0
+                                                                                                                 //根据使用部门、质量目标和年月查询数据，并判断是否大于0
                     if (db.Equipment_Quality_target.Count(c => c.UserDepartment == item.UserDepartment && c.Quality_objec == item.Quality_objec && c.Year == year && c.Month == month) > 0)
                     {
                         date.Add("UserDepartment", item.UserDepartment);//add使用部门到date里
@@ -6323,7 +8919,7 @@ namespace JianHeMES.Controllers
                 {
                     item.FinishingDate = DateTime.Now;//添加资料整理时间
                     item.FinishingName = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";//添加资料整理人
-                    //根据使用部门、设备名称、年月和配料料号查找数据，并判断查找出来的数据是否大于0
+                                                                                                                   //根据使用部门、设备名称、年月和配料料号查找数据，并判断查找出来的数据是否大于0
                     if (db.Equipment_Safetystock.Count(c => c.UserDepartment == userdepartment && c.Year == year && c.Month == month && c.EquipmentName == item.EquipmentName && c.Material == item.Material) > 0)
                     {
                         repat = item.Material;//赋值
@@ -6439,6 +9035,43 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+        #region---导出Excel表格
+        [HttpPost]
+        public FileContentResult Safety_ExportExcel(string tableData)
+        {
+            string[] column = { "序号", "设备名称", "品名", "规格/型号", "料号", "使用寿命", "月平均用量", "安全库存量", "仓库存量", "仓库号", "库位号", "批次号", "有效期", "采购周期", "用途", "备注" };
+            DataTable table = new DataTable();
+            var array = JsonConvert.DeserializeObject(tableData) as JArray;
+            if (array.Count > 0)
+            {
+                StringBuilder columns = new StringBuilder();
+                JObject objColumns = array[0] as JObject;
+                //构造表头
+                foreach (JToken jkon in objColumns.AsEnumerable<JToken>())
+                {
+                    string name = ((JProperty)(jkon)).Name;
+                    columns.Append(name + ",");
+                    table.Columns.Add(name);
+                }
+                //向表中添加数据
+                for (int i = 0; i < array.Count; i++)
+                {
+                    DataRow row = table.NewRow();
+                    JObject obj = array[i] as JObject;
+                    foreach (JToken jkon in obj.AsEnumerable<JToken>())
+                    {
+                        string name = ((JProperty)(jkon)).Name;
+                        string value = ((JProperty)(jkon)).Value.ToString();
+                        row[name] = value;
+                    }
+                    table.Rows.Add(row);
+                }
+            }
+            byte[] filecontent = ExcelExportHelper.ExportExcel(table, "安全库存清单", false, column);
+            return File(filecontent, ExcelExportHelper.ExcelContentType, "安全库存清单" + ".xlsx");
+        }
+        #endregion
+
         #endregion
 
         #region---设备关键元器件清单汇总
@@ -6505,7 +9138,7 @@ namespace JianHeMES.Controllers
                 {
                     item.TabulationTime = DateTime.Now;//添加制表时间
                     item.Mainten_Lister = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";//添加制表人
-                    //根据设备编号，品名，规格/型号，用途查询数据，并判断是否大于0
+                                                                                                                    //根据设备编号，品名，规格/型号，用途查询数据，并判断是否大于0
                     if (db.Equipment_keycomponents.Count(c => c.EquipmentNumber == item.EquipmentNumber && c.Descrip == item.Descrip && c.Specifica == item.Specifica && c.Materused == item.Materused) > 0)
                     {
                         repat.Add("EquipmentNumber", item.EquipmentNumber);//把设备编号add到repat里
@@ -6603,7 +9236,7 @@ namespace JianHeMES.Controllers
             UserOperateLog operaterecord = new UserOperateLog();
             operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
             operaterecord.Operator = ((Users)Session["User"]) != null ? ((Users)Session["User"]).UserName : "";//添加删除操作人
-            //添加操作记录（如：张三在2020年2月26日删除设备关键元器件为李四的记录）
+                                                                                                               //添加操作记录（如：张三在2020年2月26日删除设备关键元器件为李四的记录）
             operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除设备关键元器件为" + record.Mainten_Lister + "的记录。";
             db.Equipment_keycomponents.Remove(record);//删除对应的数据
             db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
@@ -6641,12 +9274,12 @@ namespace JianHeMES.Controllers
             double Runpercentage = 0;//全厂运行百分比
             double Stoppercentage = 0;//全厂停机百分比
             double Maintpercentage = 0;//全厂维修百分比
-            var departmentList = db.EquipmentBasicInfo.Select(c => c.UserDepartment).Distinct().ToList();//把所有部门都查找出来并去重
+            var departmentList = db.EquipmentSetStation.Select(c => c.UserDepartment).Distinct().ToList();//把所有部门都查找出来并去重
             if (departmentList.Count > 0)
             {
                 foreach (var item in departmentList)
                 {
-                    var statue = db.EquipmentBasicInfo.Where(c => c.UserDepartment == item).Select(c => new { c.Id, c.UserDepartment, c.LineNum, c.EquipmentNumber, c.AssetNumber, c.EquipmentName, c.Status }).ToList();
+                    var statue = db.EquipmentSetStation.Where(c => c.UserDepartment == item).Select(c => new { c.Id, c.UserDepartment, c.LineNum, c.EquipmentNumber, c.AssetNumber, c.EquipmentName, c.Status }).ToList();
                     if (statue.Count > 0)
                     {
                         foreach (var ite in statue)
@@ -6737,6 +9370,12 @@ namespace JianHeMES.Controllers
             double houses = 0;//天数*24
             double Deparequipment = 0;//部门设备数量
             double EquipmentList = 0;//全厂设备数量
+            double Tallytime = 0;//个设备保养时长
+            double Tally_percen = 0;//个设备保养时长百分比
+            double TallyDevice = 0;//部门保养时长
+            double TallyDepar_Device = 0;//部门保养时长百分比
+            double TallytotalDevice = 0;//全厂保养时长
+            double Tallypercentage_Device = 0;//全厂保养时长百分比
             DateTime time = DateTime.Now;//获取当前时间
             List<EquipmentStateTime> dateList = new List<EquipmentStateTime>();
             var deparlist = db.EquipmentStateTime.Select(c => c.UserDepartment).Distinct().ToList();
@@ -6744,8 +9383,8 @@ namespace JianHeMES.Controllers
             {
                 foreach (var ite in deparlist)
                 {
-                    Deparequipment = db.EquipmentBasicInfo.Count(c => c.UserDepartment == ite);//根据部门找设备台数
-                    EquipmentList = db.EquipmentBasicInfo.Count();
+                    Deparequipment = db.EquipmentSetStation.Count(c => c.UserDepartment == ite);//根据部门找设备台数
+                    EquipmentList = db.EquipmentSetStation.Count();
                     if (ite != null && ite != "null")
                     {
                         if (ite != null && year != null && month != null)
@@ -6875,7 +9514,35 @@ namespace JianHeMES.Controllers
                                         }
                                         Maintentime = Maintentime + Thours;
                                     }
-                                    if (Downtime != 0 || Runtime != 0 || Maintentime != 0)
+                                    if (item.Status == "保养")//判断设备状态是否等于“保养”
+                                    {
+                                        double Thours = 0;
+                                        if (dt1 < begintime)
+                                        {
+                                            if (item.StatusEndTime == null)//设备状态的结束时间为空
+                                            {
+                                                Thours = (time - begintime).TotalHours;
+                                            }
+                                            else
+                                            {
+                                                Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (item.StatusEndTime == null)
+                                            {
+                                                Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
+                                            }
+                                            else
+                                            {
+                                                Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
+                                            }
+                                        }
+                                        Tallytime = Tallytime + Thours;
+                                    }
+
+                                    if (Downtime != 0 || Runtime != 0 || Maintentime != 0 || Tallytime != 0)
                                     {
                                         if (Downtime > houses)
                                         {
@@ -6889,19 +9556,26 @@ namespace JianHeMES.Controllers
                                         {
                                             Maintentime = houses;
                                         }
+                                        else if (Tallytime > houses)
+                                        {
+                                            Tallytime = houses;
+                                        }
                                         //单个设备汇总计算
                                         Stop_percen = Downtime == 0 ? 0 : (Downtime / houses) * 100;//设备停机时长百分比
                                         Runtime_percen = Runtime == 0 ? 0 : (Runtime / houses) * 100;//设备运行时长百分比
-                                        Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比                                             
+                                        Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比    
+                                        Tally_percen = Tallytime == 0 ? 0 : (Tallytime / houses) * 100;//设备保养时长百分比 
                                     }
                                 }
                                 //部门汇总计算
                                 RunnDevice = RunnDevice + Runtime;//部门运行时长
                                 StopnDevice = StopnDevice + Downtime; //部门停机时长
                                 MaintDevice = MaintDevice + Maintentime;//部门维修时长
+                                TallyDevice = TallyDevice + Tallytime;//部门保养时长
                                 RunDepar_Device = RunnDevice == 0 ? 0 : RunnDevice / (houses * Deparequipment) * 100;//部门运行时长百分比
                                 StopDepar_Device = StopnDevice == 0 ? 0 : StopnDevice / (houses * Deparequipment) * 100;//部门停机时长百分比
-                                MaintDepar_Device = MaintDevice == 0 ? 0 : MaintDevice / (houses * Deparequipment) * 100;//部门维修时长百分比                                                           
+                                MaintDepar_Device = MaintDevice == 0 ? 0 : MaintDevice / (houses * Deparequipment) * 100;//部门维修时长百分比     
+                                TallyDepar_Device = TallyDevice == 0 ? 0 : TallyDevice / (houses * Deparequipment) * 100;//部门保养时长百分比     
 
                                 equipmentList.Add("Downtime", Downtime.ToString("0.00"));//停机时长
                                 Downtime = new double();
@@ -6918,6 +9592,11 @@ namespace JianHeMES.Controllers
                                 equipmentList.Add("Maintentime_percen", Maintentime_percen.ToString("0.00") + "%");//维修时长百分比
                                 Maintentime_percen = new double();
 
+                                equipmentList.Add("Tallytime", Tallytime.ToString("0.00"));//保养时长
+                                Tallytime = new double();
+                                equipmentList.Add("Tally_percen", Tally_percen.ToString("0.00") + "%");//保养时长百分比
+                                Tally_percen = new double();
+
                                 devicetime.Add(equipmentList);
                                 equipmentList = new JObject();
                                 pment.Add("EquipmentNumber", iu);
@@ -6933,9 +9612,11 @@ namespace JianHeMES.Controllers
                         RuntotalDevice = RuntotalDevice + RunnDevice;//全厂运行时长
                         StoptotalDevice = StoptotalDevice + StopnDevice;//全厂停机时长
                         MainttotalDevice = MainttotalDevice + MaintDevice;//全厂维修时长
+                        TallytotalDevice = TallytotalDevice + TallyDevice;//全厂保养时长
                         Runpercentage_Device = RuntotalDevice == 0 ? 0 : RuntotalDevice / (houses * EquipmentList) * 100;//全厂运行时长百分比
                         Stoppercentage_Device = StoptotalDevice == 0 ? 0 : StoptotalDevice / (houses * EquipmentList) * 100;//全厂停机时长百分比
                         Maintpercentage_Device = MainttotalDevice == 0 ? 0 : MainttotalDevice / (houses * EquipmentList) * 100;//全厂维修时长百分比 
+                        Tallypercentage_Device = TallytotalDevice == 0 ? 0 : TallytotalDevice / (houses * EquipmentList) * 100;//全厂保养时长百分比 
 
                         table.Add("UserDepartment", ite);
                         table.Add("RunnDevice", RunnDevice.ToString("0.00"));//部门运行时长
@@ -6953,13 +9634,18 @@ namespace JianHeMES.Controllers
                         table.Add("MaintDepar_Device", MaintDepar_Device.ToString("0.00") + "%");//部门维修时长百分比
                         MaintDepar_Device = new double();
 
+                        table.Add("TallyDevice", TallyDevice.ToString("0.00"));//部门保养时长
+                        TallyDevice = new double();
+                        table.Add("TallyDepar_Device", TallyDepar_Device.ToString("0.00") + "%");//部门保养时长百分比
+                        TallyDepar_Device = new double();
+
                         table.Add("Table", user);
                         user = new JArray();
                         current.Add(table);
                         table = new JObject();
                     }
                 }
-                if (RuntotalDevice != 0 || StoptotalDevice != 0 || MainttotalDevice != 0)
+                if (RuntotalDevice != 0 || StoptotalDevice != 0 || MainttotalDevice != 0 || TallytotalDevice != 0)
                 {
                     ainten.Add("RuntotalDevice", RuntotalDevice.ToString("0.00"));//全厂运行时长
                     ainten.Add("Runpercentage_Device", Runpercentage_Device.ToString("0.00") + "%");//全厂运行时长百分比               
@@ -6967,6 +9653,8 @@ namespace JianHeMES.Controllers
                     ainten.Add("Stoppercentage_Device", Stoppercentage_Device.ToString("0.00") + "%");//全厂停机时长百分比               
                     ainten.Add("MainttotalDevice", MainttotalDevice.ToString("0.00"));//全厂维修时长              
                     ainten.Add("Maintpercentage_Device", Maintpercentage_Device.ToString("0.00") + "%");//全厂维修时长百分比      
+                    ainten.Add("TallytotalDevice", TallytotalDevice.ToString("0.00"));//全厂保养时长              
+                    ainten.Add("Tallypercentage_Device", Tallypercentage_Device.ToString("0.00") + "%");//全厂保养时长百分比     
                     ainten.Add("current", current);
                     current = new JArray();
                 }
@@ -6991,6 +9679,8 @@ namespace JianHeMES.Controllers
             double Runtime_percen = 0;//个设备运行时长百分比
             double Maintentime = 0;//个设备维修时长
             double Maintentime_percen = 0;//个设备维修时长百分比
+            double Tallytime = 0;//个设备保养时长
+            double Tally_percen = 0;//个设备保养时长百分比
             double houses = 0;//天数*24
             DateTime time = DateTime.Now;//获取当前时间
             List<EquipmentStateTime> dateList = new List<EquipmentStateTime>();
@@ -7122,7 +9812,34 @@ namespace JianHeMES.Controllers
                             }
                             Maintentime = Maintentime + Thours;
                         }
-                        if (Downtime != 0 || Runtime != 0 || Maintentime != 0)
+                        if (item.Status == "保养")//判断设备状态是否等于“保养”
+                        {
+                            double Thours = 0;
+                            if (dt1 < begintime)
+                            {
+                                if (item.StatusEndTime == null)//设备状态的结束时间为空
+                                {
+                                    Thours = (time - begintime).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                }
+                            }
+                            else
+                            {
+                                if (item.StatusEndTime == null)
+                                {
+                                    Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                            }
+                            Tallytime = Tallytime + Thours;
+                        }
+                        if (Downtime != 0 || Runtime != 0 || Maintentime != 0 || Tallytime != 0)
                         {
                             if (Downtime > houses)
                             {
@@ -7136,10 +9853,15 @@ namespace JianHeMES.Controllers
                             {
                                 Maintentime = houses;
                             }
+                            else if (Tallytime > houses)
+                            {
+                                Tallytime = houses;
+                            }
                             //单个设备汇总计算
                             Stop_percen = Downtime == 0 ? 0 : (Downtime / houses) * 100;//设备停机时长百分比
                             Runtime_percen = Runtime == 0 ? 0 : (Runtime / houses) * 100;//设备运行时长百分比
-                            Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比                                             
+                            Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比    
+                            Tally_percen = Tallytime == 0 ? 0 : (Tallytime / houses) * 100;//设备保养时长百分比 
                         }
                     }
                     equipmentList.Add("Downtime", Downtime.ToString("0.00"));//停机时长
@@ -7156,6 +9878,11 @@ namespace JianHeMES.Controllers
                     Maintentime = new double();
                     equipmentList.Add("Maintentime_percen", Maintentime_percen.ToString("0.00") + "%");//维修时长百分比
                     Maintentime_percen = new double();
+
+                    equipmentList.Add("Tallytime", Tallytime.ToString("0.00"));//保养时长
+                    Tallytime = new double();
+                    equipmentList.Add("Tally_percen", Tally_percen.ToString("0.00") + "%");//保养时长百分比
+                    Tally_percen = new double();
 
                     devicetime.Add(equipmentList);
                     equipmentList = new JObject();
@@ -7197,7 +9924,7 @@ namespace JianHeMES.Controllers
             if (tallyList != null)
             {
                 //全厂设备保养情况
-                double factoryNum = db.EquipmentBasicInfo.Count();//全厂设备数
+                double factoryNum = db.EquipmentBasicInfo.Count(c => c.Status == "正常");//全厂设备数
                 total.Add("FactoryNum", factoryNum);//全厂设备数
                 double totalNum = db.Equipment_Tally_maintenance.Count(c => c.Year == year && c.Month == month);//根据年月找该月需要保养设备台数
                 total.Add("TotalNum", totalNum);//找该月需要保养设备台数
@@ -7216,7 +9943,7 @@ namespace JianHeMES.Controllers
                 {
                     //部门设备保养情况
                     depart.Add("UserDepartment", item);
-                    double Department_List = db.EquipmentBasicInfo.Count(c => c.UserDepartment == item);//根据部门找设备台数
+                    double Department_List = db.EquipmentBasicInfo.Count(c => c.UserDepartment == item && c.Status == "正常");//根据部门找设备台数
                     depart.Add("Department_List", Department_List); //部门设备台数
                     double DepartmentNum = tallyList.Count(c => c.Year == year && c.Month == month && c.UserDepartment == item);//根据部门找该月需要保养设备台数
                     depart.Add("DepartmentNum", DepartmentNum); //该月需要保养设备台数
@@ -8009,12 +10736,12 @@ namespace JianHeMES.Controllers
             double Runpercentage = 0;//全厂运行百分比
             double Stoppercentage = 0;//全厂停机百分比
             double Maintpercentage = 0;//全厂维修百分比
-            var departmentList = db.EquipmentBasicInfo.Select(c => c.UserDepartment).Distinct().ToList();//把所有部门都查找出来并去重
+            var departmentList = db.EquipmentSetStation.Select(c => c.UserDepartment).Distinct().ToList();//把所有部门都查找出来并去重
             if (departmentList.Count > 0)
             {
                 foreach (var item in departmentList)
                 {
-                    var statue = db.EquipmentBasicInfo.Where(c => c.UserDepartment == item).Select(c => new { c.Id, c.UserDepartment, c.LineNum, c.EquipmentNumber, c.AssetNumber, c.EquipmentName, c.Status }).ToList();
+                    var statue = db.EquipmentSetStation.Where(c => c.UserDepartment == item).Select(c => new { c.Id, c.UserDepartment, c.LineNum, c.EquipmentNumber, c.AssetNumber, c.EquipmentName, c.Status }).ToList();
                     if (statue.Count > 0)
                     {
                         foreach (var ite in statue)
@@ -8073,7 +10800,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_DeviceTime([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_DeviceTime([System.Web.Http.FromBody] JObject data)
         {
             JObject equipmentList = new JObject();
             JObject table = new JObject();
@@ -8107,16 +10834,22 @@ namespace JianHeMES.Controllers
             DateTime time = DateTime.Now;//获取当前时间
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            int year = obj.year == 0 ? 0 : obj.year;
-            int month = obj.month == 0 ? 0 : obj.month;
+            int? year = obj.year;
+            int? month = obj.month;
+            double Tallytime = 0;//个设备保养时长
+            double Tally_percen = 0;//个设备保养时长百分比
+            double TallyDevice = 0;//部门保养时长
+            double TallyDepar_Device = 0;//部门保养时长百分比
+            double TallytotalDevice = 0;//全厂保养时长
+            double Tallypercentage_Device = 0;//全厂保养时长百分比
             List<EquipmentStateTime> dateList = new List<EquipmentStateTime>();
             var deparlist = db.EquipmentStateTime.Select(c => c.UserDepartment).Distinct().ToList();
             if (deparlist.Count > 0)
             {
                 foreach (var ite in deparlist)
                 {
-                    Deparequipment = db.EquipmentBasicInfo.Count(c => c.UserDepartment == ite);//根据部门找设备台数
-                    EquipmentList = db.EquipmentBasicInfo.Count();
+                    Deparequipment = db.EquipmentSetStation.Count(c => c.UserDepartment == ite);//根据部门找设备台数
+                    EquipmentList = db.EquipmentSetStation.Count();
                     if (ite != null && ite != "null")
                     {
                         if (ite != null && year != 0 && month != 0)
@@ -8128,7 +10861,7 @@ namespace JianHeMES.Controllers
                             }
                             else
                             {
-                                houses = DateTime.DaysInMonth(year, month) * 24;//月份的天数*24 
+                                houses = DateTime.DaysInMonth(year.Value, month.Value) * 24;//月份的天数*24 
                             }
                             var p = db.EquipmentStateTime.Where(c => c.UserDepartment == ite && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime == null).ToList();
                             var k = db.EquipmentStateTime.Where(c => c.UserDepartment == ite && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime.Value.Month >= month).ToList();
@@ -8142,7 +10875,7 @@ namespace JianHeMES.Controllers
                             }
                             else
                             {
-                                houses = (DateTime.IsLeapYear(year) == true ? 366 : 365) * 24;//年份的天数*24
+                                houses = (DateTime.IsLeapYear(year.Value) == true ? 366 : 365) * 24;//年份的天数*24
                             }
                             dateList = db.EquipmentStateTime.Where(c => c.UserDepartment == ite && c.StatusStarTime.Value.Year == year && c.StatusEndTime.Value.Year == year).ToList();
                         }
@@ -8157,11 +10890,11 @@ namespace JianHeMES.Controllers
                                     DateTime? dt1 = item.StatusStarTime;//把DateTime?类型转换成DateTime类型(开始时间)
                                     DateTime? dt2 = item.StatusEndTime;//把DateTime?类型转换成DateTime类型（结束时间）   
                                     DateTime begintime = default(DateTime);
-                                    if (year != 0 && month != 0)
+                                    if (year != null && month != null)
                                     {
                                         begintime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(month), 1, 0, 0, 0);
                                     }
-                                    else if (year != 0 && month == 0)
+                                    else if (year != null && month == null)
                                     {
                                         begintime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(1), 1, 0, 0, 0);
                                     }
@@ -8246,7 +10979,35 @@ namespace JianHeMES.Controllers
                                         }
                                         Maintentime = Maintentime + Thours;
                                     }
-                                    if (Downtime != 0 || Runtime != 0 || Maintentime != 0)
+                                    if (item.Status == "保养")//判断设备状态是否等于“保养”
+                                    {
+                                        double Thours = 0;
+                                        if (dt1 < begintime)
+                                        {
+                                            if (item.StatusEndTime == null)//设备状态的结束时间为空
+                                            {
+                                                Thours = (time - begintime).TotalHours;
+                                            }
+                                            else
+                                            {
+                                                Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (item.StatusEndTime == null)
+                                            {
+                                                Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
+                                            }
+                                            else
+                                            {
+                                                Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
+                                            }
+                                        }
+                                        Tallytime = Tallytime + Thours;
+                                    }
+
+                                    if (Downtime != 0 || Runtime != 0 || Maintentime != 0 || Tallytime != 0)
                                     {
                                         if (Downtime > houses)
                                         {
@@ -8260,19 +11021,26 @@ namespace JianHeMES.Controllers
                                         {
                                             Maintentime = houses;
                                         }
+                                        else if (Tallytime > houses)
+                                        {
+                                            Tallytime = houses;
+                                        }
                                         //单个设备汇总计算
                                         Stop_percen = Downtime == 0 ? 0 : (Downtime / houses) * 100;//设备停机时长百分比
                                         Runtime_percen = Runtime == 0 ? 0 : (Runtime / houses) * 100;//设备运行时长百分比
-                                        Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比                                             
+                                        Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比    
+                                        Tally_percen = Tallytime == 0 ? 0 : (Tallytime / houses) * 100;//设备保养时长百分比 
                                     }
                                 }
                                 //部门汇总计算
                                 RunnDevice = RunnDevice + Runtime;//部门运行时长
                                 StopnDevice = StopnDevice + Downtime; //部门停机时长
                                 MaintDevice = MaintDevice + Maintentime;//部门维修时长
+                                TallyDevice = TallyDevice + Tallytime;//部门保养时长
                                 RunDepar_Device = RunnDevice == 0 ? 0 : RunnDevice / (houses * Deparequipment) * 100;//部门运行时长百分比
                                 StopDepar_Device = StopnDevice == 0 ? 0 : StopnDevice / (houses * Deparequipment) * 100;//部门停机时长百分比
-                                MaintDepar_Device = MaintDevice == 0 ? 0 : MaintDevice / (houses * Deparequipment) * 100;//部门维修时长百分比                                                           
+                                MaintDepar_Device = MaintDevice == 0 ? 0 : MaintDevice / (houses * Deparequipment) * 100;//部门维修时长百分比     
+                                TallyDepar_Device = TallyDevice == 0 ? 0 : TallyDevice / (houses * Deparequipment) * 100;//部门保养时长百分比     
 
                                 equipmentList.Add("Downtime", Downtime.ToString("0.00"));//停机时长
                                 Downtime = new double();
@@ -8289,6 +11057,11 @@ namespace JianHeMES.Controllers
                                 equipmentList.Add("Maintentime_percen", Maintentime_percen.ToString("0.00") + "%");//维修时长百分比
                                 Maintentime_percen = new double();
 
+                                equipmentList.Add("Tallytime", Tallytime.ToString("0.00"));//保养时长
+                                Tallytime = new double();
+                                equipmentList.Add("Tally_percen", Tally_percen.ToString("0.00") + "%");//保养时长百分比
+                                Tally_percen = new double();
+
                                 devicetime.Add(equipmentList);
                                 equipmentList = new JObject();
                                 pment.Add("EquipmentNumber", iu);
@@ -8304,9 +11077,11 @@ namespace JianHeMES.Controllers
                         RuntotalDevice = RuntotalDevice + RunnDevice;//全厂运行时长
                         StoptotalDevice = StoptotalDevice + StopnDevice;//全厂停机时长
                         MainttotalDevice = MainttotalDevice + MaintDevice;//全厂维修时长
+                        TallytotalDevice = TallytotalDevice + TallyDevice;//全厂保养时长
                         Runpercentage_Device = RuntotalDevice == 0 ? 0 : RuntotalDevice / (houses * EquipmentList) * 100;//全厂运行时长百分比
                         Stoppercentage_Device = StoptotalDevice == 0 ? 0 : StoptotalDevice / (houses * EquipmentList) * 100;//全厂停机时长百分比
                         Maintpercentage_Device = MainttotalDevice == 0 ? 0 : MainttotalDevice / (houses * EquipmentList) * 100;//全厂维修时长百分比 
+                        Tallypercentage_Device = TallytotalDevice == 0 ? 0 : TallytotalDevice / (houses * EquipmentList) * 100;//全厂保养时长百分比 
 
                         table.Add("UserDepartment", ite);
                         table.Add("RunnDevice", RunnDevice.ToString("0.00"));//部门运行时长
@@ -8324,13 +11099,18 @@ namespace JianHeMES.Controllers
                         table.Add("MaintDepar_Device", MaintDepar_Device.ToString("0.00") + "%");//部门维修时长百分比
                         MaintDepar_Device = new double();
 
+                        table.Add("TallyDevice", TallyDevice.ToString("0.00"));//部门保养时长
+                        TallyDevice = new double();
+                        table.Add("TallyDepar_Device", TallyDepar_Device.ToString("0.00") + "%");//部门保养时长百分比
+                        TallyDepar_Device = new double();
+
                         table.Add("Table", user);
                         user = new JArray();
                         current.Add(table);
                         table = new JObject();
                     }
                 }
-                if (RuntotalDevice != 0 || StoptotalDevice != 0 || MainttotalDevice != 0)
+                if (RuntotalDevice != 0 || StoptotalDevice != 0 || MainttotalDevice != 0 || TallytotalDevice != 0)
                 {
                     result.Add("RuntotalDevice", RuntotalDevice.ToString("0.00"));//全厂运行时长
                     result.Add("Runpercentage_Device", Runpercentage_Device.ToString("0.00") + "%");//全厂运行时长百分比               
@@ -8338,7 +11118,9 @@ namespace JianHeMES.Controllers
                     result.Add("Stoppercentage_Device", Stoppercentage_Device.ToString("0.00") + "%");//全厂停机时长百分比               
                     result.Add("MainttotalDevice", MainttotalDevice.ToString("0.00"));//全厂维修时长              
                     result.Add("Maintpercentage_Device", Maintpercentage_Device.ToString("0.00") + "%");//全厂维修时长百分比      
-                    result.Add("Message", current);
+                    result.Add("TallytotalDevice", TallytotalDevice.ToString("0.00"));//全厂保养时长              
+                    result.Add("Tallypercentage_Device", Tallypercentage_Device.ToString("0.00") + "%");//全厂保养时长百分比     
+                    result.Add("current", current);
                     current = new JArray();
                 }
             }
@@ -8349,7 +11131,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_EmployTime([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_EmployTime([System.Web.Http.FromBody] JObject data)
         {
             JObject equipmentList = new JObject();
             JObject pment = new JObject();
@@ -8365,12 +11147,14 @@ namespace JianHeMES.Controllers
             DateTime time = DateTime.Now;//获取当前时间
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            int year = obj.year == 0 ? 0 : obj.year;
-            int month = obj.month == 0 ? 0 : obj.month;
+            int? year = obj.year;
+            int? month = obj.month;
             string userDepartment = obj.userDepartment == null ? null : obj.userDepartment;
+            double Tallytime = 0;//个设备保养时长
+            double Tally_percen = 0;//个设备保养时长百分比
             List<EquipmentStateTime> dateList = new List<EquipmentStateTime>();
             var deparlist = db.EquipmentStateTime.Where(c => c.UserDepartment == userDepartment).Distinct().ToList();
-            if (year != 0 && month != 0)
+            if (year != null && month != null)
             {
                 if (time.Year == year && time.Month == month)
                 {
@@ -8379,13 +11163,13 @@ namespace JianHeMES.Controllers
                 }
                 else
                 {
-                    houses = DateTime.DaysInMonth(year, month) * 24;//月份的天数*24 
+                    houses = DateTime.DaysInMonth(year.Value, month.Value) * 24;//月份的天数*24 
                 }
                 var p = db.EquipmentStateTime.Where(c => c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime == null).ToList();
                 var k = db.EquipmentStateTime.Where(c => c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime.Value.Month >= month).ToList();
                 dateList = p.Concat(k).ToList();
             }
-            else if (userDepartment != null && year != 0 && month == 0)
+            else if (userDepartment != null && year != null && month == null)
             {
                 if (time.Year == year)
                 {
@@ -8393,7 +11177,7 @@ namespace JianHeMES.Controllers
                 }
                 else
                 {
-                    houses = (DateTime.IsLeapYear(year) == true ? 366 : 365) * 24;//年份的天数*24
+                    houses = (DateTime.IsLeapYear(year.Value) == true ? 366 : 365) * 24;//年份的天数*24
                 }
                 dateList = db.EquipmentStateTime.Where(c => c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusEndTime.Value.Year == year).ToList();
             }
@@ -8497,7 +11281,34 @@ namespace JianHeMES.Controllers
                             }
                             Maintentime = Maintentime + Thours;
                         }
-                        if (Downtime != 0 || Runtime != 0 || Maintentime != 0)
+                        if (item.Status == "保养")//判断设备状态是否等于“保养”
+                        {
+                            double Thours = 0;
+                            if (dt1 < begintime)
+                            {
+                                if (item.StatusEndTime == null)//设备状态的结束时间为空
+                                {
+                                    Thours = (time - begintime).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                }
+                            }
+                            else
+                            {
+                                if (item.StatusEndTime == null)
+                                {
+                                    Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                            }
+                            Tallytime = Tallytime + Thours;
+                        }
+                        if (Downtime != 0 || Runtime != 0 || Maintentime != 0 || Tallytime != 0)
                         {
                             if (Downtime > houses)
                             {
@@ -8511,10 +11322,15 @@ namespace JianHeMES.Controllers
                             {
                                 Maintentime = houses;
                             }
+                            else if (Tallytime > houses)
+                            {
+                                Tallytime = houses;
+                            }
                             //单个设备汇总计算
                             Stop_percen = Downtime == 0 ? 0 : (Downtime / houses) * 100;//设备停机时长百分比
                             Runtime_percen = Runtime == 0 ? 0 : (Runtime / houses) * 100;//设备运行时长百分比
-                            Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比                                             
+                            Maintentime_percen = Maintentime == 0 ? 0 : (Maintentime / houses) * 100;//设备维修时长百分比    
+                            Tally_percen = Tallytime == 0 ? 0 : (Tallytime / houses) * 100;//设备保养时长百分比 
                         }
                     }
                     equipmentList.Add("Downtime", Downtime.ToString("0.00"));//停机时长
@@ -8531,6 +11347,11 @@ namespace JianHeMES.Controllers
                     Maintentime = new double();
                     equipmentList.Add("Maintentime_percen", Maintentime_percen.ToString("0.00") + "%");//维修时长百分比
                     Maintentime_percen = new double();
+
+                    equipmentList.Add("Tallytime", Tallytime.ToString("0.00"));//保养时长
+                    Tallytime = new double();
+                    equipmentList.Add("Tally_percen", Tally_percen.ToString("0.00") + "%");//保养时长百分比
+                    Tally_percen = new double();
 
                     devicetime.Add(equipmentList);
                     equipmentList = new JObject();
@@ -8554,7 +11375,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject Tally_Maintenance([System.Web.Http.FromBody]JObject data)
+        public JObject Tally_Maintenance([System.Web.Http.FromBody] JObject data)
         {
             JArray totalList = new JArray();
             JObject result = new JObject();//全厂
@@ -8575,7 +11396,7 @@ namespace JianHeMES.Controllers
             if (tallyList != null)
             {
                 //全厂设备保养情况
-                double factoryNum = db.EquipmentBasicInfo.Count();//全厂设备数
+                double factoryNum = db.EquipmentBasicInfo.Count(c => c.Status == "正常");//全厂设备数
                 result.Add("FactoryNum", factoryNum);//全厂设备数
                 double totalNum = db.Equipment_Tally_maintenance.Count(c => c.Year == year && c.Month == month);//根据年月找该月需要保养设备台数
                 result.Add("TotalNum", totalNum);//找该月需要保养设备台数
@@ -8594,7 +11415,7 @@ namespace JianHeMES.Controllers
                 {
                     //部门设备保养情况
                     depart.Add("UserDepartment", item);
-                    double Department_List = db.EquipmentBasicInfo.Count(c => c.UserDepartment == item);//根据部门找设备台数
+                    double Department_List = db.EquipmentBasicInfo.Count(c => c.UserDepartment == item && c.Status == "正常");//根据部门找设备台数
                     depart.Add("Department_List", Department_List); //部门设备台数
                     double DepartmentNum = tallyList.Count(c => c.Year == year && c.Month == month && c.UserDepartment == item);//根据部门找该月需要保养设备台数
                     depart.Add("DepartmentNum", DepartmentNum); //该月需要保养设备台数
@@ -8617,7 +11438,7 @@ namespace JianHeMES.Controllers
         //设备具体保养情况
         [HttpPost]
         [ApiAuthorize]
-        public JObject TallyEquipment_main([System.Web.Http.FromBody]JObject data)
+        public JObject TallyEquipment_main([System.Web.Http.FromBody] JObject data)
         {
             JArray retul = new JArray();
             JArray retul2 = new JArray();
@@ -8935,7 +11756,7 @@ namespace JianHeMES.Controllers
         //查询页
         [HttpPost]
         [ApiAuthorize]
-        public JObject Index([System.Web.Http.FromBody]JObject data)
+        public JObject Index([System.Web.Http.FromBody] JObject data)
         {
             IEnumerable<EquipmentBasicInfo> ebi = db.EquipmentBasicInfo;
             List<Exception> exprList = new List<Exception>();
@@ -9036,7 +11857,7 @@ namespace JianHeMES.Controllers
         /// </summary>  
         [HttpPost]
         [ApiAuthorize]
-        public JObject ModifyEquipmentUseDepartment([System.Web.Http.FromBody]JObject data)
+        public JObject ModifyEquipmentUseDepartment([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -9071,7 +11892,7 @@ namespace JianHeMES.Controllers
         /// </summary> 
         [HttpPost]
         [ApiAuthorize]
-        public JObject BatchInputEquipment([System.Web.Http.FromBody]JObject data)
+        public JObject BatchInputEquipment([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -9107,7 +11928,7 @@ namespace JianHeMES.Controllers
         #region------添加/修改维修履历汇总记录------
         [HttpPost]
         [ApiAuthorize]
-        public JObject AddEquipmentStatusRecordAsync([System.Web.Http.FromBody]JObject data)
+        public JObject AddEquipmentStatusRecordAsync([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -9131,7 +11952,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject GetEquipmentStatusRecordAsyn([System.Web.Http.FromBody]JObject data)
+        public JObject GetEquipmentStatusRecordAsyn([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -9144,7 +11965,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject EditEquipmentStatusRecordAsync([System.Web.Http.FromBody]JObject data)
+        public JObject EditEquipmentStatusRecordAsync([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -9170,13 +11991,13 @@ namespace JianHeMES.Controllers
         //批量添加维修履历汇总记录Batch
         [HttpPost]
         [ApiAuthorize]
-        public JObject BatchAdd_Rrecord([System.Web.Http.FromBody]JObject data)
+        public JObject BatchAdd_Rrecord([System.Web.Http.FromBody] JObject data)
         {
-            JObject result = new JObject();
+            JArray result = new JArray();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<EquipmentStatusRecord> records = obj.irecordsd;
+            List<EquipmentStatusRecord> records = (List<EquipmentStatusRecord>)JsonHelper.jsonDes<List<EquipmentStatusRecord>>(data["records"].ToString());
             string equipmentNumber = obj.equipmentNumber == null ? null : obj.equipmentNumber;//设备编号
             string assetNumber = obj.assetNumber == null ? null : obj.assetNumber;//资产编号
             string equipmentName = obj.equipmentName == null ? null : obj.equipmentName;//设备名称
@@ -9184,18 +12005,16 @@ namespace JianHeMES.Controllers
             string status = obj.status == null ? null : obj.status;//设备状态
             if (records.Count > 0 && userDepsrtment != null)
             {
-                string repeat = null;
                 foreach (var item in records)//循环
                 {
                     item.CreateTime = DateTime.Now;
                     item.Creator = auth.UserName;
                     if (db.EquipmentStatusRecord.Count(c => c.EquipmentNumber == equipmentNumber && c.GetJobTime == item.GetJobTime && c.FailureDescription == item.FailureDescription) != 0)//根据设备编号和维修接单时间到EquipmentStatusRecord表里查询数据，并判断数据是否大于0
-                        repeat = repeat + item.EquipmentNumber + item.GetJobTime + item.FailureDescription + ',';
+                        result.Add(item.EquipmentNumber + "" + item.GetJobTime);
                 }
-                if (!string.IsNullOrEmpty(repeat))//判断repeat是否为空
+                if (result.Count > 0)//判断repeat是否为空
                 {
-                    result.Add("repeat", repeat);
-                    return common.GetModuleFromJobjet(result, false, "数据重复");
+                    return common.GetModuleFromJarray(result, false, "数据重复");
                 }
                 foreach (var ite in records)
                 {
@@ -9210,19 +12029,19 @@ namespace JianHeMES.Controllers
                 int savecount = db.SaveChanges();
                 if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
                 {
-                    return common.GetModuleFromJobjet(result, true, "添加" + records.Count.ToString() + "记录成功");
+                    return common.GetModuleFromJarray(result, true, "添加" + records.Count.ToString() + "记录成功");
                 }
                 else //savecount等于0（没有把数据保存到数据库或者保存出错）
                 {
-                    return common.GetModuleFromJobjet(result, false, "添加失败");
+                    return common.GetModuleFromJarray(result, false, "添加失败");
                 }
             }
-            return common.GetModuleFromJobjet(result, false, "添加失败");
+            return common.GetModuleFromJarray(result, false, "添加失败");
         }
 
         #endregion
 
-        #region------同时修改三个表的设备状态（Status）
+        #region------同时修改两个个表的设备状态（Status）
 
         ///<summary>
         /// 1.方法的作用：修改设备状态（同时修改三个相关联的数据表）。
@@ -9234,21 +12053,23 @@ namespace JianHeMES.Controllers
         /// </summary> 
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_state([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_state([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<string> equipmentNumber = obj.equipmentNumber;
+            //string equipmentNumberlist = obj.equipmentNumberlist == null ? null : obj.equipmentNumberlist;
+            //List<EquipmentStatusRecord> records = (List<EquipmentStatusRecord>)JsonHelper.jsonDes<List<EquipmentStatusRecord>>(data["records"].ToString());
+            List<equipment_station> eqnumlist = (List<equipment_station>)JsonHelper.jsonDes<List<equipment_station>>(data["equipmentNumberlist"].ToString());
             string linenum = obj.linenum == null ? null : obj.linenum;//线别号
             string userdepar = obj.userdepar == null ? null : obj.userdepar;//使用部门
             string status = obj.status == null ? null : obj.status;//设备状态
-            if (equipmentNumber.Count() > 0 && !String.IsNullOrEmpty((status)))//判断设备编号和设备状态是否为空
+            if (eqnumlist.Count() > 0 && !String.IsNullOrEmpty((status)))//判断设备编号和设备状态是否为空
             {
-                foreach (var item in equipmentNumber)//循环设备编号
+                foreach (var item in eqnumlist)//循环设备编号
                 {
-                    var station = db.EquipmentSetStation.Where(c => c.EquipmentNumber == item).FirstOrDefault();//根据设备编号查询数据
+                    var station = db.EquipmentSetStation.Where(c => c.EquipmentNumber == item.Value).FirstOrDefault();//根据设备编号查询数据
                     if (station != null)//判断查询出来的数据（station）是否为空
                     {
                         station.Status = status;
@@ -9256,15 +12077,7 @@ namespace JianHeMES.Controllers
                         station.Modifier = auth.UserName;
                         db.SaveChanges();
                     }
-                    var infoe = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item).FirstOrDefault();//根据设备编号查询数据
-                    if (infoe != null)//判断查询出来的数据（infoe）是否为空
-                    {
-                        infoe.Status = status;
-                        infoe.ModifyTime = DateTime.Now;
-                        infoe.Modifier = auth.UserName;
-                        db.SaveChanges();
-                    }
-                    var record = db.EquipmentStateTime.OrderByDescending(c => c.StatusStarTime).Where(c => c.EquipmentNumber == item).FirstOrDefault();//按照设备状态的开始时间并根据设备编号查询数据
+                    var record = db.EquipmentStateTime.OrderByDescending(c => c.StatusStarTime).Where(c => c.EquipmentNumber == item.Value).FirstOrDefault();//按照设备状态的开始时间并根据设备编号查询数据
                     if (record != null && record.Status != status)//判断查询出来的数据（record）是否为空，查找出来的数据里的设备状态不能等于前端传送过来的设备状态
                     {
                         record.StatusEndTime = DateTime.Now;//添加状态结束时间
@@ -9278,15 +12091,15 @@ namespace JianHeMES.Controllers
                         db.EquipmentStateTime.Add(add);//把数据保存到对应的表
                         db.SaveChanges();
                     }
-                    else if (record == null && infoe != null)//判断record等于null，infoe不能等于null
+                    else if (record == null && station != null)//判断record等于null，station不能等于null
                     {
                         //在EquipmentStateTime表里添加数据（数据有：设备编号，资产编号，设备名称，设备状态，状态的开始时间等）
-                        var rede = new EquipmentStateTime() { EquipmentNumber = infoe.EquipmentNumber, AssetNumber = infoe.AssetNumber, EquipmentName = infoe.EquipmentName, Status = status, StatusStarTime = DateTime.Now, StatusEndTime = null, UserDepartment = userdepar, LineNum = linenum, Creator = auth.UserName, CreateTime = DateTime.Now };
+                        var rede = new EquipmentStateTime() { EquipmentNumber = station.EquipmentNumber, AssetNumber = station.AssetNumber, EquipmentName = station.EquipmentName, Status = status, StatusStarTime = DateTime.Now, StatusEndTime = null, UserDepartment = userdepar, LineNum = linenum, Creator = auth.UserName, CreateTime = DateTime.Now };
                         db.EquipmentStateTime.Add(rede);
                         db.SaveChanges();
                     }
                 }
-                return common.GetModuleFromJobjet(result, true, "修改" + equipmentNumber.Count.ToString() + "台设备状态成功！");
+                return common.GetModuleFromJobjet(result, true, "修改" + eqnumlist.Count() + "台设备状态成功！");
             }
             return common.GetModuleFromJobjet(result, false, "修改失败");
         }
@@ -9297,7 +12110,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject InputEquipmentRepairRecord([System.Web.Http.FromBody]JObject data)
+        public JObject InputEquipmentRepairRecord([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -9321,7 +12134,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject InputEquipmentRepairRecordSingle([System.Web.Http.FromBody]JObject data)
+        public JObject InputEquipmentRepairRecordSingle([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             EquipmentStatusRecord equipmentStatusRecord = JsonConvert.DeserializeObject<EquipmentStatusRecord>(JsonConvert.SerializeObject(data));
@@ -9347,7 +12160,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject Details([System.Web.Http.FromBody]JObject data)
+        public JObject Details([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -9385,7 +12198,7 @@ namespace JianHeMES.Controllers
         /// （3）.子判断不为空时就进入下一步，修改数据（修改资产编号、使用部门、设备名称等）和添加修改人修改时间。
         /// 4.方法（可能）有结果：判断条件为空就修改失败（数据有误），判断条件不为空就修改成功。
         /// </summary> 
-        public JObject Edit_Equipmentbasic([System.Web.Http.FromBody]JObject data)
+        public JObject Edit_Equipmentbasic([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -9403,6 +12216,7 @@ namespace JianHeMES.Controllers
             DateTime? actionDate = obj.actionDate == null ? null : obj.actionDate;//启用时间
             string remark = obj.remark == null ? null : obj.remark;//备注
             string storagePlace = obj.storagePlace == null ? null : obj.storagePlace;//存放地点
+            string status = obj.status == null ? null : obj.status;//设备状态
             var recordlist = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号到EquipmentBasicInfo表里查询相对应的数据
             if (recordlist != null)//判断查询出来的数据是否为空
             {
@@ -9411,20 +12225,86 @@ namespace JianHeMES.Controllers
                 {
                     recordlist.AssetNumber = assetNumber;//修改保存资产编号数据
                     count++;
+                    var se = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();
+                    if (se != null)
+                    {
+                        se.AssetNumber = assetNumber;
+                        se.Modifier = auth.UserName;
+                        se.ModifyTime = DateTime.Now;//添加修改时间
+                    }
                 }
                 if (recordlist.EquipmentName != equipmentName)//判断前端传送过来的设备名称是否为空（如果前一个判断为空，就会运行下一个判断）
                 {
                     recordlist.EquipmentName = equipmentName;//修改保存设备名称数据
                     count++;
+                    var se = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();
+                    if (se != null)
+                    {
+                        se.EquipmentName = equipmentName;
+                        se.Modifier = auth.UserName;
+                        se.ModifyTime = DateTime.Now;//添加修改时间
+                    }
                 }
                 if (recordlist.UserDepartment != userdepartment)//判断前端传送过来的使用部门是否为空（如果前一个判断为空，就会运行下一个判断）
                 {
                     recordlist.UserDepartment = userdepartment;//修改保存使用部门数据
                     count++;
                     var se = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();
-                    se.UserDepartment = userdepartment;
-                    se.Modifier = auth.UserName;
-                    se.ModifyTime = DateTime.Now;//添加修改时间
+                    if (se != null)
+                    {
+                        se.UserDepartment = userdepartment;
+                        se.Modifier = auth.UserName;
+                        se.ModifyTime = DateTime.Now;//添加修改时间
+                    }
+                }
+                if (recordlist.Status != status)//判断前端传送过来的设备状态是否为空（如果前一个判断为空，就会运行下一个判断）
+                {
+                    recordlist.Status = status;//修改保存设备状态                    
+                    if (status == "闲置")
+                    {
+                        var eq = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号查询该设备的数据
+                        if (eq != null)
+                        {
+                            //根据使用部门、线别号和位置号查询数据
+                            var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == eq.UserDepartment && c.LineNum == eq.LineNum && c.StationNum >= eq.StationNum).ToList();
+                            foreach (var item in eqlist)//循环
+                            {
+                                item.StationNum = item.StationNum - 1;//位置号减一
+                                db.SaveChanges();//保存
+                            }
+                            db.EquipmentSetStation.Remove(eq);//删除对应的数据
+                            db.SaveChanges();//保存
+                        }
+                        var ste = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber).ToList();
+                        if (ste.Count > 0)
+                        {
+                            db.EquipmentStateTime.RemoveRange(ste);
+                            db.SaveChanges();//保存
+                        }
+                    }
+                    else if (status == "报废")
+                    {
+                        var eq = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号查询该设备的数据
+                        if (eq != null)
+                        {
+                            //根据使用部门、线别号和位置号查询数据
+                            var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == eq.UserDepartment && c.LineNum == eq.LineNum && c.StationNum >= eq.StationNum).ToList();
+                            foreach (var item in eqlist)//循环
+                            {
+                                item.StationNum = item.StationNum - 1;//位置号减一
+                                db.SaveChanges();//保存
+                            }
+                            db.EquipmentSetStation.Remove(eq);//删除对应的数据
+                            db.SaveChanges();//保存
+                        }
+                        var ste = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber).ToList();
+                        if (ste.Count > 0)
+                        {
+                            db.EquipmentStateTime.RemoveRange(ste);
+                            db.SaveChanges();//保存
+                        }
+                    }
+                    count++;
                 }
                 if (recordlist.ModelSpecification != modelspeci)//判断前端传送过来的型号/规格是否为空（如果前一个判断为空，就会运行下一个判断）
                 {
@@ -9491,9 +12371,10 @@ namespace JianHeMES.Controllers
             string equipmentNumber = HttpContext.Current.Request["equipmentNumber"];
             HttpContextBase context = (HttpContextBase)Request.Properties["MS_HttpContext"];//上传的问题件  这个“MS_HttpContext”参数名不需要改
             HttpRequestBase requests = context.Request;
-            var file = requests.Files[0];
+
             for (int i = 0; i < requests.Files.Count; i++)
             {
+                var file = requests.Files[i];
                 var fileType = file.FileName.Substring(file.FileName.LastIndexOf(".")).ToLower();
                 if (!String.Equals(fileType, ".jpg"))
                 {
@@ -9551,7 +12432,7 @@ namespace JianHeMES.Controllers
         /// 3.方法的具体逻辑顺序，判断条件：根据设备编号到EquipmentBasicInfo表里查询跟设备编号相对应的所有数据（唯一的一条数据）
         /// 4.方法（可能）有结果：查询数据不为空，就输出该设备编号的所有数据，查询数据为空，输出null
         /// </summary> 
-        public JObject EquipmentInfo_getdata_by_eqnum([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentInfo_getdata_by_eqnum([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -9566,7 +12447,7 @@ namespace JianHeMES.Controllers
         #region----根据使用部门获取设备编号
         [HttpPost]
         [ApiAuthorize]
-        public JObject Number_List([System.Web.Http.FromBody]JObject data)
+        public JObject Number_List([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -9581,7 +12462,7 @@ namespace JianHeMES.Controllers
         #region-----设备状态使用率（停机、运行、维修）
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_Timeusage([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Timeusage([System.Web.Http.FromBody] JObject data)
         {
             JObject statu = new JObject();
             JArray result = new JArray();
@@ -9599,238 +12480,235 @@ namespace JianHeMES.Controllers
             double exce = 0;
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<string> equipmentNumber = obj.equipmentNumber == null ? null : obj.equipmentNumber;
+            string equipmentNumber = obj.equipmentNumber == null ? null : obj.equipmentNumber;//设备编号
             string userDepartment = obj.userDepartment == null ? null : obj.userDepartment;//使用部门
             int? year = obj.year == null ? null : obj.year;
             int? month = obj.month == null ? null : obj.month;
             DateTime time = DateTime.Now;//获取当前时间
             List<EquipmentStateTime> dateList = new List<EquipmentStateTime>();
-            if (equipmentNumber.Count > 0)//判断设备编号是否大于0
+            if (equipmentNumber != null)//判断设备编号是否大于0
             {
-                foreach (var item in equipmentNumber)//循环设备编号
+                if (userDepartment != null && year != null && month != null)//判断使用部门和年月是否为空
                 {
-                    if (userDepartment != null && year != null && month != null)//判断使用部门和年月是否为空
+                    //根据设备编号、使用部门、年月查找对应的数据
+                    var p = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber && c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime == null).ToList();
+                    var k = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber && c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime.Value.Month >= month).ToList();
+                    dateList = p.Concat(k).ToList();
+                    if (time.Year == year && time.Month == month)
                     {
-                        //根据设备编号、使用部门、年月查找对应的数据
-                        var p = db.EquipmentStateTime.Where(c => c.EquipmentNumber == item && c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime == null).ToList();
-                        var k = db.EquipmentStateTime.Where(c => c.EquipmentNumber == item && c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime.Value.Month >= month).ToList();
-                        dateList = p.Concat(k).ToList();
-                        if (time.Year == year && time.Month == month)
+                        houses = time.Day * 24;//月份的天数*24 
+                    }
+                    else
+                    {
+                        houses = DateTime.DaysInMonth(year.Value, month.Value) * 24;//月份的天数*24 
+                    }
+                }
+                else if (userDepartment != null && year != null && month == null)//判断使用部门和年是否为空，判断月是否等于空
+                {
+                    //根据设备编号、使用部门和年查找相对应的数据
+                    dateList = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber && c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year).ToList();
+                    if (time.Year == year)
+                    {
+                        houses = time.DayOfYear * 24;//月份的天数*24 
+                    }
+                    else
+                    {
+                        houses = (DateTime.IsLeapYear(year.Value) == true ? 366 : 365) * 24;//年份的天数*24
+                    }
+                }
+                else if (year != null && month == null)//判断年是否为空，判断月是否等于空
+                {
+                    //根据设备编号和年查询相对应的数据
+                    dateList = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber && c.StatusStarTime.Value.Year == year).ToList();
+                    if (time.Year == year)
+                    {
+                        houses = time.DayOfYear * 24;//月份的天数*24 
+                    }
+                    else
+                    {
+                        houses = (DateTime.IsLeapYear(year.Value) == true ? 366 : 365) * 24;//年份的天数*24
+                    }
+                }
+                else if (year != null && month != null)//判断年月是否为空
+                {
+                    //根据设备编号和年月查询相对应的数据
+                    var p = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime == null).ToList();
+                    var k = db.EquipmentStateTime.Where(c => c.EquipmentNumber == equipmentNumber && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime.Value.Month >= month).ToList();
+                    dateList = p.Concat(k).ToList();
+                    if (time.Year == year && time.Month == month)
+                    {
+                        houses = time.Day * 24;//月份的天数*24 
+                    }
+                    else
+                    {
+                        houses = DateTime.DaysInMonth(year.Value, month.Value) * 24;//月份的天数*24 
+                    }
+                }
+                if (dateList.Count > 0)//判断查询出来的数据是否大于0
+                {
+                    foreach (var ite in dateList)//循环timelist
+                    {
+                        DateTime? dt1 = ite.StatusStarTime;//把DateTime?类型转换成DateTime类型(开始时间)
+                        DateTime? dt2 = ite.StatusEndTime;//把DateTime?类型转换成DateTime类型（结束时间）
+                        DateTime at1 = dateList.Where(c => c.StatusStarTime == ite.StatusStarTime).Min(c => c.StatusStarTime).Value;//最小的记录
+                        if (dt2 == null)
                         {
-                            houses = time.Day * 24;//月份的天数*24 
+                            yuemo = time.Hour - at1.Hour;
                         }
                         else
                         {
-                            houses = DateTime.DaysInMonth(year.Value, month.Value) * 24;//月份的天数*24 
+                            DateTime at2 = dateList.Where(c => c.StatusEndTime == ite.StatusEndTime).Max(c => c.StatusEndTime).Value;//最大的记录
+                            yuemo = at2.Hour - at1.Hour;//月末减去月初的时间                               
                         }
-                    }
-                    else if (userDepartment != null && year != null && month == null)//判断使用部门和年是否为空，判断月是否等于空
-                    {
-                        //根据设备编号、使用部门和年查找相对应的数据
-                        dateList = db.EquipmentStateTime.Where(c => c.EquipmentNumber == item && c.UserDepartment == userDepartment && c.StatusStarTime.Value.Year == year).ToList();
-                        if (time.Year == year)
+                        yu = yu + yuemo;//把月末减去月初的时间转换成小时
+                        DateTime begintime = default(DateTime);
+                        if (year != null && month != null)
                         {
-                            houses = time.DayOfYear * 24;//月份的天数*24 
+                            begintime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(month), 1, 0, 0, 0);
                         }
-                        else
+                        else if (year != null && month == null)
                         {
-                            houses = (DateTime.IsLeapYear(year.Value) == true ? 366 : 365) * 24;//年份的天数*24
+                            begintime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(1), 1, 0, 0, 0);
                         }
-                    }
-                    else if (year != null && month == null)//判断年是否为空，判断月是否等于空
-                    {
-                        //根据设备编号和年查询相对应的数据
-                        dateList = db.EquipmentStateTime.Where(c => c.EquipmentNumber == item && c.StatusStarTime.Value.Year == year).ToList();
-                        if (time.Year == year)
+                        if (ite.Status == "停机")//设备状态等于“停机”
                         {
-                            houses = time.DayOfYear * 24;//月份的天数*24 
-                        }
-                        else
-                        {
-                            houses = (DateTime.IsLeapYear(year.Value) == true ? 366 : 365) * 24;//年份的天数*24
-                        }
-                    }
-                    else if (year != null && month != null)//判断年月是否为空
-                    {
-                        //根据设备编号和年月查询相对应的数据
-                        var p = db.EquipmentStateTime.Where(c => c.EquipmentNumber == item && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime == null).ToList();
-                        var k = db.EquipmentStateTime.Where(c => c.EquipmentNumber == item && c.StatusStarTime.Value.Year == year && c.StatusStarTime.Value.Month <= month && c.StatusEndTime.Value.Month >= month).ToList();
-                        dateList = p.Concat(k).ToList();
-                        if (time.Year == year && time.Month == month)
-                        {
-                            houses = time.Day * 24;//月份的天数*24 
-                        }
-                        else
-                        {
-                            houses = DateTime.DaysInMonth(year.Value, month.Value) * 24;//月份的天数*24 
-                        }
-                    }
-                    if (dateList.Count > 0)//判断查询出来的数据是否大于0
-                    {
-                        foreach (var ite in dateList)//循环timelist
-                        {
-                            DateTime? dt1 = ite.StatusStarTime;//把DateTime?类型转换成DateTime类型(开始时间)
-                            DateTime? dt2 = ite.StatusEndTime;//把DateTime?类型转换成DateTime类型（结束时间）
-                            DateTime at1 = dateList.Where(c => c.StatusStarTime == ite.StatusStarTime).Min(c => c.StatusStarTime).Value;//最小的记录
-                            if (dt2 == null)
+                            if (dt1 < begintime)
                             {
-                                yuemo = time.Hour - at1.Hour;
+                                if (ite.StatusEndTime == null)//设备状态的结束时间为空
+                                {
+                                    Thours = (time - begintime).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                }
+                                halt = halt + Thours;//时间汇总
+                                exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长     
                             }
                             else
                             {
-                                DateTime at2 = dateList.Where(c => c.StatusEndTime == ite.StatusEndTime).Max(c => c.StatusEndTime).Value;//最大的记录
-                                yuemo = at2.Hour - at1.Hour;//月末减去月初的时间                               
-                            }
-                            yu = yu + yuemo;//把月末减去月初的时间转换成小时
-                            DateTime begintime = default(DateTime);
-                            if (year != null && month != null)
-                            {
-                                begintime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(month), 1, 0, 0, 0);
-                            }
-                            else if (year != null && month == null)
-                            {
-                                begintime = new DateTime(Convert.ToInt32(year), Convert.ToInt32(1), 1, 0, 0, 0);
-                            }
-                            if (ite.Status == "停机")//设备状态等于“停机”
-                            {
-                                if (dt1 < begintime)
+                                if (ite.StatusEndTime == null)
                                 {
-                                    if (ite.StatusEndTime == null)//设备状态的结束时间为空
-                                    {
-                                        Thours = (time - begintime).TotalHours;
-                                    }
-                                    else
-                                    {
-                                        Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
-                                    }
-                                    halt = halt + Thours;//时间汇总
-                                    exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长     
+                                    Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
                                 }
                                 else
                                 {
-                                    if (ite.StatusEndTime == null)
-                                    {
-                                        Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
-                                    }
-                                    else
-                                    {
-                                        Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
-                                    }
-                                    halt = halt + Thours;//时间汇总
-                                    exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长     
+                                    Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
                                 }
-                                rate_halt = rate_halt + exce;//使用率汇总
+                                halt = halt + Thours;//时间汇总
+                                exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长     
                             }
-                            else if (ite.Status == "运行")//判断设备状态是否等于“运行”
-                            {
-                                if (dt1 < begintime)
-                                {
-                                    if (ite.StatusEndTime == null)//设备状态的结束时间为空
-                                    {
-                                        Thours = (time - begintime).TotalHours;
-                                    }
-                                    else
-                                    {
-                                        Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
-                                    }
-                                    run = run + Thours;//时间汇总
-                                    exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
-                                }
-                                else
-                                {
-                                    if (ite.StatusEndTime == null)
-                                    {
-                                        Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
-                                    }
-                                    else
-                                    {
-                                        Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
-                                    }
-                                    run = run + Thours;//时间汇总
-                                    exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
-                                }
-                                rate_run = rate_run + exce;//使用率汇总
-                            }
-                            else if (ite.Status == "维修")//判断设备状态是否等于“维修”
-                            {
-                                if (dt1 < begintime)
-                                {
-                                    if (ite.StatusEndTime == null)//设备状态的结束时间为空
-                                    {
-                                        Thours = (time - begintime).TotalHours;
-                                    }
-                                    else
-                                    {
-                                        Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
-                                    }
-                                    main = main + Thours;//时间汇总
-                                    exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
-                                }
-                                else
-                                {
-                                    if (ite.StatusEndTime == null)
-                                    {
-                                        Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
-                                    }
-                                    else
-                                    {
-                                        Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
-                                    }
-                                    main = main + Thours;//时间汇总
-                                    exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
-                                }
-                                rate_main = rate_main + exce;//使用率汇总
-                            }
+                            rate_halt = rate_halt + exce;//使用率汇总
                         }
-                        //赋值为数组对象
-                        JObject equi = new JObject();
-                        equi.Add("name", "停机时间");
-                        equi.Add("value", double.Parse(halt.ToString("0.00")) + "小时");
-                        halt = new double();
-                        timeList.Add(equi);
-                        equi = new JObject();
-
-                        equi.Add("name", "停机使用率");
-                        equi.Add("value", double.Parse(rate_halt.ToString("0.00")) + "%");
-                        rate_halt = new double();
-                        timeList.Add(equi);
-                        equi = new JObject();
-
-                        equi.Add("name", "运行时间");
-                        equi.Add("value", double.Parse(run.ToString("0.00")) + "小时");
-                        run = new double();
-                        timeList.Add(equi);
-                        equi = new JObject();
-
-                        equi.Add("name", "运行使用率");
-                        equi.Add("value", double.Parse(rate_run.ToString("0.00")) + "%");
-                        rate_run = new double();
-                        timeList.Add(equi);
-                        equi = new JObject();
-
-                        equi.Add("name", "维修时间");
-                        equi.Add("value", double.Parse(main.ToString("0.00")) + "小时");
-                        main = new double();
-                        timeList.Add(equi);
-                        equi = new JObject();
-
-                        equi.Add("name", "维修使用率");
-                        equi.Add("value", double.Parse(rate_main.ToString("0.00")) + "%");
-                        rate_main = new double();
-                        timeList.Add(equi);
-                        equi = new JObject();
+                        else if (ite.Status == "运行")//判断设备状态是否等于“运行”
+                        {
+                            if (dt1 < begintime)
+                            {
+                                if (ite.StatusEndTime == null)//设备状态的结束时间为空
+                                {
+                                    Thours = (time - begintime).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                }
+                                run = run + Thours;//时间汇总
+                                exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
+                            }
+                            else
+                            {
+                                if (ite.StatusEndTime == null)
+                                {
+                                    Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                                run = run + Thours;//时间汇总
+                                exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
+                            }
+                            rate_run = rate_run + exce;//使用率汇总
+                        }
+                        else if (ite.Status == "维修")//判断设备状态是否等于“维修”
+                        {
+                            if (dt1 < begintime)
+                            {
+                                if (ite.StatusEndTime == null)//设备状态的结束时间为空
+                                {
+                                    Thours = (time - begintime).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - begintime).TotalHours;
+                                }
+                                main = main + Thours;//时间汇总
+                                exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
+                            }
+                            else
+                            {
+                                if (ite.StatusEndTime == null)
+                                {
+                                    Thours = (time - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                                else
+                                {
+                                    Thours = (Convert.ToDateTime(dt2) - Convert.ToDateTime(dt1)).TotalHours;
+                                }
+                                main = main + Thours;//时间汇总
+                                exce = (yu <= 0 ? 0 : Thours / yu) / houses * 100;//使用总时长除以月末减去月初的时间在除以当月/年天数的时长  
+                            }
+                            rate_main = rate_main + exce;//使用率汇总
+                        }
                     }
-                    statu.Add("Userdeparment", userDepartment);
-                    statu.Add("EquipmentNumber", item);
-                    var code = dateList.Where(c => c.EquipmentNumber == item).Select(c => c.EquipmentName).FirstOrDefault();
-                    statu.Add("EquipmentName", code);
-                    statu.Add("Year", year);
-                    statu.Add("Month", month);
-                    statu.Add("timeList", timeList);
-                    timeList = new JArray();
-                    result.Add(statu);
-                    statu = new JObject();
+                    //赋值为数组对象
+                    JObject equi = new JObject();
+                    equi.Add("name", "停机时间");
+                    equi.Add("value", double.Parse(halt.ToString("0.00")) + "小时");
+                    halt = new double();
+                    timeList.Add(equi);
+                    equi = new JObject();
+
+                    equi.Add("name", "停机使用率");
+                    equi.Add("value", double.Parse(rate_halt.ToString("0.00")) + "%");
+                    rate_halt = new double();
+                    timeList.Add(equi);
+                    equi = new JObject();
+
+                    equi.Add("name", "运行时间");
+                    equi.Add("value", double.Parse(run.ToString("0.00")) + "小时");
+                    run = new double();
+                    timeList.Add(equi);
+                    equi = new JObject();
+
+                    equi.Add("name", "运行使用率");
+                    equi.Add("value", double.Parse(rate_run.ToString("0.00")) + "%");
+                    rate_run = new double();
+                    timeList.Add(equi);
+                    equi = new JObject();
+
+                    equi.Add("name", "维修时间");
+                    equi.Add("value", double.Parse(main.ToString("0.00")) + "小时");
+                    main = new double();
+                    timeList.Add(equi);
+                    equi = new JObject();
+
+                    equi.Add("name", "维修使用率");
+                    equi.Add("value", double.Parse(rate_main.ToString("0.00")) + "%");
+                    rate_main = new double();
+                    timeList.Add(equi);
+                    equi = new JObject();
                 }
+                statu.Add("Userdeparment", userDepartment);
+                statu.Add("EquipmentNumber", equipmentNumber);
+                var code = dateList.Where(c => c.EquipmentNumber == equipmentNumber).Select(c => c.EquipmentName).FirstOrDefault();
+                statu.Add("EquipmentName", code);
+                statu.Add("Year", year);
+                statu.Add("Month", month);
+                statu.Add("timeList", timeList);
+                timeList = new JArray();
+                result.Add(statu);
+                statu = new JObject();
             }
             return common.GetModuleFromJarray(result);
         }
@@ -9843,60 +12721,57 @@ namespace JianHeMES.Controllers
         //查询页
         [HttpPost]
         [ApiAuthorize]
-        public JObject Index2([System.Web.Http.FromBody]JObject data)
+        public JObject Index2([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<string> departmentlist = obj.departmentlist == null ? null : obj.departmentlist;
-            if (departmentlist != null)
+            string department = obj.department == null ? null : obj.department;
+            if (department != null)
             {
-                foreach (var department in departmentlist)
+                var linenumlist = db.EquipmentSetStation.Where(c => c.UserDepartment == department).Select(c => c.LineNum).Distinct().ToList();
+                JObject JOdepartmentDatas = new JObject();
+                JArray JOdepartment = new JArray();
+                foreach (var linenum in linenumlist)
                 {
-                    var linenumlist = db.EquipmentSetStation.Where(c => c.UserDepartment == department).Select(c => c.LineNum).Distinct().ToList();
-                    JObject JOdepartmentDatas = new JObject();
-                    JArray JOdepartment = new JArray();
-                    foreach (var linenum in linenumlist)
+                    JObject JOlineData = new JObject();
+                    JOlineData.Add("linenum", linenum);
+                    var equipmentlistbystationnum = db.EquipmentSetStation.Where(c => c.UserDepartment == department && c.LineNum == linenum).OrderBy(c => c.StationNum).ToList();
+                    int eqcount = equipmentlistbystationnum.Count;
+                    int stop_eqcount = equipmentlistbystationnum.Count(c => c.Status == "停机");
+                    int start_eqcount = equipmentlistbystationnum.Count(c => c.Status == "运行");
+                    int repair_eqcount = equipmentlistbystationnum.Count(c => c.Status == "维修" || c.Status == "保养");
+                    if (eqcount == start_eqcount)
                     {
-                        JObject JOlineData = new JObject();
-                        JOlineData.Add("linenum", linenum);
-                        var equipmentlistbystationnum = db.EquipmentSetStation.Where(c => c.UserDepartment == department && c.LineNum == linenum).OrderBy(c => c.StationNum).ToList();
-                        int eqcount = equipmentlistbystationnum.Count;
-                        int stop_eqcount = equipmentlistbystationnum.Count(c => c.Status == "停机");
-                        int start_eqcount = equipmentlistbystationnum.Count(c => c.Status == "运行");
-                        int repair_eqcount = equipmentlistbystationnum.Count(c => c.Status == "维修" || c.Status == "保养");
-                        if (eqcount == start_eqcount)
-                        {
-                            JOlineData.Add("productLineStatus", "运行");
-                        }
-                        else if (eqcount == stop_eqcount)
-                        {
-                            JOlineData.Add("productLineStatus", "停机");
-                        }
-                        else if (repair_eqcount > 0)
-                        {
-                            JOlineData.Add("productLineStatus", "维修/保养");
-                        }
-                        else
-                        {
-                            JOlineData.Add("productLineStatus", "未知状态");
-                        }
-                        JArray Jmechines = new JArray();
-                        foreach (var mechine in equipmentlistbystationnum)
-                        {
-                            JObject JOmechine = new JObject();
-                            JOmechine.Add("mechineindex", mechine.StationNum);
-                            JOmechine.Add("equipmentNumber", mechine.EquipmentNumber);
-                            JOmechine.Add("equipmentName", mechine.EquipmentName);
-                            JOmechine.Add("status", mechine.Status);
-                            Jmechines.Add(JOmechine);
-                        }
-                        JOlineData.Add("mechines", Jmechines);
-                        JOdepartment.Add(JOlineData);
+                        JOlineData.Add("productLineStatus", "运行");
                     }
-                    JOdepartmentDatas.Add(department, JOdepartment);
-                    result.Add(JOdepartmentDatas);
+                    else if (eqcount == stop_eqcount)
+                    {
+                        JOlineData.Add("productLineStatus", "停机");
+                    }
+                    else if (repair_eqcount > 0)
+                    {
+                        JOlineData.Add("productLineStatus", "维修/保养");
+                    }
+                    else
+                    {
+                        JOlineData.Add("productLineStatus", "未知状态");
+                    }
+                    JArray Jmechines = new JArray();
+                    foreach (var mechine in equipmentlistbystationnum)
+                    {
+                        JObject JOmechine = new JObject();
+                        JOmechine.Add("mechineindex", mechine.StationNum);
+                        JOmechine.Add("equipmentNumber", mechine.EquipmentNumber);
+                        JOmechine.Add("equipmentName", mechine.EquipmentName);
+                        JOmechine.Add("status", mechine.Status);
+                        Jmechines.Add(JOmechine);
+                    }
+                    JOlineData.Add("mechines", Jmechines);
+                    JOdepartment.Add(JOlineData);
                 }
+                JOdepartmentDatas.Add(department, JOdepartment);
+                result.Add(JOdepartmentDatas);
                 return common.GetModuleFromJarray(result);
             }
             return common.GetModuleFromJarray(result);
@@ -9904,61 +12779,59 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject Index3([System.Web.Http.FromBody]JObject data)
+        public JObject Index3([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<string> departmentlist = obj.departmentlist == null ? null : obj.departmentlist;
-            if (departmentlist != null)
+            string department = obj.department == null ? null : obj.department;
+            if (department != null)
             {
-                foreach (var department in departmentlist)
+                var linenumlist = db.EquipmentSetStation.Where(c => c.UserDepartment == department).Select(c => c.LineNum).Distinct().ToList();
+                JObject JOdepartmentDatas = new JObject();
+                JArray JOdepartment = new JArray();
+                foreach (var linenum in linenumlist)
                 {
-                    var linenumlist = db.EquipmentSetStation.Where(c => c.UserDepartment == department).Select(c => c.LineNum).Distinct().ToList();
-                    JObject JOdepartmentDatas = new JObject();
-                    JArray JOdepartment = new JArray();
-                    foreach (var linenum in linenumlist)
+                    JObject JOlineData = new JObject();
+                    JOlineData.Add("linenum", linenum);
+                    var equipmentlistbystationnum = db.EquipmentSetStation.Where(c => c.UserDepartment == department && c.LineNum == linenum).OrderBy(c => c.StationNum).ToList();
+                    int eqcount = equipmentlistbystationnum.Count;
+                    int stop_eqcount = equipmentlistbystationnum.Count(c => c.Status == "停机");
+                    int start_eqcount = equipmentlistbystationnum.Count(c => c.Status == "运行");
+                    int repair_eqcount = equipmentlistbystationnum.Count(c => c.Status == "维修" || c.Status == "保养");
+                    if (eqcount == start_eqcount)
                     {
-                        JObject JOlineData = new JObject();
-                        JOlineData.Add("linenum", linenum);
-                        var equipmentlistbystationnum = db.EquipmentSetStation.Where(c => c.UserDepartment == department && c.LineNum == linenum).OrderBy(c => c.StationNum).ToList();
-                        int eqcount = equipmentlistbystationnum.Count;
-                        int stop_eqcount = equipmentlistbystationnum.Count(c => c.Status == "停机");
-                        int start_eqcount = equipmentlistbystationnum.Count(c => c.Status == "运行");
-                        int repair_eqcount = equipmentlistbystationnum.Count(c => c.Status == "维修" || c.Status == "保养");
-                        if (eqcount == start_eqcount)
-                        {
-                            JOlineData.Add("productLineStatus", "运行");
-                        }
-                        else if (eqcount == stop_eqcount)
-                        {
-                            JOlineData.Add("productLineStatus", "停机");
-                        }
-                        else if (repair_eqcount > 0)
-                        {
-                            JOlineData.Add("productLineStatus", "维修/保养");
-                        }
-                        else
-                        {
-                            JOlineData.Add("productLineStatus", "其他状态");
-                        }
-                        JArray Jmechines = new JArray();
-                        foreach (var mechine in equipmentlistbystationnum)
-                        {
-                            JObject JOmechine = new JObject();
-                            JOmechine.Add("mechineindex", mechine.StationNum);
-                            JOmechine.Add("equipmentNumber", mechine.EquipmentNumber);
-                            JOmechine.Add("equipmentName", mechine.EquipmentName);
-                            JOmechine.Add("status", mechine.Status);
-                            Jmechines.Add(JOmechine);
-                        }
-                        JOlineData.Add("mechines", Jmechines);
-                        JOdepartment.Add(JOlineData);
+                        JOlineData.Add("productLineStatus", "运行");
                     }
-                    JOdepartmentDatas.Add("department", department);
-                    JOdepartmentDatas.Add("jOdepartment", JOdepartment);
-                    result.Add(JOdepartmentDatas);
+                    else if (eqcount == stop_eqcount)
+                    {
+                        JOlineData.Add("productLineStatus", "停机");
+                    }
+                    else if (repair_eqcount > 0)
+                    {
+                        JOlineData.Add("productLineStatus", "维修/保养");
+                    }
+                    else
+                    {
+                        JOlineData.Add("productLineStatus", "其他状态");
+                    }
+                    JArray Jmechines = new JArray();
+                    foreach (var mechine in equipmentlistbystationnum)
+                    {
+                        JObject JOmechine = new JObject();
+                        JOmechine.Add("mechineindex", mechine.StationNum);
+                        JOmechine.Add("id", mechine.Id);
+                        JOmechine.Add("equipmentNumber", mechine.EquipmentNumber);
+                        JOmechine.Add("equipmentName", mechine.EquipmentName);
+                        JOmechine.Add("status", mechine.Status);
+                        Jmechines.Add(JOmechine);
+                    }
+                    JOlineData.Add("mechines", Jmechines);
+                    JOdepartment.Add(JOlineData);
                 }
+                JOdepartmentDatas.Add("department", department);
+                JOdepartmentDatas.Add("jOdepartment", JOdepartment);
+                result.Add(JOdepartmentDatas);
                 return common.GetModuleFromJarray(result);
             }
             return common.GetModuleFromJarray(result);
@@ -9967,7 +12840,7 @@ namespace JianHeMES.Controllers
         //修改设备基本信息方法
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentBasicInfoModify([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentBasicInfoModify([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -9991,7 +12864,7 @@ namespace JianHeMES.Controllers
         public JObject EquipmentNumberList()
         {
             JArray result = new JArray();
-            var equi_list = db.EquipmentBasicInfo.OrderByDescending(m => m.Id).Select(c => c.EquipmentNumber).Distinct();
+            var equi_list = db.EquipmentBasicInfo.Where(c => c.Status == "正常").OrderByDescending(m => m.Id).Select(c => c.EquipmentNumber).Distinct();
             result.Add(equi_list);
             return common.GetModuleFromJarray(result);
         }
@@ -10006,16 +12879,16 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Particulars([System.Web.Http.FromBody]JObject data)
+        public JObject Particulars([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            string equipmentNumber = obj.equipmentNumber == null ? null : obj.equipmentNumber;
-            if (equipmentNumber != null)//判断设备编号是否为空
+            int id = obj.id;
+            if (id != 0)//判断设备编号是否为空
             {
-                var partic = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).ToList();//根据设备编号查找数据
-                result.Add(partic);
+                var partic = db.EquipmentSetStation.Where(c => c.Id == id).ToList();//根据设备编号查找数据
+                result.Add(JsonConvert.SerializeObject(partic));
                 return common.GetModuleFromJarray(result);
             }
             return common.GetModuleFromJarray(result);
@@ -10033,7 +12906,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject ADDEquipment([System.Web.Http.FromBody]JObject data)
+        public JObject ADDEquipment([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -10042,24 +12915,32 @@ namespace JianHeMES.Controllers
             //判断设备编号，使用部门，线别号是否为空
             if (!String.IsNullOrEmpty(EquipmentSetStation.EquipmentNumber) && !String.IsNullOrEmpty(EquipmentSetStation.UserDepartment) && !String.IsNullOrEmpty(EquipmentSetStation.LineNum))
             {
-                //根据使用部门、线别号、位置号查找数据
-                var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == EquipmentSetStation.UserDepartment && c.LineNum == EquipmentSetStation.LineNum && c.StationNum >= EquipmentSetStation.StationNum).ToList();
-                foreach (var item in eqlist)//循环查询出来的数据
+                var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == EquipmentSetStation.EquipmentNumber).Select(c => c.Status).FirstOrDefault();
+                if (status == "正常")
                 {
-                    item.StationNum = item.StationNum + 1;//位置号加一
-                    db.SaveChanges();//保存到数据库
+                    //根据使用部门、线别号、位置号查找数据
+                    var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == EquipmentSetStation.UserDepartment && c.LineNum == EquipmentSetStation.LineNum && c.StationNum >= EquipmentSetStation.StationNum).ToList();
+                    foreach (var item in eqlist)//循环查询出来的数据
+                    {
+                        item.StationNum = item.StationNum + 1;//位置号加一
+                        db.SaveChanges();//保存到数据库
+                    }
+                    EquipmentSetStation.CreateTime = DateTime.Now;//添加创建时间
+                    EquipmentSetStation.Creator = auth.UserName;//添加创建人
+                    db.EquipmentSetStation.Add(EquipmentSetStation);//把数据保存到对应的表
+                    var savecount = db.SaveChanges();//保存到数据库
+                    if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
+                    {
+                        return common.GetModuleFromJobjet(result, true, "添加成功");
+                    }
+                    else //savecount等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        return common.GetModuleFromJobjet(result, false, "添加失败");
+                    }
                 }
-                EquipmentSetStation.CreateTime = DateTime.Now;//添加创建时间
-                EquipmentSetStation.Creator = auth.UserName;//添加创建人
-                db.EquipmentSetStation.Add(EquipmentSetStation);//把数据保存到对应的表
-                var savecount = db.SaveChanges();//保存到数据库
-                if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
+                else
                 {
-                    return common.GetModuleFromJobjet(result, true, "添加成功");
-                }
-                else //savecount等于0（没有把数据保存到数据库或者保存出错）
-                {
-                    return common.GetModuleFromJobjet(result, false, "添加失败");
+                    return common.GetModuleFromJobjet(result, false, "该设备状态为闲置/报废，不可添加");
                 }
             }
             return common.GetModuleFromJobjet(result, false, "添加失败");
@@ -10076,16 +12957,16 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject deleteEquipment([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Del([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            string equipmentNumber = obj.equipmentNumber == null ? null : obj.equipmentNumber;
-            if (!String.IsNullOrEmpty(equipmentNumber))//判断设备编号是否为空
+            int id = obj.id;
+            if (id != 0)//判断设备编号是否为空
             {
-                var eq = db.EquipmentSetStation.Where(c => c.EquipmentNumber == equipmentNumber).FirstOrDefault();//根据设备编号查询该设备的数据
-                //根据使用部门、线别号和位置号查询数据
+                var eq = db.EquipmentSetStation.Where(c => c.Id == id).FirstOrDefault();//根据设备编号查询该设备的数据
+                                                                                        //根据使用部门、线别号和位置号查询数据
                 var eqlist = db.EquipmentSetStation.Where(c => c.UserDepartment == eq.UserDepartment && c.LineNum == eq.LineNum && c.StationNum >= eq.StationNum).ToList();
                 foreach (var item in eqlist)//循环
                 {
@@ -10117,9 +12998,9 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject ADDLineNum([System.Web.Http.FromBody]JObject data)
+        public JObject ADDLineNum([System.Web.Http.FromBody] JObject data)
         {
-            JObject result = new JObject();
+            JArray result = new JArray();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
@@ -10130,23 +13011,38 @@ namespace JianHeMES.Controllers
             List<equipment_station> eqnumlist1 = (List<equipment_station>)JsonHelper.jsonDes<List<equipment_station>>(equipmentNumberlist);
             if (!String.IsNullOrEmpty(usedepartment) && !String.IsNullOrEmpty(lineNum) && eqnumlist.Count > 0)
             {
+                string repat = "";
                 List<EquipmentSetStation> eqlist = new List<EquipmentSetStation>();
                 foreach (var item in eqnumlist)
                 {
-                    EquipmentSetStation eq = new EquipmentSetStation();
-                    var eqdata = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item.Value).FirstOrDefault();
-                    eq.EquipmentNumber = item.Value; //设备编号
-                    eq.AssetNumber = eqdata.AssetNumber;//资产编号
-                    eq.EquipmentName = eqdata.EquipmentName;//设备名称
-                    eq.Status = "停机";//默认设备状态为停机
-                    eq.UserDepartment = usedepartment;//使用部门
-                    eq.WorkShop = eqdata.WorkShop;//车间
-                    eq.LineNum = lineNum;//产线号（名）                
-                    eq.Section = eqdata.Section;//工段
-                    eq.StationNum = item.Key;//位置序号
-                    eq.Creator = auth.UserName;//创建记录人
-                    eq.CreateTime = DateTime.Now;//创建时间
-                    eqlist.Add(eq);
+                    var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item.Value).Select(c => c.Status).FirstOrDefault();
+                    if (status == "正常")
+                    {
+                        EquipmentSetStation eq = new EquipmentSetStation();
+                        var eqdata = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == item.Value).FirstOrDefault();
+                        eq.EquipmentNumber = item.Value; //设备编号
+                        eq.AssetNumber = eqdata.AssetNumber;//资产编号
+                        eq.EquipmentName = eqdata.EquipmentName;//设备名称
+                        eq.Status = "停机";//默认设备状态为停机
+                        eq.UserDepartment = usedepartment;//使用部门
+                        eq.WorkShop = eqdata.WorkShop;//车间
+                        eq.LineNum = lineNum;//产线号（名）                
+                        eq.Section = eqdata.Section;//工段
+                        eq.StationNum = item.Key;//位置序号
+                        eq.Creator = auth.UserName;//创建记录人
+                        eq.CreateTime = DateTime.Now;//创建时间
+                        eqlist.Add(eq);
+                    }
+                    else
+                    {
+                        repat = item.Value;
+                        repat = status;
+                        result.Add(repat);
+                    }
+                }
+                if (result.Count > 0)
+                {
+                    return common.GetModuleFromJarray(result, false, "状态为闲置/报废");
                 }
                 db.EquipmentSetStation.AddRange(eqlist);
                 db.SaveChanges();
@@ -10158,9 +13054,9 @@ namespace JianHeMES.Controllers
                     db.Entry(deparlist).State = EntityState.Modified;
                     db.SaveChanges();
                 }
-                return common.GetModuleFromJobjet(result, true, usedepartment + "添加" + lineNum + "产线成功,该产线添加了" + eqnumlist.Count + "台设备。");
+                return common.GetModuleFromJarray(result, true, usedepartment + "添加" + lineNum + "产线成功,该产线添加了" + eqnumlist.Count + "台设备。");
             }
-            return common.GetModuleFromJobjet(result, false, "添加产线失败！" + (String.IsNullOrEmpty(usedepartment) == true ? "未选择部门！" : "") + (String.IsNullOrEmpty(lineNum) == true ? "没有产线名！" : "") + (eqnumlist.Count == 0 ? "产线至少要有一台设备！" : ""));
+            return common.GetModuleFromJarray(result, false, "添加产线失败！" + (String.IsNullOrEmpty(usedepartment) == true ? "未选择部门！" : "") + (String.IsNullOrEmpty(lineNum) == true ? "没有产线名！" : "") + (eqnumlist.Count == 0 ? "产线至少要有一台设备！" : ""));
         }
         #endregion
 
@@ -10175,7 +13071,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Migration([System.Web.Http.FromBody]JObject data)
+        public JObject Migration([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -10225,6 +13121,8 @@ namespace JianHeMES.Controllers
                     }
                     eq.UserDepartment = userdepar;//使用部门
                     eq.LineNum = linenum;//线别号
+                    eq.WorkShop = workShop;//车间
+                    eq.Section = section;//工段
                     eq.Remark = remark;//备注
                     eq.Modifier = auth.UserName;//添加修改人
                     eq.ModifyTime = DateTime.Now;//添加修改时间
@@ -10236,6 +13134,8 @@ namespace JianHeMES.Controllers
                     eq.UserDepartment = userdepar;//保存使用部门
                     eq.LineNum = linenum;//线别号
                     eq.StationNum = stationnum;//位置号
+                    eq.WorkShop = workShop;//车间
+                    eq.Section = section;//工段
                     eq.Remark = remark;//备注
                     eq.Modifier = auth.UserName;//添加修改人
                     eq.ModifyTime = DateTime.Now;//添加修改时间
@@ -10521,7 +13421,7 @@ namespace JianHeMES.Controllers
         /// （7）判断年是否为空，不为空时根据故障时间的年查询第一步查找出来的数据；为空时进入下一个判断。（8）判断年月是否为空，不为空时根据故障时间的年月查询第一步查找出来的数据，为空时直接输出null。。
         /// 4.方法（可能）有结果：8个判断都为空或者查询出来的数据都为空，输出null；8个判断只要有一个不为空并能查询出对应的数据，输出想要的数据。
         /// </summary>
-        public JObject EquipmentRepairbill_Query([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentRepairbill_Query([System.Web.Http.FromBody] JObject data)
         {
             JObject table = new JObject();
             JArray result = new JArray();
@@ -10577,141 +13477,9 @@ namespace JianHeMES.Controllers
                     table.Add("FaultTime", faultTime);//设备故障时间
                     table.Add("Emergency", item.Emergency == null ? null : item.Emergency);//紧急状态
                     table.Add("FauDescription", item.FauDescription == null ? null : item.FauDescription);//报修内容（故障简述）         
-                    table.Add("RequirementsTime", item.RequirementsTime == null ? null : item.RequirementsTime);//要求完成时间
-                    if (item.RepairProblem == 1)
-                    {
-                        table.Add("StateRepair", "维修已完成");//维修状态
-                    }
-                    if (item.RepairProblem == 0)
-                    {
-                        table.Add("StateRepair", "维修中");//维修状态
-                    }
-                    if (item.RepairProblem == 2)
-                    {
-                        table.Add("StateRepair", "维修失败");//维修状态
-                    }
-                    if (item.Emergency == "非常紧急")
-                    {
-                        if (item.DeparAssessor == null && item.RepairName != null)
-                        {
-                            table.Add("State", "故障描述，待审核");
-                        }
-                        if (item.CenterApprove == null && item.DeparAssessor != null)
-                        {
-                            table.Add("State", "故障描述，中心总监待批准");
-                        }
-                        if (item.TecDepar_opinion == null && item.DeparAssessor != null)
-                        {
-                            table.Add("State1", "技术部意见待填写");
-                        }
-                        if (item.TecDeparAssessor == null && item.TecDepar_opinion != null)
-                        {
-                            table.Add("State1", "技术部意见，待审核");
-                        }
-                        if (item.CeApprove == null && item.TecDeparAssessor != null)
-                        {
-                            table.Add("State1", "技术部意见，中心总监待批准");
-                        }
-                        if (item.CeApprove != null && item.Needto == true)
-                        {
-                            if (item.Purchasing_opinion == null)
-                            {
-                                table.Add("State1", "联建采购意见待填写");
-                            }
-                            if (item.OpinAssessor == null && item.Purchasing_opinion != null)
-                            {
-                                table.Add("State1", "联建采购意见，待审核");
-                            }
-                            if (item.OpinApprove == null && item.OpinAssessor != null)
-                            {
-                                table.Add("State1", "联建采购意见，待批准");
-                            }
-                            if (item.MainName == null && item.OpinApprove != null)
-                            {
-                                table.Add("State1", "维修人/厂家,待审");
-                            }
-                            if (item.TcConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State1", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State2", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                        if (item.CeApprove != null && item.Needto == false)
-                        {
-                            if (item.TcConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State1", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State2", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (item.DeparAssessor == null && item.RepairName != null)
-                        {
-                            table.Add("State", "故障描述，待审核");
-                        }
-                        else if (item.CenterApprove == null && item.DeparAssessor != null)
-                        {
-                            table.Add("State", "故障描述，中心总监待批准");
-                        }
-                        else if (item.TecDepar_opinion == null && item.CenterApprove != null)
-                        {
-                            table.Add("State", "技术部意见待填写");
-                        }
-                        else if (item.TecDeparAssessor == null && item.TecDepar_opinion != null)
-                        {
-                            table.Add("State", "技术部意见，待审核");
-                        }
-                        else if (item.CeApprove == null && item.TecDeparAssessor != null)
-                        {
-                            table.Add("State", "技术部意见，中心总监待批准");
-                        }
-                        else if (item.CeApprove != null && item.Needto == true)
-                        {
-                            if (item.Purchasing_opinion == null)
-                            {
-                                table.Add("State", "联建采购意见待填写");
-                            }
-                            else if (item.OpinAssessor == null && item.Purchasing_opinion != null)
-                            {
-                                table.Add("State", "联建采购意见，待审核");
-                            }
-                            else if (item.OpinApprove == null && item.OpinAssessor != null)
-                            {
-                                table.Add("State", "联建采购意见，待批准");
-                            }
-                            else if (item.MainName == null && item.OpinApprove != null)
-                            {
-                                table.Add("State", "维修人/厂家,待审");
-                            }
-                            if (item.TcConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.MainName != null)
-                            {
-                                table.Add("State1", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                        else if (item.CeApprove != null && item.Needto == false)
-                        {
-                            if (item.TcConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State", "维修后效果确认/技术部，待确认");
-                            }
-                            if (item.ConfirmName == null && item.CeApprove != null)
-                            {
-                                table.Add("State1", "维修后效果确认/维修需要部门，待确认");
-                            }
-                        }
-                    }
+                    table.Add("DeparAssessedDate", item.DeparAssessedDate == null ? null : item.DeparAssessedDate);//报修时间（故障审核时间）MaintenanceTime
+                    table.Add("MaintenanceTime", item.MaintenanceTime == 0 ? 0 : item.MaintenanceTime);//维修时长
+                    table.Add("RepairStatus", item.RepairStatus == null ? null : item.RepairStatus);//维修状态
                     result.Add(table);
                     table = new JObject();
                 }
@@ -10722,7 +13490,7 @@ namespace JianHeMES.Controllers
         //详细页
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentRepairbill_Detailed([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentRepairbill_Detailed([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -10746,7 +13514,7 @@ namespace JianHeMES.Controllers
         /// （3）第二步大于0时（大于0就是该设备编号该故障时间已经有数据存在了），直接输出“已有重复数据，请重新填写故障时间！”，等于0时，直接把数据保存到数据库并添加创建人和创建时间。
         /// 4.方法（可能）有结果：第一步为空，第二步大于0时，添加失败；第一步不为空，第二步小于等于0时，添加成功。
         /// </summary> 
-        public JObject Repairbill_maintenance([System.Web.Http.FromBody]JObject data)
+        public JObject Repairbill_maintenance([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -10785,12 +13553,27 @@ namespace JianHeMES.Controllers
         /// （3）savecount等于0（没有把数据保存到数据库或者保存出错）。
         /// 4.方法（可能）有结果：第一步判断为空和第三步等于0，输出修改失败；第一步判断不为空和第二步大于0，输出修改成功。
         /// </summary>
-        public JObject Modify_repairs([System.Web.Http.FromBody]JObject data)
+        public JObject Modify_repairs([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             EquipmentRepairbill equipmentRepairbill = JsonConvert.DeserializeObject<EquipmentRepairbill>(JsonConvert.SerializeObject(data));
             if (equipmentRepairbill != null)//判断equipmentRepairbill是否为空
             {
+                if (equipmentRepairbill.TcConfirmName != null && equipmentRepairbill.ConfirmName != null)
+                {
+                    equipmentRepairbill.RepairStatus = "已结案";
+                    db.SaveChanges();//保存
+                }
+                else if (equipmentRepairbill.TcConfirmName != null && equipmentRepairbill.ConfirmName == null)
+                {
+                    equipmentRepairbill.RepairStatus = "验收中";
+                    db.SaveChanges();//保存
+                }
+                else if (equipmentRepairbill.TcConfirmName == null && equipmentRepairbill.ConfirmName != null)
+                {
+                    equipmentRepairbill.RepairStatus = "验收中";
+                    db.SaveChanges();//保存
+                }
                 db.Entry(equipmentRepairbill).State = EntityState.Modified;//修改数据
                 var savecount = db.SaveChanges();//保存数据库
                 if (savecount > 0)//判断savecount是否大于0（有没有把数据保存到数据库）
@@ -10804,6 +13587,34 @@ namespace JianHeMES.Controllers
             }
             return common.GetModuleFromJobjet(result, false, "修改失败");
         }
+        #endregion
+
+        #region--删除报修单
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DelRepairbill([System.Web.Http.FromBody] JObject data)
+        {
+            JObject result = new JObject();
+            AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            int id = obj.id == 0 ? 0 : obj.id;//id
+            var record = db.EquipmentRepairbill.Where(c => c.Id == id).FirstOrDefault();//根据ID查询数据
+            UserOperateLog operaterecord = new UserOperateLog();
+            operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
+            operaterecord.Operator = auth.UserName;//添加删除操作人
+
+            //添加操作记录（如：张三在2020年2月26日删除设备关键元器件为李四的记录）
+            operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除设备为" + record.EquipmentNumber + "的报修单";
+            db.EquipmentRepairbill.Remove(record);//删除对应的数据
+            db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
+            int count = db.SaveChanges();//保存
+            if (count > 0)//判断count是否大于0（有没有把数据保存到数据库）
+                return common.GetModuleFromJobjet(result, true, "删除成功");
+            else //countt等于0（没有把数据保存到数据库或者保存出错）
+                return common.GetModuleFromJobjet(result, false, "删除失败");
+        }
+
         #endregion
 
         #endregion
@@ -10821,7 +13632,7 @@ namespace JianHeMES.Controllers
         /// （3）判断设备名称里是否为空，不为空时，根据设备名称到第一步查找出来的数据里查询相对应的数据。（4）所有参数都是按照第一和第二步的步骤写。
         /// 4.方法（可能）有结果：查询条件不为空时并能查找出相对应的数据，输出查询数据；查询数据为空时，输出null。
         /// </summary>
-        public JObject Equipment_Tally([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Tally([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -10872,7 +13683,7 @@ namespace JianHeMES.Controllers
         /// 3.方法的具体逻辑顺序，判断条件：根据设备编号到Equipment_Tally_maintenance表里查询数据。（FirstOrDefault()）
         /// 4.方法（可能）有结果：查询数据不为空时，输出查到的数据；查询数据为空时，输出null。
         /// </summary>
-        public JObject Equipment_Tally_maintenance([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Tally_maintenance([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -10930,7 +13741,7 @@ namespace JianHeMES.Controllers
         /// 3.方法的具体逻辑顺序，判断条件：（1）根据查询条件到Equipment_Tally_maintenance表里查询数据。（2）判断第一步查询出来的数据是否为空，不为空时，获取右边的数据值。
         /// 4.方法（可能）有结果：null，输出查询出来的数据
         /// </summary>
-        public JObject Equipment_Query_Tally([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Query_Tally([System.Web.Http.FromBody] JObject data)
         {
 
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -10938,7 +13749,7 @@ namespace JianHeMES.Controllers
             string equipmentNumber = obj.equipmentNumber == null ? null : obj.equipmentNumber;//设备编号
             int year = obj.year == 0 ? 0 : obj.year;//年
             int month = obj.month == 0 ? 0 : obj.month;//月
-            //根据设备编号和年月查找数据
+                                                       //根据设备编号和年月查找数据
             var tally_record = db.Equipment_Tally_maintenance.Where(c => c.EquipmentNumber == equipmentNumber && c.Year == year && c.Month == month).FirstOrDefault();
             JObject result = new JObject();//接收右边的值
             if (tally_record != null)//获取右边值
@@ -10973,7 +13784,7 @@ namespace JianHeMES.Controllers
         /// （3）判断第二步是否为空，不为空时（大于0就是该设备编号该年该月已经有数据存在了），直接输出“记录已经存在”，为空时，直接把数据保存到数据库。
         /// 4.方法（可能）有结果：第一步为空，第二步不为空时，添加失败；第一步不为空，第二步为空时，添加成功。
         /// </summary> 
-        public JObject Equipment_Tally_maintenance_Add([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Tally_maintenance_Add([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             Equipment_Tally_maintenance equipment_Tally_maintenance = JsonConvert.DeserializeObject<Equipment_Tally_maintenance>(JsonConvert.SerializeObject(data));
@@ -10986,15 +13797,19 @@ namespace JianHeMES.Controllers
                 {
                     return common.GetModuleFromJobjet(result, false, "该月该设备已有点检记录表");
                 }
-                db.Equipment_Tally_maintenance.Add(equipment_Tally_maintenance);//把数据保存到对应的表
-                int cont = db.SaveChanges();
-                if (cont > 0) //判断result是否大于0（有没有把数据保存到数据库）
+                var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == equipment_Tally_maintenance.EquipmentNumber).Select(c => c.Status).FirstOrDefault();
+                if (status != null && status == "正常")
                 {
-                    return common.GetModuleFromJobjet(result, true, "保存成功！");
-                }
-                else   //result等于0（没有把数据保存到数据库或者保存出错）
-                {
-                    return common.GetModuleFromJobjet(result, false, "保存失败！");
+                    db.Equipment_Tally_maintenance.Add(equipment_Tally_maintenance);//把数据保存到对应的表
+                    int cont = db.SaveChanges();
+                    if (cont > 0) //判断result是否大于0（有没有把数据保存到数据库）
+                    {
+                        return common.GetModuleFromJobjet(result, true, "保存成功！");
+                    }
+                    else   //result等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        return common.GetModuleFromJobjet(result, false, "保存失败！");
+                    }
                 }
             }
             return common.GetModuleFromJobjet(result, false, "保存失败！");
@@ -11171,34 +13986,34 @@ namespace JianHeMES.Controllers
         /// （3）根据设备编号、年月到Equipment_Tally_maintenance表查询数据，并判断查找出来的数据是否大于0；大于0就可以进入下一步修改数据。
         /// 4.方法（可能）有结果：第二步大于0，修改失败；第二步等于0，第三步大于0，修改成功。
         /// </summary>
-        public JObject Equipment_Tally_maintenance_Edit([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Tally_maintenance_Edit([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             Equipment_Tally_maintenance equipment_Tally_maintenance = JsonConvert.DeserializeObject<Equipment_Tally_maintenance>(JsonConvert.SerializeObject(data));
             if (equipment_Tally_maintenance != null)//判断equipment_Tally_maintenance是否为空
             {
-                //1.根据设备编号、年月和部长确认到Equipment_Tally_maintenance表查询数据，并判断查找出来的数据是否大于0
-                if (db.Equipment_Tally_maintenance.Count(c => c.EquipmentNumber == equipment_Tally_maintenance.EquipmentNumber && c.Year == equipment_Tally_maintenance.Year && c.Month == equipment_Tally_maintenance.Month && c.Month_minister_3 != null) > 0)
+                ////1.根据设备编号、年月和部长确认到Equipment_Tally_maintenance表查询数据，并判断查找出来的数据是否大于0
+                //if (db.Equipment_Tally_maintenance.Count(c => c.EquipmentNumber == equipment_Tally_maintenance.EquipmentNumber && c.Year == equipment_Tally_maintenance.Year && c.Month == equipment_Tally_maintenance.Month && c.Month_minister_3 != null) > 0)
+                //{
+                //    return common.GetModuleFromJobjet(result, false, "修改失败");
+                //}
+                //else //第1部查找出来的数据等于0
+                //{
+                //根据设备编号、年月到Equipment_Tally_maintenance表查询数据，并判断查找出来的数据是否大于0(需要大于0)
+                if (db.Equipment_Tally_maintenance.Count(c => c.EquipmentNumber == equipment_Tally_maintenance.EquipmentNumber && c.Year == equipment_Tally_maintenance.Year && c.Month == equipment_Tally_maintenance.Month) > 0)
                 {
-                    return common.GetModuleFromJobjet(result, false, "修改失败");
-                }
-                else //第1部查找出来的数据等于0
-                {
-                    //根据设备编号、年月到Equipment_Tally_maintenance表查询数据，并判断查找出来的数据是否大于0(需要大于0)
-                    if (db.Equipment_Tally_maintenance.Count(c => c.EquipmentNumber == equipment_Tally_maintenance.EquipmentNumber && c.Year == equipment_Tally_maintenance.Year && c.Month == equipment_Tally_maintenance.Month) > 0)
+                    db.Entry(equipment_Tally_maintenance).State = EntityState.Modified;//修改数据
+                    var count = db.SaveChanges();
+                    if (count > 0)//判断result是否大于0（有没有把数据保存到数据库）
                     {
-                        db.Entry(equipment_Tally_maintenance).State = EntityState.Modified;//修改数据
-                        var count = db.SaveChanges();
-                        if (count > 0)//判断result是否大于0（有没有把数据保存到数据库）
-                        {
-                            return common.GetModuleFromJobjet(result, true, "修改成功！");
-                        }
-                        else //result等于0（没有把数据保存到数据库或者保存出错）
-                        {
-                            return common.GetModuleFromJobjet(result, false, "修改失败");
-                        }
+                        return common.GetModuleFromJobjet(result, true, "修改成功！");
+                    }
+                    else //result等于0（没有把数据保存到数据库或者保存出错）
+                    {
+                        return common.GetModuleFromJobjet(result, false, "修改失败");
                     }
                 }
+                //}
             }
             return common.GetModuleFromJobjet(result, false, "修改失败");
         }
@@ -11207,7 +14022,7 @@ namespace JianHeMES.Controllers
         #region---可复制上月的点检项目和操作方法到下个月
         [HttpPost]
         [ApiAuthorize]
-        public JObject TallySheet_Copy([System.Web.Http.FromBody]JObject data)
+        public JObject TallySheet_Copy([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -11227,9 +14042,10 @@ namespace JianHeMES.Controllers
                     var equipmentList = SheetCopy.Where(c => c.Year == old_year && c.Month == old_month && c.UserDepartment == item).Select(c => c.EquipmentNumber).Distinct().ToList();
                     foreach (var ite in equipmentList)
                     {
+                        var status = db.EquipmentBasicInfo.Where(c => c.EquipmentNumber == ite).Select(c => c.Status).FirstOrDefault();
                         var tally = SheetCopy.Where(c => c.EquipmentNumber == ite && c.Year == old_year && c.Month == old_month && c.UserDepartment == item).FirstOrDefault();
                         var tally1 = db.Equipment_Tally_maintenance.Where(c => c.EquipmentNumber == ite && c.Year == new_year && c.Month == new_month && c.UserDepartment == item).FirstOrDefault();
-                        if (tally != null && tally1 == null)
+                        if (tally != null && tally1 == null && status == "正常")
                         {
                             Equipment_Tally_maintenance equipment_Tally = new Equipment_Tally_maintenance()
                             {
@@ -11333,7 +14149,7 @@ namespace JianHeMES.Controllers
         [HttpPost]
         [ApiAuthorize]
         //根据设备编号、时间，类型显示数据
-        public JObject Tally_ScanCode([System.Web.Http.FromBody]JObject data)
+        public JObject Tally_ScanCode([System.Web.Http.FromBody] JObject data)
         {
             JObject tally = new JObject();
             JObject result = new JObject();
@@ -11910,16 +14726,14 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            result.Add("Result", false);
                             result.Add("EquipmentName", equiTall.EquipmentName == null ? null : equiTall.EquipmentName);//设备名称
                             result.Add("LineName", equiTall.LineName == null ? null : equiTall.LineName);//线别
                             result.Add("UserDepartment", equiTall.UserDepartment == null ? null : equiTall.UserDepartment);//使用部门
-                            result.Add("Message", equipmentNumber + "该设备当天已点检！");
-                            return common.GetModuleFromJobjet(result);
+                            result.Add("EquipmentNumber", equipmentNumber + "该设备当天已点检！");
+                            return common.GetModuleFromJobjet(result, false, "查询失败");
                         }
-                        result.Add("Result", true);
-                        result.Add("Message", tally);
-                        return common.GetModuleFromJobjet(result); ;
+                        result.Add("Tally", tally);
+                        return common.GetModuleFromJobjet(result, true, "查询成功"); ;
                     }
                     if (type == "周点检")
                     {
@@ -11984,12 +14798,11 @@ namespace JianHeMES.Controllers
                             }
                             else
                             {
-                                result.Add("Result", false);
                                 result.Add("EquipmentName", equiTall.EquipmentName == null ? null : equiTall.EquipmentName);//设备名称
                                 result.Add("LineName", equiTall.LineName == null ? null : equiTall.LineName);//线别
                                 result.Add("UserDepartment", equiTall.UserDepartment == null ? null : equiTall.UserDepartment);//使用部门
-                                result.Add("Message", equipmentNumber + "该设备当周已点检！");
-                                return common.GetModuleFromJobjet(result);
+                                result.Add("EquipmentNumber", equipmentNumber + "该设备当周已点检！");
+                                return common.GetModuleFromJobjet(result, false, "查询失败");
                             }
                         }
 
@@ -12065,17 +14878,15 @@ namespace JianHeMES.Controllers
                             }
                             else
                             {
-                                result.Add("Result", false);
                                 result.Add("EquipmentName", equiTall.EquipmentName == null ? null : equiTall.EquipmentName);//设备名称
                                 result.Add("LineName", equiTall.LineName == null ? null : equiTall.LineName);//线别
                                 result.Add("UserDepartment", equiTall.UserDepartment == null ? null : equiTall.UserDepartment);//使用部门
                                 result.Add("Message", equipmentNumber + "该设备当周已点检！");
-                                return common.GetModuleFromJobjet(result);
+                                return common.GetModuleFromJobjet(result, false, "查询失败");
                             }
                         }
-                        result.Add("Result", false);
-                        result.Add("Message", tally);
-                        return common.GetModuleFromJobjet(result);
+                        result.Add("Tally", tally);
+                        return common.GetModuleFromJobjet(result, true, "查询成功");
                     }
                     if (type == "月点检")
                     {
@@ -12126,16 +14937,14 @@ namespace JianHeMES.Controllers
                         }
                         else
                         {
-                            result.Add("Result", false);
                             result.Add("EquipmentName", equiTall.EquipmentName == null ? null : equiTall.EquipmentName);//设备名称
                             result.Add("LineName", equiTall.LineName == null ? null : equiTall.LineName);//线别
                             result.Add("UserDepartment", equiTall.UserDepartment == null ? null : equiTall.UserDepartment);//使用部门
-                            result.Add("Message", equipmentNumber + "该设备当月保养已保养！");
-                            return common.GetModuleFromJobjet(result);
+                            result.Add("EquipmentNumber", equipmentNumber + "该设备当月保养已保养！");
+                            return common.GetModuleFromJobjet(result, false, "查询失败");
                         }
-                        result.Add("Result", true);
-                        result.Add("Message", tally);
-                        return common.GetModuleFromJobjet(result);
+                        result.Add("Tally", tally);
+                        return common.GetModuleFromJobjet(result, true, "查询成功");
                     }
                 }
                 else
@@ -12153,7 +14962,7 @@ namespace JianHeMES.Controllers
         //保存PDA点检数据
         [HttpPost]
         [ApiAuthorize]
-        public JObject Save_TallyData([System.Web.Http.FromBody]JObject data)
+        public JObject Save_TallyData([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -12924,7 +15733,7 @@ namespace JianHeMES.Controllers
         #region---根据部门查找当天是否已点检的设备
         [HttpPost]
         [ApiAuthorize]
-        public JObject Checked_maintenance([System.Web.Http.FromBody]JObject data)
+        public JObject Checked_maintenance([System.Web.Http.FromBody] JObject data)
         {
             JObject table = new JObject();
             JArray retul = new JArray();
@@ -12964,6 +15773,8 @@ namespace JianHeMES.Controllers
             result.Add("Date", dayTime);
 
             #region ---未点检
+
+            #region---日检
 
             #region ---查找数据
             var mainte1 = department.Where(c => c.Year == time.Year && c.Month == time.Month && c.Day_A_1 == 0 && c.Day_Mainte_1 == null).ToList();
@@ -13013,6 +15824,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13032,6 +15880,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13051,6 +15936,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13070,6 +15993,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13089,6 +16049,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13108,6 +16106,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13127,6 +16163,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13146,6 +16219,44 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13165,6 +16276,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13184,6 +16332,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13203,6 +16388,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13222,6 +16443,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13241,6 +16499,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13260,6 +16555,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13279,6 +16611,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13298,6 +16667,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13317,6 +16722,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13336,6 +16778,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13355,6 +16834,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13374,6 +16890,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13393,6 +16946,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13412,6 +17002,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13431,6 +17058,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13450,6 +17114,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13469,6 +17170,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13488,6 +17226,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13507,6 +17282,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13526,6 +17338,43 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13545,6 +17394,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13564,6 +17449,42 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
@@ -13583,12 +17504,51 @@ namespace JianHeMES.Controllers
                     table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     table.Add("State", false);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     table.Add("Time", time);
                     retul.Add(table);
                     table = new JObject();
                 }
                 result.Add("Retul", retul);
             }
+            #endregion
+
             #endregion
 
             #endregion
@@ -13643,6 +17603,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_1 == null ? null : NotTally.Day_MainteTime_1);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13662,6 +17660,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_2 == null ? null : NotTally.Day_MainteTime_2);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13681,6 +17716,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_3 == null ? null : NotTally.Day_MainteTime_3);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13700,6 +17773,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_4 == null ? null : NotTally.Day_MainteTime_4);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13719,6 +17830,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_5 == null ? null : NotTally.Day_MainteTime_5);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13738,6 +17887,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_6 == null ? null : NotTally.Day_MainteTime_6);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13757,6 +17944,44 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_7 == null ? null : NotTally.Day_MainteTime_7);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13776,6 +18001,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week1 = department.Where(c => c.Week_Main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have1 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have5 = department.Where(c => c.Week_Main_1 != null && c.Week_engineer_1 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have1 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have5 != null && date >= 1 && date <= 8)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_8 == null ? null : NotTally.Day_MainteTime_8);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13795,6 +18057,42 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_9 == null ? null : NotTally.Day_MainteTime_9);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13814,6 +18112,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_10 == null ? null : NotTally.Day_MainteTime_10);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13833,6 +18168,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_11 == null ? null : NotTally.Day_MainteTime_11);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13852,6 +18224,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_12 == null ? null : NotTally.Day_MainteTime_12);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13871,6 +18280,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_13 == null ? null : NotTally.Day_MainteTime_13);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13890,6 +18336,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_14 == null ? null : NotTally.Day_MainteTime_14);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13909,6 +18392,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_15 == null ? null : NotTally.Day_MainteTime_15);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13928,6 +18448,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week2 = department.Where(c => c.Week_Main_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have2 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have6 = department.Where(c => c.Week_Main_2 != null && c.Week_engineer_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have2 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have6 != null && date >= 9 && date <= 16)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_16 == null ? null : NotTally.Day_MainteTime_16);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13947,6 +18504,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_17 == null ? null : NotTally.Day_MainteTime_17);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13966,6 +18560,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_18 == null ? null : NotTally.Day_MainteTime_18);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -13985,6 +18616,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_19 == null ? null : NotTally.Day_MainteTime_19);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14004,6 +18672,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_20 == null ? null : NotTally.Day_MainteTime_20);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14023,6 +18728,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_21 == null ? null : NotTally.Day_MainteTime_21);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14042,6 +18784,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_22 == null ? null : NotTally.Day_MainteTime_22);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14061,6 +18840,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_23 == null ? null : NotTally.Day_MainteTime_23);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14080,6 +18896,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week3 = department.Where(c => c.Week_Main_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have3 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have7 = department.Where(c => c.Week_Main_3 != null && c.Week_engineer_3 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have3 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have7 != null && date >= 17 && date <= 24)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_24 == null ? null : NotTally.Day_MainteTime_24);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14099,6 +18952,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_25 == null ? null : NotTally.Day_MainteTime_25);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14118,6 +19008,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_26 == null ? null : NotTally.Day_MainteTime_26);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14137,6 +19064,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_27 == null ? null : NotTally.Day_MainteTime_27);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14156,6 +19120,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_28 == null ? null : NotTally.Day_MainteTime_28);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14175,6 +19176,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_29 == null ? null : NotTally.Day_MainteTime_29);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14194,6 +19232,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_30 == null ? null : NotTally.Day_MainteTime_30);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14213,6 +19288,43 @@ namespace JianHeMES.Controllers
                     Have_table.Add("EquipmentName", NotTally.EquipmentName == null ? null : NotTally.EquipmentName);
                     Have_table.Add("EquipmentNumber", NotTally.EquipmentNumber == null ? null : NotTally.EquipmentNumber);
                     Have_table.Add("State", true);
+
+                    #region---周检
+                    var Week4 = department.Where(c => c.Week_Main_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have4 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Week_Have8 = department.Where(c => c.Week_Main_4 != null && c.Week_engineer_4 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Week4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 0);//周保养人未确认
+                    }
+                    else if (Week_Have4 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 1);//周保养人确认，工程师未确认
+                    }
+                    else if (Week_Have8 != null && date >= 25 && date <= 31)
+                    {
+                        Have_table.Add("Week_State", 2);//周保养已完成
+                    }
+                    #endregion
+
+                    #region---月检
+                    var Month1 = department.Where(c => c.Month_main_1 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 == null && c.EquipmentNumber == item).FirstOrDefault();
+                    var Month_Have1 = department.Where(c => c.Month_main_1 != null && c.Month_productin_2 != null && c.EquipmentNumber == item).FirstOrDefault();
+                    if (Month1 != null)
+                    {
+                        Have_table.Add("Month_State", 0);//月保养人未确认
+                    }
+                    else if (Month_Have != null)
+                    {
+                        Have_table.Add("Month_State", 1);//保养人已确认，确认人未确认
+                    }
+                    else if (Month_Have1 != null)
+                    {
+                        Have_table.Add("Month_State", 2);//保养人已确认，确认人已确认
+                    }
+                    #endregion
+
                     Have_table.Add("Time", NotTally.Day_MainteTime_31 == null ? null : NotTally.Day_MainteTime_31);
                     Have_retul.Add(Have_table);
                     Have_table = new JObject();
@@ -14230,7 +19342,7 @@ namespace JianHeMES.Controllers
         #region---修改点检表的使用部门、线别号、设备名称
         [HttpPost]
         [ApiAuthorize]
-        public JObject LineNameList([System.Web.Http.FromBody]JObject data)
+        public JObject LineNameList([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -14243,7 +19355,7 @@ namespace JianHeMES.Controllers
 
         [HttpPost]
         [ApiAuthorize]
-        public JObject ModifyUseDepartment([System.Web.Http.FromBody]JObject data)
+        public JObject ModifyUseDepartment([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -14277,6 +19389,34 @@ namespace JianHeMES.Controllers
 
         #endregion
 
+        #region--删除点检表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DelTally([System.Web.Http.FromBody] JObject data)
+        {
+            JObject result = new JObject();
+            AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            int id = obj.id == 0 ? 0 : obj.id;//id
+            var record = db.Equipment_Tally_maintenance.Where(c => c.Id == id).FirstOrDefault();//根据ID查询数据
+            UserOperateLog operaterecord = new UserOperateLog();
+            operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
+            operaterecord.Operator = auth.UserName;//添加删除操作人
+
+            //添加操作记录（如：张三在2020年2月26日删除设备关键元器件为李四的记录）
+            operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除设备为" + record.EquipmentNumber + "的点检表";
+            db.Equipment_Tally_maintenance.Remove(record);//删除对应的数据
+            db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
+            int count = db.SaveChanges();//保存
+            if (count > 0)//判断count是否大于0（有没有把数据保存到数据库）
+                return common.GetModuleFromJobjet(result, true, "删除成功");
+            else //countt等于0（没有把数据保存到数据库或者保存出错）
+                return common.GetModuleFromJobjet(result, false, "删除失败");
+        }
+
+        #endregion
+
         #endregion
 
         #region-----设备安全库存清单
@@ -14290,7 +19430,7 @@ namespace JianHeMES.Controllers
         /// 3.方法的具体逻辑顺序，判断条件：到Equipment_Safetystock表里按照ID的排序顺序查询所有使用部门并去重。
         /// 4.方法（可能）有结果：输出查询数据。
         /// </summary>
-        public JObject Getsafety_department()//使用部门
+        public JObject Safety_department()//使用部门
         {
             JArray result = new JArray();
             var department = db.Equipment_Safetystock.OrderByDescending(m => m.Id).Select(m => m.UserDepartment).Distinct();
@@ -14308,7 +19448,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Getsafety_equipmentName()//设备名称
+        public JObject Safety_equipmentName()//设备名称
         {
             JArray result = new JArray();
             var equipment = db.Equipment_Safetystock.OrderByDescending(m => m.Id).Select(m => m.EquipmentName).Distinct();
@@ -14324,7 +19464,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Getsafety_material()//配料料号
+        public JObject Safety_material()//配料料号
         {
             JArray result = new JArray();
             var material = db.Equipment_Safetystock.OrderByDescending(m => m.Id).Select(m => m.Material).Distinct();
@@ -14340,7 +19480,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Getsafety_descrip()//品名
+        public JObject Safety_descrip()//品名
         {
             JArray result = new JArray();
             var descrip = db.Equipment_Safetystock.OrderByDescending(m => m.Id).Select(m => m.Descrip).Distinct();
@@ -14356,7 +19496,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Getsafety_specifica()//规格/型号
+        public JObject Safety_specifica()//规格/型号
         {
             JArray result = new JArray();
             var speci = db.Equipment_Safetystock.OrderByDescending(m => m.Id).Select(m => m.Specifica).Distinct();
@@ -14378,7 +19518,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Safetyquery([System.Web.Http.FromBody]JObject data)
+        public JObject Safetyquery([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -14432,7 +19572,7 @@ namespace JianHeMES.Controllers
                     }
                 }
             }
-            result.Add(JsonConvert.DeserializeObject<JObject>(JsonConvert.SerializeObject(security)));
+            result.Add(JsonConvert.DeserializeObject<JArray>(JsonConvert.SerializeObject(security)));
             return common.GetModuleFromJarray(result);
         }
 
@@ -14449,13 +19589,14 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject ADDsafestock([System.Web.Http.FromBody]JObject data)
+        public JObject ADDsafestock([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<Equipment_Safetystock> inputList = obj.inputList == null ? null : obj.inputList;
+            //List<Equipment_Safetystock> inputList = obj.inputList == null ? null : obj.inputList;
+            List<Equipment_Safetystock> inputList = (List<Equipment_Safetystock>)JsonHelper.jsonDes<List<Equipment_Safetystock>>(data["inputList"].ToString());
             int year = obj.year == null ? null : obj.year;//年
             int month = obj.month == null ? null : obj.month;//月
             string userdepartment = obj.userdepartment == null ? null : obj.userdepartment;//使用部门
@@ -14466,7 +19607,7 @@ namespace JianHeMES.Controllers
                 {
                     item.FinishingDate = DateTime.Now;//添加资料整理时间
                     item.FinishingName = auth.UserName;//添加资料整理人
-                    //根据使用部门、设备名称、年月和配料料号查找数据，并判断查找出来的数据是否大于0
+                                                       //根据使用部门、设备名称、年月和配料料号查找数据，并判断查找出来的数据是否大于0
                     if (db.Equipment_Safetystock.Count(c => c.UserDepartment == userdepartment && c.Year == year && c.Month == month && c.EquipmentName == item.EquipmentName && c.Material == item.Material) > 0)
                     {
                         repat = item.Material;//赋值
@@ -14510,7 +19651,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Modifi_safety([System.Web.Http.FromBody]JObject data)
+        public JObject Modifi_safety([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -14546,7 +19687,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Verification([System.Web.Http.FromBody]JObject data)
+        public JObject Verification([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -14618,7 +19759,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_Quality_statistical([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Quality_statistical([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -14661,14 +19802,14 @@ namespace JianHeMES.Controllers
                         var tally = db.Equipment_Tally_maintenance.Where(c => c.UserDepartment == dep.UserDepartment && c.Year == year && c.Month == month && c.Month_main_1 != null && c.Month_mainTime_1 != null).ToList();
                         //项目：计划保养总台次实际值
                         table.Add("Required", required.Count == 0 ? 0 : required.Count);//add查询出来的数据required
-                        //项目：实际保养台次
+                                                                                        //项目：实际保养台次
                         table.Add("Planned", tally.Count == 0 ? 0 : tally.Count);//add查找出来的数据tally
                         if (tally.Count > 0)//判断tally是否为空
                         {
                             decimal dt1 = tally.Count;//转换成小数点
                             decimal dt2 = required.Count;//转换成小数点
                             var efficiency = ((dt1 / dt2) * 100).ToString("F2");//计算有效率（实际保养台次/计划保养总台次实际值）
-                            //项目：有效率百分比
+                                                                                //项目：有效率百分比
                             table.Add("efficiency", efficiency);//add计算出来的数据
                         }
                         else //tally为空时
@@ -14714,12 +19855,12 @@ namespace JianHeMES.Controllers
         #region---保存当月数据周保养质量目标达成状况统计表
         [HttpPost]
         [ApiAuthorize]
-        public JObject ADDequipment_quality([System.Web.Http.FromBody]JObject data)
+        public JObject ADDequipment_quality([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<Equipment_Quality_target> Quality_target = obj.Quality_target == null ? null : obj.Quality_target;
+            List<Equipment_Quality_target> Quality_target = (List<Equipment_Quality_target>)JsonHelper.jsonDes<List<Equipment_Quality_target>>(data["Quality_target"].ToString());
             string remark = obj.remark == null ? null : obj.remark;
             int year = obj.year == null ? null : obj.year;//年
             int month = obj.month == null ? null : obj.month;//月
@@ -14729,9 +19870,9 @@ namespace JianHeMES.Controllers
             {
                 foreach (var item in Quality_target)
                 {
-                    if (db.Equipment_Quality_target.Count(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month) > 0)
+                    if (db.Equipment_Quality_target.Count(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month && c.Id == item.Id) > 0)
                     {
-                        var deparlist = db.Equipment_Quality_target.Where(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month).FirstOrDefault();
+                        var deparlist = db.Equipment_Quality_target.Where(c => c.LiaDepartment == item.LiaDepartment && c.Year == year && c.Month == month && c.Id == item.Id).FirstOrDefault();
                         deparlist.LiaDepartment = item.LiaDepartment;
                         deparlist.Required = item.Required;
                         deparlist.Planned = item.Planned;
@@ -14769,7 +19910,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Editequipment_Quality([System.Web.Http.FromBody]JObject data)
+        public JObject Editequipment_Quality([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             var jsonStr = JsonConvert.SerializeObject(data);
@@ -14841,13 +19982,14 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_QualityADD([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_QualityADD([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
             var jsonStr = JsonConvert.SerializeObject(data);
             var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
-            List<Equipment_Quality_target> inputList = obj.inputList == null ? null : obj.inputList;
+            List<Equipment_Quality_target> inputList = (List<Equipment_Quality_target>)JsonHelper.jsonDes<List<Equipment_Quality_target>>(data["inputList"].ToString());
+            //List<Equipment_Quality_target> inputList = obj.inputList == null ? null : obj.inputList;
             string remark = obj.remark == null ? null : obj.remark;
             int year = obj.year == null ? null : obj.year;//年
             int month = obj.month == null ? null : obj.month;//月
@@ -14859,7 +20001,7 @@ namespace JianHeMES.Controllers
                 {
                     item.PrepareTime = DateTime.Now;//添加编制时间
                     item.PrepareName = auth.UserName;//添加编制人
-                    //根据使用部门、质量目标和年月查询数据，并判断是否大于0
+                                                     //根据使用部门、质量目标和年月查询数据，并判断是否大于0
                     if (db.Equipment_Quality_target.Count(c => c.UserDepartment == item.UserDepartment && c.Quality_objec == item.Quality_objec && c.Year == year && c.Month == month) > 0)
                     {
                         date.Add("UserDepartment", item.UserDepartment);//add使用部门到date里
@@ -14915,7 +20057,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Modifi_Equipment_Quality([System.Web.Http.FromBody]JObject data)
+        public JObject Modifi_Equipment_Quality([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -14997,7 +20139,7 @@ namespace JianHeMES.Controllers
         #region--设备指标达成率（自动保存上个月的数据）
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_Automatically([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_Automatically([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15069,7 +20211,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Keyinquire([System.Web.Http.FromBody]JObject data)
+        public JObject Keyinquire([System.Web.Http.FromBody] JObject data)
         {
             JObject table = new JObject();
             JArray result = new JArray();
@@ -15114,7 +20256,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Keycomponents_query([System.Web.Http.FromBody]JObject data)
+        public JObject Keycomponents_query([System.Web.Http.FromBody] JObject data)
         {
             JArray result = new JArray();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15129,7 +20271,7 @@ namespace JianHeMES.Controllers
                 {
                     item.TabulationTime = DateTime.Now;//添加制表时间
                     item.Mainten_Lister = auth.UserName;//添加制表人
-                    //根据设备编号，品名，规格/型号，用途查询数据，并判断是否大于0
+                                                        //根据设备编号，品名，规格/型号，用途查询数据，并判断是否大于0
                     if (db.Equipment_keycomponents.Count(c => c.EquipmentNumber == item.EquipmentNumber && c.Descrip == item.Descrip && c.Specifica == item.Specifica && c.Materused == item.Materused) > 0)
                     {
                         repat.Add("EquipmentNumber", item.EquipmentNumber);//把设备编号add到repat里
@@ -15166,7 +20308,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject Equipment_EditComponet([System.Web.Http.FromBody]JObject data)
+        public JObject Equipment_EditComponet([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15178,7 +20320,7 @@ namespace JianHeMES.Controllers
             string materused = obj.materused == null ? null : obj.materused;
             string remark = obj.remark == null ? null : obj.remark;
             int id = obj.id == 0 ? 0 : obj.id;//id
-            //根据ID和设备编号查询相对应的数据
+                                              //根据ID和设备编号查询相对应的数据
             var componlist = db.Equipment_keycomponents.Where(c => c.Id == id && c.EquipmentNumber == equipmentNumber).ToList();
             if (componlist.Count > 0)//判断componlist（查询数据）是否为空
             {
@@ -15229,7 +20371,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject DeleteKeycom([System.Web.Http.FromBody]JObject data)
+        public JObject DelKeycom([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15240,7 +20382,7 @@ namespace JianHeMES.Controllers
             UserOperateLog operaterecord = new UserOperateLog();
             operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
             operaterecord.Operator = auth.UserName;//添加删除操作人
-            //添加操作记录（如：张三在2020年2月26日删除设备关键元器件为李四的记录）
+                                                   //添加操作记录（如：张三在2020年2月26日删除设备关键元器件为李四的记录）
             operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除设备关键元器件为" + record.Mainten_Lister + "的记录。";
             db.Equipment_keycomponents.Remove(record);//删除对应的数据
             db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
@@ -15265,7 +20407,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentEmail_add([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentEmail_add([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             UserItemEmail record = JsonConvert.DeserializeObject<UserItemEmail>(JsonConvert.SerializeObject(data));
@@ -15293,7 +20435,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentEmail_modify([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentEmail_modify([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             UserItemEmail record = JsonConvert.DeserializeObject<UserItemEmail>(JsonConvert.SerializeObject(data));
@@ -15316,7 +20458,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentEmail_delete([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentEmail_del([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15327,7 +20469,7 @@ namespace JianHeMES.Controllers
             UserOperateLog operaterecord = new UserOperateLog();
             operaterecord.OperateDT = DateTime.Now;//添加删除操作时间
             operaterecord.Operator = auth.UserName;//添加删除操作人
-            //添加操作记录（如：张三在2020年2月27日删除设备管理邮件发送人为李四的记录）
+                                                   //添加操作记录（如：张三在2020年2月27日删除设备管理邮件发送人为李四的记录）
             operaterecord.OperateRecord = operaterecord.Operator + "在" + operaterecord.OperateDT + "删除设备管理邮件发送人为" + record.UserName + "的记录。";
             db.UserItemEmail.Remove(record);//删除对应的数据
             db.UserOperateLog.Add(operaterecord);//添加删除操作日记数据
@@ -15350,7 +20492,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentEmail_Send_add([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentEmail_Send_add([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             UserItemEmail record = JsonConvert.DeserializeObject<UserItemEmail>(JsonConvert.SerializeObject(data));
@@ -15378,7 +20520,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentEmail_Send_modify([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentEmail_Send_modify([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             UserItemEmail record = JsonConvert.DeserializeObject<UserItemEmail>(JsonConvert.SerializeObject(data));
@@ -15401,7 +20543,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentEmail_Send_delete([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentEmail_Send_del([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15428,7 +20570,7 @@ namespace JianHeMES.Controllers
         #region------打印设备标识卡
         [HttpPost]
         [ApiAuthorize]
-        public JObject EquipmentNumberListPrint([System.Web.Http.FromBody]JObject data)
+        public JObject EquipmentNumberListPrint([System.Web.Http.FromBody] JObject data)
         {
             JObject result = new JObject();
             AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
@@ -15460,11 +20602,11 @@ namespace JianHeMES.Controllers
             }
             if (printcount != 0)
             {
-                return common.GetModuleFromJobjet(result, true,"打印成功" + printcount + "个");
+                return common.GetModuleFromJobjet(result, true, "打印成功" + printcount + "个");
             }
             else
             {
-                return common.GetModuleFromJobjet(result, false,"打印连接失败,请检查打印机是否断网或未开机！");
+                return common.GetModuleFromJobjet(result, false, "打印连接失败,请检查打印机是否断网或未开机！");
             }
         }
 

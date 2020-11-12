@@ -79,6 +79,18 @@ router.beforeEach((to, from, next) => {
         })
         return
       }
+    }).catch(err=>{
+      if (to.name !== LOGIN_PAGE_NAME) {
+        console.log('分支111')
+        //请求失败且要跳转的页面不是登录页
+        next({
+          name: LOGIN_PAGE_NAME // 跳转到登录页
+        })
+      } else if (to.name === LOGIN_PAGE_NAME) {
+        console.log('分支222')
+        //请求失败且要跳转的页面是登录页
+        next() // 跳转
+      }
     })
   } else {
     

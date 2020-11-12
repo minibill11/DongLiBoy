@@ -1,0 +1,609 @@
+<!--- 设备台账 --->
+<template>
+  <div>
+    <EqHeader :active="active"></EqHeader>
+    <el-main class="main-box" v-loading="loading">
+      <div class="equipment-index-inputcontainer">
+        <template v-if="addFlag == false">
+          <div class="equipment-index-inputcontainer-item">
+            <div>设备名称：</div>
+            <el-input
+              size="mini"
+              v-model="equipmentname"
+              placeholder="请输入设备名称"
+              style="width: 120px"
+            ></el-input>
+          </div>
+          <div class="equipment-index-inputcontainer-item">
+            <div>设备编号：</div>
+            <el-select
+              clearable
+              filterable
+              size="mini"
+              v-model="equipmentnumber"
+              placeholder="请输入设备号"
+              style="width: 120px"
+            >
+              <el-option
+                v-for="item in equipmentnumberoptions"
+                v-bind:key="item.value"
+                v-bind:label="item.label"
+                v-bind:value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+
+          <div class="equipment-index-inputcontainer-item">
+            <div>使用部门：</div>
+            <el-select
+              clearable
+              filterable
+              size="mini"
+              v-model="userdepartment"
+              placeholder="请选择使用部门"
+              style="width: 120px"
+            >
+              <el-option
+                v-for="item in deparOpions"
+                v-bind:key="item.value"
+                v-bind:label="item.label"
+                v-bind:value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+          <div class="equipment-index-inputcontainer-item">
+            <div>设备状态：</div>
+            <el-select
+              clearable
+              size="mini"
+              filterable
+              v-model="status"
+              placeholder="请选择设备状态"
+              style="width: 120px"
+            >
+              <el-option
+                v-for="item in options"
+                v-bind:key="item.value"
+                v-bind:label="item.label"
+                v-bind:value="item.value"
+              >
+              </el-option>
+            </el-select>
+          </div>
+          <el-button
+            id="search"
+            type="primary"
+            v-on:click="checkinfos"
+            size="mini"
+            >查询</el-button
+          >
+          <el-button
+            @click="printVisible = true"
+            size="mini"
+            type="primary"
+            style="margin-right: 10px"
+            >打印</el-button
+          >
+        </template>
+        <el-button type="primary" size="mini" plain @click="onShowAdd"
+          >批量添加</el-button
+        >
+        <div v-if="addFlag">
+          <el-input
+            size="mini"
+            type="textarea"
+            rows="1"
+            v-model="inputInfo"
+            class="textinput"
+            placeholder="表格粘贴处..."
+            style="width: 150px; margin-left: 10px"
+          ></el-input>
+          <el-button size="mini" type="primary" plain v-on:click="onUpload"
+            >确认上传</el-button
+          >
+          <el-button size="mini" type="info" plain v-on:click="onCancel"
+            >取消</el-button
+          >
+        </div>
+      </div>
+      <!-- @* 查询结果表格 *@ -->
+      <el-table
+        v-loading="loading"
+        size="small"
+        v-bind:data="tableData"
+        style="width: 100%"
+        max-height="580"
+        border
+        stripe
+      >
+        <!-- @* sortable *@ -->
+        <el-table-column label="序号" width="50">
+          <template slot-scope="scope">
+            <span>{{ scope.$index + 1 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column sortable label="设备编号">
+          <template slot-scope="scope">
+            <span v-bind:class="scope.row.color == 200 ? 'redcolor' : ''">{{
+              scope.row.EquipmentNumber
+            }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="AssetNumber" sortable label="资产编号">
+        </el-table-column>
+        <el-table-column prop="EquipmentName" sortable label="设备名称">
+        </el-table-column>
+        <el-table-column prop="Brand" label="品牌"> </el-table-column>
+        <el-table-column prop="ModelSpecification" label="型号/规格">
+        </el-table-column>
+        <el-table-column prop="ManufacturingNumber" label="出厂编号">
+        </el-table-column>
+        <el-table-column prop="Quantity" label="数量"> </el-table-column>
+        <el-table-column prop="ActionDate" label="启用时间">
+          <template slot-scope="scope">
+            <span>{{ scope.row.ActionDate | formatDate }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="DepreciableLife" label="折旧年限（月）">
+        </el-table-column>
+        <el-table-column prop="UserDepartment" sortable label="使用部门">
+        </el-table-column>
+        <el-table-column prop="StoragePlace" sortable label="存放地点">
+        </el-table-column>
+        <el-table-column prop="Status" sortable label="使用状态">
+          <template slot-scope="scope">
+            <span :class="scope.row.Status | checkStatusType">{{
+              scope.row.Status
+            }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="Remark" label="备注"> </el-table-column>
+        <el-table-column label="操作" width="80">
+          <template slot-scope="scope">
+            <el-button
+              v-if="!addFlag"
+              type="text"
+              size="mini"
+              @click="showDetials(scope.row)"
+              class="detail-style"
+              >详细</el-button
+            >
+            <el-button
+              v-if="addFlag"
+              v-on:click="removeDetials(scope.row, scope.$index)"
+              type="text"
+              size="mini"
+            >
+              移除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-if="repeat != ''" class="repeat">
+        设备编号：<span class="redcolor">{{ repeat }}</span
+        >已存在，请先移除！
+      </div>
+      <div v-show="showFooter" class="footer">
+        <span
+          v-for="(item, index) in sumaryData"
+          :key="index"
+          style="margin-right: 10px"
+        >
+          <span :class="item.name | checkStatusType"> {{ item.name }} </span
+          >&nbsp; 共<span v-bind:class="item.count == 0 ? '' : 'redcolor'">{{
+            item.count
+          }}</span
+          >台
+        </span>
+      </div>
+      <!-- @* 打印框 *@ -->
+      <el-dialog
+        @open="open"
+        @close="close"
+        v-loading="printLoading"
+        :visible.sync="printVisible"
+        title="打印条码"
+        center
+      >
+        <!-- @*
+        <div slot="title"></div>
+        *@ -->
+        <PrintSetting v-model="printInfo"></PrintSetting>
+        <div class="flex-item" style="margin-bottom: 20px">
+          <el-checkbox
+            :indeterminate="isIndeterminate"
+            v-model="checkAll"
+            @change="handleCheckAllChange"
+            size="mini"
+            border
+            >全选</el-checkbox
+          >
+          <el-button type="primary" @click="submitPrint" size="mini"
+            >打印选中的条码号</el-button
+          >
+        </div>
+        <div
+          class="flex-item"
+          style="
+            max-height: 200px;
+            overflow: auto;
+            margin-bottom: 0;
+            text-align: left;
+          "
+        >
+          <el-checkbox-group v-model="checkArr" @change="handleChecked">
+            <el-checkbox
+              v-for="item in CheckboxList"
+              :label="item[0]"
+              :key="item[0]"
+              size="mini"
+              border
+              style="padding: 1px 3px; height: 22px; margin: 1px"
+              >{{ item[0] }}-{{ item[1] }}</el-checkbox
+            >
+          </el-checkbox-group>
+        </div>
+      </el-dialog>
+    </el-main>
+  </div>
+</template>
+
+<script>
+import EqHeader from "./page-components/_eq_header";
+import PrintSetting from "_c/print-setting";
+import {
+  BatchInputEquipment,
+  Userdepartment_list,
+  ParameterIndex,
+  EQNumberList,
+  EquipmentNumberListPrint,
+} from "@/api/equipment";
+export default {
+  name: "Equipment_Parameter",
+  props: {},
+  data() {
+    return {
+      inputInfo: "",
+      repeat: "",
+      addFlag: false, //批量添加打开
+      loading: false,
+      active: "设备台账",
+      showFooter: false,
+      showindex: false,
+      loading: false,
+      flag: false,
+      flags: false,
+      count: null,
+      tableData: [],
+      equipmentnumber: null,
+      assetnumber: null,
+      equipmentname: null,
+      modelspecification: null,
+      userdepartment: null,
+      storageplace: null,
+      workshop: null,
+      section: null,
+      brand: null,
+      status: null,
+      remark: "",
+      options: [
+        {
+          value: "正常",
+          label: "正常",
+        },
+        {
+          value: "闲置",
+          label: "闲置",
+        },
+        {
+          value: "报废",
+          label: "报废",
+        },
+      ],
+      deparOpions: [],
+      equipmentnumberoptions: [],
+      assetnumberoptions: [],
+      sumaryData: [],
+      printVisible: false, //设备台账打印
+      printLoading: false,
+      printInfo: {},
+      checkArr: [],
+      CheckboxList: [],
+      checkAll: false,
+      isIndeterminate: false,
+    };
+  },
+  components: { EqHeader, PrintSetting },
+  computed: {},
+  watch: {
+    addFlag(val) {
+      if (val == false) {
+        this.checkinfos();
+      }
+    },
+    //监听批量上传粘贴的数据
+    inputInfo(val) {
+      if (val != null) {
+        let valOfPaste = val.split("\n");
+        valOfPaste.pop();
+        let initDatas = [];
+        valOfPaste.forEach((item, i) => {
+          var items = item.split("\t");
+          initDatas.push(items);
+        });
+        let arr = [];
+        initDatas.forEach((item) => {
+          let obj = {
+            EquipmentNumber: item[0],
+            AssetNumber: item[1],
+            EquipmentName: item[2],
+            Brand: item[3],
+            ModelSpecification: item[4],
+            ManufacturingNumber: item[5],
+            Quantity: item[6],
+            ActionDate: item[7],
+            DepreciableLife: item[8],
+            UserDepartment: item[9],
+            StoragePlace: item[10],
+            Status: item[11],
+            Remark: item[12],
+          };
+          arr.push(obj);
+        });
+        this.tableData = arr;
+        //console.log(this.tableData);
+      }
+    },
+    // 监听表格数据变化确定三种状态设备的数量
+    tableData() {
+      this.sumaryData = [];
+      if (this.tableData.length > 0) {
+        this.showFooter = true;
+        let obj1 = { name: "正常", count: 0 };
+        let obj2 = { name: "闲置", count: 0 };
+        let obj3 = { name: "报废", count: 0 };
+        let obj4 = { name: "总台数", count: this.tableData.length };
+        this.tableData.forEach((item) => {
+          if (item.Status == "正常") {
+            obj1.count++;
+          } else if (item.Status == "闲置") {
+            obj2.count++;
+          } else if (item.Status == "报废") {
+            obj3.count++;
+          }
+        });
+        this.sumaryData.push(obj1, obj2, obj3, obj4);
+      } else {
+        this.showFooter = false;
+        this.sumaryData = [];
+      }
+    },
+  },
+  filters: {
+    // 监听设备状态返回按钮type
+    checkStatusType(item) {
+      if (item == "正常") {
+        return "btn btn-green";
+      } else if (item == "闲置") {
+        return "btn btn-yellow";
+      } else if (item == "报废") {
+        return "btn btn-red";
+      }
+    },
+  },
+  methods: {
+    //打开批量上传
+    onShowAdd() {
+      if (this.$limit("批量添加设备")) {
+        this.addFlag = true;
+        this.tableData = [];
+      } else {
+        this.$message.warning("暂无权限！");
+      }
+    },
+    //批量上传
+    onUpload() {
+      if (this.tableData.length >= 1) {
+        BatchInputEquipment({ inputList: this.tableData })
+          .then((res) => {
+            if ("repeat" in res.data.Data) {
+              this.repeat = res.data.Data.repeat;
+              let arr = res.data.Data.repeat.split(",");
+              arr.pop();
+              for (let i = 0; i < arr.length; i++) {
+                this.tableData.forEach((item) => {
+                  if (arr[i] == item.EquipmentNumber) {
+                    item.color = 200;
+                  }
+                });
+              }
+              this.$message.warning("已存在相同数据");
+            } else if ("success" in res.data.Data) {
+              this.repeat = "";
+              this.$message.success(res.data.Data.success);
+            } else if ("fail" in res.data.Data) {
+              this.repeat = "";
+              this.$message.warning(res.data.Data.fail);
+            }
+          })
+          .catch((err) => {
+            this.$message.warning("连接服务器失败！");
+            console.log(err);
+          });
+      } else {
+        this.$message.warning("请导入数据再上传!");
+      }
+    },
+    //批量上传取消
+    onCancel() {
+      this.repeat = "";
+      this.inputInfo = "";
+      this.addFlag = false;
+      this.tableData = [];
+    },
+    //移除行数据
+    removeDetials(row, index) {
+      //console.log(row);
+      this.tableData.splice(index, 1);
+      if (this.tableData.length == 0) {
+        this.repeat = "";
+        this.inputInfo = "";
+      }
+    },
+    // 查询
+    checkinfos() {
+      this.loading = true;
+      ParameterIndex({
+        equipmentnumber: this.equipmentnumber,
+        brand: this.brand,
+        assetnumber: this.assetnumber,
+        equipmentname: this.equipmentname,
+        modelspecification: this.modelspecification,
+        userdepartment: this.userdepartment,
+        storageplace: this.storageplace,
+        workshop: this.workshop,
+        section: this.section,
+        status: this.status,
+        remark: this.remark,
+      })
+        .then((res) => {
+          // console.log(res.data.Data, 55);
+          let arr = [];
+          for (let item in res.data.Data) {
+            arr.push(JSON.parse(res.data.Data[item]));
+          }
+          // console.log(arr);
+          this.tableData = arr;
+          this.loading = false;
+          //console.log(arr2)
+        })
+        .catch((err) => {
+          this.$message.warning("连接服务器失败！");
+        });
+    },
+    // 获取设备使用部门
+    getDeparList() {
+      Userdepartment_list().then((res) => {
+        res.data.Data.forEach((item) => {
+          let obj = {
+            value: item,
+            label: item,
+          };
+          this.deparOpions.push(obj);
+        });
+      });
+    },
+    // 获取设备编号
+    getequipmentnumberoptions() {
+      EQNumberList().then((res) => {
+        //console.log(res.data.Data)
+        res.data.Data.forEach((item) => {
+          let obj = { label: item, value: item };
+          this.equipmentnumberoptions.push(obj);
+        });
+      });
+    },
+    //跳转详细页
+    showDetials(row) {
+        if(this.$limit("查看设备台账信息")){
+        window.open(window.location.host+"/Equipment/Equipment_Parameter_Details?num=" + row.EquipmentNumber)}else{
+          this.$message.warning("暂无权限！")
+        }
+     
+    },
+    //打开模态框
+    open() {
+      let List = [];
+      for (let i of this.tableData) {
+        List.push([i.EquipmentNumber, i.EquipmentName]);
+      }
+      this.checkAll = false;
+      this.isIndeterminate = false;
+      this.checkArr = [];
+      this.CheckboxList = List;
+    },
+    close() {
+      this.checkAll = false;
+      this.isIndeterminate = false;
+      this.checkArr = [];
+      this.CheckboxList = [];
+    },
+    //打印
+    submitPrint() {
+      this.printLoading = true;
+      if (this.checkArr.length == 0) {
+        this.$message({
+          showClose: true,
+          message: "没有选中条码！",
+          type: "warning",
+        });
+        this.printLoading = false;
+        return;
+      }
+      let param = {
+        list: this.checkArr, //数组
+        pagecount: this.printInfo.pagecount, //打印数量
+        concentration: this.printInfo.concentration, //浓度
+        //leftdissmenion: this.printInfo.leftdissmenion,//左偏移量，可无
+        ip: this.printInfo.ip, //打印机ip
+        port: this.printInfo.port, //端口
+      };
+      // console.log(param)
+      EquipmentNumberListPrint(param)
+        .then((res) => {
+          //返回提示打印情况字符串
+          this.$message(res.data.Data);
+          this.printVisible = false;
+          this.printLoading = false;
+        })
+        .catch((err) => {
+          console.log(err);
+          this.$message.error("打印出错");
+          this.printLoading = false;
+        });
+    },
+    //全选打印条码
+    handleCheckAllChange(val) {
+      let checkboxList = this.CheckboxList.map((v) => v[0]);
+      this.checkArr = val ? checkboxList : [];
+      this.isIndeterminate = false;
+    },
+    //选择打印条码
+    handleChecked(value) {
+      let checkboxList = this.CheckboxList;
+      let checkedCount = value.length;
+      this.checkAll = checkedCount === checkboxList.length;
+      this.isIndeterminate =
+        checkedCount > 0 && checkedCount < checkboxList.length;
+    },
+  },
+  created() {},
+  mounted() {
+    // 页面加载时获取设备编号、使用部门
+    this.getDeparList();
+    this.getequipmentnumberoptions();
+    this.checkinfos();
+  },
+};
+</script>
+
+<style lang='less' scoped>
+@import url("~@/assets/style/color.less");
+@import url("./page-components/equipment.less");
+.footer {
+  padding: 20px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.redcolor {
+  color: red;
+}
+
+.repeat {
+  margin: 5px 0;
+  font-size: 14px;
+}
+</style>

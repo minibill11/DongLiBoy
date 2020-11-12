@@ -11,6 +11,7 @@ using JianHeMES.Models;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using static JianHeMES.Controllers.CommonalityController;
+using JianHeMES.AuthAttributes;
 
 namespace JianHeMES.Controllers
 {
@@ -790,7 +791,7 @@ namespace JianHeMES.Controllers
             if (date != null && date.Value.Year != 0 && date.Value.Month != 0)
             {
                 var LastDateList = recordList.Where(c => c.LastDate != null).ToList();
-              recordList = LastDateList.Where(c => c.LastDate.Value.Year == date.Value.Year && c.LastDate.Value.Month == date.Value.Month).ToList();
+                recordList = LastDateList.Where(c => c.LastDate.Value.Year == date.Value.Year && c.LastDate.Value.Month == date.Value.Month).ToList();
             }
             if (date != null && date.Value.Year != 0 && date.Value.Month == 0)
             {
@@ -1344,4 +1345,706 @@ namespace JianHeMES.Controllers
         #endregion
 
     }
+
+    //Api接口部分
+
+    public class Personnel_Roster_ApiController : System.Web.Http.ApiController
+    {
+        private ApplicationDbContext db = new ApplicationDbContext();
+        private CommonController common = new CommonController();
+        private CommonalityController commonality = new CommonalityController();
+
+
+        #region-----------------离职员工工龄分布统计表
+
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject LeavedPersonServiceLength([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            JObject table1 = new JObject();
+            JObject table2 = new JObject();
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            int? year = obj.year;//年
+            int? month = obj.month;//月
+            int time = 0;
+            if (month == 0)
+            {
+                DateTime dateTime = DateTime.Now;
+                if (year == dateTime.Year)
+                {
+                    time = dateTime.Month;
+                }
+                else
+                {
+                    time = 12;
+                }
+            }
+            var departmentlist = new List<Personnel_Architecture>();
+            CommonController date1 = new CommonController();
+            DateTime exdate = new DateTime((int)year, (int)month == 0 ? time : (int)month, 28, 0, 0, 0);
+            departmentlist = date1.CompanyDatetime(exdate);
+            DateTime inputDate = new DateTime((int)year, (int)month == 0 ? time : (int)month, 1);
+            if ((inputDate.Year - DateTime.Now.Year) * 12 + (inputDate.Month - DateTime.Now.Month) > 0)
+            {
+                return common.GetModuleFromJobjet(result, false, "输入的年月份无效！");
+            }
+            List<Personnel_Roster> AllRecordList = new List<Personnel_Roster>();
+            if (year != 0 && month != 0)
+            {
+                AllRecordList = db.Personnel_Roster.Where(c => c.LastDate != null && c.LastDate.Value.Year == year && c.LastDate.Value.Month == month).ToList();//按年月查找
+            }
+            else if (year != 0 && time != 0)
+            {
+                AllRecordList = db.Personnel_Roster.Where(c => c.LastDate != null && c.LastDate.Value.Year == year && c.LastDate.Value.Month <= time).ToList();//年汇总
+            }
+            //总人数
+            var total = AllRecordList.Count();
+            List<int> lessthan = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120 };
+            foreach (var item in departmentlist)
+            {
+                List<string> record1 = new List<string>();
+                List<string> record2 = new List<string>();//操作族
+                List<string> record3 = new List<string>();//技术族
+                List<string> record4 = new List<string>();//专业族
+                List<string> record5 = new List<string>();//服务族
+                List<string> record6 = new List<string>();//管理族
+
+                for (int i = 0; i < lessthan.Count; i++)
+                {
+                    if (lessthan[i] == 1)
+                    {
+                        //操作族小于一个月
+                        var craftsman_DP_month = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]);
+                        ////非操作组小于一个月
+                        //var not_craftsman_DP_month = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]);
+                        //技术族小于一个月
+                        var technology_month = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]);
+                        //专业族小于一个月
+                        var professional_month = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]);
+                        //服务族小于一个月
+                        var service_month = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]);
+                        //管理族小于一个月
+                        var management_month = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]);
+                        //部门小于一个月
+                        record1.Add((craftsman_DP_month + technology_month + professional_month + service_month + management_month).ToString());
+                        //record2.Add(item + "操作族");
+                        record2.Add(craftsman_DP_month.ToString());
+                        ////record3.Add(item + "非操作族");
+                        //record3.Add(not_craftsman_DP_month.ToString());
+                        //技术族
+                        record3.Add(technology_month.ToString());
+                        //专业族
+                        record4.Add(professional_month.ToString());
+                        //服务族
+                        record5.Add(service_month.ToString());
+                        //管理族
+                        record6.Add(management_month.ToString());
+                    }
+                    else if (lessthan[i] == 120)
+                    {
+                        var craftsman_DP_month3 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]);
+                        //var not_craftsman_DP_month3 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]);
+                        //技术族
+                        var technology_month3 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]);
+                        //专业族
+                        var professional_month3 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]);
+                        //服务族
+                        var service_month3 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]);
+                        //管理族
+                        var management_month3 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]);
+                        record1.Add((craftsman_DP_month3 + technology_month3 + professional_month3 + service_month3 + management_month3).ToString());
+                        //record2.Add(item + "操作族");
+                        record2.Add(craftsman_DP_month3.ToString());
+                        ////record3.Add(item + "非操作族");
+                        //record3.Add(not_craftsman_DP_month3.ToString());
+                        //技术族
+                        record3.Add(technology_month3.ToString());
+                        //专业族
+                        record4.Add(professional_month3.ToString());
+                        //服务族
+                        record5.Add(service_month3.ToString());
+                        //管理族
+                        record6.Add(management_month3.ToString());
+
+                        break;
+                    }
+                    var craftsman_DP_month2 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]);
+                    //var not_craftsman_DP_month2 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]);
+                    //技术族
+                    var technology_month2 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]);
+                    //专业族
+                    var professional_month2 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]);
+                    //服务族
+                    var service_month2 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]);
+                    //管理族
+                    var management_month2 = AllRecordList.Count(c => c.Department == item.Department && c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]);
+                    record1.Add((craftsman_DP_month2 + technology_month2 + professional_month2 + service_month2 + management_month2).ToString());
+                    //record2.Add(item + "操作族");
+                    record2.Add(craftsman_DP_month2.ToString());
+                    //record3.Add(item + "非操作族");
+                    //record3.Add(not_craftsman_DP_month2.ToString());
+                    //技术族
+                    record3.Add(technology_month2.ToString());
+                    //专业族
+                    record4.Add(professional_month2.ToString());
+                    //服务族
+                    record5.Add(service_month2.ToString());
+                    //管理族
+                    record6.Add(management_month2.ToString());
+
+                }
+
+                //表1
+                //部门小计
+                int sum1 = 0;
+                foreach (var it in record1)
+                {
+                    sum1 = sum1 + Convert.ToInt32(it.ToString());
+                }
+                record1.Add(sum1.ToString());
+                //占比
+                record1.Add((Convert.ToDecimal(record1.LastOrDefault()) * 100 / total).ToString("F2") + "%");
+                //人事日报表记录item部门的记录
+                var Year_Month_Allrecord = db.Personnel_daily.Where(c => c.Date.Value.Year == year && c.Date.Value.Month == month).ToList();
+                int countByDepartment = Year_Month_Allrecord.Count(c => c.Department == item.Department);
+                //月初人数
+                var begin_day_of_month = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == item.Department).OrderBy(c => c.Date).FirstOrDefault().Employees_personnel + Year_Month_Allrecord.Where(c => c.Department == item.Department).OrderBy(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                //月末人数
+                var end_day_of_month = countByDepartment == 0 ? 0 : Year_Month_Allrecord.Where(c => c.Department == item.Department).OrderByDescending(c => c.Date).FirstOrDefault().Employees_personnel + Year_Month_Allrecord.Where(c => c.Department == item.Department).OrderByDescending(c => c.Date).FirstOrDefault().Today_on_board_employees;
+                //部门实际人数(月初+月末平均人数)
+                var actualPerson = (begin_day_of_month + end_day_of_month) / 2;
+                record1.Add(actualPerson.ToString());
+                //占比2
+                record1.Add(actualPerson == 0 ? "0.00" : (Convert.ToDecimal(sum1) * 100 / actualPerson).ToString("F2") + "%");
+
+                //表2
+                //总计
+                int sum2 = 0;
+                foreach (var it in record2)//操作族
+                {
+                    sum2 = sum2 + Convert.ToInt32(it.ToString());
+                }
+                record2.Add(sum2.ToString());
+
+                int sum3 = 0;
+                foreach (var it in record3)//技术族
+                {
+                    sum3 = sum3 + Convert.ToInt32(it.ToString());
+                }
+                record3.Add(sum3.ToString());
+
+                int sum4 = 0;
+                foreach (var it in record4)//专业族
+                {
+                    sum4 = sum4 + Convert.ToInt32(it.ToString());
+                }
+                record4.Add(sum4.ToString());
+
+                int sum5 = 0;
+                foreach (var it in record5)//服务族
+                {
+                    sum5 = sum5 + Convert.ToInt32(it.ToString());
+                }
+                record5.Add(sum5.ToString());
+
+                int sum6 = 0;
+                foreach (var it in record6)//管理族
+                {
+                    sum6 = sum6 + Convert.ToInt32(it.ToString());
+                }
+                record6.Add(sum4.ToString());
+
+                //占比
+                record2.Add(actualPerson == 0 ? "0.00" : (Convert.ToDecimal(sum2) * 100 / total).ToString("F2") + "%");//操作族
+                record3.Add(actualPerson == 0 ? "0.00" : (Convert.ToDecimal(sum3) * 100 / total).ToString("F2") + "%");//技术族
+                record4.Add(actualPerson == 0 ? "0.00" : (Convert.ToDecimal(sum4) * 100 / total).ToString("F2") + "%");//专业族
+                record5.Add(actualPerson == 0 ? "0.00" : (Convert.ToDecimal(sum5) * 100 / total).ToString("F2") + "%");//服务族
+                record6.Add(actualPerson == 0 ? "0.00" : (Convert.ToDecimal(sum6) * 100 / total).ToString("F2") + "%");//管理族
+
+                //表1
+                table1.Add(item.Department, JsonConvert.SerializeObject(record1));
+                //表2
+                table2.Add(item.Department + "," + "操作族", JsonConvert.SerializeObject(record2));//操作族
+                table2.Add(item.Department + "," + "技术族", JsonConvert.SerializeObject(record3));//技术族
+                table2.Add(item.Department + "," + "专业族", JsonConvert.SerializeObject(record4));//专业族
+                table2.Add(item.Department + "," + "服务族", JsonConvert.SerializeObject(record5));//服务族
+                table2.Add(item.Department + "," + "管理族", JsonConvert.SerializeObject(record6));//管理族
+                table2.Add(item.Department + "," + "小计", JsonConvert.SerializeObject(record1));
+
+            }
+            //表1：时段小计、占比 
+            List<int> littleSum = new List<int>();
+            List<string> percetnSum = new List<string>();
+
+            //表2：总计、操作族总计、操作族占比、技术族总计、技术族占比、专业族总计、专业族占比、服务族总计、服务族占比、管理族总计、管理族占比
+            List<int> craftsmanSum = new List<int>();//操作族总计
+            //List<int> not_craftsmanSum = new List<int>();//非操作族总计
+            List<string> craftsmanPercent = new List<string>();//操作族占比
+            //List<string> not_craftsmanPercent = new List<string>();//非操作族占比
+            List<string> zongbi = new List<string>();//总计
+            List<int> technologySum = new List<int>();//技术族总计
+            List<string> technologyPercent = new List<string>();//技术族占比
+            List<int> professionalSum = new List<int>();//专业族总计
+            List<string> professionalPercent = new List<string>();//专业族占比
+            List<int> serviceSum = new List<int>();//服务族总计
+            List<string> servicePercent = new List<string>();//服务族占比
+            List<int> managementSum = new List<int>();//管理族总计
+            List<string> managementPercent = new List<string>();//管理族占比
+
+            for (int i = 0; i < lessthan.Count; i++)
+            {
+                if (lessthan[i] == 1)
+                {
+                    //表1
+                    littleSum.Add(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]));
+
+                    //var percent = Convert.ToDecimal(sum) * 100 / total;
+                    percetnSum.Add((Convert.ToDecimal(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //表2                  
+                    craftsmanSum.Add(AllRecordList.Count(c => c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])); //操作族总计
+                                                                                                                                                             //not_craftsmanSum.Add(AllRecordList.Count(c => c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]));                 
+                    technologySum.Add(AllRecordList.Count(c => c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]));//技术族总计                    
+                    professionalSum.Add(AllRecordList.Count(c => c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]));//专业族总计                   
+                    serviceSum.Add(AllRecordList.Count(c => c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])); //服务族总计                    
+                    managementSum.Add(AllRecordList.Count(c => c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i]));//管理族总计
+
+                    //操作族占比
+                    craftsmanPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //not_craftsmanPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //技术族占比
+                    technologyPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //专业族占比
+                    professionalPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //服务族占比
+                    servicePercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //管理族占比
+                    managementPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //总计
+                    zongbi.Add((Convert.ToDecimal(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+
+                }
+                else if (lessthan[i] == 120)
+                {
+                    //表1
+                    littleSum.Add(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]));
+                    //var percent = Convert.ToDecimal(sum) * 100 / total;
+                    percetnSum.Add((Convert.ToDecimal(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]) * 100 / total)).ToString("F2") + "%");
+                    //表2
+                    craftsmanSum.Add(AllRecordList.Count(c => c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]));
+                    //not_craftsmanSum.Add(AllRecordList.Count(c => c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]));
+                    technologySum.Add(AllRecordList.Count(c => c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]));//技术族总计                    
+                    professionalSum.Add(AllRecordList.Count(c => c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]));//专业族总计                   
+                    serviceSum.Add(AllRecordList.Count(c => c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])); //服务族总计                    
+                    managementSum.Add(AllRecordList.Count(c => c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]));//管理族总计
+
+                    craftsmanPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //not_craftsmanPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //技术族占比
+                    technologyPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //专业族占比
+                    professionalPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //服务族占比
+                    servicePercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+                    //管理族占比
+                    managementPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i])) * 100 / total).ToString("#0.00") + "%");
+
+                    zongbi.Add((Convert.ToDecimal(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i]) * 100 / total)).ToString("F2") + "%");
+                    break;
+                }
+                //表1
+                littleSum.Add(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]));
+                percetnSum.Add((Convert.ToDecimal(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+                //表2
+                craftsmanSum.Add(AllRecordList.Count(c => c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]));
+                //not_craftsmanSum.Add(AllRecordList.Count(c => c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]));
+                technologySum.Add(AllRecordList.Count(c => c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]));//技术族总计                    
+                professionalSum.Add(AllRecordList.Count(c => c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]));//专业族总计                   
+                serviceSum.Add(AllRecordList.Count(c => c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])); //服务族总计                    
+                managementSum.Add(AllRecordList.Count(c => c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1]));//管理族总计
+
+                craftsmanPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "操作族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+                //not_craftsmanPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "非操作族" && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && common.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+                //技术族占比
+                technologyPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "技术族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+                //专业族占比
+                professionalPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "专业族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+                //服务族占比
+                servicePercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "服务族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+                //管理族占比
+                managementPercent.Add((Convert.ToDecimal(AllRecordList.Count(c => c.levelType == "管理族" && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+
+                zongbi.Add((Convert.ToDecimal(AllRecordList.Count(c => commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) >= lessthan[i] && commonality.TwoDTforMonth_sub(c.LastDate, c.HireDate) < lessthan[i + 1])) * 100 / total).ToString("#0.00") + "%");
+
+            }
+            //操作族总计
+            var craftsmanTotalcount = AllRecordList.Count(c => c.levelType == "操作族");
+            //非操作族总计
+            //var not_craftsmanTotalcount = AllRecordList.Count(c => c.levelType == "非操作族");
+            var technologyTotalcount = AllRecordList.Count(c => c.levelType == "技术族");//技术族总计
+            var professionalTotalcount = AllRecordList.Count(c => c.levelType == "专业族");//专业族总计
+            var serviceTotalcount = AllRecordList.Count(c => c.levelType == "服务族");//服务族总计
+            var managementTotalcount = AllRecordList.Count(c => c.levelType == "管理族");//管理族总计
+
+            //操作族总占比
+            var craftsmanTotalPercent = (Convert.ToDecimal(craftsmanTotalcount) * 100 / total).ToString("#0.00") + "%";
+            //非操作族总占比
+            // var not_craftsmanTotalPercent = (Convert.ToDecimal(not_craftsmanTotalcount) * 100 / total).ToString("#0.00") + "%";
+            var technologyTotalPercent = (Convert.ToDecimal(technologyTotalcount) * 100 / total).ToString("#0.00") + "%";//技术族总占比
+            var professionalTotalPercent = (Convert.ToDecimal(professionalTotalcount) * 100 / total).ToString("#0.00") + "%";//专业族总占比
+            var serviceTotalPercen = (Convert.ToDecimal(serviceTotalcount) * 100 / total).ToString("#0.00") + "%";//服务族总占比
+            var managementTotalPercen = (Convert.ToDecimal(managementTotalcount) * 100 / total).ToString("#0.00") + "%";//管理族总占比
+            //总占比
+            var ZongBi = ((craftsmanTotalcount + technologyTotalcount + professionalTotalcount + serviceTotalcount + managementTotalcount) * 100 / total).ToString("#0.00") + "%";
+
+            littleSum.Add(total);
+            craftsmanSum.Add(craftsmanTotalcount);//操作族总计
+            //not_craftsmanSum.Add(not_craftsmanTotalcount);           
+            //not_craftsmanPercent.Add(not_craftsmanTotalPercent);
+            technologySum.Add(technologyTotalcount);//技术族总计
+            professionalSum.Add(professionalTotalcount);//专业族总计
+            serviceSum.Add(serviceTotalcount);//服务族总计
+            managementSum.Add(managementTotalcount);//管理族总计
+            craftsmanPercent.Add(craftsmanTotalPercent); //操作族总占比
+            technologyPercent.Add(technologyTotalPercent);//技术族总占比
+            professionalPercent.Add(professionalTotalPercent);//专业族总占比
+            servicePercent.Add(serviceTotalPercen);//服务族总占比
+            managementPercent.Add(managementTotalPercen);//管理族总占比
+            zongbi.Add(ZongBi); //总占比
+
+            table1.Add("时段小计", JsonConvert.SerializeObject(littleSum));
+            table1.Add("占比", JsonConvert.SerializeObject(percetnSum));
+
+            //表2的总计和表1的时段小计是一样的
+
+            table2.Add("操作族总计,操作族总计", JsonConvert.SerializeObject(craftsmanSum));//操作族总计
+            //table2.Add("非操作族总计,非操作族总计", JsonConvert.SerializeObject(not_craftsmanSum));
+            table2.Add("技术族总计,技术族总计", JsonConvert.SerializeObject(technologySum));//技术族总计
+            table2.Add("专业族总计,专业族总计", JsonConvert.SerializeObject(professionalSum));//专业族总计
+            table2.Add("服务族总计,服务族总计", JsonConvert.SerializeObject(serviceSum));//服务族总计
+            table2.Add("管理族总计,管理族总计", JsonConvert.SerializeObject(managementSum));//管理族总计
+            table2.Add("总计,总计", JsonConvert.SerializeObject(littleSum));
+
+            table2.Add("操作族占比,操作族占比", JsonConvert.SerializeObject(craftsmanPercent));
+            //table2.Add("非操作族占比,非操作族占比", JsonConvert.SerializeObject(not_craftsmanPercent));
+            table2.Add("技术族占比,技术族占比", JsonConvert.SerializeObject(technologyPercent));//技术族占比
+            table2.Add("专业族占比,专业族占比", JsonConvert.SerializeObject(professionalPercent));//专业族占比
+            table2.Add("服务族占比,服务族占比", JsonConvert.SerializeObject(servicePercent));//服务族占比
+            table2.Add("管理族占比,管理族占比", JsonConvert.SerializeObject(managementPercent));//管理族占比
+            table2.Add("总占比,总占比", JsonConvert.SerializeObject(zongbi));
+
+            result.Add("date", year + "-" + month);
+            result.Add("表1", table1);
+            result.Add("表2", table2);
+            return common.GetModuleFromJobjet(result);
+        }
+
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DefaualInfo([System.Web.Http.FromBody]JObject data)
+        {
+            var lastTime = db.Personnel_Roster.OrderByDescending(c => c.LastDate).Select(c => c.LastDate).FirstOrDefault();
+            int Year = lastTime.Value.Year;
+            int Month = lastTime.Value.Month;
+            var result = LeavedPersonServiceLength(data);
+            return common.GetModuleFromJobjet(result);
+        }
+
+        [HttpPost]
+        [ApiAuthorize]
+        public int TwoDTforMonth_sub([System.Web.Http.FromBody]JObject data) //默认date2>date1
+        {
+            int result = 0;
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            DateTime? date2 = obj.date2;
+            DateTime? date1 = obj.date1;
+            if (date1 != null && date2 != null)
+            {
+                var d1_lastday = DateTime.DaysInMonth(Convert.ToDateTime(date1).Year, Convert.ToDateTime(date1).Month);
+                var d2_lastday = DateTime.DaysInMonth(Convert.ToDateTime(date2).Year, Convert.ToDateTime(date2).Month);
+
+                var d1_day = Convert.ToDateTime(date1).Day;
+                var d2_day = Convert.ToDateTime(date2).Day;
+
+                if ((d1_lastday == d1_day && d2_lastday == d2_day) || (d1_lastday != d1_day && d2_lastday == d2_day) || (d2_day >= d1_day))
+                {
+                    if (Convert.ToDateTime(date2).Month > Convert.ToDateTime(date1).Month)
+                    {
+                        result = (Convert.ToDateTime(date2).Year - Convert.ToDateTime(date1).Year) * 12 + (Convert.ToDateTime(date2).Month - Convert.ToDateTime(date1).Month);
+                    }
+                    else
+                    {
+                        result = (Convert.ToDateTime(date2).Year - Convert.ToDateTime(date1).Year - 1) * 12 + (Convert.ToDateTime(date2).Month + 12 - Convert.ToDateTime(date1).Month);
+                    }
+                }
+                else if ((d1_lastday == d1_day && d2_lastday != d2_day) || (d2_day <= d1_day))
+                {
+                    if (Convert.ToDateTime(date2).Month > Convert.ToDateTime(date1).Month)
+                    {
+                        result = (Convert.ToDateTime(date2).Year - Convert.ToDateTime(date1).Year) * 12 + (Convert.ToDateTime(date2).Month - Convert.ToDateTime(date1).Month) - 1;
+                    }
+                    else
+                    {
+                        result = (Convert.ToDateTime(date2).Year - Convert.ToDateTime(date1).Year - 1) * 12 + (Convert.ToDateTime(date2).Month + 12 - Convert.ToDateTime(date1).Month) - 1;
+                    }
+                }
+
+                return result;
+            }
+            return result;
+        }
+
+        #endregion
+
+        #region--------花名册首页查询
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Index([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            JArray depar = new JArray();
+            JObject roster = new JObject();
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            string jobNum = obj.jobNum;//工号
+            string name = obj.name;//姓名
+            string status = obj.status;//员工状态
+            string department = obj.department;//部门
+            string type = obj.type;//族群
+            DateTime? dateTime = obj.dateTime;//离职年月
+            var recordList = db.Personnel_Roster.ToList();
+            var dplist = recordList.Select(c => c.Department).Distinct().ToList();
+            foreach (var dp in dplist)
+            {
+                var dp_grouplist = recordList.Where(c => c.Department == dp).Select(c => c.DP_Group).Distinct().ToList();
+                JObject detail = new JObject();
+                detail.Add(dp + "在职总人数", recordList.Where(c => c.Department == dp && c.Status != "离职员工").Count());
+                foreach (var dg in dp_grouplist)
+                {
+                    detail.Add(dg, recordList.Count(c => c.Department == dp && c.DP_Group == dg));
+                }
+                var educationlist = recordList.Where(c => c.Department == dp).Select(c => c.Education).Distinct().ToList();
+                foreach (var ed in educationlist)
+                {
+                    detail.Add(ed, recordList.Count(c => c.Department == dp && c.Education == ed));
+                }
+                result.Add(dp, detail);
+            }
+            if (!String.IsNullOrEmpty(jobNum))
+            {
+                recordList = recordList.Where(c => c.JobNum == jobNum).ToList();
+            }
+            if (!String.IsNullOrEmpty(name))
+            {
+                recordList = recordList.Where(c => c.Name.Contains(name)).ToList();
+            }
+            if (!String.IsNullOrEmpty(status))
+            {
+                recordList = recordList.Where(c => c.Status == status).ToList();
+            }
+            if (!String.IsNullOrEmpty(department))
+            {
+                recordList = recordList.Where(c => c.Department == department).ToList();
+            }
+            if (!String.IsNullOrEmpty(type))
+            {
+                recordList = recordList.Where(c => c.levelType == type).ToList();
+            }
+            if (dateTime != null && dateTime.Value.Year != 0 && dateTime.Value.Month != 0)
+            {
+                var LastDateList = recordList.Where(c => c.LastDate != null).ToList();
+                recordList = LastDateList.Where(c => c.LastDate.Value.Year == dateTime.Value.Year && c.LastDate.Value.Month == dateTime.Value.Month).ToList();
+            }
+            if (dateTime != null && dateTime.Value.Year != 0 && dateTime.Value.Month == 0)
+            {
+                recordList = recordList.Where(c => c.LastDate.Value.Year == dateTime.Value.Year).ToList();
+            }
+            if (recordList.Count > 0)
+            {
+                var userNumberList = recordList.Select(c => c.JobNum).Distinct().ToList();
+                foreach (var item in userNumberList)
+                {
+                    var employees = recordList.Where(c => c.JobNum == item).FirstOrDefault();
+                    if (employees != null)
+                    {
+                        roster.Add("Id", employees.Id);//id
+                        roster.Add("JobNum", employees.JobNum);//工号
+                        roster.Add("Name", employees.Name);//姓名
+                        roster.Add("Sex", employees.Sex);//性别
+                        roster.Add("DateOfBirth", employees.DateOfBirth);//出生年月
+                        roster.Add("Education", employees.Education);//学历
+                        roster.Add("DP_Group", employees.DP_Group);//班组名称
+                        roster.Add("Position", employees.Position);//职位名称
+                        roster.Add("HireDate", employees.HireDate);//入司时间
+                        roster.Add("LastDate", employees.LastDate);//最后工作日期
+                        roster.Add("Department", employees.Department);//部门
+                        roster.Add("Status", employees.Status);//员工状态
+                        roster.Add("LevelType", employees.levelType);//族群
+                        if (employees.LastDate == null)
+                        {
+                            roster.Add("OnPostMonth", employees.OnPostMonth = Convert.ToDecimal(commonality.TwoDTforMonth_sub(DateTime.Now, employees.HireDate).ToString()));
+                        }
+                        else
+                        {
+                            roster.Add("OnPostMonth", Convert.ToDecimal(commonality.TwoDTforMonth_sub(employees.LastDate, employees.HireDate).ToString()));
+                        }
+                        depar.Add(roster);
+                        roster = new JObject();
+                    }
+                }
+                result.Add("Roster", depar);
+            }
+            return common.GetModuleFromJobjet(result);
+        }
+        #endregion
+
+        #region--------批量添加员工
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Batch_InputStaff([System.Web.Http.FromBody]JObject data)
+        {
+            JArray result = new JArray();
+            AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
+            var jsonStr = JsonConvert.SerializeObject(data);
+            var obj = JsonConvert.DeserializeObject<dynamic>(jsonStr);
+            List<Personnel_Roster> inputList = obj.inputList;
+            if (inputList.Count > 0)
+            {
+                foreach (var item in inputList)
+                {
+                    item.CreateDate = DateTime.Now;
+                    item.Creator = auth.UserName;
+                    if (db.Personnel_Roster.Count(c => c.JobNum == item.JobNum) > 0)
+                        result.Add(item.JobNum);
+                }
+                if (result.Count > 0)
+                {
+                    return common.GetModuleFromJarray(result, false, "已经有相同的数据，请重新输入");
+                }
+                db.Personnel_Roster.AddRange(inputList);
+                int count = db.SaveChanges();
+                if (count > 0)
+                {
+                    return common.GetModuleFromJarray(result, true, "添加" + inputList.Count.ToString() + "员工成功");
+                }
+                else
+                {
+                    return common.GetModuleFromJarray(result, false, "添加失败");
+                }
+            }
+            return common.GetModuleFromJarray(result, false, "添加失败");
+        }
+
+        #endregion
+
+        #region------单个添加员工
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject Create([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
+            Personnel_Roster personnel_Roster = JsonConvert.DeserializeObject<Personnel_Roster>(JsonConvert.SerializeObject(data));
+            if (personnel_Roster != null && personnel_Roster.JobNum != null)
+            {
+                if (db.Personnel_Roster.Count(c => c.JobNum == personnel_Roster.JobNum) > 0)
+                {
+                    return common.GetModuleFromJobjet(result, false, personnel_Roster.JobNum + "已经有相同的数据，请重新输入");
+                }
+                if (!string.IsNullOrEmpty(personnel_Roster.JobNum) && !string.IsNullOrEmpty(personnel_Roster.Name) && !string.IsNullOrEmpty(personnel_Roster.Education) && !string.IsNullOrEmpty(personnel_Roster.DP_Group) && !string.IsNullOrEmpty(personnel_Roster.Position) && !string.IsNullOrEmpty(personnel_Roster.Department))
+                {
+                    personnel_Roster.CreateDate = DateTime.Now;
+                    personnel_Roster.Creator = auth.UserName;
+                    db.Personnel_Roster.Add(personnel_Roster);
+                    int count = db.SaveChanges();
+                    if (count > 0)
+                    {
+                        return common.GetModuleFromJobjet(result, true, "添加成功");
+                    }
+                    else
+                    {
+                        return common.GetModuleFromJobjet(result, false, "添加失败");
+                    }
+                }
+            }
+            return common.GetModuleFromJobjet(result, false, "添加失败");
+        }
+
+        #endregion
+
+        #region------修改花名册记录
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject updateDate([System.Web.Http.FromBody]JObject data)
+        {
+            JObject result = new JObject();
+            AuthInfo auth = (AuthInfo)this.RequestContext.RouteData.Values["Authorization"];
+            Personnel_Roster personnel_Roster = JsonConvert.DeserializeObject<Personnel_Roster>(JsonConvert.SerializeObject(data));
+            if (!string.IsNullOrEmpty(personnel_Roster.JobNum) && !string.IsNullOrEmpty(personnel_Roster.Name) && !string.IsNullOrEmpty(personnel_Roster.Education) && !string.IsNullOrEmpty(personnel_Roster.DP_Group) && !string.IsNullOrEmpty(personnel_Roster.Position) && !string.IsNullOrEmpty(personnel_Roster.Department))
+            {
+                int count = 0;
+                db.Entry(personnel_Roster).State = EntityState.Modified;
+                count = db.SaveChanges();
+                int WorkNumber = int.Parse(personnel_Roster.JobNum);
+                var department = db.Users.Where(c => c.UserNum == WorkNumber && c.UserName == personnel_Roster.Name).ToList();
+                foreach (var it in department)
+                {
+                    it.Department = personnel_Roster.Department;
+                    db.Entry(it).State = EntityState.Modified;
+                    count += db.SaveChanges();
+                }
+                if (count > 0)
+                {
+                    return common.GetModuleFromJobjet(result, true, "修改成功");
+                }
+                else
+                {
+                    return common.GetModuleFromJobjet(result, false, "修改失败");
+                }
+            }
+            return common.GetModuleFromJobjet(result, false, "修改失败");
+        }
+
+        #endregion
+
+        #region ------------departmentList()取花名册部门列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject DepartmentList()
+        {
+            var departmentlist = db.Personnel_Roster.OrderByDescending(m => m.Id).Select(m => m.Department).Distinct().ToList();
+            JArray result = new JArray
+            {
+                departmentlist
+            };
+            return common.GetModuleFromJarray(result);
+        }
+
+        #endregion
+
+        #region ------------LevelTypeList()取族群列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject LevelTypeList()
+        {
+            var typelist = db.Personnel_Roster.OrderByDescending(m => m.Id).Select(m => m.levelType).Distinct().ToList();
+            JArray result = new JArray
+            {
+                typelist
+            };
+            return common.GetModuleFromJarray(result);
+        }
+
+        #endregion
+
+
+
+    }
+
+
+
+
+
 }

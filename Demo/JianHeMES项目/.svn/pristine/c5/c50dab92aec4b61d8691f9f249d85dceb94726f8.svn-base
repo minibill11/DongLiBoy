@@ -1,0 +1,565 @@
+﻿@{
+    ViewBag.Title = "一楼打磨车间噪声";
+}
+@*引用js、加载数据*@
+<link href="~/Scripts/Bootstraps/bootstrap-datetimepicker.min.css" rel="stylesheet" />
+<script src="~/Scripts/echarts.js"></script>
+<script src="~/Scripts/jquery.unobtrusive-ajax.min.js"></script>
+<script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.js"></script>
+<script src="~/Scripts/Bootstraps/bootstrap-datetimepicker.zh-CN.js"></script>
+
+<style>
+    .datarow {
+        position: relative;
+        margin: 0;
+        height: 40px;
+    }
+
+    .datarowleft {
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin-left: 2%;
+    }
+
+    .datarowcenter {
+        margin: 0 auto;
+        height: 34px;
+        width: 140px
+    }
+
+    .datarowright {
+        margin-right: 2%;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+</style>
+
+@*此处是居中标题*@
+<div align="center" style="width:100%;">
+    <h4 align="center">
+        @ViewBag.Station (单位:dB)
+    </h4>
+</div>
+@*
+    此页面建议重做，因为最初传数据出来是采用viewbag和@Html.Raw(JsonConvert.SerializeObject(ViewData["ResultJsonObj"])
+    页面的时间插件也是早期的bootstrap-datetimepicker，不便修改
+    看起来代码很复杂，其实功能不复杂
+
+    页面功能分为
+    1.加载更早数据，加入表格
+    2.加载更后页面，加入表格
+    3.获得初始数据，渲染表格
+    4.导出excel表，传参数就可以
+    5.选择时间段加载数据，重新渲染表格
+
+    理清后可以重做，速度较快
+
+*@
+@*ECharts容器、获取数据按钮*@
+<div class="container">
+
+    <div class="row">
+        <div id="main" style="width:100%;min-height:300px;"></div>
+    </div>
+    <div class="row datarow">
+        <div class="datarowleft">
+            <input class="form-control" type="button" id="leftBtn" name="leftBtn" value="加载更早数据" />
+        </div>
+        <form action="THExportToExcel" method='POST' class="datarowcenter">
+            <div style="display:none">
+                <input id="point" name="point" value="@ViewBag.Station" />
+                <input id="begin" name="begin" value="" />
+                <input id="end" name="end" value="" />
+            </div>
+            <input class="form-control" type="submit" value="数据保存为Excel表" />
+        </form>
+        <div class="datarowright">
+            <input class="form-control" type="button" id="rightBtn" name="rightBtn" value="加载后面数据" />
+        </div>
+    </div>
+    <br />
+    <div class="row">
+        <div style="float:left ;margin-left:2%">
+            <label class="form-control">选择时间段  👉</label>
+        </div>
+        <div style="float:left ;margin-left:2%;width:330px">
+            <div id="start_Date" class="input-group date" data-date="" data-link-field="start_input">
+                <div for="start_input" class="input-group-addon">开始时间</div>
+                <input id="startTime" name="startTime" class="form-control" type="text" value="" readonly>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+                <input type="hidden" id="start_input" value="" />
+            </div>
+        </div>
+        <div style="float:left ;margin-left:2%;width:330px">
+            <div id="end_Date" class="input-group date" data-date="" data-link-field="end_input">
+                <div for="end_input" class="input-group-addon">结束时间</div>
+                <input id="endTime" name="endTime" class="form-control" type="text" value="" readonly>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-remove"></span></span>
+                <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span>
+                <input type="hidden" id="end_input" value="" />
+            </div>
+        </div>
+        <div style="float:left ;margin-left:2%">
+            <input class="form-control" type="button" id="btnSub" name="btnSub" value="加载时间段数据" />
+        </div>
+    </div>
+    <br />
+</div>
+@*loding*@
+<div class="spinnerModel" style="display:none">
+    <div class="bounce1"></div>
+    <div class="bounce2"></div>
+    <div class="bounce3"></div>
+</div>
+
+
+
+<script type="text/javascript">
+    //启动窗口时自适应宽高
+    var autoAdapt = $("#main");
+    autoAdapt.height(autoAdapt.width() * 0.4);
+
+    //获取首次进入数据       待处理
+    @using Newtonsoft.Json;
+    var JsonObj = Cut(@Html.Raw(JsonConvert.SerializeObject(ViewData["ResultJsonObj"])));//去除数组前后 [ 和 ]的Cut方法
+    console.log(JsonObj);
+    console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " HumValue的长度" + JsonObj.Hum.length);
+
+    //HTChartsLeft接收到数据的处理方法
+    function HTChartsLeftSuccess(data) {
+        if (data == "无数据") {
+            alert("已无更新的数据可加载！");
+        }
+        else {
+            var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+            refreshLeftData(returnJson);//更新图表数据
+        }
+    }
+    //HTChartsLeft POST失败的处理方法
+    function HTChartsLeftFailure() {
+        alert("数据加载失败！");
+    }
+
+
+    //文档加载时设置点击事件
+    $(document).ready(function () {
+        $("#begin").val(JsonObj.RecordTime[0]);
+        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
+        //向左进行POST
+        $("#leftBtn").click(function () {
+            $(".spinnerModel").show();
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsLeft',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    left: JsonObj.RecordTime[0],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                    $(".spinnerModel").hide();
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshLeftData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#begin").val(JsonObj.RecordTime[0]);
+                    };
+                    $(".spinnerModel").hide();
+                }
+            });
+        });
+        //向右进行POST
+        $("#rightBtn").click(function () {
+            $(".spinnerModel").show();
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsRight',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    right: JsonObj.RecordTime[JsonObj.RecordTime.length - 1],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                    $(".spinnerModel").hide();
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshRightData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
+                    };
+                    $(".spinnerModel").hide();
+                }
+            });
+        });
+        //根据时间段进行POST
+        $("#btnSub").click(function () {
+            $(".spinnerModel").show();
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsDuring',  //请求的某个action的地址
+                //datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    begin: $("#start_input").val(),
+                    end: $("#end_input").val()
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    if ($("#start_input").val() == "" || $("#end_input").val() == "") {
+                        alert("请选择日期");
+                    } else {
+                        alert("获取数据失败");
+                    };
+                    $(".spinnerModel").hide();
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        alert("这个时间段没有记录哦~");
+                    } else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshDuringData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length + " HumValue的长度" + JsonObj.Hum.length);
+                        $("#begin").val(JsonObj.RecordTime[0]);
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
+                    };
+                    $(".spinnerModel").hide();
+                }
+            });
+        });
+    });
+
+    //主图表加载
+    var myChart = echarts.init(document.getElementById('main'));
+    myChart.showLoading();
+    myChart.hideLoading();
+        option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow',
+                    label: {
+                        show: true
+                    }
+                }
+            },
+            toolbox: {
+                show: true,
+                feature: {
+                    mark: { show: true },
+                    dataView: { show: true, readOnly: true },
+                    magicType: { show: true, type: ['line', 'bar'] },
+                    restore: { show: true },
+                    saveAsImage: { show: true },
+                }
+            },
+            calculable: true,
+            legend: {
+                data: ['噪声/分贝'],
+                itemGap: 5
+            },
+            grid: {
+                top: '12%',
+                left: '1%',
+                right: '10%',
+                containLabel: true
+            },
+            color: ['#81b22f', '#81b22f'],
+            xAxis: [
+                {
+                    type: 'category',
+                    data: JsonObj.RecordTime
+                }
+            ],
+            yAxis:
+                {
+                    type: 'value',
+                    //max: 100,  //固定y轴高度
+                    //min: 0,    //固定y轴起点
+                    //interval: 10  //固定y轴分格
+                }
+            ,
+            dataZoom: [
+                {
+                    show: true,
+                    start: 93.9,
+                    end: 99.9
+                },
+                {
+                    type: 'inside',
+                    start: 93.9,
+                    end: 99.9
+                },
+                {
+                    show: true,
+                    yAxisIndex: 0,
+                    filterMode: 'empty',
+                    width: 30,
+                    height: '80%',
+                    showDataShadow: false,
+                    left: '93%'
+                }
+            ],
+            visualMap: {
+                top: 50,
+                right: 10,
+                show: false,
+                pieces: [{
+                    gt: 0,
+                    lte: 85,
+                    color: 'green'
+                }],//#ff9933橙#cc0033红
+                outOfRange: {
+                    color: 'red'
+                }
+            },
+            series: [
+                {
+                    name: '噪声/分贝',
+                    type: 'line',
+                    data: JsonObj.Hum,
+                    markLine: {
+                        silent: true,
+                        data: [{
+                            yAxis: 0
+                        }, {
+                            yAxis: 85
+                        }]
+                    },
+                    markArea: {
+                        data: [[{
+                            yAxis: '0'
+                        }, {
+                            yAxis: '85'
+                        }]]
+                    },
+                }
+            ]
+    };
+    myChart.setOption(option, true);
+
+    //时间控件
+    $("#start_Date").datetimepicker({
+        language: 'zh-CN',
+        format: 'yyyy-mm-dd hh:ii',//显示格式
+        //minView: "month",//设置只显示到月份
+        weekStart: 1, //一周从哪一天开始。0（星期日）到6（星期六）
+        todayBtn: 1,
+        autoclose: 1, //当选择一个日期之后是否立即关闭此日期时间选择器。
+        todayHighlight: 1, //今天高亮
+        startView: 2,
+        forceParse: 0,
+        pickerPosition: "bottom-left",
+        showMeridian: 1,
+        endDate: new Date()
+    }).on('changeDate', function (ev) {
+        $("#end_Date").datetimepicker('setStartDate', $("#start_input").val());
+    });
+    $("#end_Date").datetimepicker({
+        language: 'zh-CN',
+        format: 'yyyy-mm-dd hh:ii',
+        weekStart: 1,
+        todayBtn: 1,
+        autoclose: 1,
+        todayHighlight: 1,
+        startView: 2,
+        forceParse: 0,
+        pickerPosition: "bottom-left",
+        showMeridian: 1,
+        endDate: new Date()
+    }).on('changeDate', function (ev) {
+        $("#start_Date").datetimepicker('setEndDate', $("#end_input").val());
+    });
+
+
+    //去除数组前后 "[" 和 "]" 的方法
+    function Cut(Obj) {
+        Obj.RecordTime = Obj.RecordTime.substr(1, Obj.RecordTime.length - 2).split(",");
+        Obj.Hum = Obj.Hum.substr(1, Obj.Hum.length - 2).split(",");
+        return Obj;
+    }
+
+    //获取向左ajax返回的数据，更新图表数据
+    function refreshLeftData(returnJson) {
+        JsonObj.RecordTime = returnJson.RecordTime.concat(JsonObj.RecordTime);
+        JsonObj.Hum = returnJson.Hum.concat(JsonObj.Hum);
+        myChart.setOption({
+            xAxis: {
+                data: JsonObj.RecordTime
+            },
+            series: [
+                {
+                    name: '噪声/分贝',
+                    data: JsonObj.Hum
+                }
+            ]
+        });
+    }
+
+    //获取向右ajax返回的数据，更新图表数据
+    function refreshRightData(returnJson) {
+        JsonObj.RecordTime = JsonObj.RecordTime.concat(returnJson.RecordTime);
+        JsonObj.Hum = JsonObj.Hum.concat(returnJson.Hum);
+        myChart.setOption({
+            xAxis: {
+                data: JsonObj.RecordTime
+            },
+            series: [
+                {
+                    name: '噪声/分贝',
+                    data: JsonObj.Hum
+                }
+            ]
+        });
+    }
+
+    //根据选择的时间段获取ajax返回的数据，更新图表数据
+    function refreshDuringData(returnJson) {
+        JsonObj.RecordTime = returnJson.RecordTime;
+        JsonObj.Hum = returnJson.Hum;
+        myChart.setOption({
+            xAxis: {
+                data: JsonObj.RecordTime
+            },
+            series: [
+                {
+                    name: '噪声/分贝',
+                    data: JsonObj.Hum
+                }
+            ]
+        });
+    }
+
+    myChart.on("datazoom", function (params) {
+        //var option = myChart.getOption();
+        //var dataZoomX = option.dataZoom[0];
+        //console.log(option.xAxis[0].data[dataZoomX.startValue]);
+        //console.log(option.xAxis[0].data[dataZoomX.endValue]);
+
+        //获得图表数据数组下标
+        //var startValue = myChart.getModel().option.dataZoom[0].startValue;
+        //var endValue = myChart.getModel().option.dataZoom[0].endValue;
+        //获得起止位置百分比
+        var startPercent = myChart.getModel().option.dataZoom[0].start;
+        var endPercent = myChart.getModel().option.dataZoom[0].end;
+        //console.log(startPercent);
+        //console.log(endPercent);
+        if (startPercent == 0) {
+            $(".spinnerModel").show();
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsLeft',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    left: JsonObj.RecordTime[0],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                    $(".spinnerModel").hide();
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: 1,
+                                    end: endPercent + 0.9
+                                }
+                            ]
+                        });
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshLeftData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length +  " HumValue的长度" + JsonObj.Hum.length);
+                        $("#begin").val(JsonObj.RecordTime[0]);
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: 1,
+                                    end: endPercent + 0.9
+                                }
+                            ]
+                        });
+                    };
+                    $(".spinnerModel").hide();
+                }
+            });
+        }
+        if (endPercent == 100) {
+            $(".spinnerModel").show();
+            $.ajax({
+                type: 'post',
+                url: '/KongYaHT/KongYa/HTChartsRight',  //请求的某个action的地址
+                datatype: "json",  //只有指定为json下面才可以直接用返回的json数据，否则要转化
+                data: {
+                    point: "@ViewBag.Station",
+                    right: JsonObj.RecordTime[JsonObj.RecordTime.length - 1],
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {//请求失败
+                    //如果返回错误，根据错误信息进行相应的处理
+                    alert("数据加载失败！");
+                    $(".spinnerModel").hide();
+                },
+                success: function (data) {
+                    if (data == "无数据") {
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: startPercent - 0.1,
+                                    end: 99.9
+                                }
+                            ]
+                        });
+                        alert("已无更新的数据可加载！");
+                    }
+                    else {
+                        var returnJson = Cut(JSON.parse(data));//JSON String转JSON对象后,修剪JSON对象
+                        refreshRightData(returnJson);//更新图表数据
+                        console.log(JsonObj);
+                        console.log("TimeValue的长度：" + JsonObj.RecordTime.length +  " HumValue的长度" + JsonObj.Hum.length);
+                        $("#end").val(JsonObj.RecordTime[JsonObj.RecordTime.length - 1]);
+                        myChart.setOption({
+                            dataZoom: [
+                                {
+                                    start: startPercent - 0.1,
+                                    end: 99.9
+                                }
+                            ]
+                        });
+                    };
+                    $(".spinnerModel").hide();
+                }
+            });
+        }
+    });
+
+    //重置容器高宽
+    window.onresize = function () {
+        autoAdapt.height(autoAdapt.width() * 0.4);
+        myChart.resize();
+    };
+</script>

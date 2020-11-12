@@ -431,8 +431,8 @@ namespace JianHeMES.Controllers
 
             //查找订单所有未出库的列表
             var falselist = list.Where(c => c.IsOut == false).ToList();
-            var faslebarcodeList = falselist.Select(c => c.OuterBoxBarcode).Distinct().ToList();
-            //查找已出库，并且不是挪用出库，剔除混装在内的列表
+            //var faslebarcodeList = falselist.Select(c => c.OuterBoxBarcode).Distinct().ToList();
+            //查找已出库
             var truelist = list.Where(c => c.IsOut == true).ToList();
 
             if (falselist.Count() == 0 && truelist.Count() == 0)//  未出库列表表为0.出库列表为0 ,代表没有符合条件的出入库信息
@@ -756,7 +756,7 @@ namespace JianHeMES.Controllers
 
         #endregion
 
-       
+
         #endregion
 
         #region 工序产能
@@ -1121,7 +1121,7 @@ namespace JianHeMES.Controllers
         //}
 
         //返回前端,统一格式 jobject 用
-        public JObject GetModuleFromJobjet(JObject value,bool? Result=null,string Message=null)
+        public JObject GetModuleFromJobjet(JObject value, bool? Result = null, string Message = null)
         {
             JObject result = new JObject();
             result.Add("PostResult", comm.ReturnApiPostStatus());
@@ -1152,31 +1152,72 @@ namespace JianHeMES.Controllers
         public class Temp
         {
             public int id { get; set; }
-            public string  BarCodesNum { get; set; }
+            public string BarCodesNum { get; set; }
             public string ModuleGroupNum { get; set; }
             public bool Finsh { get; set; }
             public DateTime? FinshTime { get; set; }
         }
 
         #region ----------------列表---------------
+
+        #region 订单相关列表
         //拿到所有订单列表
         [HttpPost]
         [ApiAuthorize]
         public JObject OrderList()
         {
-            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => m.OrderNum);    //增加.Distinct()后会重新按OrderNum升序排序
+            var orders = db.OrderMgm.OrderByDescending(m => m.ID).Select(m => new { m.OrderNum, m.ID });    //增加.Distinct()后会重新按OrderNum升序排序
             JArray result = new JArray();
             foreach (var item in orders)
             {
                 JObject List = new JObject();
-                List.Add("value", item);
+                List.Add("value", item.OrderNum);
+                List.Add("id", item.ID);
 
                 result.Add(List);
             }
             return GetModuleFromJarray(result);
         }
 
-        //班组列表
+        //拿到所有挪用订单号
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject nuoOrderNumList()
+        {
+            var newordernum = db.BarCodeRelation.Select(m => m.NewOrderNum).Distinct();
+            var oldodernum = db.BarCodeRelation.Select(m => m.OldOrderNum).Distinct();
+            var ordernum = newordernum.Union(oldodernum).ToList();
+            var ordernumitems = new List<SelectListItem>();
+            JArray result = new JArray();
+            foreach (string major in ordernum)
+            {
+                JObject List = new JObject();
+                List.Add("value", major);
+
+                result.Add(List);
+            }
+            return GetModuleFromJarray(result);
+        }
+
+        //拿到所有订单平台列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject PlatformTypeList()
+        {
+            var type = db.OrderMgm.Select(c => c.PlatformType).Distinct().ToList();
+            JArray result = new JArray();
+            foreach (var item in type)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+                result.Add(List);
+            }
+            return GetModuleFromJarray(result);
+        }
+        #endregion
+
+        #region 部门班组列表
+        //根据部门,拿到UserTemp定义的班组列表
         [HttpPost]
         [ApiAuthorize]
         public JObject DisplayGroup([System.Web.Http.FromBody]JObject data)
@@ -1185,7 +1226,7 @@ namespace JianHeMES.Controllers
             string deparment = data["deparment"].ToString();//部门
 
             JObject result = new JObject();
-           
+
             var grouplist = db.UserTemp.Where(c => c.Department == deparment).Select(c => c.Group).ToList();//根据部门找到班组列表
             JArray list = new JArray();
             grouplist.ForEach(c => list.Add(c));//将班组列表放到jarray 中
@@ -1195,6 +1236,246 @@ namespace JianHeMES.Controllers
             return GetModuleFromJobjet(result);
 
         }
+
+        #endregion
+        
+        #region 拼屏老化相关列表
+
+        //取出拼屏订单号列表
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject MosaiOrderList()
+        {
+            var orders = db.Burn_in_MosaicScreen.OrderByDescending(m => m.Id).Select(m => m.OrderNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //取出拼屏老化架号列表
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject mosaiShelfNumList()
+        {
+            var orders = db.Burn_in_MosaicScreen.OrderByDescending(m => m.Id).Select(m => m.BurnInShelfNum).Distinct();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+
+        //取出正在老化架号列表
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject BurnInShelfNumDoingList()
+        {
+            var burninshelfs = db.Burn_in.Where(c => c.OQCCheckBT != null && c.OQCCheckFT == null && c.OQCCheckFinish == false && !string.IsNullOrEmpty(c.BurnInShelfNum)).Select(m => m.BurnInShelfNum).Distinct().ToList();
+            JArray result = new JArray();
+
+            foreach (string burninshelf in burninshelfs)
+            {
+                JObject item = new JObject();
+                item.Add("value", burninshelf);
+                result.Add(item);
+            }
+
+            return com.GetModuleFromJarray(result);
+        }
+
+        //取出已经老化架号列表
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject BurnInShelfNumFinshingList()
+        {
+            var burninshelfs = db.Burn_in.Where(c => c.OQCCheckBT != null && c.OQCCheckFT != null && c.OQCCheckFinish == true && !string.IsNullOrEmpty(c.BurnInShelfNum)).Select(m => m.BurnInShelfNum).Distinct().ToList();
+            var items = new List<SelectListItem>();
+            JArray result = new JArray();
+            foreach (string burninshelf in burninshelfs)
+            {
+                JObject item = new JObject();
+                item.Add("value", burninshelf);
+                result.Add(item);
+            }
+
+            return com.GetModuleFromJarray(result);
+        }
+
+        //取出正在做老化工作且有老化架号的订单列表(查询页面)
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject GetBurnInShelfOrderDoingList()
+        {
+            var burnin_shelfsnum_orderlist = db.Burn_in.Where(c => c.OQCCheckFT == null && c.OQCCheckBT != null && c.OQCCheckFinish == false && c.BurnInShelfNum != null).Select(m => m.OrderNum).Distinct();
+            JArray result = new JArray();
+            foreach (string burninshelf in burnin_shelfsnum_orderlist)
+            {
+                JObject item = new JObject();
+                item.Add("value", burninshelf);
+                result.Add(item);
+            }
+
+            return com.GetModuleFromJarray(result);
+        }
+
+        //取老化工作完成且有老化架号的订单列表(历史页面)
+        [HttpPost]
+        [ApiAuthorize]
+        private JObject GetBurnInShelfOrderFisishList()
+        {
+            var burnin_shelfsnum_orderlist = db.Burn_in.Where(c => c.OQCCheckFT != null && c.OQCCheckBT != null && c.OQCCheckFinish == true).Select(m => m.OrderNum).Distinct();
+            var items = new List<SelectListItem>();
+            JArray result = new JArray();
+            foreach (string burninshelf in burnin_shelfsnum_orderlist)
+            {
+                JObject item = new JObject();
+                item.Add("value", burninshelf);
+                result.Add(item);
+            }
+
+            return com.GetModuleFromJarray(result);
+        }
+
+        #endregion
+
+        #region KPI相关列表
+        //拿到工段列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetSectionList()
+        {
+            var orders = db.Plan_SectionParameter.OrderByDescending(m => m.Id).Select(m => m.Section).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+        //根据工段拿到工序列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetProcessList([System.Web.Http.FromBody]JObject data)
+        {
+            string section = data["section"].ToString();
+            var orders = db.Plan_SectionParameter.OrderByDescending(m => m.Id).Where(c => c.Section == section).Select(m => m.Process).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //数据来源执行时间下拉表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetExTime()
+        {
+            var orders = db.KPI_Indicators.OrderByDescending(m => m.Id).Select(m => m.ExecutionTime).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item.ToString());
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //数据来源全部部门列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetDeprment()
+        {
+            var orders = db.KPI_Indicators.OrderByDescending(m => m.Id).Select(m => m.Department).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        //根据部门,拿到全部数据来源班组
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetDepartmentGroup([System.Web.Http.FromBody]JObject data)
+        {
+            string Department = data["Department"].ToString();
+            var orders = db.KPI_Indicators.OrderByDescending(m => m.Id).Where(c => c.Department == Department).Select(m => m.Group).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        #endregion
+
+        #region 仓库库相关列表
+        //根据订单号查找出入库表,找到订外箱标签列表(产值看板详细页)
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject OutherBarcode(string ordernum)
+        {
+            var orders = db.Warehouse_Join.Where(c => c.OrderNum == ordernum).Select(m => m.OuterBoxBarcode).Distinct(); //根据订单号找出入库信息中外箱条码号
+            JArray result = new JArray();
+            foreach (var item in orders)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        #endregion
+
+        #region SMT相关列表
+        //去除计划所有面列表
+        [HttpPost]
+        [ApiAuthorize]
+        public JObject GetJobContentArr()
+        {
+            var jobContentList = db.SMT_ProductionPlan.Select(m => m.JobContent).Distinct().ToList();    //增加.Distinct()后会重新按OrderNum升序排序
+            JArray result = new JArray();
+            foreach (var item in jobContentList)
+            {
+                JObject List = new JObject();
+                List.Add("value", item);
+                result.Add(List);
+            }
+            return com.GetModuleFromJarray(result);
+        }
+
+        #endregion
         #endregion
 
         #region----------------模组---------------
@@ -1363,35 +1644,35 @@ namespace JianHeMES.Controllers
             {
                 //条码表修改
                 var barcodemodule = db.BarCodes.Where(c => c.BarCodesNum == barcode).FirstOrDefault();
-            var oldbarcode = barcodemodule.ModuleGroupNum;
-            barcodemodule.ModuleGroupNum = module;
-            //校正表修改
-            var calibtationmodule = db.CalibrationRecord.Where(c => c.BarCodesNum == barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == barcode)).ToList();
-            if (calibtationmodule.Count() != 0)//如果信息不为null
-            {
-                oldcalibtationmodule = string.Join(",", calibtationmodule.Select(c => c.ModuleGroupNum).ToList());//旧的校正模组
-                calibtationmodule.ForEach(c => c.ModuleGroupNum = module);//将新的赋过去
-            }
-            //外观表修改
-            var appearanmodule = db.Appearance.Where(c => c.BarCodesNum == barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == barcode)).ToList();//查找电检信息
-            if (appearanmodule.Count() != 0)//如果信息不为null
-            {
-                oldappearanmodule = string.Join(",", appearanmodule.Select(c => c.ModuleGroupNum).ToList());//旧的电检信息
-                appearanmodule.ForEach(c => c.ModuleGroupNum = module);//将新的赋过去
-            }
-            #endregion
+                var oldbarcode = barcodemodule.ModuleGroupNum;
+                barcodemodule.ModuleGroupNum = module;
+                //校正表修改
+                var calibtationmodule = db.CalibrationRecord.Where(c => c.BarCodesNum == barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == barcode)).ToList();
+                if (calibtationmodule.Count() != 0)//如果信息不为null
+                {
+                    oldcalibtationmodule = string.Join(",", calibtationmodule.Select(c => c.ModuleGroupNum).ToList());//旧的校正模组
+                    calibtationmodule.ForEach(c => c.ModuleGroupNum = module);//将新的赋过去
+                }
+                //外观表修改
+                var appearanmodule = db.Appearance.Where(c => c.BarCodesNum == barcode && (c.OldBarCodesNum == null || c.OldBarCodesNum == barcode)).ToList();//查找电检信息
+                if (appearanmodule.Count() != 0)//如果信息不为null
+                {
+                    oldappearanmodule = string.Join(",", appearanmodule.Select(c => c.ModuleGroupNum).ToList());//旧的电检信息
+                    appearanmodule.ForEach(c => c.ModuleGroupNum = module);//将新的赋过去
+                }
+                #endregion
 
-            #region 添加日志
-            UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = name, OperateRecord = "条码是" + barcode + ",原条码模组为" + oldbarcode + ",校正条码模组为" + oldcalibtationmodule + ",电检条码为" + oldappearanmodule + ",修改后条码为" + module };
-            db.UserOperateLog.Add(log);
-            db.SaveChanges();
-           
-            #endregion
+                #region 添加日志
+                UserOperateLog log = new UserOperateLog() { OperateDT = DateTime.Now, Operator = name, OperateRecord = "条码是" + barcode + ",原条码模组为" + oldbarcode + ",校正条码模组为" + oldcalibtationmodule + ",电检条码为" + oldappearanmodule + ",修改后条码为" + module };
+                db.UserOperateLog.Add(log);
+                db.SaveChanges();
 
-            result.Add("mes", "修改成功");
-            result.Add("pass", true);
-            
-            return result;
+                #endregion
+
+                result.Add("mes", "修改成功");
+                result.Add("pass", true);
+
+                return result;
             }
             catch
             {
@@ -1406,7 +1687,7 @@ namespace JianHeMES.Controllers
         /// </summary>
         /// <param name="OrderNum">订单</param>
         /// <param name="ModuleGroupNum">模组号</param>
-        public void DeleteCaliJosn(string OrderNum,string ModuleGroupNum)
+        public void DeleteCaliJosn(string OrderNum, string ModuleGroupNum)
         {
             if (System.IO.File.Exists(@"D:\MES_Data\TemDate\OrderSequence2\" + OrderNum + ".json") == true)
             {
@@ -1417,8 +1698,15 @@ namespace JianHeMES.Controllers
                 if (index != null)
                 {
                     json.Remove(index);//移除模组号
-                    string output2 = Newtonsoft.Json.JsonConvert.SerializeObject(json, Newtonsoft.Json.Formatting.Indented);
-                    System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence2\" + OrderNum + ".json", output2);//保存json文件
+                    if (json.Count == 0)
+                    {
+                        System.IO.File.Delete(@"D:\MES_Data\TemDate\OrderSequence2\" + OrderNum + ".json");
+                    }
+                    else
+                    {
+                        string output2 = Newtonsoft.Json.JsonConvert.SerializeObject(json, Newtonsoft.Json.Formatting.Indented);
+                        System.IO.File.WriteAllText(@"D:\MES_Data\TemDate\OrderSequence2\" + OrderNum + ".json", output2);//保存json文件
+                    }
                 }
             }
         }
@@ -1429,7 +1717,7 @@ namespace JianHeMES.Controllers
         /// <param name="orderNum">订单</param>
         /// <param name="Value">需要查询的数据集</param>
         /// <returns></returns>
-        public JObject SectionCehckList(string orderNum,List<Temp> Value)
+        public JObject SectionCehckList(string orderNum, List<Temp> Value)
         {
             List<string> NotDoList = new List<string>();//未开始做条码清单
             List<string> AbnormalFinish = new List<string>();//异常完成
@@ -1512,7 +1800,7 @@ namespace JianHeMES.Controllers
                 var bar = com.SQLAloneExecute(updatebarcodesql);
                 var cali = com.SQLAloneExecute(updatecalisql);
                 var app = com.SQLAloneExecute(updateappsql);
-                
+
                 if (bar == "true" && cali == "true" && app == "true")
                 {
                     UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "清除订单" + ordernum + "模组号" };
@@ -1524,10 +1812,10 @@ namespace JianHeMES.Controllers
                 }
                 else
                 {
-                    UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "清除订单" + ordernum + "模组号失败.条码表:"+bar+",校正表: "+cali+",外观表: "+app };
+                    UserOperateLog log = new UserOperateLog() { Operator = UserName, OperateDT = DateTime.Now, OperateRecord = "清除订单" + ordernum + "模组号失败.条码表:" + bar + ",校正表: " + cali + ",外观表: " + app };
                     db.UserOperateLog.Add(log);
                     db.SaveChanges();
-                    result.Add("mes", "条码表:"+bar+",校正表:"+cali+",外观表:"+app);
+                    result.Add("mes", "条码表:" + bar + ",校正表:" + cali + ",外观表:" + app);
                     result.Add("pass", false);
                     return GetModuleFromJobjet(result);
                 }

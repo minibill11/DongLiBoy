@@ -1,0 +1,313 @@
+﻿
+@{
+  ViewBag.Title = "人事日报表";
+  Layout = "~/Views/Shared/_Layout2.cshtml";
+}
+
+@* css放置处 *@
+@section cssStyle {
+  <link rel="stylesheet/less" type="text/css" href="~/Content/Equipment/equipment_index.less" />
+  <style>
+    .per-title {
+      font-weight: 400;
+      font-size: 24px;
+    }
+    /*查询行*/
+    .per-inputcontainer {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      flex-wrap: wrap;
+    }
+
+    .per-inputcontainer-item {
+      margin-right: 10px;
+      display: flex;
+      align-items: center;
+    }
+
+    .el-table th, .el-table td {
+      padding: 0;
+    }
+
+    .note {
+      color: red;
+      font-size: 12px;
+    }
+
+    .el-form-item__label, .el-form-item__content {
+      line-height: 35px;
+    }
+  </style>
+}
+<el-container id="app" v-cloak>
+  <el-header>
+    <h1 class="per-title">人事日报表</h1>
+  </el-header>
+  <el-main class="main-box" v-loading="loading">
+    @* 查询选择框 *@
+    <div class="per-inputcontainer">
+      <div class="per-inputcontainer-item">
+        <div>日期：</div>
+        <el-date-picker v-model="select_date"
+                        type="date"
+                        size="mini"
+                        placeholder="选择日期" style="width:130px;">
+        </el-date-picker>
+      </div>
+      <el-button type="primary" size="mini" v-on:click="onShow(0)" plain>添加日报</el-button>
+      <el-button type="primary" size="mini" v-on:click="onToVesion">部门版本</el-button>
+    </div>
+    @* 人事日报表 *@
+    <el-table v-bind:data="tableData" v-loading="loading"
+              border
+              size="small"
+              :cell-style="cellStyle"
+              style="width: 100%">
+      <el-table-column prop="Department"
+                       label="部门">
+      </el-table-column>
+      <el-table-column prop="Principal"
+                       width="70"
+                       label="负责人">
+      </el-table-column>
+      <el-table-column prop="Aurhorized_personnel"
+                       width="35"
+                       label="编制人数">
+      </el-table-column>
+      <el-table-column prop="Need_personnel"
+                       width="35"
+                       label="刚需人数">
+      </el-table-column>
+      <el-table-column label="在册人数">
+        <el-table-column prop="Employees_personnel"
+                         width="35" label="正式">
+        </el-table-column>
+        <el-table-column prop="Workers_personnel"
+                         width="35" label="劳务">
+        </el-table-column>
+        <el-table-column prop="Huizong"
+                         width="35" label="合计">
+        </el-table-column>
+      </el-table-column>
+      <el-table-column prop="Today_dutynum"
+                       width="35" label="今日在岗人数">
+      </el-table-column>
+      <el-table-column prop="Engineering"
+                       width="35" label="来惠工程人数">
+      </el-table-column>
+      <el-table-column prop="Dangqian_que"
+                       width="35" label="刚需缺口">
+      </el-table-column>
+      <el-table-column label="每日入职人数">
+        <el-table-column :label="formatterWeek(1)">
+          <el-table-column prop="Mon_employees"
+                           width="35" label="正式">
+          </el-table-column>
+          <el-table-column prop="Mon_workers"
+                           width="35" label="劳务">
+          </el-table-column>
+        </el-table-column>
+        <el-table-column :label="formatterWeek(2)">
+          <el-table-column prop="Tues_employees"
+                           width="35" label="正式">
+          </el-table-column>
+          <el-table-column prop="Tues_workers"
+                           width="35" label="劳务">
+          </el-table-column>
+        </el-table-column>
+        <el-table-column :label="formatterWeek(3)">
+          <el-table-column prop="Wednes_employees"
+                           width="35" label="正式">
+          </el-table-column>
+          <el-table-column prop="Wednes_workers"
+                           width="35" label="劳务">
+          </el-table-column>
+        </el-table-column>
+        <el-table-column :label="formatterWeek(4)">
+          <el-table-column prop="Thurs_employees"
+                           width="35" label="正式">
+          </el-table-column>
+          <el-table-column prop="Thurs_workers"
+                           width="35" label="劳务">
+          </el-table-column>
+        </el-table-column>
+        <el-table-column :label="formatterWeek(5)">
+          <el-table-column prop="Fri_employees"
+                           width="35" label="正式">
+          </el-table-column>
+          <el-table-column prop="Fri_workers"
+                           width="35" label="劳务">
+          </el-table-column>
+        </el-table-column>
+      </el-table-column>
+      <el-table-column label="本周入职">
+        <el-table-column prop="Week_total_employees"
+                         width="35" label="正式">
+        </el-table-column>
+        <el-table-column prop="Week_total_workers"
+                         width="35" label="劳务">
+        </el-table-column>
+      </el-table-column>
+      <el-table-column label="本月入职人数合计">
+        <el-table-column prop="Month_on_board_employees"
+                         width="35" label="正式">
+        </el-table-column>
+        <el-table-column prop="Month_on_board_workers"
+                         width="35" label="劳务">
+        </el-table-column>
+      </el-table-column>
+      <el-table-column label="本月已离职人数合计">
+        <el-table-column prop="Month_dimission_employees_over7days"
+                         width="35" label="正式入职满七天">
+        </el-table-column>
+        <el-table-column prop="Month_dimission_employees_nvever_over7days"
+                         width="35" label="正式入职未满七天">
+        </el-table-column>
+        <el-table-column prop="Month_dimission_workers"
+                         width="35" label="劳务">
+        </el-table-column>
+      </el-table-column>
+      <el-table-column label="本月待离职">
+        <el-table-column prop="Resigned_that_month"
+                         width="35" label="正式">
+        </el-table-column>
+        <el-table-column prop="Resigned_workers_that_month" width="35" label="劳务">
+        </el-table-column>
+      </el-table-column>
+      <el-table-column prop="Date" label="时间">
+      </el-table-column>
+      <el-table-column prop="Reporter" label="上报人">
+        <template slot-scope="scope">
+          <span :class="scope.row.Reporter=='未上报'?'text-red':''">{{scope.row.Reporter}}</span>
+          <el-button type="text" size="mini" style="text-decoration:underline;" @@click="onShow(scope.row)">修改</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    @*弹框*@
+    <daily-from-component :show="isShow" :dailytype="daily_type" :dailyinfo="dailyInfo" @@cancel="cancel"></daily-from-component>
+  </el-main>
+</el-container>
+@* 分部页放置处 *@
+@section renderPage {
+  @RenderPage("~/Views/Personnel/_Daily_from.cshtml")
+}
+@* js放置处 *@
+@section jsScript {
+  <script>
+    const app = {
+      data: {
+        loading: true,
+        select_date: "",//选择时间
+        tableData: [],//表格数据
+        daily_type: 0,//0为添加，1为修改
+        isShow: false,//控制打开弹窗
+        dailyInfo: {},//添加/修改弹窗信息
+        default_dailyinfo: {
+          Department: "",
+          Principal: "",
+          Aurhorized_personnel: "",
+          Need_personnel: "",
+          Today_dutynum: "",
+          Engineering: "",
+          Employees_personnel: "",
+          Workers_personnel: "",
+          Today_on_board_employees: "",
+          Today_on_board_workers: "",
+          Todoy_dimission_employees_over7days: "",
+          Todoy_dimission_employees_nvever_over7days: "",
+          Todoy_dimission_workers: "",
+          Resigned_that_month: "",
+          Resigned_workers_that_month: ""
+        },
+      },
+      mounted() {
+        this.select_date = new Date();
+      },
+      watch: {
+        select_date() {
+          this.initData();
+        }
+      },
+      filters: {
+
+      },
+      methods: {
+        //初始化查询人事日报信息
+        initData() {
+          let data = {
+            date:this.select_date
+          }
+          console.log(data);
+          axios.post("/api/Personnel_Api/PersonnelData", data).then(res => {
+            console.log(res.data)
+            this.loading = false;
+            this.tableData = res.data.Data;
+          })
+        },
+        //格式化表头每周对应的日期
+        formatterWeek(v) {
+          let nowTime = new Date().getTime();
+          let day = new Date().getDay();
+          let oneDayTime = 24 * 60 * 60 * 1000;
+          //每周周一
+          let dayTime;
+          if (v == 1) {
+            dayTime = new Date(nowTime - (day - 1) * oneDayTime);
+            return `${dayTime.getMonth() + 1}月${dayTime.getDate()}日`;
+          } else if (v == 2) {
+            dayTime = new Date(nowTime - (day - 2) * oneDayTime);
+            return `${dayTime.getMonth() + 1}月${dayTime.getDate()}日`;
+          } else if (v == 3) {
+            dayTime = new Date(nowTime - (day - 3) * oneDayTime);
+            return `${dayTime.getMonth() + 1}月${dayTime.getDate()}日`;
+          } else if (v == 4) {
+            dayTime = new Date(nowTime - (day - 4) * oneDayTime);
+            return `${dayTime.getMonth() + 1}月${dayTime.getDate()}日`;
+          } else if (v == 5) {
+            dayTime = new Date(nowTime - (day - 5) * oneDayTime);
+            return `${dayTime.getMonth() + 1}月${dayTime.getDate()}日`;
+          }
+        },
+        //格式化背景颜色
+        cellStyle({ column }) {
+          if (column.property == 'Aurhorized_personnel' ||
+            column.property == 'Need_personnel' ||
+            column.property == 'Huizong' ||
+            column.property == 'Dangqian_que' ||
+            column.property == 'Week_total_employees' ||
+            column.property == 'Week_total_workers' ||
+            column.property == 'Month_on_board_employees' ||
+            column.property == 'Month_on_board_workers' ||
+            column.property == 'Month_dimission_employees_over7days' ||
+            column.property == 'Month_dimission_employees_nvever_over7days' ||
+            column.property == 'Month_dimission_workers' ||
+            column.property == 'Resigned_that_month' ||
+            column.property == 'Resigned_workers_that_month') {
+            return "background-color:yellow"
+          }
+        },
+        //打开添加/修改人事日报
+        onShow(val) {
+          this.isShow = true;
+          if (val == 0) {
+            this.daily_type = 0;
+            this.dailyInfo = this.default_dailyinfo;
+          } else {
+            this.daily_type = 1;
+            this.dailyInfo = val;
+          }
+        },
+        //监听取消弹框
+        cancel(val) {
+          this.isShow = val;
+        },
+        //跳转版本信息
+        onToVesion() { },
+
+      }
+    }
+
+  </script>
+}
